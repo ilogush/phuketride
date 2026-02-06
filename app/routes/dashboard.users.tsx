@@ -44,19 +44,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function UsersPage() {
     const { users: usersList, roleCounts } = useLoaderData<typeof loader>();
-    const [activeTab, setActiveTab] = useState<string | number>("all");
+    const [activeTab, setActiveTab] = useState<string | number>("admin");
 
     const tabs = [
-        { id: "all", label: "All", count: roleCounts.all },
         { id: "admin", label: "Admin", count: roleCounts.admin },
         { id: "partner", label: "Partner", count: roleCounts.partner },
         { id: "manager", label: "Manager", count: roleCounts.manager },
         { id: "user", label: "User", count: roleCounts.user },
     ];
 
-    const filteredUsers = activeTab === "all"
-        ? usersList
-        : usersList.filter(user => user.role === activeTab);
+    const filteredUsers = usersList.filter(user => user.role === activeTab);
 
     const columns: Column<typeof usersList[0]>[] = [
         {
@@ -121,7 +118,7 @@ export default function UsersPage() {
                 columns={columns}
                 totalCount={filteredUsers.length}
                 emptyTitle="No users found"
-                emptyDescription={activeTab === "all" ? "Start by adding your first user" : `No users with role "${activeTab}"`}
+                emptyDescription={`No users with role "${activeTab}"`}
                 emptyIcon={<UserGroupIcon className="w-16 h-16" />}
             />
         </div>

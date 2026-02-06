@@ -56,19 +56,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function CarsPage() {
     const { cars, statusCounts } = useLoaderData<typeof loader>();
-    const [activeTab, setActiveTab] = useState<string>("all");
+    const [activeTab, setActiveTab] = useState<string>("available");
 
     const tabs = [
-        { id: "all", label: "All" },
         { id: "available", label: "Available" },
         { id: "rented", label: "Rented" },
         { id: "maintenance", label: "Maintenance" },
         { id: "booked", label: "Booked" },
     ];
 
-    const filteredCars = activeTab === "all"
-        ? cars
-        : cars.filter(car => car.status === activeTab);
+    const filteredCars = cars.filter(car => car.status === activeTab);
 
     const columns: Column<typeof cars[0]>[] = [
         { key: "id", label: "ID" },
@@ -130,7 +127,7 @@ export default function CarsPage() {
                 columns={columns}
                 totalCount={filteredCars.length}
                 emptyTitle="No cars found"
-                emptyDescription={activeTab === "all" ? "Start by adding your first car to the system" : `No cars with status "${activeTab}"`}
+                emptyDescription={`No cars with status "${activeTab}"`}
                 emptyIcon={<TruckIcon className="w-16 h-16" />}
             />
         </div>

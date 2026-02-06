@@ -56,19 +56,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function ContractsPage() {
     const { contracts: contractsList, statusCounts } = useLoaderData<typeof loader>();
-    const [activeTab, setActiveTab] = useState<string>("all");
+    const [activeTab, setActiveTab] = useState<string>("draft");
 
     const tabs = [
-        { id: "all", label: "All", count: statusCounts.all },
         { id: "draft", label: "Draft", count: statusCounts.draft },
         { id: "active", label: "Active", count: statusCounts.active },
         { id: "completed", label: "Completed", count: statusCounts.completed },
         { id: "cancelled", label: "Cancelled", count: statusCounts.cancelled },
     ];
 
-    const filteredContracts = activeTab === "all"
-        ? contractsList
-        : contractsList.filter(contract => contract.status === activeTab);
+    const filteredContracts = contractsList.filter(contract => contract.status === activeTab);
 
     const columns: Column<typeof contractsList[0]>[] = [
         { key: "id", label: "ID" },
@@ -129,7 +126,7 @@ export default function ContractsPage() {
                 columns={columns}
                 totalCount={filteredContracts.length}
                 emptyTitle="No contracts found"
-                emptyDescription={activeTab === "all" ? "Contracts will appear here" : `No contracts with status "${activeTab}"`}
+                emptyDescription={`No contracts with status "${activeTab}"`}
                 emptyIcon={<ClipboardDocumentListIcon className="w-16 h-16" />}
             />
         </div>

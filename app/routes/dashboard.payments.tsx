@@ -58,18 +58,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function PaymentsPage() {
     const { payments: paymentsList, statusCounts } = useLoaderData<typeof loader>();
-    const [activeTab, setActiveTab] = useState<string>("all");
+    const [activeTab, setActiveTab] = useState<string>("pending");
 
     const tabs = [
-        { id: "all", label: "All", count: statusCounts.all },
         { id: "pending", label: "Pending", count: statusCounts.pending },
         { id: "completed", label: "Completed", count: statusCounts.completed },
         { id: "cancelled", label: "Cancelled", count: statusCounts.cancelled },
     ];
 
-    const filteredPayments = activeTab === "all"
-        ? paymentsList
-        : paymentsList.filter(payment => payment.status === activeTab);
+    const filteredPayments = paymentsList.filter(payment => payment.status === activeTab);
 
     const columns: Column<typeof paymentsList[0]>[] = [
         { key: "id", label: "ID" },
@@ -130,7 +127,7 @@ export default function PaymentsPage() {
                 columns={columns}
                 totalCount={filteredPayments.length}
                 emptyTitle="No payments found"
-                emptyDescription={activeTab === "all" ? "Payment records will appear here" : `No payments with status "${activeTab}"`}
+                emptyDescription={`No payments with status "${activeTab}"`}
                 emptyIcon={<BanknotesIcon className="w-16 h-16" />}
             />
         </div>
