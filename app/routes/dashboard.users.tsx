@@ -44,7 +44,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function UsersPage() {
     const { users: usersList, roleCounts } = useLoaderData<typeof loader>();
-    const [activeTab, setActiveTab] = useState<string>("all");
+    const [activeTab, setActiveTab] = useState<string | number>("all");
 
     const tabs = [
         { id: "all", label: "All", count: roleCounts.all },
@@ -106,7 +106,7 @@ export default function UsersPage() {
                 title="Users Management"
                 rightActions={
                     <>
-                        <Button variant="outline">Import Users</Button>
+                        <Button variant="secondary">Import Users</Button>
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
                             Add User
                         </Button>
