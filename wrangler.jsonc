@@ -1,9 +1,23 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "react-router-app",
-  "compatibility_date": "2025-04-04",
-  "main": "./workers/app.ts",
-  "vars": {
-    "VALUE_FROM_CLOUDFLARE": "Hello from Cloudflare"
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "react-router-app",
+	"compatibility_date": "2025-04-04",
+	"main": "./workers/app.ts",
+	"vars": {
+		"VALUE_FROM_CLOUDFLARE": "Hello from Cloudflare"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "phuketride-bd",
+			"database_id": "a6ed0bbe-76ff-40f8-b23b-b9779af5d02d",
+			"migrations_dir": "drizzle"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "ASSETS",
+			"bucket_name": "phuketride-cache"
+		}
+	]
 }

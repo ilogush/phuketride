@@ -3,7 +3,9 @@ import { createRequestHandler } from "react-router";
 declare module "react-router" {
   export interface AppLoadContext {
     cloudflare: {
-      env: Env;
+      env: Env & {
+        DB: D1Database;
+      };
       ctx: ExecutionContext;
     };
   }
