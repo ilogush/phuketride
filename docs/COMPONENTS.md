@@ -199,6 +199,9 @@ import { Textarea } from '@/components'
 />
 ```
 
+**Updated Styles**: Title uses `text-xl md:text-xl font-black text-gray-900 tracking-tight` with fade-in animation. No subtitles should be used - removed from all pages.
+```
+
 #### PageContent
 **Location**: `app/components/ui/PageContent.tsx`
 

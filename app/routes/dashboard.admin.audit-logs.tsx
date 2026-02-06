@@ -1,59 +1,232 @@
-import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
+import { useLoaderData, Form } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
+import { drizzle } from "drizzle-orm/d1";
+import * as schema from "~/db/schema";
+import { desc } from "drizzle-orm";
 import PageHeader from "~/components/ui/PageHeader";
 import DataTable, { type Column } from "~/components/ui/DataTable";
+import Button from "~/components/ui/Button";
 
-export async function loader({ request }: LoaderFunctionArgs) {
+interface AuditLog {
+    id: number;
+    userId: string | null;
+    role: string | null;
+    companyId: number | null;
+    entityType: string;
+    entityId: number | null;
+    action: string;
+    beforeState: string | null;
+    afterState: string | null;
+    ipAddress: string | null;
+    userAgent: string | null;
+    createdAt: Date;
+}
+
+const ACTION_COLORS: Record<string, string> = {
+    create: "bg-green-100 text-green-800",
+    update: "bg-orange-100 text-orange-800",
+    delete: "bg-red-100 text-red-800",
+    view: "bg-blue-100 text-blue-800",
+    export: "bg-purple-100 text-purple-800",
+    login: "bg-blue-100 text-blue-800",
+    logout: "bg-gray-100 text-gray-800",
+    clear: "bg-red-100 text-red-800",
+};
+
+export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    return { user };
+    const db = drizzle(context.cloudflare.env.DB, { schema });
+
+    const logs = await db
+        .select()
+        .from(schema.auditLogs)
+        .orderBy(desc(schema.auditLogs.createdAt))
+        .limit(100);
+
+    return { user, logs };
+}
+
+export async function action({ request, context }: ActionFunctionArgs) {
+    const user = await requireAuth(request);
+    const db = drizzle(context.cloudflare.env.DB, { schema });
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+
+    if (intent === "clear") {
+        await db.delete(schema.auditLogs);
+        return data({ success: true, message: "Audit logs cleared successfully" });
+    }
+
+    return data({ success: false, message: "Invalid action" }, { status: 400 });
 }
 
 export default function AuditLogsPage() {
-    const { user } = useLoaderData<typeof loader>();
+    const { logs } = useLoaderData<typeof loader>();
 
-    const logs = [
+    const columns: Column<AuditLog>[] = [
         {
-            id: '1',
-            action: 'Company Created',
-            user: 'phuketride.com@gmail.com',
-            details: 'Created company: Tim Logush Rental',
-            timestamp: new Date().toISOString(),
+            key: "createdAt",
+            label: "Timestamp",
+            render: (log) => (
+                <div className="text-sm">
+                    <div className="font-medium text-gray-900">
+                        {new Date(log.createdAt).toLocaleDateString("en-GB")}
+                    </div>
+                    <div className="text-gray-500">
+                        {new Date(log.createdAt).toLocaleTimeString("en-GB")}
+                    </div>
+                </div>
+            ),
         },
-    ];
+        {
+            key: "userId",
+            label: "Actor",
+            render: (log) => (
+                <div className="text-sm">
+                    <div className="font-medium text-gray-900">
+                        {log.userId || "System"}
+                    </div>
+                    <div className="text-gray-500">{log.role || "-"}</div>
+                </div>
+            ),
+        },
+        {
+            key: "action",
+            label: "Action",
+            render: (log) => (
+                <span
+                    className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${ACTION_COLORS[log.action] || "bg-gray-100 text-gray-800"
+                        }`}
+                >
+                    {log.action}
+                </span>
+            ),
+        },
+        {
+            key: "entityType",
+            label: "Target Entity",
+            render: (log) => (
+                <div className="text-sm">
+                    <div className="font-medium text-gray-900">{log.entityType}</div>
+                    <div className="text-gray-500">
+                        {log.companyId ? `company #${log.companyId}` : "-"}
+                    </div>
+                </div>
+            ),
+        },
+        {
+            key: "details",
+            label: "Change Details",
+            render: (log) => {
+                if (!log.beforeState && !log.afterState) {
+                    return <span className="text-gray-500">-</span>;
+                }
 
-    const columns: Column<typeof logs[0]>[] = [
-        {
-            key: 'timestamp',
-            label: 'Timestamp',
-            render: (log) => new Date(log.timestamp).toLocaleString(),
+                try {
+                    const before = log.beforeState ? JSON.parse(log.beforeState) : null;
+                    const after = log.afterState ? JSON.parse(log.afterState) : null;
+
+                    if (before && after) {
+                        const changes = Object.keys(after).filter(
+                            (key) => before[key] !== after[key]
+                        );
+                        if (changes.length > 0) {
+                            return (
+                                <span className="text-sm text-gray-700">
+                                    Modified {changes.length} field{changes.length > 1 ? "s" : ""}{" "}
+                                    <span className="text-gray-500">
+                                        {changes.slice(0, 2).join(", ")}
+                                        {changes.length > 2 ? "..." : ""}
+                                    </span>
+                                </span>
+                            );
+                        }
+                    }
+
+                    return <span className="text-gray-500">-</span>;
+                } catch {
+                    return <span className="text-gray-500">-</span>;
+                }
+            },
         },
         {
-            key: 'action',
-            label: 'Action',
-        },
-        {
-            key: 'user',
-            label: 'User',
-        },
-        {
-            key: 'details',
-            label: 'Details',
-            wrap: true,
+            key: "source",
+            label: "Source",
+            render: (log) => (
+                <div className="text-xs text-gray-500 max-w-xs truncate">
+                    {log.ipAddress && (
+                        <div className="font-mono">::{log.ipAddress.slice(-4)}</div>
+                    )}
+                    {log.userAgent && (
+                        <div className="truncate" title={log.userAgent}>
+                            {log.userAgent.includes("Mozilla")
+                                ? "Mozilla/5.0"
+                                : log.userAgent.slice(0, 20)}
+                            ...
+                        </div>
+                    )}
+                    {!log.ipAddress && !log.userAgent && "-"}
+                </div>
+            ),
         },
     ];
 
     return (
-        <div className="space-y-4 animate-in fade-in duration-700">
-            <PageHeader title="Audit Logs" />
-
-            <DataTable
-                data={logs}
-                columns={columns}
-                totalCount={logs.length}
-                emptyTitle="No audit logs found"
-                emptyDescription="System activity will appear here"
+        <div className="space-y-4">
+            <PageHeader
+                title="System Audit Logs"
+                rightActions={
+                    logs.length > 0 && (
+                        <Form method="post">
+                            <input type="hidden" name="intent" value="clear" />
+                            <Button type="submit" variant="destructive">
+                                Clear All Logs
+                            </Button>
+                        </Form>
+                    )
+                }
             />
+
+            {logs.length > 0 ? (
+                <DataTable
+                    columns={columns}
+                    data={logs}
+                    disablePagination={true}
+                    emptyTitle="No audit logs found"
+                    emptyDescription="System activity will appear here"
+                />
+            ) : (
+                <div className="bg-white rounded-3xl shadow-sm p-12 border border-gray-200 py-4">
+                    <div className="text-center">
+                        <AuditIcon />
+                        <h3 className="mt-4 text-lg font-medium text-gray-900">
+                            No audit logs found
+                        </h3>
+                        <p className="mt-2 text-sm text-gray-500">
+                            System activity will appear here
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
+    );
+}
+
+function AuditIcon() {
+    return (
+        <svg
+            className="w-16 h-16 mx-auto text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+        >
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+        </svg>
     );
 }

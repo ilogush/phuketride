@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import { useLoaderData, Link } from "react-router";
 import { useState } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
@@ -57,10 +57,24 @@ export default function CompaniesPage() {
         { key: "name", label: "Name" },
         { key: "email", label: "Email" },
         { key: "phone", label: "Phone" },
+        {
+            key: "actions",
+            label: "Actions",
+            render: (company) => (
+                <div className="flex gap-2">
+                    <Link to={`/dashboard/companies/${company.id}`}>
+                        <Button variant="secondary" size="sm">View</Button>
+                    </Link>
+                    <Link to={`/dashboard/companies/${company.id}/edit`}>
+                        <Button variant="secondary" size="sm">Edit</Button>
+                    </Link>
+                </div>
+            )
+        },
     ];
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <PageHeader
                 title="Companies"
                 rightActions={

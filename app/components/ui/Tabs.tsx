@@ -16,7 +16,7 @@ export default function Tabs({ tabs, activeTab, onTabChange, className = '', var
     if (!tabs || tabs.length === 0) return null
 
     return (
-        <div className={`flex space-x-1 bg-white p-1 rounded-full shadow-sm max-w-fit mb-4 ${className}`}>
+        <div className={`flex space-x-1 bg-white p-1 rounded-full shadow-sm max-w-fit${className}`}>
             {tabs.map((tab) => (
                 <button
                     type="button"

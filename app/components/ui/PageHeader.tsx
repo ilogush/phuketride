@@ -76,7 +76,7 @@ export default function PageHeader({
                         </div>
                     )}
                     {title && (
-                        <h1 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight animate-in fade-in slide-in-from-left-4 duration-500">
+                        <h1 className="text-xl md:text-xl font-black text-gray-900 tracking-tight animate-in fade-in slide-in-from-left-4 duration-500">
                             {title}
                         </h1>
                     )}

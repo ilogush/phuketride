@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import { useLoaderData, Link } from "react-router";
 import { useState } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
@@ -92,15 +92,29 @@ export default function ContractsPage() {
             label: "Status",
             render: (contract) => <StatusBadge variant={contract.status === "active" ? "success" : "neutral"}>{contract.status}</StatusBadge>
         },
+        {
+            key: "actions",
+            label: "Actions",
+            render: (contract) => (
+                <div className="flex gap-2">
+                    <Link to={`/dashboard/contracts/${contract.id}`}>
+                        <Button variant="secondary" size="sm">View</Button>
+                    </Link>
+                    <Link to={`/dashboard/contracts/${contract.id}/edit`}>
+                        <Button variant="secondary" size="sm">Edit</Button>
+                    </Link>
+                </div>
+            )
+        },
     ];
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <PageHeader
                 title="Contracts"
                 rightActions={
                     <>
-                        <Button variant="outline">Export</Button>
+                        <Button variant="secondary">Export</Button>
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
                             New Contract
                         </Button>

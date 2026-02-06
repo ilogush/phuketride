@@ -31,7 +31,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
         <header className="h-16 flex items-center px-4 sticky top-0 z-40">
             <div className="flex items-center justify-between w-full">
                 {/* Menu Button + Search Bar */}
-                <div className="flex items-center gap-4 flex-1 max-w-2xl">
+                <div className="flex items-center gap-4 flex-1 max-w-md">
                     {/* Menu Toggle Button */}
                     <button
                         onClick={onToggleSidebar}
@@ -59,10 +59,10 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
                         <input
                             type="text"
                             placeholder="Global search (companies, cars, users...)"
-                            className="w-full pl-12 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+                            className="w-full pl-4 pr-14 py-2.5 bg-white border border-gray-200 rounded-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-200 transition-all"
                         />
-                        <div className="absolute inset-y-0 left-1 flex items-center">
-                            <div className="w-10 h-10 rounded-xl bg-gray-800 flex items-center justify-center shadow-sm transition-transform group-focus-within:scale-105">
+                        <div className="absolute inset-y-2 right-1.5 flex items-center">
+                            <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center shadow-sm transition-transform group-focus-within:scale-105">
                                 <MagnifyingGlassIcon className="w-4 h-4 text-white" />
                             </div>
                         </div>

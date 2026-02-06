@@ -89,10 +89,25 @@ export const districts = sqliteTable("districts", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     name: text("name").notNull(),
     locationId: integer("location_id").notNull(),
+    beaches: text("beaches"), // JSON array of beach/location names
     deliveryPrice: real("delivery_price").default(0),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
+
+// Hotels table
+export const hotels = sqliteTable("hotels", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    locationId: integer("location_id").notNull(),
+    districtId: integer("district_id").notNull(),
+    address: text("address"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+}, (table) => ({
+    locationIdx: sqliteIndex("idx_hotels_location_id").on(table.locationId),
+    districtIdx: sqliteIndex("idx_hotels_district_id").on(table.districtId),
+}));
 
 export const carBrands = sqliteTable("car_brands", {
     id: integer("id").primaryKey({ autoIncrement: true }),
@@ -307,6 +322,38 @@ export const adminSettings = sqliteTable("admin_settings", {
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
+
+// Rental durations table
+export const rentalDurations = sqliteTable("rental_durations", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyId: integer("company_id").notNull(),
+    rangeName: text("range_name").notNull(),
+    minDays: integer("min_days").notNull(),
+    maxDays: integer("max_days"), // null = unlimited
+    priceMultiplier: real("price_multiplier").notNull().default(1),
+    discountLabel: text("discount_label"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+}, (table) => ({
+    companyIdx: sqliteIndex("idx_rental_durations_company_id").on(table.companyId),
+}));
+
+// Seasons table
+export const seasons = sqliteTable("seasons", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyId: integer("company_id").notNull(),
+    seasonName: text("season_name").notNull(),
+    startMonth: integer("start_month").notNull(), // 1-12
+    startDay: integer("start_day").notNull(), // 1-31
+    endMonth: integer("end_month").notNull(), // 1-12
+    endDay: integer("end_day").notNull(), // 1-31
+    priceMultiplier: real("price_multiplier").notNull().default(1),
+    discountLabel: text("discount_label"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+}, (table) => ({
+    companyIdx: sqliteIndex("idx_seasons_company_id").on(table.companyId),
+}));
 
 
 // Indexes for performance optimization

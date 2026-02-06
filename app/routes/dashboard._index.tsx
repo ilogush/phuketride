@@ -16,7 +16,6 @@ import {
 } from "@heroicons/react/24/outline";
 import StatCard from "~/components/ui/StatCard";
 import TasksWidget from "~/components/ui/TasksWidget";
-import PageHeader from "~/components/ui/PageHeader";
 
 const ICON_MAP: Record<string, any> = {
     BuildingOfficeIcon,
@@ -104,13 +103,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             ];
         } else if (user.companyId) {
             // Partner/Manager stats
-            // Fixed user counting for company
-            const [usersCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(users)
-                .innerJoin(companyCars, eq(companyCars.companyId, user.companyId))
-                .limit(1); // Simplified for now since schema doesn't have direct companyId on users
-
             const [carsCount] = await db
                 .select({ count: sql<number>`count(*)` })
                 .from(companyCars)
@@ -122,14 +114,22 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
                 .where(eq(companyCars.companyId, user.companyId));
 
+            const startOfMonth = new Date();
+            startOfMonth.setDate(1);
+            startOfMonth.setHours(0, 0, 0, 0);
+
+            const [activeContractsCount] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(contracts)
+                .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
+                .where(
+                    and(
+                        eq(companyCars.companyId, user.companyId),
+                        gte(contracts.createdAt, startOfMonth)
+                    )
+                );
+
             statCards = [
-                {
-                    name: "Users",
-                    value: `${usersCount?.count || 0}/0`,
-                    subtext: "company users / online",
-                    icon: "UserGroupIcon",
-                    href: "/dashboard/users",
-                },
                 {
                     name: "Cars",
                     value: `${carsCount?.count || 0}/0`,
@@ -139,25 +139,69 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 },
                 {
                     name: "Contracts",
-                    value: `${contractsCount?.count || 0}/0`,
+                    value: `${contractsCount?.count || 0}/${activeContractsCount?.count || 0}`,
                     subtext: "total / active this month",
                     icon: "ClipboardDocumentListIcon",
                     href: "/dashboard/contracts",
+                },
+                {
+                    name: "Revenue",
+                    value: "฿0",
+                    subtext: "this month",
+                    icon: "BanknotesIcon",
+                    href: "/dashboard/payments",
+                },
+            ];
+        } else {
+            // User role - show personal stats
+            const [userContractsCount] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(contracts)
+                .where(eq(contracts.userId, user.id));
+
+            const startOfMonth = new Date();
+            startOfMonth.setDate(1);
+            startOfMonth.setHours(0, 0, 0, 0);
+
+            const [activeContractsCount] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(contracts)
+                .where(
+                    and(
+                        eq(contracts.userId, user.id),
+                        gte(contracts.createdAt, startOfMonth)
+                    )
+                );
+
+            statCards = [
+                {
+                    name: "My Bookings",
+                    value: userContractsCount?.count || 0,
+                    subtext: "total bookings",
+                    icon: "ClipboardDocumentListIcon",
+                    href: "/dashboard/bookings",
+                },
+                {
+                    name: "Active",
+                    value: activeContractsCount?.count || 0,
+                    subtext: "this month",
+                    icon: "CheckCircleIcon",
+                    href: "/dashboard/bookings",
+                },
+                {
+                    name: "Upcoming",
+                    value: 0,
+                    subtext: "scheduled",
+                    icon: "CalendarIcon",
+                    href: "/dashboard/bookings",
                 },
             ];
         }
     } catch (error) {
         console.error("Error loading dashboard stats:", error);
-        // Fallback data if DB fails
-        if (user.role === 'admin') {
-            statCards = [
-                { name: "Companies", value: 1, subtext: "total registered", icon: "BuildingOfficeIcon", href: "/dashboard/companies" },
-                { name: "Users", value: "2/0", subtext: "total / online", icon: "UserGroupIcon", href: "/dashboard/users" },
-                { name: "Cars", value: 0, subtext: "total templates", icon: "TruckIcon", href: "/dashboard/cars" },
-                { name: "Contracts", value: 0, subtext: "this month", icon: "ClipboardDocumentListIcon", href: "/dashboard/contracts" },
-            ];
-            tasks = [{ id: "1", title: "New company created: Tim Logush Rental", description: "A new company has been created by phuketride.com@gmail.com. Please review and approve.", status: "pending", priority: "high" }];
-        }
+        // Return empty stats on error
+        statCards = [];
+        tasks = [];
     }
 
     return { user, statCards, tasks };
@@ -168,11 +212,8 @@ export default function DashboardIndex() {
 
     return (
         <div className="space-y-4">
-            {/* Page Header */}
-            <PageHeader title="Dashboard" />
-
             {/* Dashboard Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {statCards && statCards.length > 0 ? (
                     statCards.map((stat) => {
                         const Icon = ICON_MAP[stat.icon] || BuildingOfficeIcon;

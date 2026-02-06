@@ -53,9 +53,9 @@ export default function Button({
     const baseClasses = 'flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
 
     const sizeClasses = {
-        sm: 'px-3 py-1.5 text-sm',
-        md: 'p-4 text-sm',
-        lg: 'p-4 text-base'
+        sm: 'px-3 py-1 text-sm',
+        md: 'p-4 py-2 text-sm',
+        lg: 'p-4 py-3 text-base'
     }
 
     const roundedClasses = {
@@ -69,8 +69,8 @@ export default function Button({
     const variantClasses = {
         primary: 'bg-gray-800 text-white border border-transparent hover:bg-gray-700 font-medium',
         secondary: 'bg-gray-200 text-gray-800 border border-gray-200 hover:bg-gray-300 font-medium',
-        delete: 'bg-gray-300 text-gray-800 border border-gray-100 hover:bg-gray-200 transition-all font-medium',
-        destructive: 'bg-red-600 text-white border border-transparent hover:bg-red-700 font-medium'
+        delete: 'bg-gray-200 text-gray-800 border border-gray-200 hover:bg-gray-300 font-medium',
+        destructive: 'bg-gray-800 text-white border border-transparent hover:bg-gray-700 font-medium'
     }
 
     const widthClass = fullWidth ? 'w-full' : ''

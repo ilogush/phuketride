@@ -8,6 +8,34 @@
       "when": 1770374122886,
       "tag": "0000_easy_groot",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1770394889487,
+      "tag": "0001_absurd_revanche",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1770396328509,
+      "tag": "0002_cheerful_dakota_north",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1770397580942,
+      "tag": "0003_motionless_mystique",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1770398629745,
+      "tag": "0004_perfect_hex",
+      "breakpoints": true
     }
   ]
 }

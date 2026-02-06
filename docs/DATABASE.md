@@ -314,10 +314,31 @@ districts {
   id: integer (PK, auto-increment)
   name: text (not null)
   locationId: integer (FK, not null)
+  beaches: text (JSON array of beach/location names)
   deliveryPrice: real (default: 0)
   createdAt: timestamp
   updatedAt: timestamp
 }
+```
+
+**Phuket Districts (location_id = 1)**: 15 districts with beaches/locations:
+- Airport: Phuket Airport, Thepkrasattri Rd, Heroines Monument, Mai Khao area, Nai Yang area
+- Bang Tao: Bang Tao Beach, Layan Beach
+- Chalong: Chalong Bay, Cape Panwa Beach, Khao Khad Beach
+- Kamala: Kamala Beach
+- Karon: Karon Beach, Karon Noi Beach
+- Kata: Kata Beach, Kata Noi Beach
+- Kathu: Central Festival, Phang Muang Sai Kor Rd, Loch Palm Golf, Patong Hill
+- Mai Khao: Mai Khao Beach, Sai Kaew Beach
+- Nai Harn: Nai Harn Beach
+- Nai Thon: Nai Thon Beach, Banana Beach
+- Nai Yang: Nai Yang Beach
+- Patong: Patong Beach, Kalim Beach, Paradise Beach
+- Phuket Town: Phuket Old Town, Thalang Rd, Yaowarat Rd, Boat Lagoon, Koh Kaew
+- Rawai: Rawai Beach, Friendship Beach, Yanui Beach
+- Surin: Surin Beach, Pansea Beach
+
+**Seeding**: Use `scripts/seed-districts.sql` to populate districts data
 ```
 
 ### Car Brands
@@ -390,6 +411,27 @@ maintenanceHistory {
 ```
 
 **Indexes**: companyCarId, performedAt
+
+### Rental Durations
+Rental duration periods with pricing multipliers for multi-day rentals.
+
+```typescript
+rentalDurations {
+  id: integer (PK, auto-increment)
+  companyId: integer (FK, not null)
+  rangeName: text (not null)
+  minDays: integer (not null)
+  maxDays: integer (null = unlimited)
+  priceMultiplier: real (not null, default: 1)
+  discountLabel: text
+  createdAt: timestamp
+  updatedAt: timestamp
+}
+```
+
+**Indexes**: companyId
+
+**Usage**: Define pricing tiers based on rental duration. Price multiplier applies to base daily rate. Example: 0.95 = 5% discount, 0.8 = 20% discount.
 
 ## Query Optimization Rules
 
@@ -483,6 +525,24 @@ npm run db:migrate:local
 
 # Production
 npm run db:migrate:remote
+```
+
+### Manual Migration (if automatic fails)
+```bash
+# Local
+npx wrangler d1 execute phuketride-bd --local --command="ALTER TABLE districts ADD COLUMN beaches text;"
+
+# Production
+npx wrangler d1 execute phuketride-bd --remote --command="ALTER TABLE districts ADD COLUMN beaches text;"
+```
+
+### Seed Data
+```bash
+# Districts data (Phuket)
+npx wrangler d1 execute phuketride-bd --local --file=./scripts/seed-districts.sql
+
+# Production
+npx wrangler d1 execute phuketride-bd --remote --file=./scripts/seed-districts.sql
 ```
 
 ### Migration Files

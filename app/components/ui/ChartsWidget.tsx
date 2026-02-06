@@ -61,7 +61,7 @@ export default function ChartsWidget() {
         <Card>
             <SectionHeader>Statistics</SectionHeader>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
                 {/* Contract Stats */}
                 <div>
                     <h3 className="text-sm font-medium text-gray-700 mb-3">Contract Status</h3>

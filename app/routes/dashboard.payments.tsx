@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import { useLoaderData, Link } from "react-router";
 import { useState } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
@@ -93,15 +93,29 @@ export default function PaymentsPage() {
             label: "Status",
             render: (payment) => <StatusBadge variant={payment.status === "completed" ? "success" : "warning"}>{payment.status}</StatusBadge>
         },
+        {
+            key: "actions",
+            label: "Actions",
+            render: (payment) => (
+                <div className="flex gap-2">
+                    <Link to={`/dashboard/payments/${payment.id}`}>
+                        <Button variant="secondary" size="sm">View</Button>
+                    </Link>
+                    <Link to={`/dashboard/payments/${payment.id}/edit`}>
+                        <Button variant="secondary" size="sm">Edit</Button>
+                    </Link>
+                </div>
+            )
+        },
     ];
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <PageHeader
                 title="Payments"
                 rightActions={
                     <>
-                        <Button variant="outline">Export</Button>
+                        <Button variant="secondary">Export</Button>
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
                             Record Payment
                         </Button>

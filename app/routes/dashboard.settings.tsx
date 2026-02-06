@@ -11,7 +11,7 @@ export default function SettingsPage() {
     const { user } = useLoaderData<typeof loader>();
 
     return (
-        <div>
+        <div className="space-y-4">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
                 <p className="text-gray-600 mt-2">
@@ -19,7 +19,7 @@ export default function SettingsPage() {
                 </p>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+            <div className="bg-white rounded-3xl shadow-sm p-4">
                 <p className="text-gray-500">Settings page - Coming soon</p>
             </div>
         </div>

@@ -14,7 +14,7 @@ export default function BookingsPage() {
     const { user } = useLoaderData<typeof loader>();
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <PageHeader
                 title="Bookings"
                 rightActions={
@@ -24,7 +24,7 @@ export default function BookingsPage() {
                 }
             />
 
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+            <div className="bg-white rounded-3xl shadow-sm p-4">
                 <p className="text-gray-500">Bookings page - Coming soon</p>
             </div>
         </div>

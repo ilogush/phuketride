@@ -244,7 +244,7 @@ export default function DataTable<T>({
                                         <th
                                             key={col.key}
                                             scope="col"
-                                            className={`${idx === 0 ? 'pl-4' : 'px-4'} py-2 text-left text-sm font-semibold text-gray-400 tracking-tight ${idx > 2 ? 'hidden sm:table-cell' : ''} ${col.className || ''}`}
+                                            className={`${idx === 0 ? 'pl-4' : 'px-4'} py-2 text-left text-xs font-normal text-gray-500 tracking-tight uppercase ${idx > 2 ? 'hidden sm:table-cell' : ''} ${col.className || ''}`}
                                         >
                                             <span>{col.label}</span>
                                         </th>
@@ -286,14 +286,29 @@ export default function DataTable<T>({
                                         key={(item as any).id || idx}
                                         className={`group hover:bg-white transition-all ${isLoading ? 'opacity-50' : ''} ${getRowClassName ? getRowClassName(item, idx) : ''}`}
                                     >
-                                        {currentColumns.map((col, cIdx) => (
-                                            <td
-                                                key={col.key}
-                                                className={`${cIdx === 0 ? 'pl-4' : 'px-4'} py-2 text-sm text-gray-900 ${col.wrap ? 'whitespace-normal align-middle' : 'whitespace-nowrap align-middle'} ${cIdx > 2 ? 'hidden sm:table-cell' : ''} ${col.className || ''}`}
-                                            >
-                                                {col.render ? col.render(item, idx, page, pageSize) : (item as any)[col.key]}
-                                            </td>
-                                        ))}
+                                        {currentColumns.map((col, cIdx) => {
+                                            const cellValue = col.render
+                                                ? col.render(item, idx, page, pageSize)
+                                                : (item as any)[col.key];
+
+                                            // Auto-format ID columns
+                                            const formattedValue = !col.render && col.key === 'id' && typeof cellValue === 'number'
+                                                ? (
+                                                    <span className="font-mono text-sm bg-gray-800 text-white px-2 py-1 rounded-full">
+                                                        {String(cellValue).padStart(4, '0')}
+                                                    </span>
+                                                )
+                                                : cellValue;
+
+                                            return (
+                                                <td
+                                                    key={col.key}
+                                                    className={`${cIdx === 0 ? 'pl-4' : 'px-4'} py-2 text-sm text-gray-900 ${col.wrap ? 'whitespace-normal align-middle' : 'whitespace-nowrap align-middle'} ${cIdx > 2 ? 'hidden sm:table-cell' : ''} ${col.className || ''}`}
+                                                >
+                                                    {formattedValue}
+                                                </td>
+                                            );
+                                        })}
                                     </tr>
                                 ))
                             )}

@@ -31,7 +31,7 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
 
             {/* Tasks List */}
             <div className="p-4">
-                <div className="space-y-6">
+                <div className="space-y-4">
                     {tasks.map((task) => (
                         <div key={task.id} className="space-y-4 group">
                             <div className="space-y-1.5">
