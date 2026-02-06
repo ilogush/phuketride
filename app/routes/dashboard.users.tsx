@@ -57,14 +57,25 @@ export default function UsersPage() {
 
     const columns: Column<typeof usersList[0]>[] = [
         {
-            key: "id",
-            label: "ID",
-            render: (user) => user.id.substring(0, 8) + "..."
-        },
-        {
             key: "name",
             label: "Name",
-            render: (user) => user.name && user.surname ? `${user.name} ${user.surname}` : user.name || "-"
+            render: (user) => {
+                const initials = `${user.name?.[0] || ''}${user.surname?.[0] || ''}`.toUpperCase();
+                const fullName = user.name || "-";
+                const surname = user.surname || "";
+
+                return (
+                    <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                            {initials || "?"}
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="font-medium">{fullName}</span>
+                            {surname && <span className="text-sm text-gray-500">{surname}</span>}
+                        </div>
+                    </div>
+                );
+            }
         },
         { key: "email", label: "Email" },
         {
