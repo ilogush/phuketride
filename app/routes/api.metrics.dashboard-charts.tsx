@@ -9,16 +9,30 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         const user = await requireAuth(request);
         const db = drizzle(context.cloudflare.env.DB);
 
-        // Activity by day (last 7 days)
+        // Activity by day (last 7 days) - count contracts created per day
         const activityByDay = [];
         for (let i = 6; i >= 0; i--) {
             const date = new Date();
             date.setDate(date.getDate() - i);
+            date.setHours(0, 0, 0, 0);
             const dateStr = date.toISOString().split('T')[0];
+
+            const nextDate = new Date(date);
+            nextDate.setDate(nextDate.getDate() + 1);
+
+            const [result] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(contracts)
+                .where(
+                    and(
+                        gte(contracts.createdAt, date),
+                        sql`${contracts.createdAt} < ${nextDate.getTime()}`
+                    )
+                );
 
             activityByDay.push({
                 date: dateStr,
-                count: Math.floor(Math.random() * 10) // Mock data for now
+                count: result?.count || 0
             });
         }
 

@@ -26,9 +26,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
 
-    // For demo purposes, using companyId = 1
-    // In production, get from user's company or admin context
-    const companyId = 1;
+    // Get companyId from user context
+    // Admin can see all companies, partner/manager see their own
+    const companyId = user.companyId || 1; // Fallback to 1 if no company assigned
 
     const durations = await db
         .select()
@@ -45,7 +45,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
     const intent = formData.get("intent");
 
-    const companyId = 1; // Same as loader
+    const companyId = user.companyId || 1; // Same as loader
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));

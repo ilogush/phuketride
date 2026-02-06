@@ -3,7 +3,7 @@ import { useLoaderData, Form } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import PageHeader from "~/components/ui/PageHeader";
 import DataTable, { type Column } from "~/components/ui/DataTable";
 import Button from "~/components/ui/Button";
@@ -21,6 +21,8 @@ interface AuditLog {
     ipAddress: string | null;
     userAgent: string | null;
     createdAt: Date;
+    userName: string | null;
+    userSurname: string | null;
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -39,8 +41,24 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const db = drizzle(context.cloudflare.env.DB, { schema });
 
     const logs = await db
-        .select()
+        .select({
+            id: schema.auditLogs.id,
+            userId: schema.auditLogs.userId,
+            role: schema.auditLogs.role,
+            companyId: schema.auditLogs.companyId,
+            entityType: schema.auditLogs.entityType,
+            entityId: schema.auditLogs.entityId,
+            action: schema.auditLogs.action,
+            beforeState: schema.auditLogs.beforeState,
+            afterState: schema.auditLogs.afterState,
+            ipAddress: schema.auditLogs.ipAddress,
+            userAgent: schema.auditLogs.userAgent,
+            createdAt: schema.auditLogs.createdAt,
+            userName: schema.users.name,
+            userSurname: schema.users.surname,
+        })
         .from(schema.auditLogs)
+        .leftJoin(schema.users, eq(schema.auditLogs.userId, schema.users.id))
         .orderBy(desc(schema.auditLogs.createdAt))
         .limit(100);
 
@@ -85,7 +103,9 @@ export default function AuditLogsPage() {
             render: (log) => (
                 <div className="text-sm">
                     <div className="font-medium text-gray-900">
-                        {log.userId || "System"}
+                        {log.userName
+                            ? `${log.userName}${log.userSurname ? ' ' + log.userSurname : ''}`.trim()
+                            : log.userId || "System"}
                     </div>
                     <div className="text-gray-500">{log.role || "-"}</div>
                 </div>

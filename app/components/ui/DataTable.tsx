@@ -184,30 +184,13 @@ export default function DataTable<T>({
 
         if (urlTab !== activeTab) {
             setPage(1)
-            const url = new URL(window.location.href)
-            url.searchParams.set('page', '1')
-            window.history.replaceState({}, '', url)
         }
 
         setSortBy(undefined)
         setSortOrder(undefined)
     }, [activeTab, searchParams])
 
-    useEffect(() => {
-        const url = new URL(window.location.href)
-        if (url.searchParams.get('page') !== page.toString()) {
-            url.searchParams.set('page', page.toString())
-            window.history.replaceState({}, '', url)
-        }
-    }, [page])
 
-    useEffect(() => {
-        const url = new URL(window.location.href)
-        if (url.searchParams.get('pageSize') !== pageSize.toString()) {
-            url.searchParams.set('pageSize', pageSize.toString())
-            window.history.replaceState({}, '', url)
-        }
-    }, [pageSize])
 
 
 

@@ -2,8 +2,8 @@ import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, sql, gte } from "drizzle-orm";
-import { companies, users, companyCars, contracts } from "~/db/schema";
+import { eq, and, sql, gte, desc } from "drizzle-orm";
+import { companies, users, companyCars, contracts, calendarEvents } from "~/db/schema";
 import {
     BuildingOfficeIcon,
     UserGroupIcon,
@@ -91,16 +91,26 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 },
             ];
 
-            // Mock task for demo
-            tasks = [
-                {
-                    id: "1",
-                    title: "New company created: Tim Logush Rental",
-                    description: "A new company has been created by phuketride.com@gmail.com. Please review and approve.",
-                    status: "pending" as const,
-                    priority: "high" as const,
-                },
-            ];
+            // Load tasks from calendar events
+            const upcomingTasks = await db
+                .select({
+                    id: calendarEvents.id,
+                    title: calendarEvents.title,
+                    description: calendarEvents.description,
+                    status: calendarEvents.status,
+                })
+                .from(calendarEvents)
+                .where(eq(calendarEvents.status, "pending"))
+                .orderBy(desc(calendarEvents.startDate))
+                .limit(5);
+
+            tasks = upcomingTasks.map(task => ({
+                id: task.id.toString(),
+                title: task.title,
+                description: task.description || "",
+                status: task.status as "pending" | "in_progress" | "completed",
+                priority: "medium" as const,
+            }));
         } else if (user.companyId) {
             // Partner/Manager stats
             const [carsCount] = await db

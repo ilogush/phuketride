@@ -31,7 +31,7 @@ export default function RecentActivity() {
     useEffect(() => {
         const fetchRecentActivity = async () => {
             try {
-                const response = await fetch('/api/logs?page=1&pageSize=10&sortBy=created_at&sortOrder=desc')
+                const response = await fetch('/api/logs?sortBy=created_at&sortOrder=desc')
                 if (response.ok) {
                     const data = await response.json()
                     setLogs(data.data || [])
