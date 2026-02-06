@@ -4,33 +4,36 @@ import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/ui/PageHeader";
 import Button from "~/components/ui/Button";
 import DataTable, { type Column } from "~/components/ui/DataTable";
-import { PlusIcon, BookmarkIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, SwatchIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
+    // Role check
+    if (user.role !== "admin") {
+        throw new Response("Forbidden", { status: 403 });
+    }
     return { user };
 }
 
-export default function BookingsPage() {
+export default function BrandsPage() {
     const { user } = useLoaderData<typeof loader>();
 
     const columns: Column<any>[] = [
         { key: "id", label: "ID" },
-        { key: "customerName", label: "Customer" },
-        { key: "carName", label: "Car" },
-        { key: "startDate", label: "Start Date" },
-        { key: "endDate", label: "End Date" },
-        { key: "status", label: "Status" },
+        { key: "name", label: "Name" },
+        { key: "logo", label: "Logo", render: (item) => item.logo ? <img src={item.logo} alt={item.name} className="w-8 h-8 rounded object-contain" /> : <div className="w-8 h-8 bg-gray-100 rounded" /> },
+        { key: "modelsCount", label: "Models" },
+        { key: "createdAt", label: "Created At" },
     ];
 
     return (
         <div className="space-y-4">
             <PageHeader
-                title="Bookings Management"
+                title="Car Brands"
                 rightActions={
-                    <Link to="/dashboard/bookings/create">
+                    <Link to="/dashboard/brands/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                            New Booking
+                            Add Brand
                         </Button>
                     </Link>
                 }
@@ -40,9 +43,9 @@ export default function BookingsPage() {
                 data={[]}
                 columns={columns}
                 totalCount={0}
-                emptyTitle="No bookings found"
-                emptyDescription="All bookings will appear here"
-                emptyIcon={<BookmarkIcon className="w-16 h-16" />}
+                emptyTitle="No brands found"
+                emptyDescription="Add your first car brand to get started"
+                emptyIcon={<SwatchIcon className="w-16 h-16" />}
             />
         </div>
     );

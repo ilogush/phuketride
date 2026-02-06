@@ -113,14 +113,16 @@ export default function PaymentsPage() {
                 rightActions={
                     <>
                         <Button variant="secondary">Export</Button>
-                        <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                            Record Payment
-                        </Button>
+                        <Link to="/dashboard/payments/create">
+                            <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                                Record Payment
+                            </Button>
+                        </Link>
                     </>
                 }
             />
 
-            <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
+            <Tabs tabs={tabs} activeTab={activeTab} onTabChange={(id) => setActiveTab(id as string)} />
 
             <DataTable
                 data={filteredPayments}

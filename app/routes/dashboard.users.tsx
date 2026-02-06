@@ -115,9 +115,11 @@ export default function UsersPage() {
                 rightActions={
                     <>
                         <Button variant="secondary">Import Users</Button>
-                        <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                            Add User
-                        </Button>
+                        <Link to="/dashboard/users/create">
+                            <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                                Add User
+                            </Button>
+                        </Link>
                     </>
                 }
             />

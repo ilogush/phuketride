@@ -60,9 +60,11 @@ export default function CompaniesPage() {
             <PageHeader
                 title="Companies"
                 rightActions={
-                    <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                        Add Company
-                    </Button>
+                    <Link to="/dashboard/companies/create">
+                        <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                            Add Company
+                        </Button>
+                    </Link>
                 }
             />
 

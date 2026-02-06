@@ -4,33 +4,36 @@ import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/ui/PageHeader";
 import Button from "~/components/ui/Button";
 import DataTable, { type Column } from "~/components/ui/DataTable";
-import { PlusIcon, BookmarkIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, CubeIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
+    if (user.role !== "admin") {
+        throw new Response("Forbidden", { status: 403 });
+    }
     return { user };
 }
 
-export default function BookingsPage() {
+export default function ModelsPage() {
     const { user } = useLoaderData<typeof loader>();
 
     const columns: Column<any>[] = [
         { key: "id", label: "ID" },
-        { key: "customerName", label: "Customer" },
-        { key: "carName", label: "Car" },
-        { key: "startDate", label: "Start Date" },
-        { key: "endDate", label: "End Date" },
-        { key: "status", label: "Status" },
+        { key: "brandName", label: "Brand" },
+        { key: "name", label: "Model Name" },
+        { key: "category", label: "Category" },
+        { key: "transmission", label: "Transmission" },
+        { key: "fuelType", label: "Fuel" },
     ];
 
     return (
         <div className="space-y-4">
             <PageHeader
-                title="Bookings Management"
+                title="Car Models"
                 rightActions={
-                    <Link to="/dashboard/bookings/create">
+                    <Link to="/dashboard/models/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                            New Booking
+                            Add Model
                         </Button>
                     </Link>
                 }
@@ -40,9 +43,9 @@ export default function BookingsPage() {
                 data={[]}
                 columns={columns}
                 totalCount={0}
-                emptyTitle="No bookings found"
-                emptyDescription="All bookings will appear here"
-                emptyIcon={<BookmarkIcon className="w-16 h-16" />}
+                emptyTitle="No models found"
+                emptyDescription="Add car models to the database"
+                emptyIcon={<CubeIcon className="w-16 h-16" />}
             />
         </div>
     );

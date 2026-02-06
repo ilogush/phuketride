@@ -1,6 +1,9 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
+import PageHeader from "~/components/ui/PageHeader";
+import DataTable, { type Column } from "~/components/ui/DataTable";
+import { DocumentTextIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -10,18 +13,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function MyContractsPage() {
     const { user } = useLoaderData<typeof loader>();
 
+    const columns: Column<any>[] = [
+        { key: "id", label: "Contract #" },
+        { key: "carName", label: "Car" },
+        { key: "signedAt", label: "Signed At" },
+        { key: "status", label: "Status" },
+        { key: "file", label: "Document", render: () => <span className="text-blue-600 cursor-pointer">View PDF</span> },
+    ];
+
     return (
         <div className="space-y-4">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">My Contracts</h1>
-                <p className="text-gray-600 mt-2">
-                    View your rental contracts
-                </p>
-            </div>
+            <PageHeader title="My Contracts" />
 
-            <div className="bg-white rounded-3xl shadow-sm p-4">
-                <p className="text-gray-500">My contracts page - Coming soon</p>
-            </div>
+            <DataTable
+                data={[]}
+                columns={columns}
+                totalCount={0}
+                emptyTitle="No contracts found"
+                emptyDescription="Your rental contracts will be stored here"
+                emptyIcon={<DocumentTextIcon className="w-16 h-16" />}
+            />
         </div>
     );
 }

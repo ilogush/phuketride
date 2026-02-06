@@ -1,6 +1,9 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
+import PageHeader from "~/components/ui/PageHeader";
+import DataTable, { type Column } from "~/components/ui/DataTable";
+import { BookmarkIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -10,18 +13,27 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function MyBookingsPage() {
     const { user } = useLoaderData<typeof loader>();
 
+    const columns: Column<any>[] = [
+        { key: "id", label: "Booking ID" },
+        { key: "carName", label: "Car" },
+        { key: "startDate", label: "Start Date" },
+        { key: "endDate", label: "End Date" },
+        { key: "totalPrice", label: "Total Price" },
+        { key: "status", label: "Status" },
+    ];
+
     return (
         <div className="space-y-4">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">My Bookings</h1>
-                <p className="text-gray-600 mt-2">
-                    View your booking history
-                </p>
-            </div>
+            <PageHeader title="My Bookings" />
 
-            <div className="bg-white rounded-3xl shadow-sm p-4">
-                <p className="text-gray-500">My bookings page - Coming soon</p>
-            </div>
+            <DataTable
+                data={[]}
+                columns={columns}
+                totalCount={0}
+                emptyTitle="You have no bookings"
+                emptyDescription="Your rental history will appear here"
+                emptyIcon={<BookmarkIcon className="w-16 h-16" />}
+            />
         </div>
     );
 }

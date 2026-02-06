@@ -1,6 +1,10 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
+import PageHeader from "~/components/ui/PageHeader";
+import Button from "~/components/ui/Button";
+import Card from "~/components/ui/Card";
+import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -12,16 +16,50 @@ export default function CalendarPage() {
 
     return (
         <div className="space-y-4">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Calendar</h1>
-                <p className="text-gray-600 mt-2">
-                    View bookings and schedule
-                </p>
+            <PageHeader
+                title="Calendar"
+                rightActions={
+                    <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                        Add Event
+                    </Button>
+                }
+            />
+
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                    <button className="p-2 rounded-xl hover:bg-gray-100 transition-all border border-gray-200">
+                        <ChevronLeftIcon className="w-5 h-5" />
+                    </button>
+                    <h2 className="text-xl font-bold text-gray-900">February 2026</h2>
+                    <button className="p-2 rounded-xl hover:bg-gray-100 transition-all border border-gray-200">
+                        <ChevronRightIcon className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="secondary" size="sm">Month</Button>
+                    <Button variant="secondary" size="sm">Week</Button>
+                    <Button variant="secondary" size="sm">Day</Button>
+                </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-sm p-4">
-                <p className="text-gray-500">Calendar page - Coming soon</p>
-            </div>
+            <Card className="p-0 overflow-hidden border-gray-200">
+                <div className="grid grid-cols-7 border-b border-gray-100">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                        <div key={day} className="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">
+                            {day}
+                        </div>
+                    ))}
+                </div>
+                <div className="grid grid-cols-7 grid-rows-5">
+                    {Array.from({ length: 35 }).map((_, i) => (
+                        <div key={i} className="min-h-[120px] border-r border-b border-gray-100 p-2 hover:bg-gray-50/20 transition-colors group cursor-pointer">
+                            <span className="text-xs font-bold text-gray-400 group-hover:text-gray-900 transition-colors">
+                                {i + 1 > 28 ? i - 27 : i + 1}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </Card>
         </div>
     );
 }

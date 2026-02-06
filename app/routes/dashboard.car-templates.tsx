@@ -8,29 +8,32 @@ import { PlusIcon, BookmarkIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
+    if (user.role !== "admin") {
+        throw new Response("Forbidden", { status: 403 });
+    }
     return { user };
 }
 
-export default function BookingsPage() {
+export default function CarTemplatesPage() {
     const { user } = useLoaderData<typeof loader>();
 
     const columns: Column<any>[] = [
         { key: "id", label: "ID" },
-        { key: "customerName", label: "Customer" },
-        { key: "carName", label: "Car" },
-        { key: "startDate", label: "Start Date" },
-        { key: "endDate", label: "End Date" },
-        { key: "status", label: "Status" },
+        { key: "brandName", label: "Brand" },
+        { key: "modelName", label: "Model" },
+        { key: "basePrice", label: "Base Price" },
+        { key: "seats", label: "Seats" },
+        { key: "doors", label: "Doors" },
     ];
 
     return (
         <div className="space-y-4">
             <PageHeader
-                title="Bookings Management"
+                title="Car Templates"
                 rightActions={
-                    <Link to="/dashboard/bookings/create">
+                    <Link to="/dashboard/car-templates/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                            New Booking
+                            Add Template
                         </Button>
                     </Link>
                 }
@@ -40,8 +43,8 @@ export default function BookingsPage() {
                 data={[]}
                 columns={columns}
                 totalCount={0}
-                emptyTitle="No bookings found"
-                emptyDescription="All bookings will appear here"
+                emptyTitle="No templates found"
+                emptyDescription="Templates help streamline adding new cars to the fleet"
                 emptyIcon={<BookmarkIcon className="w-16 h-16" />}
             />
         </div>

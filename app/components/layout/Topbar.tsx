@@ -84,19 +84,24 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
                     <div className="relative">
                         <button
                             onClick={() => setShowProfileMenu(!showProfileMenu)}
-                            className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-xl transition-all"
+                            className="flex items-center gap-3 p-1.5 hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200 rounded-xl transition-all"
                         >
-                            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                                <UserCircleIcon className="w-6 h-6 text-gray-600" />
+                            <div className="w-9 h-9 bg-gray-900 rounded-full flex items-center justify-center shadow-sm">
+                                <span className="text-white text-xs font-bold">
+                                    {displayName.charAt(0).toUpperCase()}
+                                </span>
                             </div>
-                            <div className="text-left hidden md:block">
-                                <div className="text-sm font-bold text-gray-900">
+                            <div className="text-left hidden md:block pr-2">
+                                <div className="text-sm font-bold text-gray-900 leading-none mb-1">
                                     {displayName}
                                 </div>
-                                <div className="text-xs text-gray-500 font-medium">
+                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider leading-none">
                                     {roleLabel}
                                 </div>
                             </div>
+                            <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showProfileMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
                         </button>
 
                         {/* Profile Dropdown */}
@@ -106,20 +111,25 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
                                     className="fixed inset-0 z-40"
                                     onClick={() => setShowProfileMenu(false)}
                                 />
-                                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+                                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 overflow-hidden animate-in fade-in zoom-in duration-200">
                                     <Link
                                         to="/dashboard/profile"
-                                        className="block py-4 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                        className="flex items-center gap-4 px-4 py-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                                         onClick={() => setShowProfileMenu(false)}
                                     >
-                                        Profile Settings
+                                        <UserCircleIcon className="w-6 h-6 text-gray-500" />
+                                        <span>Profile Settings</span>
                                     </Link>
+
                                     <Link
-                                        to="/auth/logout"
-                                        className="block py-4 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                        to="/logout"
+                                        className="flex items-center gap-4 px-4 py-4 text-sm font-medium text-red-600 hover:bg-gray-50 border-t border-gray-50 transition-colors"
                                         onClick={() => setShowProfileMenu(false)}
                                     >
-                                        Logout
+                                        <svg className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 11-6 0v-1m6-10V7a3 3 0 00-6 0v1" />
+                                        </svg>
+                                        <span>Logout</span>
                                     </Link>
                                 </div>
                             </>
