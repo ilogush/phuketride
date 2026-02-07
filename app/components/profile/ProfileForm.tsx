@@ -64,7 +64,7 @@ export default function ProfileForm({
     const [avatarFileName, setAvatarFileName] = useState<string | null>(null);
     const [removeAvatar, setRemoveAvatar] = useState(false);
 
-    const initials = `${user.name?.[0] || ''}${user.surname?.[0] || ''}`.toUpperCase() || user.email[0].toUpperCase();
+    const initials = `${user.name?.[0] || ''}${user.surname?.[0] || ''}`.toUpperCase() || (user.email?.[0]?.toUpperCase() || '?');
 
     const handlePhotoChange = (base64: string | null, fileName: string | null) => {
         setAvatarBase64(base64);
