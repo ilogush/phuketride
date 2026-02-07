@@ -66,6 +66,9 @@ export { default as RoleSwitcher } from './dashboard/RoleSwitcher'
 export { default as WeeklySchedule } from './dashboard/WeeklySchedule'
 export { default as HolidaysManager } from './dashboard/HolidaysManager'
 
+// Profile Components
+export { default as ProfileForm } from './profile/ProfileForm'
+
 // Layout Components (app/components/layout/)
 export { DashboardLayout } from './layout/DashboardLayout'
 export { default as Sidebar } from './layout/Sidebar'

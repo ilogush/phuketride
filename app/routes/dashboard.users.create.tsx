@@ -1,14 +1,9 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { useLoaderData, Form } from "react-router";
+import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
-import PageHeader from "~/components/ui/PageHeader";
-import { Input } from "~/components/ui/Input";
-import Button from "~/components/ui/Button";
-import BackButton from "~/components/ui/BackButton";
-import FormSection from "~/components/ui/FormSection";
-import { UserIcon, BuildingOfficeIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import ProfileForm from "~/components/profile/ProfileForm";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -59,183 +54,51 @@ export async function action({ request, context }: ActionFunctionArgs) {
         locationId: formData.get("locationId") ? parseInt(formData.get("locationId") as string) : null,
         districtId: formData.get("districtId") ? parseInt(formData.get("districtId") as string) : null,
         address: formData.get("address") as string || null,
+        avatarUrl: null,
+        passportPhotos: null,
+        driverLicensePhotos: null,
     });
 
-    return redirect("/users");
+    return redirect("/dashboard.users");
 }
 
 export default function CreateUserPage() {
     const { countries, hotels, locations, districts } = useLoaderData<typeof loader>();
 
+    // Empty user object for create mode
+    const emptyUser = {
+        id: "",
+        email: "",
+        name: null,
+        surname: null,
+        phone: null,
+        whatsapp: null,
+        telegram: null,
+        passportNumber: null,
+        citizenship: null,
+        city: null,
+        countryId: null,
+        dateOfBirth: null,
+        gender: null as "male" | "female" | "other" | null,
+        hotelId: null,
+        roomNumber: null,
+        locationId: null,
+        districtId: null,
+        address: null,
+        avatarUrl: null,
+        role: "user",
+        passportPhotos: null,
+        driverLicensePhotos: null,
+    };
+
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <BackButton to="/users" />
-                    <PageHeader title="Add New User" />
-                </div>
-                <Button type="submit" variant="primary" form="user-form">
-                    Create User
-                </Button>
-            </div>
-
-            {/* Profile Photo Section */}
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-4">
-                <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
-                        ?
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold text-gray-900 mb-1">Profile Photo</h3>
-                        <p className="text-xs text-gray-500">Upload a profile picture (max 2MB)</p>
-                    </div>
-                </div>
-            </div>
-
-            <Form id="user-form" method="post" className="space-y-4">
-                <FormSection title="Profile Information" icon={<UserIcon />}>
-                    <div className="grid grid-cols-4 gap-4">
-                        <Input
-                            label="First Name"
-                            name="name"
-                            placeholder="Tom"
-                            required
-                        />
-                        <Input
-                            label="Last Name"
-                            name="surname"
-                            placeholder="Carlson"
-                            required
-                        />
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Gender</label>
-                            <select
-                                name="gender"
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                            >
-                                <option value="">Select Gender</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                        <Input
-                            label="Date of Birth"
-                            name="dateOfBirth"
-                            type="date"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-4">
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Role</label>
-                            <select
-                                name="role"
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                                required
-                            >
-                                <option value="user">User</option>
-                                <option value="partner">Partner</option>
-                                <option value="manager">Manager</option>
-                                <option value="admin">Administrator</option>
-                            </select>
-                        </div>
-                        <Input
-                            label="Phone"
-                            name="phone"
-                            placeholder="+66415484865"
-                        />
-                        <Input
-                            label="WhatsApp"
-                            name="whatsapp"
-                            placeholder="+66 83 881 7057"
-                        />
-                        <Input
-                            label="Email"
-                            name="email"
-                            type="email"
-                            placeholder="ilogush@icloud.com"
-                            required
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-4">
-                        <Input
-                            label="Telegram"
-                            name="telegram"
-                            placeholder="@user_471322f2"
-                        />
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Country</label>
-                            <select
-                                name="countryId"
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                            >
-                                <option value="">Select Country</option>
-                                {countries.map((country) => (
-                                    <option key={country.id} value={country.id}>
-                                        {country.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <Input
-                            label="City"
-                            name="city"
-                            placeholder="Moscow"
-                        />
-                        <Input
-                            label="Passport / ID Number"
-                            name="passportNumber"
-                            placeholder="758024093"
-                        />
-                    </div>
-                </FormSection>
-
-                <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
-                    <div className="grid grid-cols-4 gap-4">
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Hotel</label>
-                            <select
-                                name="hotelId"
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                            >
-                                <option value="">Select Hotel</option>
-                                {hotels.map((hotel) => (
-                                    <option key={hotel.id} value={hotel.id}>
-                                        {hotel.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <Input
-                            label="Room Number"
-                            name="roomNumber"
-                            placeholder="900"
-                        />
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Location</label>
-                            <select
-                                name="locationId"
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                            >
-                                <option value="">Select Location</option>
-                                {locations.map((location) => (
-                                    <option key={location.id} value={location.id}>
-                                        {location.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                </FormSection>
-
-                <FormSection title="Document Photos" icon={<DocumentTextIcon />}>
-                    <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
-                        <p className="text-sm text-gray-400">No photos uploaded</p>
-                    </div>
-                </FormSection>
-            </Form>
-        </div>
+        <ProfileForm
+            user={emptyUser}
+            countries={countries}
+            hotels={hotels}
+            locations={locations}
+            districts={districts}
+            isEdit={true}
+        />
     );
 }
