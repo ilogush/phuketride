@@ -2,13 +2,22 @@ import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "reac
 import { useLoaderData, Form } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
+import { ne, eq } from "drizzle-orm";
 import * as schema from "~/db/schema";
 import PageHeader from "~/components/ui/PageHeader";
-import Card from "~/components/ui/Card";
 import { Input } from "~/components/ui/Input";
 import Button from "~/components/ui/Button";
 import BackButton from "~/components/ui/BackButton";
+import FormSection from "~/components/ui/FormSection";
+import WeeklySchedule from "~/components/dashboard/WeeklySchedule";
+import HolidaysManager from "~/components/dashboard/HolidaysManager";
 import { useState } from "react";
+import {
+    BuildingOfficeIcon,
+    BanknotesIcon,
+    Cog6ToothIcon,
+    UserIcon,
+} from "@heroicons/react/24/outline";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -20,7 +29,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const [locationsList, districtsList, usersList] = await Promise.all([
         db.select().from(schema.locations).limit(100),
         db.select().from(schema.districts).limit(200),
-        db.select().from(schema.users).limit(100),
+        db.select({
+            id: schema.users.id,
+            email: schema.users.email,
+            name: schema.users.name,
+            surname: schema.users.surname,
+            role: schema.users.role,
+            phone: schema.users.phone,
+        }).from(schema.users).where(ne(schema.users.role, "admin")).limit(200),
     ]);
 
     return { locations: locationsList, districts: districtsList, users: usersList };
@@ -35,7 +51,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
 
     const name = formData.get("name") as string;
-    const ownerId = formData.get("ownerId") as string;
     const email = formData.get("email") as string;
     const phone = formData.get("phone") as string;
     const telegram = formData.get("telegram") as string;
@@ -44,9 +59,30 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const street = formData.get("street") as string;
     const houseNumber = formData.get("houseNumber") as string;
 
-    await db.insert(schema.companies).values({
+    // Bank Details
+    const bankName = formData.get("bankName") as string;
+    const accountNumber = formData.get("accountNumber") as string;
+    const accountName = formData.get("accountName") as string;
+    const swiftCode = formData.get("swiftCode") as string;
+
+    // Extras
+    const preparationTime = Number(formData.get("preparationTime")) || 30;
+    const deliveryFeeAfterHours = Number(formData.get("deliveryFeeAfterHours")) || 0;
+    const islandTripPrice = Number(formData.get("islandTripPrice")) || 0;
+    const krabiTripPrice = Number(formData.get("krabiTripPrice")) || 0;
+    const babySeatPricePerDay = Number(formData.get("babySeatPricePerDay")) || 0;
+
+    // Schedule & Holidays
+    const weeklySchedule = formData.get("weeklySchedule") as string;
+    const holidays = formData.get("holidays") as string;
+
+    // Managers to assign
+    const managerIds = formData.getAll("managerIds") as string[];
+
+    // Create company with current user as owner
+    const [newCompany] = await db.insert(schema.companies).values({
         name,
-        ownerId,
+        ownerId: user.id,
         email,
         phone,
         telegram,
@@ -54,128 +90,341 @@ export async function action({ request, context }: ActionFunctionArgs) {
         districtId,
         street,
         houseNumber,
-    });
+        bankName,
+        accountNumber,
+        accountName,
+        swiftCode,
+        preparationTime,
+        deliveryFeeAfterHours,
+        islandTripPrice,
+        krabiTripPrice,
+        babySeatPricePerDay,
+        weeklySchedule,
+        holidays,
+    }).returning({ id: schema.companies.id });
 
-    return redirect("/companies");
+    // Assign managers to company and update their role to partner
+    if (managerIds.length > 0 && newCompany?.id) {
+        await Promise.all([
+            // Create manager record
+            ...managerIds.map(userId =>
+                db.insert(schema.managers).values({
+                    userId,
+                    companyId: newCompany.id,
+                    isActive: true,
+                })
+            ),
+            // Update user role to partner
+            ...managerIds.map(userId =>
+                db.update(schema.users)
+                    .set({ role: "partner", updatedAt: new Date() })
+                    .where(eq(schema.users.id, userId))
+            )
+        ]);
+    }
+
+    return redirect("/dashboard/companies");
 }
 
 export default function CreateCompanyPage() {
     const { locations, districts, users } = useLoaderData<typeof loader>();
     const [selectedLocationId, setSelectedLocationId] = useState(locations[0]?.id || 1);
+    const [weeklySchedule, setWeeklySchedule] = useState("");
+    const [holidays, setHolidays] = useState("");
+    const [selectedManager, setSelectedManager] = useState<{ id: string; email: string; name: string | null; surname: string | null; role: string; phone: string | null } | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [showSuggestions, setShowSuggestions] = useState(false);
 
     const filteredDistricts = districts.filter(d => d.locationId === selectedLocationId);
 
+    const filteredUsers = users.filter(user => {
+        if (!searchQuery) return false;
+        if (selectedManager?.id === user.id) return false;
+
+        const searchLower = searchQuery.toLowerCase();
+        const fullName = `${user.name || ''} ${user.surname || ''}`.toLowerCase();
+        return (
+            user.email.toLowerCase().includes(searchLower) ||
+            fullName.includes(searchLower)
+        );
+    });
+
+    const handleSelectManager = (user: typeof users[0]) => {
+        setSelectedManager(user);
+        setSearchQuery("");
+        setShowSuggestions(false);
+    };
+
+    const handleRemoveManager = () => {
+        setSelectedManager(null);
+    };
+
     return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <BackButton to="/companies" />
-                <PageHeader title="Add New Company" />
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <BackButton to="/dashboard/companies" />
+                    <PageHeader title="Add New Company" />
+                </div>
+                <Button type="submit" variant="primary" form="company-form">
+                    Create Company
+                </Button>
             </div>
 
-            <Card className="max-w-4xl p-8 border-gray-200">
-                <Form method="post" className="space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Input
-                            label="Company Name"
-                            name="name"
-                            placeholder="e.g., Andaman Rentals"
-                            required
-                        />
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Owner</label>
-                            <select
-                                name="ownerId"
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+            <Form id="company-form" method="post" className="space-y-4">
+                {/* Basic Information */}
+                <FormSection title="Company Information" icon={<BuildingOfficeIcon />}>
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-4 gap-4">
+                            <Input
+                                label="Company Name"
+                                name="name"
+                                placeholder="e.g., Andaman Rentals"
                                 required
-                            >
-                                <option value="">Select Owner</option>
-                                {users.map(u => (
-                                    <option key={u.id} value={u.id}>
-                                        {u.name} {u.surname} ({u.email})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <Input
-                            label="Email"
-                            name="email"
-                            type="email"
-                            placeholder="company@example.com"
-                            required
-                        />
-                        <Input
-                            label="Phone"
-                            name="phone"
-                            placeholder="+66..."
-                            required
-                        />
-                        <Input
-                            label="Telegram"
-                            name="telegram"
-                            placeholder="@company_bot"
-                            required
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Location</label>
-                            <select
-                                name="locationId"
-                                value={selectedLocationId}
-                                onChange={(e) => setSelectedLocationId(Number(e.target.value))}
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                            />
+                            <Input
+                                label="Email Address"
+                                name="email"
+                                type="email"
+                                placeholder="company@example.com"
                                 required
-                            >
-                                {locations.map(l => (
-                                    <option key={l.id} value={l.id}>{l.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">District</label>
-                            <select
-                                name="districtId"
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                            />
+                            <Input
+                                label="Phone Number"
+                                name="phone"
+                                placeholder="+66..."
                                 required
-                            >
-                                {filteredDistricts.map(d => (
-                                    <option key={d.id} value={d.id}>{d.name}</option>
-                                ))}
-                            </select>
+                            />
+                            <Input
+                                label="Telegram"
+                                name="telegram"
+                                placeholder="@company_bot"
+                            />
                         </div>
-                    </div>
 
-                    <div className="grid grid-cols-3 gap-6">
-                        <div className="col-span-2">
+                        <div className="grid grid-cols-4 gap-4">
+                            <div>
+                                <label className="block text-xs text-gray-600 mb-1">Location <span className="text-gray-500">*</span></label>
+                                <select
+                                    name="locationId"
+                                    value={selectedLocationId}
+                                    onChange={(e) => setSelectedLocationId(Number(e.target.value))}
+                                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                    required
+                                >
+                                    {locations.map(l => (
+                                        <option key={l.id} value={l.id}>{l.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-600 mb-1">District <span className="text-gray-500">*</span></label>
+                                <select
+                                    name="districtId"
+                                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                    required
+                                >
+                                    {filteredDistricts.map(d => (
+                                        <option key={d.id} value={d.id}>{d.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                             <Input
                                 label="Street"
                                 name="street"
                                 placeholder="e.g., 123 Beach Road"
                                 required
                             />
+                            <Input
+                                label="House Number"
+                                name="houseNumber"
+                                placeholder="e.g., 45/1"
+                                required
+                            />
                         </div>
+                    </div>
+                </FormSection>
+
+                {/* Bank Details */}
+                <FormSection title="Bank Details" icon={<BanknotesIcon />}>
+                    <div className="grid grid-cols-4 gap-4">
                         <Input
-                            label="House Number"
-                            name="houseNumber"
-                            placeholder="e.g., 45/1"
-                            required
+                            label="Bank Name"
+                            name="bankName"
+                            placeholder="e.g., Bangkok Bank"
+                        />
+                        <Input
+                            label="Account Number"
+                            name="accountNumber"
+                            placeholder="e.g., 123-456-7890"
+                        />
+                        <Input
+                            label="Account Name"
+                            name="accountName"
+                            placeholder="e.g., Company Ltd."
+                        />
+                        <Input
+                            label="SWIFT / BIC Code"
+                            name="swiftCode"
+                            placeholder="e.g., BKKBTHBK"
                         />
                     </div>
+                </FormSection>
 
-                    <div className="flex justify-end gap-4 pt-6">
-                        <Button variant="secondary" onClick={() => window.history.back()}>
-                            Cancel
-                        </Button>
-                        <Button type="submit" variant="primary">
-                            Create Company
-                        </Button>
+                {/* Extras */}
+                <FormSection title="Extras" icon={<Cog6ToothIcon />}>
+                    <div className="grid grid-cols-4 gap-4">
+                        <Input
+                            label="Preparation Time (min)"
+                            name="preparationTime"
+                            type="number"
+                            placeholder="30"
+                            defaultValue="30"
+                        />
+                        <Input
+                            label="Delivery Fee (After Hours)"
+                            name="deliveryFeeAfterHours"
+                            type="number"
+                            step="0.01"
+                            placeholder="0"
+                            addonLeft="฿"
+                        />
+                        <Input
+                            label="Island Trip Cost"
+                            name="islandTripPrice"
+                            type="number"
+                            step="0.01"
+                            placeholder="0"
+                            addonLeft="฿"
+                        />
+                        <Input
+                            label="Krabi Trip Cost"
+                            name="krabiTripPrice"
+                            type="number"
+                            step="0.01"
+                            placeholder="0"
+                            addonLeft="฿"
+                        />
                     </div>
-                </Form>
-            </Card>
+                    <div className="grid grid-cols-4 gap-4 mt-4">
+                        <Input
+                            label="Baby Seat Cost (per day)"
+                            name="babySeatPricePerDay"
+                            type="number"
+                            step="0.01"
+                            placeholder="0"
+                            addonLeft="฿"
+                        />
+                    </div>
+                </FormSection>
+
+                {/* Assign Managers */}
+                <FormSection title="Assign Users" icon={<UserIcon />}>
+                    <div className="space-y-4">
+                        {!selectedManager ? (
+                            <div className="relative">
+                                <Input
+                                    label="Search Users"
+                                    name="userSearch"
+                                    placeholder="Type email or name..."
+                                    value={searchQuery}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                        setShowSuggestions(true);
+                                    }}
+                                    onFocus={() => setShowSuggestions(true)}
+                                    autoComplete="off"
+                                />
+
+                                {showSuggestions && searchQuery && filteredUsers.length > 0 && (
+                                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                                        {filteredUsers.slice(0, 10).map((user) => (
+                                            <button
+                                                key={user.id}
+                                                type="button"
+                                                onClick={() => handleSelectManager(user)}
+                                                className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
+                                            >
+                                                <div className="text-sm font-medium text-gray-900">
+                                                    {user.name && user.surname
+                                                        ? `${user.name} ${user.surname}`
+                                                        : user.email}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    {user.email} • {user.role}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {!searchQuery && (
+                                    <div className="text-center py-8">
+                                        <UserIcon className="w-12 h-12 mx-auto text-gray-300 mb-2" />
+                                        <p className="text-sm text-gray-400">Search and select a user to assign to this company</p>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <input type="hidden" name="managerIds" value={selectedManager.id} />
+                                <div className="flex items-center justify-between mb-4">
+                                    <label className="block text-xs text-gray-600">Assigned User</label>
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={handleRemoveManager}
+                                    >
+                                        Remove
+                                    </Button>
+                                </div>
+                                <div className="grid grid-cols-4 gap-4">
+                                    <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Name</label>
+                                        <div className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900">
+                                            {selectedManager.name || '-'}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Surname</label>
+                                        <div className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900">
+                                            {selectedManager.surname || '-'}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Email</label>
+                                        <div className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900">
+                                            {selectedManager.email}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Phone</label>
+                                        <div className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900">
+                                            {selectedManager.phone || '-'}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-4 gap-4">
+                                    <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Role</label>
+                                        <div className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 capitalize">
+                                            {selectedManager.role}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </FormSection>
+
+                {/* Weekly Schedule */}
+                <input type="hidden" name="weeklySchedule" value={weeklySchedule} />
+                <WeeklySchedule value={weeklySchedule} onChange={setWeeklySchedule} />
+
+                {/* Holidays */}
+                <input type="hidden" name="holidays" value={holidays} />
+                <HolidaysManager value={holidays} onChange={setHolidays} />
+            </Form>
         </div>
     );
 }
