@@ -66,9 +66,11 @@ export default function PageHeader({
         }
     }
 
+    const hasRightActions = !!finalActions || withSearch || !!children
+
     return (
         <div>
-            <div className="flex items-center justify-between gap-6">
+            <div className={`flex items-center ${hasRightActions ? 'justify-between' : 'justify-start'} gap-6`}>
                 <div className="flex items-center gap-4">
                     {leftActions}
                     {title && (
