@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, Form } from 'react-router'
 
 interface TopNavigationProps {
     user: {
@@ -90,24 +90,26 @@ export function TopNavigation({ user }: TopNavigationProps) {
                         {showUserMenu && (
                             <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50">
                                 <Link
-                                    to="/dashboard/profile"
+                                    to="/profile"
                                     className="block py-4 text-sm text-gray-700 hover:bg-gray-50"
                                 >
                                     Profile
                                 </Link>
                                 <Link
-                                    to="/dashboard/settings"
+                                    to="/settings"
                                     className="block py-4 text-sm text-gray-700 hover:bg-gray-50"
                                 >
                                     Settings
                                 </Link>
                                 <hr className="my-1 border-gray-200" />
-                                <Link
-                                    to="/logout"
-                                    className="block py-4 text-sm text-red-600 hover:bg-gray-50"
-                                >
-                                    Logout
-                                </Link>
+                                <Form method="post" action="/logout">
+                                    <button
+                                        type="submit"
+                                        className="w-full text-left py-4 text-sm text-red-600 hover:bg-gray-50"
+                                    >
+                                        Logout
+                                    </button>
+                                </Form>
                             </div>
                         )}
                     </div>

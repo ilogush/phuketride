@@ -33,14 +33,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
         logoUrl,
     });
 
-    return redirect("/dashboard/brands");
+    return redirect("/brands");
 }
 
 export default function CreateBrandPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <BackButton to="/dashboard/brands" />
+                <BackButton to="/brands" />
                 <PageHeader title="Add New Brand" />
             </div>
 

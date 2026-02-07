@@ -31,7 +31,7 @@ export default function ModelsPage() {
             <PageHeader
                 title="Car Models"
                 rightActions={
-                    <Link to="/dashboard/models/create">
+                    <Link to="/models/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
                             Add Model
                         </Button>

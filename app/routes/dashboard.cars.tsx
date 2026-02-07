@@ -113,7 +113,7 @@ export default function CarsPage() {
                 rightActions={
                     <>
                         <Button variant="secondary">Import</Button>
-                        <Link to="/dashboard/cars/create">
+                        <Link to="/cars/create">
                             <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
                                 Add Car
                             </Button>

@@ -1,34 +1,18 @@
 #!/usr/bin/env node
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { drizzle } from "drizzle-orm/d1";
 import * as schema from "../app/db/schema";
 import { seedTestData } from "./seed-test-data";
-import * as dotenv from "dotenv";
 
-// Load environment variables
-dotenv.config();
+// This script is for seeding Cloudflare D1 database only
+// Run with: npm run db:seed (requires wrangler dev environment)
 
 async function main() {
-    const databaseUrl = process.env.DATABASE_URL;
-
-    if (!databaseUrl) {
-        console.error("❌ DATABASE_URL not found in .env file");
-        console.log("Please add DATABASE_URL to your .env file");
-        console.log("For local development: DATABASE_URL=file:.wrangler/state/v3/d1/miniflare-D1DatabaseObject/<db-id>.sqlite");
-        process.exit(1);
-    }
-
-    console.log("🔌 Connecting to database...");
-    const client = createClient({
-        url: databaseUrl,
-    });
-
-    const db = drizzle(client, { schema });
-
-    await seedTestData(db);
-
-    console.log("👋 Done!");
-    process.exit(0);
+    console.error("❌ This script requires Cloudflare D1 connection");
+    console.log("Use wrangler CLI to seed the database:");
+    console.log("  Local:  npm run db:migrate:local");
+    console.log("  Remote: npm run db:migrate:remote");
+    console.log("\nFor manual seeding, use SQL files in scripts/ directory");
+    process.exit(1);
 }
 
 main().catch((error) => {

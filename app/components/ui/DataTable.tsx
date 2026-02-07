@@ -277,7 +277,7 @@ export default function DataTable<T>({
                                             // Auto-format ID columns
                                             const formattedValue = !col.render && col.key === 'id' && typeof cellValue === 'number'
                                                 ? (
-                                                    <span className="font-mono text-sm bg-gray-800 text-white px-2 py-1 rounded-full">
+                                                    <span className="font-mono text-xs bg-gray-800 text-white px-2 py-1 rounded-full">
                                                         {String(cellValue).padStart(4, '0')}
                                                     </span>
                                                 )

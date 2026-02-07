@@ -6,7 +6,7 @@ import { users } from "~/db/schema";
 // Session cookie configuration
 export const sessionCookie = createCookie("session", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true, // Always use secure cookies in Cloudflare Workers
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: "/",
@@ -24,10 +24,14 @@ export interface SessionUser {
 }
 
 // Simple password verification (in production, use proper hashing like bcrypt)
-function verifyPassword(password: string, storedPassword: string, email?: string): boolean {
+function verifyPassword(password: string, email: string): boolean {
+    console.log("verifyPassword called:", { email, password, passwordLength: password.length });
+
     // Admin has special password
     if (email === "ilogush@icloud.com") {
-        return password === "220232";
+        const isValid = password === "220232";
+        console.log("Admin password check:", { password, expected: "220232", isValid });
+        return isValid;
     }
     // For demo purposes, all other test users have password "password123"
     return password === "password123";
@@ -92,7 +96,7 @@ export async function login(
     }
 
     // Verify password (simplified for demo)
-    if (!verifyPassword(password, "password123", email)) {
+    if (!verifyPassword(password, email)) {
         return { error: "Invalid email or password" };
     }
 

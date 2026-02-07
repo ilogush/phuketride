@@ -38,7 +38,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         bodyType,
     });
 
-    return redirect("/dashboard/models");
+    return redirect("/models");
 }
 
 export default function CreateModelPage() {
@@ -47,7 +47,7 @@ export default function CreateModelPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <BackButton to="/dashboard/models" />
+                <BackButton to="/models" />
                 <PageHeader title="Add New Model" />
             </div>
 

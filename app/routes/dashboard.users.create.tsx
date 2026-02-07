@@ -44,14 +44,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
         phone,
     });
 
-    return redirect("/dashboard/users");
+    return redirect("/users");
 }
 
 export default function CreateUserPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <BackButton to="/dashboard/users" />
+                <BackButton to="/users" />
                 <PageHeader title="Add New User" />
             </div>
 

@@ -66,28 +66,28 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     value: companiesCount?.count || 0,
                     subtext: "total registered",
                     icon: "BuildingOfficeIcon",
-                    href: "/dashboard/companies",
+                    href: "/companies",
                 },
                 {
                     name: "Users",
                     value: `${usersCount?.count || 0}/0`,
                     subtext: "total / online",
                     icon: "UserGroupIcon",
-                    href: "/dashboard/users",
+                    href: "/users",
                 },
                 {
                     name: "Cars",
                     value: carsCount?.count || 0,
                     subtext: "total templates",
                     icon: "TruckIcon",
-                    href: "/dashboard/cars",
+                    href: "/cars",
                 },
                 {
                     name: "Contracts",
                     value: contractsThisMonth?.count || 0,
                     subtext: "this month",
                     icon: "ClipboardDocumentListIcon",
-                    href: "/dashboard/contracts",
+                    href: "/contracts",
                 },
             ];
 
@@ -145,21 +145,21 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     value: `${carsCount?.count || 0}/0`,
                     subtext: "total / in workshop",
                     icon: "TruckIcon",
-                    href: "/dashboard/cars",
+                    href: "/cars",
                 },
                 {
                     name: "Contracts",
                     value: `${contractsCount?.count || 0}/${activeContractsCount?.count || 0}`,
                     subtext: "total / active this month",
                     icon: "ClipboardDocumentListIcon",
-                    href: "/dashboard/contracts",
+                    href: "/contracts",
                 },
                 {
                     name: "Revenue",
                     value: "฿0",
                     subtext: "this month",
                     icon: "BanknotesIcon",
-                    href: "/dashboard/payments",
+                    href: "/payments",
                 },
             ];
         } else {
@@ -189,21 +189,21 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     value: userContractsCount?.count || 0,
                     subtext: "total bookings",
                     icon: "ClipboardDocumentListIcon",
-                    href: "/dashboard/bookings",
+                    href: "/my-bookings",
                 },
                 {
                     name: "Active",
                     value: activeContractsCount?.count || 0,
                     subtext: "this month",
                     icon: "CheckCircleIcon",
-                    href: "/dashboard/bookings",
+                    href: "/my-bookings",
                 },
                 {
                     name: "Upcoming",
                     value: 0,
                     subtext: "scheduled",
                     icon: "CalendarIcon",
-                    href: "/dashboard/bookings",
+                    href: "/my-bookings",
                 },
             ];
         }

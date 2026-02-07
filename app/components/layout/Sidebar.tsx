@@ -44,56 +44,56 @@ const getMenuItems = (role: UserRole) => {
     if (role === "admin") {
         return [
             ...baseItems,
-            { to: "/dashboard/companies", icon: BuildingOfficeIcon, label: "Companies" },
-            { to: "/dashboard/users", icon: UsersIcon, label: "Users" },
-            { to: "/dashboard/cars", icon: TruckIcon, label: "Cars" },
-            { to: "/dashboard/payments", icon: BanknotesIcon, label: "Payments" },
-            { to: "/dashboard/locations", icon: MapPinIcon, label: "Locations" },
-            { to: "/dashboard/hotels", icon: BuildingOffice2Icon, label: "Hotels" },
-            { to: "/dashboard/durations", icon: ClockIcon, label: "Durations" },
-            { to: "/dashboard/seasons", icon: SunIcon, label: "Seasons" },
-            { to: "/dashboard/colors", icon: SwatchIcon, label: "Colors" },
-            { to: "/dashboard/admin/audit-logs", icon: ClipboardDocumentListIcon, label: "Audit Logs" },
+            { to: "/companies", icon: BuildingOfficeIcon, label: "Companies" },
+            { to: "/users", icon: UsersIcon, label: "Users" },
+            { to: "/cars", icon: TruckIcon, label: "Cars" },
+            { to: "/payments", icon: BanknotesIcon, label: "Payments" },
+            { to: "/locations", icon: MapPinIcon, label: "Locations" },
+            { to: "/hotels", icon: BuildingOffice2Icon, label: "Hotels" },
+            { to: "/durations", icon: ClockIcon, label: "Durations" },
+            { to: "/seasons", icon: SunIcon, label: "Seasons" },
+            { to: "/colors", icon: SwatchIcon, label: "Colors" },
+            { to: "/admin/audit-logs", icon: ClipboardDocumentListIcon, label: "Audit Logs" },
         ];
     }
 
     if (role === "partner") {
         return [
             ...baseItems,
-            { to: "/dashboard/contracts", icon: DocumentTextIcon, label: "Contracts" },
-            { to: "/dashboard/locations", icon: MapPinIcon, label: "Delivery" },
-            { to: "/dashboard/cars", icon: TruckIcon, label: "Cars" },
-            { to: "/dashboard/durations", icon: ClockIcon, label: "Durations" },
-            { to: "/dashboard/payments", icon: BanknotesIcon, label: "Payments" },
-            { to: "/dashboard/users", icon: UsersIcon, label: "Users" },
-            { to: "/dashboard/calendar", icon: CalendarIcon, label: "Calendar" },
-            { to: "/dashboard/chat", icon: ChatBubbleLeftRightIcon, label: "Chat" },
-            { to: "/dashboard/settings", icon: Cog6ToothIcon, label: "Settings" },
+            { to: "/contracts", icon: DocumentTextIcon, label: "Contracts" },
+            { to: "/locations", icon: MapPinIcon, label: "Delivery" },
+            { to: "/cars", icon: TruckIcon, label: "Cars" },
+            { to: "/durations", icon: ClockIcon, label: "Durations" },
+            { to: "/payments", icon: BanknotesIcon, label: "Payments" },
+            { to: "/users", icon: UsersIcon, label: "Users" },
+            { to: "/calendar", icon: CalendarIcon, label: "Calendar" },
+            { to: "/chat", icon: ChatBubbleLeftRightIcon, label: "Chat" },
+            { to: "/settings", icon: Cog6ToothIcon, label: "Settings" },
         ];
     }
 
     if (role === "manager") {
         return [
             ...baseItems,
-            { to: "/dashboard/bookings", icon: DocumentTextIcon, label: "Bookings" },
-            { to: "/dashboard/cars", icon: TruckIcon, label: "Cars" },
-            { to: "/dashboard/contracts", icon: DocumentTextIcon, label: "Contracts" },
-            { to: "/dashboard/durations", icon: ClockIcon, label: "Durations" },
-            { to: "/dashboard/payments", icon: BanknotesIcon, label: "Payments" },
-            { to: "/dashboard/users", icon: UsersIcon, label: "Users" },
-            { to: "/dashboard/calendar", icon: CalendarIcon, label: "Calendar" },
-            { to: "/dashboard/chat", icon: ChatBubbleLeftRightIcon, label: "Chat" },
-            { to: "/dashboard/profile", icon: UserIcon, label: "Profile" },
+            { to: "/bookings", icon: DocumentTextIcon, label: "Bookings" },
+            { to: "/cars", icon: TruckIcon, label: "Cars" },
+            { to: "/contracts", icon: DocumentTextIcon, label: "Contracts" },
+            { to: "/durations", icon: ClockIcon, label: "Durations" },
+            { to: "/payments", icon: BanknotesIcon, label: "Payments" },
+            { to: "/users", icon: UsersIcon, label: "Users" },
+            { to: "/calendar", icon: CalendarIcon, label: "Calendar" },
+            { to: "/chat", icon: ChatBubbleLeftRightIcon, label: "Chat" },
+            { to: "/profile", icon: UserIcon, label: "Profile" },
         ];
     }
 
     // User role
     return [
         ...baseItems,
-        { to: "/dashboard/search-cars", icon: TruckIcon, label: "Search Cars" },
-        { to: "/dashboard/my-bookings", icon: DocumentTextIcon, label: "My Bookings" },
-        { to: "/dashboard/my-contracts", icon: DocumentTextIcon, label: "My Contracts" },
-        { to: "/dashboard/profile", icon: UserIcon, label: "Profile" },
+        { to: "/search-cars", icon: TruckIcon, label: "Search Cars" },
+        { to: "/my-bookings", icon: DocumentTextIcon, label: "My Bookings" },
+        { to: "/my-contracts", icon: DocumentTextIcon, label: "My Contracts" },
+        { to: "/profile", icon: UserIcon, label: "Profile" },
     ];
 };
 

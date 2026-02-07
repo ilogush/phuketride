@@ -85,13 +85,16 @@
 
 ## 5. База Данных и Логирование
 
-### 5.1 Cloudflare D1 (SQLite)
-- БД: Cloudflare D1 (SQLite).
-- Доступ через `context.cloudflare.env.DB` в loader/action.
-- Drizzle ORM для типобезопасных запросов.
+### 5.1 Cloudflare D1 (SQLite) - ЕДИНСТВЕННАЯ БД (КРИТИЧНО)
+- **ЗАПРЕЩЕНО** использовать локальные БД (PostgreSQL, MySQL, SQLite файлы).
+- **ЗАПРЕЩЕНО** создавать/изменять код для работы с локальными БД.
+- **ТОЛЬКО** Cloudflare D1 (SQLite) через `context.cloudflare.env.DB`.
+- Доступ к БД ИСКЛЮЧИТЕЛЬНО через `context.cloudflare.env.DB` в loader/action.
+- Drizzle ORM для типобезопасных запросов к D1.
 - НЕ использовать Soft Delete.
 - Именование: таблицы и колонки в `snake_case`.
 - Миграции через `npm run db:generate` и `npm run db:migrate`.
+- Локальная разработка: использовать Wrangler dev с локальной D1 (`wrangler dev`).
 - **Схема БД и запросы**: См. docs/DATABASE.md
 
 ### 5.2 Оптимизация запросов

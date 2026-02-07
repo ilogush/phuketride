@@ -56,7 +56,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         houseNumber,
     });
 
-    return redirect("/dashboard/companies");
+    return redirect("/companies");
 }
 
 export default function CreateCompanyPage() {
@@ -68,7 +68,7 @@ export default function CreateCompanyPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <BackButton to="/dashboard/companies" />
+                <BackButton to="/companies" />
                 <PageHeader title="Add New Company" />
             </div>
 

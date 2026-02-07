@@ -111,7 +111,7 @@ export default function RecentActivity() {
             <SectionHeader
                 rightAction={
                     <Link
-                        to="/dashboard/logs"
+                        to="/admin/audit-logs"
                         className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
                     >
                         View all

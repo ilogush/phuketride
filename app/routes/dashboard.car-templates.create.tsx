@@ -57,7 +57,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         description,
     });
 
-    return redirect("/dashboard/car-templates");
+    return redirect("/car-templates");
 }
 
 export default function CreateCarTemplatePage() {
@@ -69,7 +69,7 @@ export default function CreateCarTemplatePage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <BackButton to="/dashboard/car-templates" />
+                <BackButton to="/car-templates" />
                 <PageHeader title="Add New Car Template" />
             </div>
 

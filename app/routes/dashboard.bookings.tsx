@@ -28,7 +28,7 @@ export default function BookingsPage() {
             <PageHeader
                 title="Bookings Management"
                 rightActions={
-                    <Link to="/dashboard/bookings/create">
+                    <Link to="/bookings/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
                             New Booking
                         </Button>

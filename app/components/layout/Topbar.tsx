@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, Form } from "react-router";
 import {
     MagnifyingGlassIcon,
     BellIcon,
@@ -113,7 +113,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
                                 />
                                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 overflow-hidden animate-in fade-in zoom-in duration-200">
                                     <Link
-                                        to="/dashboard/profile"
+                                        to="/profile"
                                         className="flex items-center gap-4 px-4 py-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                                         onClick={() => setShowProfileMenu(false)}
                                     >
@@ -123,7 +123,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
 
                                     <Link
                                         to="/logout"
-                                        className="flex items-center gap-4 px-4 py-4 text-sm font-medium text-red-600 hover:bg-gray-50 border-t border-gray-50 transition-colors"
+                                        className="flex items-center gap-4 px-4 py-4 text-sm font-medium text-red-600 hover:bg-gray-50 border-t border-gray-50 transition-colors w-full"
                                         onClick={() => setShowProfileMenu(false)}
                                     >
                                         <svg className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -6,9 +6,9 @@ export default [
     route("register", "routes/register.tsx"),
     route("logout", "routes/logout.tsx"),
 
-    // Dashboard
-    route("dashboard", "routes/dashboard.tsx", [
-        index("routes/dashboard._index.tsx"),
+    // Protected routes with dashboard layout
+    layout("routes/dashboard.tsx", [
+        route("dashboard", "routes/dashboard._index.tsx"),
 
         // Admin routes
         route("companies", "routes/dashboard.companies.tsx"),

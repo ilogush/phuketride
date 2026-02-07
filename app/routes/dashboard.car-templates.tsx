@@ -31,7 +31,7 @@ export default function CarTemplatesPage() {
             <PageHeader
                 title="Car Templates"
                 rightActions={
-                    <Link to="/dashboard/car-templates/create">
+                    <Link to="/car-templates/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
                             Add Template
                         </Button>

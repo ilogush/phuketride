@@ -27,7 +27,7 @@ export default function ProfilePage() {
             <PageHeader
                 title="Profile"
                 rightActions={
-                    <Link to="/dashboard/profile/edit">
+                    <Link to="/profile/edit">
                         <Button variant="secondary" icon={<PencilIcon className="w-4 h-4" />}>
                             Edit Profile
                         </Button>

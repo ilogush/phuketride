@@ -31,7 +31,7 @@ export default function BrandsPage() {
             <PageHeader
                 title="Car Brands"
                 rightActions={
-                    <Link to="/dashboard/brands/create">
+                    <Link to="/brands/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
                             Add Brand
                         </Button>

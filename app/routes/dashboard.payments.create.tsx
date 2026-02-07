@@ -43,7 +43,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         createdBy: user.id,
     });
 
-    return redirect("/dashboard/payments");
+    return redirect("/payments");
 }
 
 export default function RecordPaymentPage() {
@@ -52,7 +52,7 @@ export default function RecordPaymentPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <BackButton to="/dashboard/payments" />
+                <BackButton to="/payments" />
                 <PageHeader title="Record Payment" />
             </div>
 

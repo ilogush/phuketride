@@ -29,7 +29,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     // Logic to create booking/contract
     // ...
 
-    return redirect("/dashboard/bookings");
+    return redirect("/bookings");
 }
 
 export default function CreateBookingPage() {
@@ -38,7 +38,7 @@ export default function CreateBookingPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <BackButton to="/dashboard/bookings" />
+                <BackButton to="/bookings" />
                 <PageHeader title="New Booking" />
             </div>
 

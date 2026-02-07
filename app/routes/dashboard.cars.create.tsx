@@ -44,7 +44,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         status: "available",
     });
 
-    return redirect("/dashboard/cars");
+    return redirect("/cars");
 }
 
 export default function CreateCarPage() {
@@ -53,7 +53,7 @@ export default function CreateCarPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <BackButton to="/dashboard/cars" />
+                <BackButton to="/cars" />
                 <PageHeader title="Add New Car" />
             </div>
 

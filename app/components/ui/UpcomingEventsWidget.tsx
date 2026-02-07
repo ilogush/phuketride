@@ -114,7 +114,7 @@ export default function UpcomingEventsWidget({ companyId, limit = 5 }: UpcomingE
             <SectionHeader
                 rightAction={
                     <Link
-                        to="/dashboard/calendar"
+                        to="/calendar"
                         className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
                     >
                         View All

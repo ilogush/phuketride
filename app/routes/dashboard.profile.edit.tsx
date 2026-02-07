@@ -31,7 +31,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         .set({ name, surname, phone })
         .where(eq(schema.users.id, user.id));
 
-    return redirect("/dashboard/profile");
+    return redirect("/profile");
 }
 
 export default function EditProfilePage() {
@@ -40,7 +40,7 @@ export default function EditProfilePage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <BackButton to="/dashboard/profile" />
+                <BackButton to="/profile" />
                 <PageHeader title="Edit Profile" />
             </div>
 

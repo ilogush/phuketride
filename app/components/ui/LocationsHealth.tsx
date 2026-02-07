@@ -57,7 +57,7 @@ export default function LocationsHealth({ locations }: LocationsHealthProps) {
             <SectionHeader
                 rightAction={
                     <Link
-                        to="/dashboard/locations"
+                        to="/locations"
                         className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
                     >
                         View all

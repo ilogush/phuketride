@@ -113,7 +113,7 @@ export default function PaymentsPage() {
                 rightActions={
                     <>
                         <Button variant="secondary">Export</Button>
-                        <Link to="/dashboard/payments/create">
+                        <Link to="/payments/create">
                             <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
                                 Record Payment
                             </Button>
