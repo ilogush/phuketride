@@ -70,11 +70,7 @@ export default function PageHeader({
         <div>
             <div className="flex items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
-                    {leftActions && (
-                        <div className="flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-300">
-                            {leftActions}
-                        </div>
-                    )}
+                    {leftActions}
                     {title && (
                         <h1 className="text-xl md:text-xl font-black text-gray-900 tracking-tight animate-in fade-in slide-in-from-left-4 duration-500">
                             {title}
