@@ -15,19 +15,18 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     if (!fullUser) throw new Response("User not found", { status: 404 });
 
-    // Load reference data
-    const [country, hotel, location, district] = await Promise.all([
+    // Load reference data in parallel
+    const [country, hotel, location] = await Promise.all([
         fullUser.countryId ? db.select().from(schema.countries).where(eq(schema.countries.id, fullUser.countryId)).get() : null,
         fullUser.hotelId ? db.select().from(schema.hotels).where(eq(schema.hotels.id, fullUser.hotelId)).get() : null,
         fullUser.locationId ? db.select().from(schema.locations).where(eq(schema.locations.id, fullUser.locationId)).get() : null,
-        fullUser.districtId ? db.select().from(schema.districts).where(eq(schema.districts.id, fullUser.districtId)).get() : null,
     ]);
 
-    return { user: fullUser, country, hotel, location, district };
+    return { user: fullUser, country, hotel, location };
 }
 
 export default function ProfilePage() {
-    const { user, country, hotel, location, district } = useLoaderData<typeof loader>();
+    const { user, country, hotel, location } = useLoaderData<typeof loader>();
 
     return (
         <div className="space-y-4">
@@ -44,11 +43,9 @@ export default function ProfilePage() {
                 countries={[]}
                 hotels={[]}
                 locations={[]}
-                districts={[]}
                 country={country}
                 hotel={hotel}
                 location={location}
-                district={district}
                 isEdit={false}
             />
         </div>

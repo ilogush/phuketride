@@ -59,14 +59,11 @@ interface ProfileFormProps {
     countries: Country[];
     hotels: Hotel[];
     locations: Location[];
-    districts: District[];
     country?: Country | null;
     hotel?: Hotel | null;
     location?: Location | null;
-    district?: District | null;
     isEdit?: boolean;
     onPhotoChange?: (base64: string | null, fileName: string | null) => void;
-    onRemoveAvatar?: () => void;
 }
 
 // Типы для фото документов
@@ -84,19 +81,11 @@ const AvatarSection = memo(function AvatarSection({
     avatarUrl,
     initials,
     onPhotoChange,
-    onRemoveAvatar,
-    avatarBase64,
-    avatarFileName,
-    removeAvatar,
 }: {
     isEdit: boolean;
     avatarUrl: string | null;
     initials: string;
-    onPhotoChange?: ((base64: string | null, fileName: string | null) => void) | undefined;
-    onRemoveAvatar?: () => void;
-    avatarBase64: string | null;
-    avatarFileName: string | null;
-    removeAvatar: boolean;
+    onPhotoChange?: (base64: string | null, fileName: string | null) => void;
 }) {
     if (isEdit) {
         return (
@@ -261,14 +250,11 @@ function ProfileForm({
     countries,
     hotels,
     locations,
-    districts,
     country,
     hotel,
     location,
-    district,
     isEdit = false,
     onPhotoChange,
-    onRemoveAvatar,
 }: ProfileFormProps) {
     const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
     const [avatarFileName, setAvatarFileName] = useState<string | null>(null);
@@ -277,11 +263,15 @@ function ProfileForm({
     // Check if current user is admin
     const isAdmin = currentUserRole === "admin";
 
-    // Мемоизированные вычисления
-    const initials = useMemo(() => {
-        return `${user.name?.[0] || ''}${user.surname?.[0] || ''}`.toUpperCase()
-            || (user.email?.[0]?.toUpperCase() || '?');
-    }, [user.name, user.surname, user.email]);
+    // Простые вычисления без useMemo
+    const initials = `${user.name?.[0] || ''}${user.surname?.[0] || ''}`.toUpperCase()
+        || (user.email?.[0]?.toUpperCase() || '?');
+
+    const formattedDateOfBirth = user.dateOfBirth
+        ? new Date(user.dateOfBirth).toISOString().split('T')[0]
+        : "";
+
+    const formattedRole = user.role.charAt(0).toUpperCase() + user.role.slice(1);
 
     // Мемоизированный парсинг JSON для документов
     const passportPhotos = useMemo(() => {
@@ -304,17 +294,6 @@ function ProfileForm({
         }
     }, [user.driverLicensePhotos]);
 
-    // Форматированная дата рождения
-    const formattedDateOfBirth = useMemo(() => {
-        if (!user.dateOfBirth) return "";
-        return new Date(user.dateOfBirth).toISOString().split('T')[0];
-    }, [user.dateOfBirth]);
-
-    // Форматированная роль
-    const formattedRole = useMemo(() => {
-        return user.role.charAt(0).toUpperCase() + user.role.slice(1);
-    }, [user.role]);
-
     // Мемоизированные обработчики
     const handlePhotoChange = useCallback((base64: string | null, fileName: string | null) => {
         setAvatarBase64(base64);
@@ -323,30 +302,27 @@ function ProfileForm({
         onPhotoChange?.(base64, fileName);
     }, [onPhotoChange]);
 
-    const handleRemoveAvatar = useCallback(() => {
-        setRemoveAvatar(true);
-        setAvatarBase64(null);
-        setAvatarFileName(null);
-        onRemoveAvatar?.();
-    }, [onRemoveAvatar]);
-
-    // Секции формы
+    // Универсальная форма для обоих режимов
     const formContent = (
         <div className="space-y-4">
             {/* Profile Information Section */}
             <FormSection title="Profile Information" icon={<UserIcon />}>
                 <div className="grid grid-cols-4 gap-4">
-                    <ProfileField isEdit={isEdit}
+                    <ProfileField
+                        isEdit={isEdit}
                         label="First Name"
                         name="name"
-                        defaultValue={user.name}
+                        value={isEdit ? undefined : (user.name || "")}
+                        defaultValue={isEdit ? user.name : undefined}
                         placeholder="Tom"
                         required
                     />
-                    <ProfileField isEdit={isEdit}
+                    <ProfileField
+                        isEdit={isEdit}
                         label="Last Name"
                         name="surname"
-                        defaultValue={user.surname}
+                        value={isEdit ? undefined : (user.surname || "")}
+                        defaultValue={isEdit ? user.surname : undefined}
                         placeholder="Carlson"
                         required
                     />
@@ -354,7 +330,8 @@ function ProfileForm({
                         <label className="block text-xs text-gray-600 mb-1">Gender</label>
                         <select
                             name="gender"
-                            defaultValue={user.gender || ""}
+                            value={isEdit ? undefined : (user.gender || "")}
+                            defaultValue={isEdit ? (user.gender || "") : undefined}
                             disabled={!isEdit}
                             className={!isEdit ? DISABLED_SELECT_CLASS : selectBaseStyles}
                         >
@@ -364,73 +341,96 @@ function ProfileForm({
                             <option value="other">Other</option>
                         </select>
                     </div>
-                    <ProfileField isEdit={isEdit}
+                    <ProfileField
+                        isEdit={isEdit}
                         label="Date of Birth"
                         name="dateOfBirth"
                         type="date"
-                        defaultValue={formattedDateOfBirth}
+                        value={isEdit ? undefined : formattedDateOfBirth}
+                        defaultValue={isEdit ? formattedDateOfBirth : undefined}
                     />
                 </div>
 
                 <div className="grid grid-cols-4 gap-4 mt-2">
-                    <div className="mt-2">
-                        <label className="block text-xs text-gray-600 mb-1">Role</label>
-                        <select
-                            name="role"
-                            defaultValue={user.role}
-                            disabled={!isEdit || !isAdmin}
-                            className={(!isEdit || !isAdmin) ? DISABLED_SELECT_CLASS : selectBaseStyles}
-                        >
-                            <option value="admin">Admin</option>
-                            <option value="partner">Partner</option>
-                            <option value="manager">Manager</option>
-                            <option value="user">User</option>
-                        </select>
-                    </div>
-                    <ProfileField isEdit={isEdit}
+                    {isEdit ? (
+                        <div className="mt-2">
+                            <label className="block text-xs text-gray-600 mb-1">Role</label>
+                            <select
+                                name="role"
+                                defaultValue={user.role}
+                                disabled={!isAdmin}
+                                className={!isAdmin ? DISABLED_SELECT_CLASS : selectBaseStyles}
+                            >
+                                <option value="admin">Admin</option>
+                                <option value="partner">Partner</option>
+                                <option value="manager">Manager</option>
+                                <option value="user">User</option>
+                            </select>
+                        </div>
+                    ) : (
+                        <ReadOnlyField label="Role" value={formattedRole} />
+                    )}
+                    <ProfileField
+                        isEdit={isEdit}
                         label="Phone"
                         name="phone"
-                        defaultValue={user.phone}
+                        value={isEdit ? undefined : (user.phone || "")}
+                        defaultValue={isEdit ? user.phone : undefined}
                         placeholder="+66415484865"
                     />
-                    <ProfileField isEdit={isEdit}
+                    <ProfileField
+                        isEdit={isEdit}
                         label="WhatsApp"
                         name="whatsapp"
-                        defaultValue={user.whatsapp}
+                        value={isEdit ? undefined : (user.whatsapp || "")}
+                        defaultValue={isEdit ? user.whatsapp : undefined}
                         placeholder="+66 83 881 7057"
                     />
-                    <ProfileField isEdit={isEdit}
+                    <ProfileField
+                        isEdit={isEdit}
                         label="Email"
                         name="email"
                         type="email"
-                        defaultValue={user.email}
+                        value={isEdit ? undefined : user.email}
+                        defaultValue={isEdit ? user.email : undefined}
                         placeholder="ilogush@icloud.com"
                     />
                 </div>
 
                 <div className="grid grid-cols-4 gap-4 mt-2">
-                    <ProfileField isEdit={isEdit}
+                    <ProfileField
+                        isEdit={isEdit}
                         label="Telegram"
                         name="telegram"
-                        defaultValue={user.telegram}
+                        value={isEdit ? undefined : (user.telegram || "")}
+                        defaultValue={isEdit ? user.telegram : undefined}
                         placeholder="@user_471322f2"
                     />
-                    <ProfileField isEdit={isEdit}
-                        label="Country"
-                        name="countryId"
-                        defaultValue={user.countryId?.toString()}
-                        selectOptions={countries}
-                    />
-                    <ProfileField isEdit={isEdit}
+                    {isEdit ? (
+                        <ProfileField
+                            isEdit={isEdit}
+                            label="Country"
+                            name="countryId"
+                            defaultValue={user.countryId?.toString()}
+                            selectOptions={countries}
+                        />
+                    ) : (
+                        <ReadOnlyField label="Country" value={country?.name || ""} />
+                    )}
+                    <ProfileField
+                        isEdit={isEdit}
                         label="City"
                         name="city"
-                        defaultValue={user.city}
+                        value={isEdit ? undefined : (user.city || "")}
+                        defaultValue={isEdit ? user.city : undefined}
                         placeholder="Moscow"
                     />
-                    <ProfileField isEdit={isEdit}
+                    <ProfileField
+                        isEdit={isEdit}
                         label="Passport / ID Number"
                         name="passportNumber"
-                        defaultValue={user.passportNumber}
+                        value={isEdit ? undefined : (user.passportNumber || "")}
+                        defaultValue={isEdit ? user.passportNumber : undefined}
                         placeholder="758024093"
                     />
                 </div>
@@ -439,30 +439,47 @@ function ProfileForm({
             {/* Accommodation Section */}
             <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
                 <div className="grid grid-cols-4 gap-4 mt-2">
-                    <ProfileField isEdit={isEdit}
-                        label="Location"
-                        name="accommodationLocation"
-                        defaultValue="Phuket"
-                        placeholder="Phuket"
-                    />
-                    <ProfileField isEdit={isEdit}
-                        label="Hotel"
-                        name="hotelId"
-                        defaultValue={user.hotelId?.toString()}
-                        selectOptions={hotels}
-                    />
-                    <ProfileField isEdit={isEdit}
+                    {isEdit ? (
+                        <ProfileField
+                            isEdit={isEdit}
+                            label="Location"
+                            name="accommodationLocation"
+                            defaultValue="Phuket"
+                            placeholder="Phuket"
+                        />
+                    ) : (
+                        <ReadOnlyField label="Location" value="Phuket" />
+                    )}
+                    {isEdit ? (
+                        <ProfileField
+                            isEdit={isEdit}
+                            label="Hotel"
+                            name="hotelId"
+                            defaultValue={user.hotelId?.toString()}
+                            selectOptions={hotels}
+                        />
+                    ) : (
+                        <ReadOnlyField label="Hotel" value={hotel?.name || ""} />
+                    )}
+                    <ProfileField
+                        isEdit={isEdit}
                         label="Room Number"
                         name="roomNumber"
-                        defaultValue={user.roomNumber}
+                        value={isEdit ? undefined : (user.roomNumber || "")}
+                        defaultValue={isEdit ? user.roomNumber : undefined}
                         placeholder="900"
                     />
-                    <ProfileField isEdit={isEdit}
-                        label="Location"
-                        name="locationId"
-                        defaultValue={user.locationId?.toString()}
-                        selectOptions={locations}
-                    />
+                    {isEdit ? (
+                        <ProfileField
+                            isEdit={isEdit}
+                            label="Location"
+                            name="locationId"
+                            defaultValue={user.locationId?.toString()}
+                            selectOptions={locations}
+                        />
+                    ) : (
+                        <ReadOnlyField label="Area" value={location?.name || ""} />
+                    )}
                 </div>
             </FormSection>
 
@@ -479,14 +496,8 @@ function ProfileForm({
                     />
                 ) : (
                     <div className="flex gap-8">
-                        <DocumentPhotosDisplay
-                            photos={passportPhotos}
-                            label="Passport Photos"
-                        />
-                        <DocumentPhotosDisplay
-                            photos={driverLicensePhotos}
-                            label="Driver License Photos"
-                        />
+                        <DocumentPhotosDisplay photos={passportPhotos} label="Passport Photos" />
+                        <DocumentPhotosDisplay photos={driverLicensePhotos} label="Driver License Photos" />
                     </div>
                 )}
             </FormSection>
@@ -495,13 +506,15 @@ function ProfileForm({
             {isEdit && (
                 <FormSection title="Change Password" icon={<LockClosedIcon />}>
                     <div className="grid grid-cols-4 gap-4">
-                        <ProfileField isEdit={isEdit}
+                        <ProfileField
+                            isEdit={isEdit}
                             label="New Password"
                             name="newPassword"
                             type="password"
                             placeholder="Enter new password"
                         />
-                        <ProfileField isEdit={isEdit}
+                        <ProfileField
+                            isEdit={isEdit}
                             label="Confirm Password"
                             name="confirmPassword"
                             type="password"
@@ -524,18 +537,12 @@ function ProfileForm({
                     avatarUrl={user.avatarUrl}
                     initials={initials}
                     onPhotoChange={handlePhotoChange}
-                    onRemoveAvatar={handleRemoveAvatar}
-                    avatarBase64={avatarBase64}
-                    avatarFileName={avatarFileName}
-                    removeAvatar={removeAvatar}
                 />
                 <div className="flex-1">
                     <h2 className="text-2xl font-semibold text-gray-900">
                         {user.name && user.surname ? `${user.name} ${user.surname}` : user.email}
                     </h2>
-                    <p className="text-sm text-gray-600 mt-1">
-                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                    </p>
+                    <p className="text-sm text-gray-600 mt-1">{formattedRole}</p>
                 </div>
             </div>
 
@@ -553,124 +560,7 @@ function ProfileForm({
                     {formContent}
                 </Form>
             ) : (
-                <div className="space-y-4">
-                    {/* Profile Information Read Only */}
-                    <FormSection title="Profile Information" icon={<UserIcon />}>
-                        <div className="grid grid-cols-4 gap-4 mt-2">
-                            <ProfileField isEdit={isEdit}
-                                label="First Name"
-                                name="name"
-                                value={user.name || ""}
-                            />
-                            <ProfileField isEdit={isEdit}
-                                label="Last Name"
-                                name="surname"
-                                value={user.surname || ""}
-                            />
-                            <div className="mt-2">
-                                <label className="block text-xs text-gray-600 mb-1">Gender</label>
-                                <select
-                                    value={user.gender || ""}
-                                    disabled
-                                    className={DISABLED_SELECT_CLASS}
-                                >
-                                    <option value="">Select Gender</option>
-                                    <option value="male">Male</option>
-                                    <option value="female">Female</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-                            <ProfileField isEdit={isEdit}
-                                label="Date of Birth"
-                                name="dateOfBirth"
-                                type="date"
-                                value={formattedDateOfBirth}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-4 mt-2">
-                            <ReadOnlyField
-                                label="Role"
-                                value={formattedRole}
-                            />
-                            <ProfileField isEdit={isEdit}
-                                label="Phone"
-                                name="phone"
-                                value={user.phone || ""}
-                            />
-                            <ProfileField isEdit={isEdit}
-                                label="WhatsApp"
-                                name="whatsapp"
-                                value={user.whatsapp || ""}
-                            />
-                            <ProfileField isEdit={isEdit}
-                                label="Email"
-                                name="email"
-                                type="email"
-                                value={user.email}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-4 mt-2">
-                            <ProfileField isEdit={isEdit}
-                                label="Telegram"
-                                name="telegram"
-                                value={user.telegram || ""}
-                            />
-                            <ReadOnlyField
-                                label="Country"
-                                value={country?.name || ""}
-                            />
-                            <ProfileField isEdit={isEdit}
-                                label="City"
-                                name="city"
-                                value={user.city || ""}
-                            />
-                            <ProfileField isEdit={isEdit}
-                                label="Passport / ID Number"
-                                name="passportNumber"
-                                value={user.passportNumber || ""}
-                            />
-                        </div>
-                    </FormSection>
-
-                    {/* Accommodation Read Only */}
-                    <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
-                        <div className="grid grid-cols-4 gap-4 mt-2">
-                            <ReadOnlyField
-                                label="Location"
-                                value="Phuket"
-                            />
-                            <ReadOnlyField
-                                label="Hotel"
-                                value={hotel?.name || ""}
-                            />
-                            <ProfileField isEdit={isEdit}
-                                label="Room Number"
-                                name="roomNumber"
-                                value={user.roomNumber || ""}
-                            />
-                            <ReadOnlyField
-                                label="Area"
-                                value={location?.name || ""}
-                            />
-                        </div>
-                    </FormSection>
-
-                    {/* Document Photos Read Only */}
-                    <FormSection title="Document Photos" icon={<DocumentTextIcon />}>
-                        <div className="flex gap-8">
-                            <DocumentPhotosDisplay
-                                photos={passportPhotos}
-                                label="Passport Photos"
-                            />
-                            <DocumentPhotosDisplay
-                                photos={driverLicensePhotos}
-                                label="Driver License Photos"
-                            />
-                        </div>
-                    </FormSection>
-                </div>
+                formContent
             )}
         </div>
     );
