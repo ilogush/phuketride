@@ -15,6 +15,8 @@ export default [
         route("companies/create", "routes/dashboard.companies.create.tsx"),
         route("users", "routes/dashboard.users.tsx"),
         route("users/create", "routes/dashboard.users.create.tsx"),
+        route("users/:userId", "routes/dashboard.users.$userId.tsx"),
+        route("users/:userId/edit", "routes/dashboard.users.$userId.edit.tsx"),
         route("cars", "routes/dashboard.cars.tsx"),
         route("cars/create", "routes/dashboard.cars.create.tsx"),
         route("brands", "routes/dashboard.brands.tsx"),

@@ -93,12 +93,12 @@ export default function UsersPage() {
             label: "Actions",
             render: (user) => (
                 <div className="flex gap-2">
-                    <Link to={`/dashboard/users/${user.id}`}>
+                    <Link to={`/users/${user.id}`}>
                         <Button type="button" variant="secondary" size="sm">
                             View
                         </Button>
                     </Link>
-                    <Link to={`/dashboard/users/${user.id}/edit`}>
+                    <Link to={`/users/${user.id}/edit`}>
                         <Button type="button" variant="secondary" size="sm">
                             Edit
                         </Button>

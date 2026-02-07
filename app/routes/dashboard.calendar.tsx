@@ -27,13 +27,15 @@ export default function CalendarPage() {
 
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
-                    <button className="p-2 rounded-xl hover:bg-gray-100 transition-all border border-gray-200">
-                        <ChevronLeftIcon className="w-5 h-5" />
-                    </button>
+                    <Button
+                        variant="secondary"
+                        icon={<ChevronLeftIcon className="w-5 h-5" />}
+                    />
                     <h2 className="text-xl font-bold text-gray-900">February 2026</h2>
-                    <button className="p-2 rounded-xl hover:bg-gray-100 transition-all border border-gray-200">
-                        <ChevronRightIcon className="w-5 h-5" />
-                    </button>
+                    <Button
+                        variant="secondary"
+                        icon={<ChevronRightIcon className="w-5 h-5" />}
+                    />
                 </div>
                 <div className="flex gap-2">
                     <Button variant="secondary" size="sm">Month</Button>

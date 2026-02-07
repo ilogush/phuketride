@@ -36,7 +36,7 @@ export function Textarea({
     return (
         <div className={className}>
             {label && (
-                <label htmlFor={id || name} className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor={id || name} className="block text-xs text-gray-600 mb-1">
                     {label} {required && <span className="text-gray-500">*</span>}
                 </label>
             )}

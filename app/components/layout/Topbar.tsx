@@ -28,7 +28,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
     const roleLabel = user.role.toUpperCase();
 
     return (
-        <header className="h-16 flex items-center px-4 sticky top-0 z-40">
+        <header className="h-16 flex items-center px-4">
             <div className="flex items-center justify-between w-full">
                 {/* Menu Button + Search Bar */}
                 <div className="flex items-center gap-4 flex-1 max-w-md">

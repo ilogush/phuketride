@@ -46,7 +46,7 @@ export default function CreateBookingPage() {
                 <Form method="post" className="space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Client</label>
+                            <label className="block text-xs text-gray-600 mb-1">Client</label>
                             <select
                                 name="clientId"
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
@@ -59,7 +59,7 @@ export default function CreateBookingPage() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Car</label>
+                            <label className="block text-xs text-gray-600 mb-1">Car</label>
                             <select
                                 name="carId"
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"

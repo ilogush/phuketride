@@ -83,6 +83,42 @@
 - Кнопки: компонент Button из @/components/ui/Button.
 - Loading states: всегда включать `loading` prop для async действий.
 
+### 4.3.1 Стандартизация кнопок (КРИТИЧНО)
+- **ТОЛЬКО 2 ВАРИАНТА КНОПОК**:
+  - `variant="primary"` - bg-gray-800, text-white (основные действия: Create, Save, Submit)
+  - `variant="secondary"` - bg-gray-100, text-gray-800 (второстепенные действия: Cancel, Back, Remove)
+- **ЗАПРЕЩЕНО** использовать другие варианты (delete, destructive, danger и т.д.)
+- **ЗАПРЕЩЕНО** создавать кастомные стили кнопок через className
+- Все кнопки должны использовать компонент Button из @/components/ui/Button
+- Примеры:
+  ```tsx
+  <Button variant="primary" type="submit">Create Company</Button>
+  <Button variant="secondary" onClick={handleCancel}>Cancel</Button>
+  ```
+
+### 4.4 Единообразие форм (КРИТИЧНО)
+- **ПРАВИЛО 4 ПОЛЕЙ**: ВСЕ формы используют сетку из 4 колонок (`grid-cols-4`)
+- Каждая строка формы содержит РОВНО 4 поля ввода
+- Если полей меньше 4 в строке - оставить пустые колонки
+- Использовать `FormSection` для группировки полей с заголовком и иконкой
+- Отступы между секциями: `space-y-4`
+- Отступы между строками внутри секции: `gap-4` (горизонтально и вертикально)
+- Примеры:
+  ```tsx
+  <FormSection title="Company Information" icon={<BuildingOfficeIcon />}>
+    <div className="grid grid-cols-4 gap-4">
+      <Input label="Field 1" name="field1" />
+      <Input label="Field 2" name="field2" />
+      <Input label="Field 3" name="field3" />
+      <Input label="Field 4" name="field4" />
+    </div>
+    <div className="grid grid-cols-4 gap-4">
+      <Input label="Field 5" name="field5" />
+      {/* Only 1 field in this row - 3 empty columns */}
+    </div>
+  </FormSection>
+  ```
+
 ## 5. База Данных и Логирование
 
 ### 5.1 Cloudflare D1 (SQLite) - ЕДИНСТВЕННАЯ БД (КРИТИЧНО)

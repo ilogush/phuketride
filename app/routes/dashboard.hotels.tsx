@@ -233,7 +233,7 @@ export default function HotelsPage() {
                     />
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-xs text-gray-600 mb-1">
                             Location
                         </label>
                         <select
@@ -258,7 +258,7 @@ export default function HotelsPage() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-xs text-gray-600 mb-1">
                             District
                         </label>
                         <select

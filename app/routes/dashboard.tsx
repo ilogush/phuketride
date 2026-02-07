@@ -16,17 +16,17 @@ export default function DashboardLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className="h-screen bg-gray-50 flex overflow-hidden">
             <Sidebar user={user} isOpen={isSidebarOpen} />
 
             {/* Main content */}
-            <div className="flex-1 ml-0 flex flex-col">
+            <div className="flex-1 overflow-y-auto">
                 <Topbar
                     user={user}
                     onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     isSidebarOpen={isSidebarOpen}
                 />
-                <main className="flex-1 p-4">
+                <main className="p-4">
                     <Outlet key={location.pathname} />
                 </main>
             </div>

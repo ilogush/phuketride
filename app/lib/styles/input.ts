@@ -1,10 +1,10 @@
-export const inputBaseStyles = 'block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-gray-500'
+export const inputBaseStyles = 'block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-800 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors transition-colors placeholder:text-sm placeholder:text-gray-800'
 
-export const inputErrorStyles = 'block w-full rounded-xl border border-gray-300 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-gray-500'
+export const inputErrorStyles = 'block w-full rounded-xl border border-gray-300 sm:text-sm py-2 px-3 bg-white text-gray-800 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors transition-colors placeholder:text-sm placeholder:text-gray-800'
 
-export const selectBaseStyles = 'block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-gray-500'
+export const selectBaseStyles = 'block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-800 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors transition-colors placeholder:text-sm placeholder:text-gray-800'
 
-export const textareaBaseStyles = 'block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-gray-500'
+export const textareaBaseStyles = 'block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-800 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors transition-colors placeholder:text-sm placeholder:text-gray-800'
 
 export const inputReadOnlyStyles = 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200'
 

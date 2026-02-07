@@ -360,7 +360,7 @@ export default function CreateCompanyPage() {
 
                                 {!searchQuery && (
                                     <div className="text-center py-8">
-                                        <UserIcon className="w-12 h-12 mx-auto text-gray-300 mb-2" />
+                                        <UserIcon className="w-20 h-20 mx-auto text-gray-300 mb-2" />
                                         <p className="text-sm text-gray-400">Search and select a user to assign to this company</p>
                                     </div>
                                 )}

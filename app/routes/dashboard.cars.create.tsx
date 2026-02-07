@@ -61,7 +61,7 @@ export default function CreateCarPage() {
                 <Form method="post" className="space-y-8">
                     {user.role === "admin" && (
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Company</label>
+                            <label className="block text-xs text-gray-600 mb-1">Company</label>
                             <select
                                 name="companyId"
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
@@ -77,7 +77,7 @@ export default function CreateCarPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Car Template</label>
+                            <label className="block text-xs text-gray-600 mb-1">Car Template</label>
                             <select
                                 name="templateId"
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
@@ -92,7 +92,7 @@ export default function CreateCarPage() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Color</label>
+                            <label className="block text-xs text-gray-600 mb-1">Color</label>
                             <select
                                 name="colorId"
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"

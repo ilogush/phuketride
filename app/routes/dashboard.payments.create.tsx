@@ -60,7 +60,7 @@ export default function RecordPaymentPage() {
                 <Form method="post" className="space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Contract / Booking</label>
+                            <label className="block text-xs text-gray-600 mb-1">Contract / Booking</label>
                             <select
                                 name="contractId"
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
@@ -73,7 +73,7 @@ export default function RecordPaymentPage() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Payment Type</label>
+                            <label className="block text-xs text-gray-600 mb-1">Payment Type</label>
                             <select
                                 name="paymentTypeId"
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
@@ -96,7 +96,7 @@ export default function RecordPaymentPage() {
                             required
                         />
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Method</label>
+                            <label className="block text-xs text-gray-600 mb-1">Method</label>
                             <select
                                 name="paymentMethod"
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"

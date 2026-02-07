@@ -39,16 +39,27 @@ export const companies = sqliteTable("companies", {
     ownerId: text("owner_id").notNull(), // FK to users
     email: text("email").notNull(),
     phone: text("phone").notNull(),
-    telegram: text("telegram").notNull(),
+    telegram: text("telegram"),
     locationId: integer("location_id").notNull(),
     districtId: integer("district_id").notNull(),
     street: text("street").notNull(),
     houseNumber: text("house_number").notNull(),
     address: text("address"),
+    // Bank Details
+    bankName: text("bank_name"),
+    accountNumber: text("account_number"),
+    accountName: text("account_name"),
+    swiftCode: text("swift_code"),
+    // Booking Settings
+    preparationTime: integer("preparation_time").default(30), // minutes
+    deliveryFeeAfterHours: real("delivery_fee_after_hours").default(0),
     islandTripPrice: real("island_trip_price"),
     krabiTripPrice: real("krabi_trip_price"),
     babySeatPricePerDay: real("baby_seat_price_per_day"),
-    settings: text("settings"), // JSON
+    // Schedule & Holidays stored in JSON
+    weeklySchedule: text("weekly_schedule"), // JSON: {monday: {open: true, start: "08:00", end: "20:00"}, ...}
+    holidays: text("holidays"), // JSON: ["2024-01-01", "2024-12-25", ...]
+    settings: text("settings"), // JSON for other settings
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 }, (table) => ({

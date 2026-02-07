@@ -251,7 +251,7 @@ export default function ColorsPage() {
                     />
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-xs text-gray-600 mb-1">
                             Hex Code
                         </label>
                         <div className="flex gap-2">

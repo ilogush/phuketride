@@ -4,10 +4,10 @@ import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import PageHeader from "~/components/ui/PageHeader";
-import Card from "~/components/ui/Card";
 import { Input } from "~/components/ui/Input";
 import Button from "~/components/ui/Button";
 import BackButton from "~/components/ui/BackButton";
+import FormBox from "~/components/ui/FormBox";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -38,36 +38,34 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function CreateBrandPage() {
     return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <BackButton to="/brands" />
-                <PageHeader title="Add New Brand" />
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <BackButton to="/dashboard/brands" />
+                    <PageHeader title="Add New Brand" />
+                </div>
+                <Button type="submit" variant="primary" form="brand-form">
+                    Create Brand
+                </Button>
             </div>
 
-            <Card className="max-w-2xl p-8 border-gray-200">
-                <Form method="post" className="space-y-8">
-                    <Input
-                        label="Brand Name"
-                        name="name"
-                        placeholder="e.g., Toyota, BMW"
-                        required
-                    />
-                    <Input
-                        label="Logo URL (Optional)"
-                        name="logoUrl"
-                        placeholder="https://example.com/logo.png"
-                    />
-
-                    <div className="flex justify-end gap-4 pt-6">
-                        <Button variant="secondary" onClick={() => window.history.back()}>
-                            Cancel
-                        </Button>
-                        <Button type="submit" variant="primary">
-                            Create Brand
-                        </Button>
+            <FormBox>
+                <Form id="brand-form" method="post" className="space-y-4">
+                    <div className="grid grid-cols-4 gap-4">
+                        <Input
+                            label="Brand Name"
+                            name="name"
+                            placeholder="e.g., Toyota, BMW"
+                            required
+                        />
+                        <Input
+                            label="Logo URL (Optional)"
+                            name="logoUrl"
+                            placeholder="https://example.com/logo.png"
+                        />
                     </div>
                 </Form>
-            </Card>
+            </FormBox>
         </div>
     );
 }

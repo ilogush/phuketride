@@ -1,19 +1,19 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { useState } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import { eq } from "drizzle-orm";
 import PageHeader from "~/components/ui/PageHeader";
-import { Input } from "~/components/ui/Input";
 import Button from "~/components/ui/Button";
 import BackButton from "~/components/ui/BackButton";
+import { Input } from "~/components/ui/Input";
 import FormSection from "~/components/ui/FormSection";
 import PhotoUpload from "~/components/ui/PhotoUpload";
 import DocumentPhotosUpload from "~/components/ui/DocumentPhotosUpload";
 import { UserIcon, BuildingOfficeIcon, DocumentTextIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import { uploadAvatarFromBase64, deleteAvatar } from "~/lib/r2.server";
+import ProfileForm from "~/components/profile/ProfileForm";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);
@@ -105,231 +105,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function EditProfilePage() {
     const { user, countries, hotels, locations, districts } = useLoaderData<typeof loader>();
-    const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
-    const [avatarFileName, setAvatarFileName] = useState<string | null>(null);
-    const [removeAvatar, setRemoveAvatar] = useState(false);
-
-    const initials = `${user.name?.[0] || ''}${user.surname?.[0] || ''}`.toUpperCase() || user.email[0].toUpperCase();
-
-    const handlePhotoChange = (base64: string | null, fileName: string | null) => {
-        setAvatarBase64(base64);
-        setAvatarFileName(fileName);
-        if (base64) {
-            setRemoveAvatar(false);
-        } else {
-            setRemoveAvatar(true);
-        }
-    };
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <BackButton to="/profile" />
-                    <PageHeader title="Edit Profile" />
-                </div>
-                <Button type="submit" variant="primary" form="profile-form">
-                    Save Changes
-                </Button>
-            </div>
-
-            {/* Profile Photo Section */}
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-4">
-                <div className="flex items-center gap-4">
-                    <PhotoUpload
-                        currentPhotoUrl={user.avatarUrl}
-                        onPhotoChange={handlePhotoChange}
-                        initials={initials}
-                    />
-                </div>
-            </div>
-
-            <Form id="profile-form" method="post" className="space-y-4">
-                <input type="hidden" name="removeAvatar" value={removeAvatar ? "true" : "false"} />
-                {avatarBase64 && (
-                    <>
-                        <input type="hidden" name="avatarBase64" value={avatarBase64} />
-                        <input type="hidden" name="avatarFileName" value={avatarFileName || ""} />
-                    </>
-                )}
-                <FormSection title="Profile Information" icon={<UserIcon />}>
-                    <div className="grid grid-cols-4 gap-4">
-                        <Input
-                            label="First Name"
-                            name="name"
-                            defaultValue={user.name || ""}
-                            placeholder="Tom"
-                            required
-                        />
-                        <Input
-                            label="Last Name"
-                            name="surname"
-                            defaultValue={user.surname || ""}
-                            placeholder="Carlson"
-                            required
-                        />
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Gender</label>
-                            <select
-                                name="gender"
-                                defaultValue={user.gender || ""}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                            >
-                                <option value="">Select Gender</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                        <Input
-                            label="Date of Birth"
-                            name="dateOfBirth"
-                            type="date"
-                            defaultValue={user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : ""}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-4">
-                        <Input
-                            label="Role"
-                            name="role"
-                            defaultValue={user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                        />
-                        <Input
-                            label="Phone"
-                            name="phone"
-                            defaultValue={user.phone || ""}
-                            placeholder="+66415484865"
-                        />
-                        <Input
-                            label="WhatsApp"
-                            name="whatsapp"
-                            defaultValue={user.whatsapp || ""}
-                            placeholder="+66 83 881 7057"
-                        />
-                        <Input
-                            label="Email"
-                            name="email"
-                            type="email"
-                            defaultValue={user.email}
-                            placeholder="ilogush@icloud.com"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-4">
-                        <Input
-                            label="Telegram"
-                            name="telegram"
-                            defaultValue={user.telegram || ""}
-                            placeholder="@user_471322f2"
-                        />
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Country</label>
-                            <select
-                                name="countryId"
-                                defaultValue={user.countryId || ""}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                            >
-                                <option value="">Select Country</option>
-                                {countries.map((country) => (
-                                    <option key={country.id} value={country.id}>
-                                        {country.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <Input
-                            label="City"
-                            name="city"
-                            defaultValue={user.city || ""}
-                            placeholder="Moscow"
-                        />
-                        <Input
-                            label="Passport / ID Number"
-                            name="passportNumber"
-                            defaultValue={user.passportNumber || ""}
-                            placeholder="758024093"
-                        />
-                    </div>
-                </FormSection>
-
-                <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
-                    <div className="grid grid-cols-4 gap-4">
-                        <Input
-                            label="Location"
-                            name="accommodationLocation"
-                            defaultValue="Phuket"
-                            placeholder="Phuket"
-                        />
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Hotel</label>
-                            <select
-                                name="hotelId"
-                                defaultValue={user.hotelId || ""}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                            >
-                                <option value="">Select Hotel</option>
-                                {hotels.map((hotel) => (
-                                    <option key={hotel.id} value={hotel.id}>
-                                        {hotel.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <Input
-                            label="Room Number"
-                            name="roomNumber"
-                            defaultValue={user.roomNumber || ""}
-                            placeholder="900"
-                        />
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Location</label>
-                            <select
-                                name="locationId"
-                                defaultValue={user.locationId || ""}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                            >
-                                <option value="">Select Location</option>
-                                {locations.map((location) => (
-                                    <option key={location.id} value={location.id}>
-                                        {location.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                </FormSection>
-
-                <FormSection title="Document Photos" icon={<DocumentTextIcon />}>
-                    <DocumentPhotosUpload
-                        onPassportPhotosChange={(photos) => {
-                            console.log('Passport photos:', photos);
-                        }}
-                        onDriverLicensePhotosChange={(photos) => {
-                            console.log('Driver license photos:', photos);
-                        }}
-                    />
-                </FormSection>
-
-                <FormSection title="Change Password" icon={<LockClosedIcon />}>
-                    <div className="grid grid-cols-4 gap-4">
-                        <Input
-                            label="New Password"
-                            name="newPassword"
-                            type="password"
-                            placeholder="Enter new password"
-                        />
-                        <Input
-                            label="Confirm Password"
-                            name="confirmPassword"
-                            type="password"
-                            placeholder="Confirm new password"
-                        />
-                        <div />
-                        <div />
-                    </div>
-                </FormSection>
-            </Form>
-        </div>
+        <ProfileForm
+            user={user}
+            countries={countries}
+            hotels={hotels}
+            locations={locations}
+            districts={districts}
+            isEdit={true}
+        />
     );
 }

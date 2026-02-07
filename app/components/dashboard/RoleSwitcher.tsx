@@ -164,7 +164,7 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                     </p>
 
                     <div>
-                        <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor="companyName" className="block text-xs text-gray-600 mb-1">
                             Company Name *
                         </label>
                         <input
@@ -179,7 +179,7 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                     </div>
 
                     <div>
-                        <label htmlFor="companyPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor="companyPhone" className="block text-xs text-gray-600 mb-1">
                             Company Phone (Optional)
                         </label>
                         <input

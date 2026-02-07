@@ -36,6 +36,20 @@
       "when": 1770398629745,
       "tag": "0004_perfect_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1770480321838,
+      "tag": "0005_lovely_iron_lad",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1770480780824,
+      "tag": "0006_petite_warhawk",
+      "breakpoints": true
     }
   ]
 }

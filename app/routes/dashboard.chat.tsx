@@ -3,6 +3,7 @@ import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/ui/PageHeader";
 import Card from "~/components/ui/Card";
+import Button from "~/components/ui/Button";
 import { MagnifyingGlassIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -57,9 +58,11 @@ export default function ChatPage() {
                                 placeholder="Type a message..."
                                 className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none"
                             />
-                            <button disabled className="p-2 bg-gray-800 text-white rounded-xl disabled:opacity-50">
-                                <PaperAirplaneIcon className="w-5 h-5 -rotate-12" />
-                            </button>
+                            <Button
+                                disabled
+                                variant="primary"
+                                icon={<PaperAirplaneIcon className="w-5 h-5 -rotate-12" />}
+                            />
                         </div>
                     </div>
                 </div>

@@ -6,7 +6,7 @@ interface DetailGridProps {
     className?: string
 }
 
-export default function DetailGrid({ children, cols = 2, className = '' }: DetailGridProps) {
+export default function DetailGrid({ children, cols = 4, className = '' }: DetailGridProps) {
     const gridCols = {
         1: 'grid-cols-1',
         2: 'grid-cols-2',

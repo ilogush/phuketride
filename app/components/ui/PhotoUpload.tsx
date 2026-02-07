@@ -1,0 +1,113 @@
+import { useState, useRef } from "react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
+
+interface PhotoUploadProps {
+    currentPhotoUrl?: string | null;
+    onPhotoChange: (base64: string | null, fileName: string | null) => void;
+    maxSizeMB?: number;
+    label?: string;
+    initials?: string;
+}
+
+export default function PhotoUpload({
+    currentPhotoUrl,
+    onPhotoChange,
+    maxSizeMB = 2,
+    label = "Profile Photo",
+    initials = "U",
+}: PhotoUploadProps) {
+    const [preview, setPreview] = useState<string | null>(currentPhotoUrl || null);
+    const [error, setError] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith("image/")) {
+            setError("Please select an image file");
+            return;
+        }
+
+        setError(null);
+
+        // Convert to base64
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64 = reader.result as string;
+            setPreview(base64);
+            onPhotoChange(base64, file.name);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleRemove = () => {
+        setPreview(null);
+        setError(null);
+        onPhotoChange(null, null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+
+    const handleClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    return (
+        <div className="flex items-center gap-3">
+            <div className="relative w-20 h-20 flex-shrink-0">
+                {preview ? (
+                    <img
+                        src={preview}
+                        alt="Profile"
+                        className="w-20 h-20 rounded-full object-cover"
+                    />
+                ) : (
+                    <button
+                        type="button"
+                        onClick={handleClick}
+                        className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-full flex items-center justify-center cursor-pointer"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth="1.5"
+                            stroke="currentColor"
+                            className="w-6 h-6 text-gray-400"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                            />
+                        </svg>
+                    </button>
+                )}
+                {preview && (
+                    <button
+                        type="button"
+                        onClick={handleRemove}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors"
+                    >
+                        <XMarkIcon className="w-3 h-3" />
+                    </button>
+                )}
+            </div>
+            <div>
+                <h3 className="text-sm font-bold text-gray-900 mb-1">{label}</h3>
+                {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+            </div>
+
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+            />
+        </div>
+    );
+}

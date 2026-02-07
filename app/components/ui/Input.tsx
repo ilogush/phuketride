@@ -1,6 +1,7 @@
 import React, { forwardRef, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { inputBaseStyles, inputErrorStyles } from '~/lib/styles/input'
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string
@@ -28,10 +29,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
 }, ref) => {
     const [isFocused, setIsFocused] = useState(false)
     const [hasUserInput, setHasUserInput] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
 
     // Check if this is a numeric field with zero-like placeholder
     const isNumericWithZeroPlaceholder = type === 'number' && placeholder &&
         (placeholder.includes('0') || placeholder === '0.00' || placeholder === '0')
+
+    // Check if this is a password field
+    const isPassword = type === 'password'
 
     // Track if user has actually typed something
     useEffect(() => {
@@ -66,16 +71,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
         : true
 
     const baseStyle = error ? inputErrorStyles : inputBaseStyles
-    const inputClasses = `${baseStyle} ${disabled ? 'bg-gray-200 cursor-not-allowed opacity-50' : ''} ${addonLeft ? 'rounded-l-none' : ''} ${addonRight ? 'rounded-r-none' : ''}`
+    const inputClasses = `${baseStyle} ${disabled ? '!bg-gray-100 cursor-not-allowed !text-gray-500' : ''} ${addonLeft ? 'rounded-l-none' : ''} ${isPassword ? 'rounded-r-none' : ''} ${addonRight && !isPassword ? 'rounded-r-none' : ''}`
+
+    const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
 
     return (
-        <div className={className}>
+        <div className={`mb-2 ${className}`}>
             {label && (
-                <label htmlFor={id || name} className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor={id || name} className="block text-xs text-gray-600 mb-1">
                     {label} {required && <span className="text-gray-500">*</span>}
                 </label>
             )}
-            <div className={`${(addonLeft || addonRight) ? 'flex' : ''} rounded-lg`}>
+            <div className={`${(addonLeft || addonRight || isPassword) ? 'flex' : ''} rounded-lg`}>
                 {addonLeft && (
                     <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-200 bg-gray-50 text-gray-500 sm:text-sm">
                         {addonLeft}
@@ -85,7 +92,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     ref={ref}
                     id={id || name}
                     name={name}
-                    type={type}
+                    type={inputType}
                     disabled={disabled}
                     className={inputClasses}
                     placeholder={shouldShowPlaceholder ? placeholder : ''}
@@ -95,7 +102,20 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     onBlur={handleBlur}
                     {...props}
                 />
-                {addonRight && (
+                {isPassword && (
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-200 bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                        {showPassword ? (
+                            <EyeSlashIcon className="w-5 h-5" />
+                        ) : (
+                            <EyeIcon className="w-5 h-5" />
+                        )}
+                    </button>
+                )}
+                {!isPassword && addonRight && (
                     <span className="inline-flex items-center px-4 rounded-r-lg border border-l-0 border-gray-200 bg-gray-50 text-gray-500 sm:text-sm">
                         {addonRight}
                     </span>
