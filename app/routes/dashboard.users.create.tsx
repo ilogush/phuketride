@@ -4,6 +4,8 @@ import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import ProfileForm from "~/components/profile/ProfileForm";
+import BackButton from "~/components/ui/BackButton";
+import PageHeader from "~/components/ui/PageHeader";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -92,13 +94,19 @@ export default function CreateUserPage() {
     };
 
     return (
-        <ProfileForm
-            user={emptyUser}
-            countries={countries}
-            hotels={hotels}
-            locations={locations}
-            districts={districts}
-            isEdit={true}
-        />
+        <div className="space-y-4">
+            <div className="flex items-center gap-4">
+                <BackButton to="/dashboard.users" />
+                <PageHeader title="Add New User" />
+            </div>
+            <ProfileForm
+                user={emptyUser}
+                countries={countries}
+                hotels={hotels}
+                locations={locations}
+                districts={districts}
+                isEdit={true}
+            />
+        </div>
     );
 }
