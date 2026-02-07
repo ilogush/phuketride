@@ -1,50 +1,249 @@
 import { Form } from "react-router";
-import { useState } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import { Input } from "~/components/ui/Input";
 import FormSection from "~/components/ui/FormSection";
 import PhotoUpload from "~/components/ui/PhotoUpload";
 import DocumentPhotosUpload from "~/components/ui/DocumentPhotosUpload";
 import { UserIcon, BuildingOfficeIcon, DocumentTextIcon, LockClosedIcon } from "@heroicons/react/24/outline";
+import { selectBaseStyles } from "~/lib/styles/input";
+
+// Типизации
+interface Country {
+    id: number;
+    name: string;
+}
+
+interface Hotel {
+    id: number;
+    name: string;
+}
+
+interface Location {
+    id: number;
+    name: string;
+}
+
+interface District {
+    id: number;
+    name: string;
+}
+
+interface User {
+    id: string;
+    email: string;
+    name: string | null;
+    surname: string | null;
+    phone: string | null;
+    whatsapp: string | null;
+    telegram: string | null;
+    passportNumber: string | null;
+    citizenship: string | null;
+    city: string | null;
+    countryId: number | null;
+    dateOfBirth: Date | null;
+    gender: "male" | "female" | "other" | null;
+    hotelId: number | null;
+    roomNumber: string | null;
+    locationId: number | null;
+    districtId: number | null;
+    address: string | null;
+    avatarUrl: string | null;
+    role: string;
+    passportPhotos: string | null;
+    driverLicensePhotos: string | null;
+}
 
 interface ProfileFormProps {
-    user: {
-        id: string;
-        email: string;
-        name: string | null;
-        surname: string | null;
-        phone: string | null;
-        whatsapp: string | null;
-        telegram: string | null;
-        passportNumber: string | null;
-        citizenship: string | null;
-        city: string | null;
-        countryId: number | null;
-        dateOfBirth: Date | null;
-        gender: "male" | "female" | "other" | null;
-        hotelId: number | null;
-        roomNumber: string | null;
-        locationId: number | null;
-        districtId: number | null;
-        address: string | null;
-        avatarUrl: string | null;
-        role: string;
-        passportPhotos: string | null;
-        driverLicensePhotos: string | null;
-    };
-    countries: Array<{ id: number; name: string }>;
-    hotels: Array<{ id: number; name: string }>;
-    locations: Array<{ id: number; name: string }>;
-    districts: Array<{ id: number; name: string }>;
-    country?: { id: number; name: string } | null;
-    hotel?: { id: number; name: string } | null;
-    location?: { id: number; name: string } | null;
-    district?: { id: number; name: string } | null;
+    user: User;
+    countries: Country[];
+    hotels: Hotel[];
+    locations: Location[];
+    districts: District[];
+    country?: Country | null;
+    hotel?: Hotel | null;
+    location?: Location | null;
+    district?: District | null;
     isEdit?: boolean;
     onPhotoChange?: (base64: string | null, fileName: string | null) => void;
     onRemoveAvatar?: () => void;
 }
 
-export default function ProfileForm({
+// Типы для фото документов
+interface DocumentPhoto {
+    base64: string;
+    fileName: string;
+}
+
+// Константы для CSS классов - используем стандартные стили
+const DISABLED_SELECT_CLASS = "block w-full h-10 rounded-xl sm:text-sm py-2.5 px-4 bg-gray-50 text-gray-500 border border-gray-200 cursor-not-allowed";
+
+// Мемоизированный компонент AvatarSection
+const AvatarSection = memo(function AvatarSection({
+    isEdit,
+    avatarUrl,
+    initials,
+    onPhotoChange,
+    onRemoveAvatar,
+    avatarBase64,
+    avatarFileName,
+    removeAvatar,
+}: {
+    isEdit: boolean;
+    avatarUrl: string | null;
+    initials: string;
+    onPhotoChange?: ((base64: string | null, fileName: string | null) => void) | undefined;
+    onRemoveAvatar?: () => void;
+    avatarBase64: string | null;
+    avatarFileName: string | null;
+    removeAvatar: boolean;
+}) {
+    if (isEdit) {
+        return (
+            <PhotoUpload
+                currentPhotoUrl={avatarUrl}
+                onPhotoChange={onPhotoChange || (() => { })}
+                initials={initials}
+            />
+        );
+    }
+
+    if (avatarUrl) {
+        return (
+            <img
+                src={avatarUrl}
+                alt="Profile"
+                className="w-20 h-20 rounded-full object-cover flex-shrink-0"
+            />
+        );
+    }
+
+    return (
+        <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+            {initials}
+        </div>
+    );
+});
+
+// Мемоизированный компонент DocumentPhotosDisplay
+const DocumentPhotosDisplay = memo(function DocumentPhotosDisplay({
+    photos,
+    label,
+}: {
+    photos: DocumentPhoto[] | null;
+    label: string;
+}) {
+    if (!photos || photos.length === 0) {
+        return (
+            <div>
+                <h4 className="text-sm font-medium text-gray-900 mb-2">{label}</h4>
+                <span className="text-xs text-gray-400">No photos uploaded</span>
+            </div>
+        );
+    }
+
+    return (
+        <div>
+            <h4 className="text-sm font-medium text-gray-900 mb-2">{label}</h4>
+            <div className="flex items-center gap-2">
+                {photos.map((photo, index) => (
+                    <div
+                        key={index}
+                        className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-50"
+                    >
+                        <img
+                            src={photo.base64}
+                            alt={photo.fileName}
+                            className="w-full h-full object-cover"
+                        />
+                    </div>
+                ))}
+                <span className="text-xs text-gray-400 ml-1">
+                    ({photos.length}/2)
+                </span>
+            </div>
+        </div>
+    );
+});
+
+// Мемоизированный компонент поля ввода
+const ProfileField = memo(function ProfileField({
+    label,
+    name,
+    type = "text",
+    value,
+    defaultValue,
+    placeholder,
+    required = false,
+    disabled = false,
+    selectOptions = null,
+}: {
+    label: string;
+    name: string;
+    type?: string;
+    value?: string | number | null;
+    defaultValue?: string | number | null;
+    placeholder?: string;
+    required?: boolean;
+    disabled?: boolean;
+    selectOptions?: Array<{ id: number | string; name: string }> | null;
+}) {
+    const content = selectOptions ? (
+        <div>
+            <label className="block text-xs text-gray-600 mb-1">{label}</label>
+            <select
+                name={name}
+                defaultValue={defaultValue ?? ""}
+                value={value ?? ""}
+                disabled={disabled}
+                className={disabled ? DISABLED_SELECT_CLASS : selectBaseStyles}
+                required={required}
+            >
+                <option value="">Select {label}</option>
+                {selectOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                        {option.name}
+                    </option>
+                ))}
+            </select>
+        </div>
+    ) : (
+        <Input
+            label={label}
+            name={name}
+            type={type}
+            value={value ?? ""}
+            defaultValue={defaultValue ?? ""}
+            placeholder={placeholder}
+            required={required}
+            disabled={disabled}
+        />
+    );
+
+    return <>{content}</>;
+});
+
+// Мемоизированный компонент ReadOnlyField
+const ReadOnlyField = memo(function ReadOnlyField({
+    label,
+    value,
+}: {
+    label: string;
+    value: string;
+}) {
+    return (
+        <div>
+            <label className="block text-xs text-gray-600 mb-1">{label}</label>
+            <input
+                type="text"
+                value={value}
+                disabled
+                className={DISABLED_SELECT_CLASS}
+            />
+        </div>
+    );
+});
+
+function ProfileForm({
     user,
     countries,
     hotels,
@@ -62,56 +261,254 @@ export default function ProfileForm({
     const [avatarFileName, setAvatarFileName] = useState<string | null>(null);
     const [removeAvatar, setRemoveAvatar] = useState(false);
 
-    const initials = `${user.name?.[0] || ''}${user.surname?.[0] || ''}`.toUpperCase() || (user.email?.[0]?.toUpperCase() || '?');
+    // Мемоизированные вычисления
+    const initials = useMemo(() => {
+        return `${user.name?.[0] || ''}${user.surname?.[0] || ''}`.toUpperCase()
+            || (user.email?.[0]?.toUpperCase() || '?');
+    }, [user.name, user.surname, user.email]);
 
-    const handlePhotoChange = (base64: string | null, fileName: string | null) => {
+    const selectClass = useMemo(() =>
+        isEdit ? selectBaseStyles : DISABLED_SELECT_CLASS,
+        [isEdit]);
+
+    // Мемоизированный парсинг JSON для документов
+    const passportPhotos = useMemo(() => {
+        if (!user.passportPhotos) return null;
+        try {
+            return JSON.parse(user.passportPhotos) as DocumentPhoto[];
+        } catch {
+            console.error('Failed to parse passport photos');
+            return null;
+        }
+    }, [user.passportPhotos]);
+
+    const driverLicensePhotos = useMemo(() => {
+        if (!user.driverLicensePhotos) return null;
+        try {
+            return JSON.parse(user.driverLicensePhotos) as DocumentPhoto[];
+        } catch {
+            console.error('Failed to parse driver license photos');
+            return null;
+        }
+    }, [user.driverLicensePhotos]);
+
+    // Форматированная дата рождения
+    const formattedDateOfBirth = useMemo(() => {
+        if (!user.dateOfBirth) return "";
+        return new Date(user.dateOfBirth).toISOString().split('T')[0];
+    }, [user.dateOfBirth]);
+
+    // Форматированная роль
+    const formattedRole = useMemo(() => {
+        return user.role.charAt(0).toUpperCase() + user.role.slice(1);
+    }, [user.role]);
+
+    // Мемоизированные обработчики
+    const handlePhotoChange = useCallback((base64: string | null, fileName: string | null) => {
         setAvatarBase64(base64);
         setAvatarFileName(fileName);
-        if (base64) {
-            setRemoveAvatar(false);
-        } else {
-            setRemoveAvatar(true);
-        }
+        setRemoveAvatar(!!base64 ? false : true);
         onPhotoChange?.(base64, fileName);
-    };
+    }, [onPhotoChange]);
 
-    const handleRemoveAvatar = () => {
+    const handleRemoveAvatar = useCallback(() => {
         setRemoveAvatar(true);
         setAvatarBase64(null);
         setAvatarFileName(null);
         onRemoveAvatar?.();
-    };
+    }, [onRemoveAvatar]);
 
-    const commonInputClass = isEdit
-        ? "w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-        : "w-full px-4 py-2.5 bg-gray-100 rounded-xl sm:text-sm text-gray-500 cursor-not-allowed";
+    // Секции формы
+    const formContent = (
+        <div className="space-y-4">
+            {/* Profile Information Section */}
+            <FormSection title="Profile Information" icon={<UserIcon />}>
+                <div className="grid grid-cols-4 gap-4">
+                    <ProfileField
+                        label="First Name"
+                        name="name"
+                        defaultValue={user.name}
+                        placeholder="Tom"
+                        required
+                    />
+                    <ProfileField
+                        label="Last Name"
+                        name="surname"
+                        defaultValue={user.surname}
+                        placeholder="Carlson"
+                        required
+                    />
+                    <div>
+                        <label className="block text-xs text-gray-600 mb-1">Gender</label>
+                        <select
+                            name="gender"
+                            defaultValue={user.gender || ""}
+                            disabled={!isEdit}
+                            className={selectClass}
+                        >
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <ProfileField
+                        label="Date of Birth"
+                        name="dateOfBirth"
+                        type="date"
+                        defaultValue={formattedDateOfBirth}
+                    />
+                </div>
 
-    const commonSelectClass = isEdit
-        ? "w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-        : "w-full px-4 py-2.5 bg-gray-100 rounded-xl sm:text-sm text-gray-500 cursor-not-allowed";
+                <div className="grid grid-cols-4 gap-4 mb-2">
+                    <ProfileField
+                        label="Role"
+                        name="role"
+                        value={formattedRole}
+                    />
+                    <ProfileField
+                        label="Phone"
+                        name="phone"
+                        defaultValue={user.phone}
+                        placeholder="+66415484865"
+                    />
+                    <ProfileField
+                        label="WhatsApp"
+                        name="whatsapp"
+                        defaultValue={user.whatsapp}
+                        placeholder="+66 83 881 7057"
+                    />
+                    <ProfileField
+                        label="Email"
+                        name="email"
+                        type="email"
+                        value={user.email}
+                        placeholder="ilogush@icloud.com"
+                    />
+                </div>
+
+                <div className="grid grid-cols-4 gap-4 mb-2">
+                    <ProfileField
+                        label="Telegram"
+                        name="telegram"
+                        defaultValue={user.telegram}
+                        placeholder="@user_471322f2"
+                    />
+                    <ProfileField
+                        label="Country"
+                        name="countryId"
+                        defaultValue={user.countryId?.toString()}
+                        selectOptions={countries}
+                    />
+                    <ProfileField
+                        label="City"
+                        name="city"
+                        defaultValue={user.city}
+                        placeholder="Moscow"
+                    />
+                    <ProfileField
+                        label="Passport / ID Number"
+                        name="passportNumber"
+                        defaultValue={user.passportNumber}
+                        placeholder="758024093"
+                    />
+                </div>
+            </FormSection>
+
+            {/* Accommodation Section */}
+            <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
+                <div className="grid grid-cols-4 gap-4 mb-2">
+                    <ProfileField
+                        label="Location"
+                        name="accommodationLocation"
+                        defaultValue="Phuket"
+                        placeholder="Phuket"
+                    />
+                    <ProfileField
+                        label="Hotel"
+                        name="hotelId"
+                        defaultValue={user.hotelId?.toString()}
+                        selectOptions={hotels}
+                    />
+                    <ProfileField
+                        label="Room Number"
+                        name="roomNumber"
+                        defaultValue={user.roomNumber}
+                        placeholder="900"
+                    />
+                    <ProfileField
+                        label="Location"
+                        name="locationId"
+                        defaultValue={user.locationId?.toString()}
+                        selectOptions={locations}
+                    />
+                </div>
+            </FormSection>
+
+            {/* Document Photos Section */}
+            <FormSection title="Document Photos" icon={<DocumentTextIcon />}>
+                {isEdit ? (
+                    <DocumentPhotosUpload
+                        onPassportPhotosChange={(photos) => {
+                            console.log('Passport photos:', photos);
+                        }}
+                        onDriverLicensePhotosChange={(photos) => {
+                            console.log('Driver license photos:', photos);
+                        }}
+                    />
+                ) : (
+                    <div className="flex gap-8">
+                        <DocumentPhotosDisplay
+                            photos={passportPhotos}
+                            label="Passport Photos"
+                        />
+                        <DocumentPhotosDisplay
+                            photos={driverLicensePhotos}
+                            label="Driver License Photos"
+                        />
+                    </div>
+                )}
+            </FormSection>
+
+            {/* Change Password Section */}
+            {isEdit && (
+                <FormSection title="Change Password" icon={<LockClosedIcon />}>
+                    <div className="grid grid-cols-4 gap-4">
+                        <ProfileField
+                            label="New Password"
+                            name="newPassword"
+                            type="password"
+                            placeholder="Enter new password"
+                        />
+                        <ProfileField
+                            label="Confirm Password"
+                            name="confirmPassword"
+                            type="password"
+                            placeholder="Confirm new password"
+                        />
+                        <div />
+                        <div />
+                    </div>
+                </FormSection>
+            )}
+        </div>
+    );
 
     return (
         <div className="space-y-4">
             {/* Profile Photo Section */}
             <div className="bg-white rounded-3xl shadow-sm p-4">
                 <div className="flex items-center gap-4">
-                    {isEdit ? (
-                        <PhotoUpload
-                            currentPhotoUrl={user.avatarUrl}
-                            onPhotoChange={handlePhotoChange}
-                            initials={initials}
-                        />
-                    ) : user.avatarUrl ? (
-                        <img
-                            src={user.avatarUrl}
-                            alt="Profile"
-                            className="w-20 h-20 rounded-full object-cover flex-shrink-0"
-                        />
-                    ) : (
-                        <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
-                            {initials}
-                        </div>
-                    )}
+                    <AvatarSection
+                        isEdit={isEdit}
+                        avatarUrl={user.avatarUrl}
+                        initials={initials}
+                        onPhotoChange={handlePhotoChange}
+                        onRemoveAvatar={handleRemoveAvatar}
+                        avatarBase64={avatarBase64}
+                        avatarFileName={avatarFileName}
+                        removeAvatar={removeAvatar}
+                    />
                 </div>
             </div>
 
@@ -126,207 +523,29 @@ export default function ProfileForm({
                     )}
                     <input type="hidden" name="passportPhotos" value={user.passportPhotos || ""} />
                     <input type="hidden" name="driverLicensePhotos" value={user.driverLicensePhotos || ""} />
-
-                    <FormSection title="Profile Information" icon={<UserIcon />}>
-                        <div className="grid grid-cols-4 gap-4">
-                            <Input
-                                label="First Name"
-                                name="name"
-                                defaultValue={user.name || ""}
-                                placeholder="Tom"
-                                required
-                            />
-                            <Input
-                                label="Last Name"
-                                name="surname"
-                                defaultValue={user.surname || ""}
-                                placeholder="Carlson"
-                                required
-                            />
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Gender</label>
-                                <select
-                                    name="gender"
-                                    defaultValue={user.gender || ""}
-                                    className={commonSelectClass}
-                                >
-                                    <option value="">Select Gender</option>
-                                    <option value="male">Male</option>
-                                    <option value="female">Female</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-                            <Input
-                                label="Date of Birth"
-                                name="dateOfBirth"
-                                type="date"
-                                defaultValue={user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : ""}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-4 mb-2">
-                            <Input
-                                label="Role"
-                                name="role"
-                                defaultValue={user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                            />
-                            <Input
-                                label="Phone"
-                                name="phone"
-                                defaultValue={user.phone || ""}
-                                placeholder="+66415484865"
-                            />
-                            <Input
-                                label="WhatsApp"
-                                name="whatsapp"
-                                defaultValue={user.whatsapp || ""}
-                                placeholder="+66 83 881 7057"
-                            />
-                            <Input
-                                label="Email"
-                                name="email"
-                                type="email"
-                                defaultValue={user.email}
-                                placeholder="ilogush@icloud.com"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-4 mb-2">
-                            <Input
-                                label="Telegram"
-                                name="telegram"
-                                defaultValue={user.telegram || ""}
-                                placeholder="@user_471322f2"
-                            />
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Country</label>
-                                <select
-                                    name="countryId"
-                                    defaultValue={user.countryId || ""}
-                                    className={commonSelectClass}
-                                >
-                                    <option value="">Select Country</option>
-                                    {countries.map((c) => (
-                                        <option key={c.id} value={c.id}>
-                                            {c.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <Input
-                                label="City"
-                                name="city"
-                                defaultValue={user.city || ""}
-                                placeholder="Moscow"
-                            />
-                            <Input
-                                label="Passport / ID Number"
-                                name="passportNumber"
-                                defaultValue={user.passportNumber || ""}
-                                placeholder="758024093"
-                            />
-                        </div>
-                    </FormSection>
-
-                    <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
-                        <div className="grid grid-cols-4 gap-4 mb-2">
-                            <Input
-                                label="Location"
-                                name="accommodationLocation"
-                                defaultValue="Phuket"
-                                placeholder="Phuket"
-                            />
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Hotel</label>
-                                <select
-                                    name="hotelId"
-                                    defaultValue={user.hotelId || ""}
-                                    className={commonSelectClass}
-                                >
-                                    <option value="">Select Hotel</option>
-                                    {hotels.map((h) => (
-                                        <option key={h.id} value={h.id}>
-                                            {h.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <Input
-                                label="Room Number"
-                                name="roomNumber"
-                                defaultValue={user.roomNumber || ""}
-                                placeholder="900"
-                            />
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Location</label>
-                                <select
-                                    name="locationId"
-                                    defaultValue={user.locationId || ""}
-                                    className={commonSelectClass}
-                                >
-                                    <option value="">Select Location</option>
-                                    {locations.map((l) => (
-                                        <option key={l.id} value={l.id}>
-                                            {l.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    </FormSection>
-
-                    <FormSection title="Document Photos" icon={<DocumentTextIcon />}>
-                        <DocumentPhotosUpload
-                            onPassportPhotosChange={(photos) => {
-                                console.log('Passport photos:', photos);
-                            }}
-                            onDriverLicensePhotosChange={(photos) => {
-                                console.log('Driver license photos:', photos);
-                            }}
-                        />
-                    </FormSection>
-
-                    <FormSection title="Change Password" icon={<LockClosedIcon />}>
-                        <div className="grid grid-cols-4 gap-4">
-                            <Input
-                                label="New Password"
-                                name="newPassword"
-                                type="password"
-                                placeholder="Enter new password"
-                            />
-                            <Input
-                                label="Confirm Password"
-                                name="confirmPassword"
-                                type="password"
-                                placeholder="Confirm new password"
-                            />
-                            <div />
-                            <div />
-                        </div>
-                    </FormSection>
+                    {formContent}
                 </Form>
             ) : (
                 <div className="space-y-4">
+                    {/* Profile Information Read Only */}
                     <FormSection title="Profile Information" icon={<UserIcon />}>
                         <div className="grid grid-cols-4 gap-4 mb-2">
-                            <Input
+                            <ProfileField
                                 label="First Name"
                                 name="name"
                                 value={user.name || ""}
-                                disabled
                             />
-                            <Input
+                            <ProfileField
                                 label="Last Name"
                                 name="surname"
                                 value={user.surname || ""}
-                                disabled
                             />
                             <div>
                                 <label className="block text-xs text-gray-600 mb-1">Gender</label>
                                 <select
                                     value={user.gender || ""}
                                     disabled
-                                    className={commonSelectClass}
+                                    className={selectClass}
                                 >
                                     <option value="">Select Gender</option>
                                     <option value="male">Male</option>
@@ -334,196 +553,94 @@ export default function ProfileForm({
                                     <option value="other">Other</option>
                                 </select>
                             </div>
-                            <Input
+                            <ProfileField
                                 label="Date of Birth"
                                 name="dateOfBirth"
                                 type="date"
-                                value={user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : ""}
-                                disabled
+                                value={formattedDateOfBirth}
                             />
                         </div>
 
                         <div className="grid grid-cols-4 gap-4 mb-2">
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Role</label>
-                                <input
-                                    type="text"
-                                    value={user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                                    disabled
-                                    className={commonInputClass}
-                                />
-                            </div>
-                            <Input
+                            <ReadOnlyField
+                                label="Role"
+                                value={formattedRole}
+                            />
+                            <ProfileField
                                 label="Phone"
                                 name="phone"
                                 value={user.phone || ""}
-                                disabled
                             />
-                            <Input
+                            <ProfileField
                                 label="WhatsApp"
                                 name="whatsapp"
                                 value={user.whatsapp || ""}
-                                disabled
                             />
-                            <Input
+                            <ProfileField
                                 label="Email"
                                 name="email"
                                 type="email"
                                 value={user.email}
-                                disabled
                             />
                         </div>
 
                         <div className="grid grid-cols-4 gap-4 mb-2">
-                            <Input
+                            <ProfileField
                                 label="Telegram"
                                 name="telegram"
                                 value={user.telegram || ""}
-                                disabled
                             />
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Country</label>
-                                <input
-                                    type="text"
-                                    value={country?.name || ""}
-                                    disabled
-                                    className={commonInputClass}
-                                />
-                            </div>
-                            <Input
+                            <ReadOnlyField
+                                label="Country"
+                                value={country?.name || ""}
+                            />
+                            <ProfileField
                                 label="City"
                                 name="city"
                                 value={user.city || ""}
-                                disabled
                             />
-                            <Input
+                            <ProfileField
                                 label="Passport / ID Number"
                                 name="passportNumber"
                                 value={user.passportNumber || ""}
-                                disabled
                             />
                         </div>
                     </FormSection>
 
+                    {/* Accommodation Read Only */}
                     <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
                         <div className="grid grid-cols-4 gap-4 mb-2">
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Location</label>
-                                <input
-                                    type="text"
-                                    value="Phuket"
-                                    disabled
-                                    className={commonInputClass}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Hotel</label>
-                                <input
-                                    type="text"
-                                    value={hotel?.name || ""}
-                                    disabled
-                                    className={commonInputClass}
-                                />
-                            </div>
-                            <Input
+                            <ReadOnlyField
+                                label="Location"
+                                value="Phuket"
+                            />
+                            <ReadOnlyField
+                                label="Hotel"
+                                value={hotel?.name || ""}
+                            />
+                            <ProfileField
                                 label="Room Number"
                                 name="roomNumber"
                                 value={user.roomNumber || ""}
-                                disabled
                             />
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Area</label>
-                                <input
-                                    type="text"
-                                    value={location?.name || ""}
-                                    disabled
-                                    className={commonInputClass}
-                                />
-                            </div>
+                            <ReadOnlyField
+                                label="Area"
+                                value={location?.name || ""}
+                            />
                         </div>
                     </FormSection>
 
+                    {/* Document Photos Read Only */}
                     <FormSection title="Document Photos" icon={<DocumentTextIcon />}>
-                        <div className="flex">
-                            {/* Passport Photos - left aligned */}
-                            <div className="w-1/3">
-                                <h4 className="text-sm font-medium text-gray-900 mb-2">Passport Photos</h4>
-                                <div className="flex items-center gap-2">
-                                    {user.passportPhotos && JSON.parse(user.passportPhotos).map((photo: { base64: string; fileName: string }, index: number) => (
-                                        <div
-                                            key={index}
-                                            className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-50"
-                                        >
-                                            <img
-                                                src={photo.base64}
-                                                alt={photo.fileName}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        </div>
-                                    ))}
-                                    {!user.passportPhotos && (
-                                        <span className="text-xs text-gray-400">No photos uploaded</span>
-                                    )}
-                                    {user.passportPhotos && (
-                                        <span className="text-xs text-gray-400 ml-1">
-                                            ({JSON.parse(user.passportPhotos).length}/2)
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Driver License Photos - center */}
-                            <div className="w-1/3 flex justify-center">
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-900 mb-2">Driver License Photos</h4>
-                                    <div className="flex items-center gap-2">
-                                        {user.driverLicensePhotos && JSON.parse(user.driverLicensePhotos).map((photo: { base64: string; fileName: string }, index: number) => (
-                                            <div
-                                                key={index}
-                                                className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-50"
-                                            >
-                                                <img
-                                                    src={photo.base64}
-                                                    alt={photo.fileName}
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </div>
-                                        ))}
-                                        {!user.driverLicensePhotos && (
-                                            <span className="text-xs text-gray-400">No photos uploaded</span>
-                                        )}
-                                        {user.driverLicensePhotos && (
-                                            <span className="text-xs text-gray-400 ml-1">
-                                                ({JSON.parse(user.driverLicensePhotos).length}/2)
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Empty space for balance */}
-                            <div className="w-1/3"></div>
-                        </div>
-                    </FormSection>
-
-                    <FormSection title="Change Password" icon={<LockClosedIcon />}>
-                        <div className="grid grid-cols-4 gap-4">
-                            <Input
-                                label="New Password"
-                                name="newPassword"
-                                type="password"
-                                value="********"
-                                disabled
+                        <div className="flex gap-8">
+                            <DocumentPhotosDisplay
+                                photos={passportPhotos}
+                                label="Passport Photos"
                             />
-                            <Input
-                                label="Confirm Password"
-                                name="confirmPassword"
-                                type="password"
-                                value="********"
-                                disabled
+                            <DocumentPhotosDisplay
+                                photos={driverLicensePhotos}
+                                label="Driver License Photos"
                             />
-                            <div />
-                            <div />
                         </div>
                     </FormSection>
                 </div>
@@ -531,3 +648,5 @@ export default function ProfileForm({
         </div>
     );
 }
+
+export default memo(ProfileForm);

@@ -48,7 +48,7 @@ export function Textarea({
                 placeholder={placeholder}
                 disabled={disabled}
                 rows={rows}
-                className={`${textareaBaseStyles} resize-vertical ${error ? 'border-gray-600' : ''} ${disabled ? 'bg-gray-200 cursor-not-allowed' : ''}`}
+                className={`${textareaBaseStyles} resize-vertical ${error ? 'border-gray-600' : ''} ${disabled ? '!bg-gray-50 !text-gray-500 !border-gray-200 cursor-not-allowed' : ''}`}
             />
             {error && (
                 <p className="mt-1 text-sm text-gray-700">{error}</p>

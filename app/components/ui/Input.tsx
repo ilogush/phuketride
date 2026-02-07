@@ -71,7 +71,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
         : true
 
     const baseStyle = error ? inputErrorStyles : inputBaseStyles
-    const inputClasses = `${baseStyle} ${disabled ? '!bg-gray-100 cursor-not-allowed !text-gray-500' : ''} ${addonLeft ? 'rounded-l-none' : ''} ${isPassword ? 'rounded-r-none' : ''} ${addonRight && !isPassword ? 'rounded-r-none' : ''}`
+    const inputClasses = `${baseStyle} ${disabled ? '!bg-gray-50 cursor-not-allowed !text-gray-500 !border-gray-200' : ''} ${addonLeft ? 'rounded-l-none' : ''} ${isPassword ? 'rounded-r-none' : ''} ${addonRight && !isPassword ? 'rounded-r-none' : ''}`
 
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
 
