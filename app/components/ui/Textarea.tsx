@@ -34,7 +34,7 @@ export function Textarea({
     }
 
     return (
-        <div className={className}>
+        <div className={`mt-2 ${className}`}>
             {label && (
                 <label htmlFor={id || name} className="block text-xs text-gray-600 mb-1">
                     {label} {required && <span className="text-gray-500">*</span>}
@@ -48,7 +48,7 @@ export function Textarea({
                 placeholder={placeholder}
                 disabled={disabled}
                 rows={rows}
-                className={`${textareaBaseStyles} resize-vertical ${error ? 'border-gray-600' : ''} ${disabled ? '!bg-gray-50 !text-gray-500 !border-gray-200 cursor-not-allowed' : ''}`}
+                className={`${textareaBaseStyles} resize-vertical ${error ? 'border-gray-600' : ''} ${disabled ? '!bg-gray-200 !text-gray-800 !border-gray-200 cursor-not-allowed' : ''}`}
             />
             {error && (
                 <p className="mt-1 text-sm text-gray-700">{error}</p>

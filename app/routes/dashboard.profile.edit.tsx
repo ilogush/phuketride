@@ -29,7 +29,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         db.select().from(schema.districts).all(),
     ]);
 
-    return { user: fullUser, countries, hotels, locations, districts };
+    return {
+        user: fullUser,
+        currentUserRole: sessionUser.role,
+        countries,
+        hotels,
+        locations,
+        districts
+    };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -77,34 +84,45 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
     }
 
+    // Prepare update data
+    const updateData: any = {
+        name: formData.get("name") as string || null,
+        surname: formData.get("surname") as string || null,
+        phone: formData.get("phone") as string || null,
+        whatsapp: formData.get("whatsapp") as string || null,
+        telegram: formData.get("telegram") as string || null,
+        passportNumber: formData.get("passportNumber") as string || null,
+        citizenship: formData.get("citizenship") as string || null,
+        city: formData.get("city") as string || null,
+        countryId: formData.get("countryId") ? parseInt(formData.get("countryId") as string) : null,
+        dateOfBirth: formData.get("dateOfBirth") ? new Date(formData.get("dateOfBirth") as string) : null,
+        gender: formData.get("gender") as "male" | "female" | "other" || null,
+        hotelId: formData.get("hotelId") ? parseInt(formData.get("hotelId") as string) : null,
+        roomNumber: formData.get("roomNumber") as string || null,
+        locationId: formData.get("locationId") ? parseInt(formData.get("locationId") as string) : null,
+        districtId: formData.get("districtId") ? parseInt(formData.get("districtId") as string) : null,
+        address: formData.get("address") as string || null,
+        avatarUrl,
+        updatedAt: new Date(),
+    };
+
+    // Only admin can change role
+    if (user.role === "admin") {
+        const newRole = formData.get("role") as string;
+        if (newRole && ["admin", "partner", "manager", "user"].includes(newRole)) {
+            updateData.role = newRole;
+        }
+    }
+
     await db.update(schema.users)
-        .set({
-            name: formData.get("name") as string || null,
-            surname: formData.get("surname") as string || null,
-            phone: formData.get("phone") as string || null,
-            whatsapp: formData.get("whatsapp") as string || null,
-            telegram: formData.get("telegram") as string || null,
-            passportNumber: formData.get("passportNumber") as string || null,
-            citizenship: formData.get("citizenship") as string || null,
-            city: formData.get("city") as string || null,
-            countryId: formData.get("countryId") ? parseInt(formData.get("countryId") as string) : null,
-            dateOfBirth: formData.get("dateOfBirth") ? new Date(formData.get("dateOfBirth") as string) : null,
-            gender: formData.get("gender") as "male" | "female" | "other" || null,
-            hotelId: formData.get("hotelId") ? parseInt(formData.get("hotelId") as string) : null,
-            roomNumber: formData.get("roomNumber") as string || null,
-            locationId: formData.get("locationId") ? parseInt(formData.get("locationId") as string) : null,
-            districtId: formData.get("districtId") ? parseInt(formData.get("districtId") as string) : null,
-            address: formData.get("address") as string || null,
-            avatarUrl,
-            updatedAt: new Date(),
-        })
+        .set(updateData)
         .where(eq(schema.users.id, user.id));
 
     return redirect("/profile");
 }
 
 export default function EditProfilePage() {
-    const { user, countries, hotels, locations, districts } = useLoaderData<typeof loader>();
+    const { user, currentUserRole, countries, hotels, locations, districts } = useLoaderData<typeof loader>();
 
     return (
         <div className="space-y-4">
@@ -119,6 +137,7 @@ export default function EditProfilePage() {
             />
             <ProfileForm
                 user={user}
+                currentUserRole={currentUserRole}
                 countries={countries}
                 hotels={hotels}
                 locations={locations}

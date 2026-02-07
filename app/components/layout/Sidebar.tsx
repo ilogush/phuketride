@@ -143,7 +143,7 @@ export default function Sidebar({ user, isOpen }: SidebarProps) {
                                     flex items-center gap-3 rounded-xl transition-all duration-300 group relative
                                     ${isOpen ? "p-2.5 w-full" : "w-10 h-10 justify-center p-0 mx-auto"}
                                     ${isActive
-                                        ? "bg-gray-100/80 text-gray-900 shadow-sm"
+                                        ? "bg-gray-200 text-gray-900 shadow-sm"
                                         : "text-gray-400 hover:bg-gray-50 hover:text-gray-900"
                                     }
                                 `}

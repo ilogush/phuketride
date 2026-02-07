@@ -13,7 +13,7 @@ export default function PhotoUpload({
     currentPhotoUrl,
     onPhotoChange,
     maxSizeMB = 2,
-    label = "Profile Photo",
+    label,
     initials = "U",
 }: PhotoUploadProps) {
     const [preview, setPreview] = useState<string | null>(currentPhotoUrl || null);

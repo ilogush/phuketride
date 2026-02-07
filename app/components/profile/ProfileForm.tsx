@@ -55,6 +55,7 @@ interface User {
 
 interface ProfileFormProps {
     user: User;
+    currentUserRole?: string;
     countries: Country[];
     hotels: Hotel[];
     locations: Location[];
@@ -74,8 +75,8 @@ interface DocumentPhoto {
     fileName: string;
 }
 
-// Константы для CSS классов - используем стандартные стили
-const DISABLED_SELECT_CLASS = "block w-full h-10 rounded-xl sm:text-sm py-2.5 px-4 bg-gray-50 text-gray-500 border border-gray-200 cursor-not-allowed";
+// Константы для CSS классов - disabled поля с серым-200 фоном
+const DISABLED_SELECT_CLASS = "block w-full h-10 rounded-xl text-sm py-2.5 px-4 bg-gray-200 text-gray-800 border border-gray-200 cursor-not-allowed";
 
 // Мемоизированный компонент AvatarSection
 const AvatarSection = memo(function AvatarSection({
@@ -176,6 +177,7 @@ const ProfileField = memo(function ProfileField({
     required = false,
     disabled = false,
     selectOptions = null,
+    isEdit,
 }: {
     label: string;
     name: string;
@@ -186,16 +188,26 @@ const ProfileField = memo(function ProfileField({
     required?: boolean;
     disabled?: boolean;
     selectOptions?: Array<{ id: number | string; name: string }> | null;
+    isEdit?: boolean;
 }) {
+    const isFieldDisabled = disabled || (isEdit === false);
+
+    // Use value for controlled (disabled) fields, defaultValue for editable fields
+    const selectValue = isFieldDisabled ? (value ?? defaultValue ?? "") : undefined;
+    const selectDefaultValue = !isFieldDisabled ? (defaultValue ?? value ?? "") : undefined;
+
+    const inputValue = isFieldDisabled ? (value ?? defaultValue ?? "") : undefined;
+    const inputDefaultValue = !isFieldDisabled ? (defaultValue ?? value ?? "") : undefined;
+
     const content = selectOptions ? (
-        <div>
+        <div className="mt-2">
             <label className="block text-xs text-gray-600 mb-1">{label}</label>
             <select
                 name={name}
-                defaultValue={defaultValue ?? ""}
-                value={value ?? ""}
-                disabled={disabled}
-                className={disabled ? DISABLED_SELECT_CLASS : selectBaseStyles}
+                defaultValue={selectDefaultValue}
+                value={selectValue}
+                disabled={isFieldDisabled}
+                className={isFieldDisabled ? DISABLED_SELECT_CLASS : selectBaseStyles}
                 required={required}
             >
                 <option value="">Select {label}</option>
@@ -211,11 +223,11 @@ const ProfileField = memo(function ProfileField({
             label={label}
             name={name}
             type={type}
-            value={value ?? ""}
-            defaultValue={defaultValue ?? ""}
+            value={inputValue}
+            defaultValue={inputDefaultValue}
             placeholder={placeholder}
             required={required}
-            disabled={disabled}
+            disabled={isFieldDisabled}
         />
     );
 
@@ -231,7 +243,7 @@ const ReadOnlyField = memo(function ReadOnlyField({
     value: string;
 }) {
     return (
-        <div>
+        <div className="mt-2">
             <label className="block text-xs text-gray-600 mb-1">{label}</label>
             <input
                 type="text"
@@ -245,6 +257,7 @@ const ReadOnlyField = memo(function ReadOnlyField({
 
 function ProfileForm({
     user,
+    currentUserRole,
     countries,
     hotels,
     locations,
@@ -261,15 +274,14 @@ function ProfileForm({
     const [avatarFileName, setAvatarFileName] = useState<string | null>(null);
     const [removeAvatar, setRemoveAvatar] = useState(false);
 
+    // Check if current user is admin
+    const isAdmin = currentUserRole === "admin";
+
     // Мемоизированные вычисления
     const initials = useMemo(() => {
         return `${user.name?.[0] || ''}${user.surname?.[0] || ''}`.toUpperCase()
             || (user.email?.[0]?.toUpperCase() || '?');
     }, [user.name, user.surname, user.email]);
-
-    const selectClass = useMemo(() =>
-        isEdit ? selectBaseStyles : DISABLED_SELECT_CLASS,
-        [isEdit]);
 
     // Мемоизированный парсинг JSON для документов
     const passportPhotos = useMemo(() => {
@@ -324,27 +336,27 @@ function ProfileForm({
             {/* Profile Information Section */}
             <FormSection title="Profile Information" icon={<UserIcon />}>
                 <div className="grid grid-cols-4 gap-4">
-                    <ProfileField
+                    <ProfileField isEdit={isEdit}
                         label="First Name"
                         name="name"
                         defaultValue={user.name}
                         placeholder="Tom"
                         required
                     />
-                    <ProfileField
+                    <ProfileField isEdit={isEdit}
                         label="Last Name"
                         name="surname"
                         defaultValue={user.surname}
                         placeholder="Carlson"
                         required
                     />
-                    <div>
+                    <div className="mt-2">
                         <label className="block text-xs text-gray-600 mb-1">Gender</label>
                         <select
                             name="gender"
                             defaultValue={user.gender || ""}
                             disabled={!isEdit}
-                            className={selectClass}
+                            className={!isEdit ? DISABLED_SELECT_CLASS : selectBaseStyles}
                         >
                             <option value="">Select Gender</option>
                             <option value="male">Male</option>
@@ -352,7 +364,7 @@ function ProfileForm({
                             <option value="other">Other</option>
                         </select>
                     </div>
-                    <ProfileField
+                    <ProfileField isEdit={isEdit}
                         label="Date of Birth"
                         name="dateOfBirth"
                         type="date"
@@ -360,53 +372,62 @@ function ProfileForm({
                     />
                 </div>
 
-                <div className="grid grid-cols-4 gap-4 mb-2">
-                    <ProfileField
-                        label="Role"
-                        name="role"
-                        value={formattedRole}
-                    />
-                    <ProfileField
+                <div className="grid grid-cols-4 gap-4 mt-2">
+                    <div className="mt-2">
+                        <label className="block text-xs text-gray-600 mb-1">Role</label>
+                        <select
+                            name="role"
+                            defaultValue={user.role}
+                            disabled={!isEdit || !isAdmin}
+                            className={(!isEdit || !isAdmin) ? DISABLED_SELECT_CLASS : selectBaseStyles}
+                        >
+                            <option value="admin">Admin</option>
+                            <option value="partner">Partner</option>
+                            <option value="manager">Manager</option>
+                            <option value="user">User</option>
+                        </select>
+                    </div>
+                    <ProfileField isEdit={isEdit}
                         label="Phone"
                         name="phone"
                         defaultValue={user.phone}
                         placeholder="+66415484865"
                     />
-                    <ProfileField
+                    <ProfileField isEdit={isEdit}
                         label="WhatsApp"
                         name="whatsapp"
                         defaultValue={user.whatsapp}
                         placeholder="+66 83 881 7057"
                     />
-                    <ProfileField
+                    <ProfileField isEdit={isEdit}
                         label="Email"
                         name="email"
                         type="email"
-                        value={user.email}
+                        defaultValue={user.email}
                         placeholder="ilogush@icloud.com"
                     />
                 </div>
 
-                <div className="grid grid-cols-4 gap-4 mb-2">
-                    <ProfileField
+                <div className="grid grid-cols-4 gap-4 mt-2">
+                    <ProfileField isEdit={isEdit}
                         label="Telegram"
                         name="telegram"
                         defaultValue={user.telegram}
                         placeholder="@user_471322f2"
                     />
-                    <ProfileField
+                    <ProfileField isEdit={isEdit}
                         label="Country"
                         name="countryId"
                         defaultValue={user.countryId?.toString()}
                         selectOptions={countries}
                     />
-                    <ProfileField
+                    <ProfileField isEdit={isEdit}
                         label="City"
                         name="city"
                         defaultValue={user.city}
                         placeholder="Moscow"
                     />
-                    <ProfileField
+                    <ProfileField isEdit={isEdit}
                         label="Passport / ID Number"
                         name="passportNumber"
                         defaultValue={user.passportNumber}
@@ -417,26 +438,26 @@ function ProfileForm({
 
             {/* Accommodation Section */}
             <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
-                <div className="grid grid-cols-4 gap-4 mb-2">
-                    <ProfileField
+                <div className="grid grid-cols-4 gap-4 mt-2">
+                    <ProfileField isEdit={isEdit}
                         label="Location"
                         name="accommodationLocation"
                         defaultValue="Phuket"
                         placeholder="Phuket"
                     />
-                    <ProfileField
+                    <ProfileField isEdit={isEdit}
                         label="Hotel"
                         name="hotelId"
                         defaultValue={user.hotelId?.toString()}
                         selectOptions={hotels}
                     />
-                    <ProfileField
+                    <ProfileField isEdit={isEdit}
                         label="Room Number"
                         name="roomNumber"
                         defaultValue={user.roomNumber}
                         placeholder="900"
                     />
-                    <ProfileField
+                    <ProfileField isEdit={isEdit}
                         label="Location"
                         name="locationId"
                         defaultValue={user.locationId?.toString()}
@@ -474,13 +495,13 @@ function ProfileForm({
             {isEdit && (
                 <FormSection title="Change Password" icon={<LockClosedIcon />}>
                     <div className="grid grid-cols-4 gap-4">
-                        <ProfileField
+                        <ProfileField isEdit={isEdit}
                             label="New Password"
                             name="newPassword"
                             type="password"
                             placeholder="Enter new password"
                         />
-                        <ProfileField
+                        <ProfileField isEdit={isEdit}
                             label="Confirm Password"
                             name="confirmPassword"
                             type="password"
@@ -497,18 +518,24 @@ function ProfileForm({
     return (
         <div className="space-y-4">
             {/* Profile Photo Section */}
-            <div className="bg-white rounded-3xl shadow-sm p-4">
-                <div className="flex items-center gap-4">
-                    <AvatarSection
-                        isEdit={isEdit}
-                        avatarUrl={user.avatarUrl}
-                        initials={initials}
-                        onPhotoChange={handlePhotoChange}
-                        onRemoveAvatar={handleRemoveAvatar}
-                        avatarBase64={avatarBase64}
-                        avatarFileName={avatarFileName}
-                        removeAvatar={removeAvatar}
-                    />
+            <div className="flex items-center gap-4">
+                <AvatarSection
+                    isEdit={isEdit}
+                    avatarUrl={user.avatarUrl}
+                    initials={initials}
+                    onPhotoChange={handlePhotoChange}
+                    onRemoveAvatar={handleRemoveAvatar}
+                    avatarBase64={avatarBase64}
+                    avatarFileName={avatarFileName}
+                    removeAvatar={removeAvatar}
+                />
+                <div className="flex-1">
+                    <h2 className="text-2xl font-semibold text-gray-900">
+                        {user.name && user.surname ? `${user.name} ${user.surname}` : user.email}
+                    </h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                    </p>
                 </div>
             </div>
 
@@ -529,23 +556,23 @@ function ProfileForm({
                 <div className="space-y-4">
                     {/* Profile Information Read Only */}
                     <FormSection title="Profile Information" icon={<UserIcon />}>
-                        <div className="grid grid-cols-4 gap-4 mb-2">
-                            <ProfileField
+                        <div className="grid grid-cols-4 gap-4 mt-2">
+                            <ProfileField isEdit={isEdit}
                                 label="First Name"
                                 name="name"
                                 value={user.name || ""}
                             />
-                            <ProfileField
+                            <ProfileField isEdit={isEdit}
                                 label="Last Name"
                                 name="surname"
                                 value={user.surname || ""}
                             />
-                            <div>
+                            <div className="mt-2">
                                 <label className="block text-xs text-gray-600 mb-1">Gender</label>
                                 <select
                                     value={user.gender || ""}
                                     disabled
-                                    className={selectClass}
+                                    className={DISABLED_SELECT_CLASS}
                                 >
                                     <option value="">Select Gender</option>
                                     <option value="male">Male</option>
@@ -553,7 +580,7 @@ function ProfileForm({
                                     <option value="other">Other</option>
                                 </select>
                             </div>
-                            <ProfileField
+                            <ProfileField isEdit={isEdit}
                                 label="Date of Birth"
                                 name="dateOfBirth"
                                 type="date"
@@ -561,22 +588,22 @@ function ProfileForm({
                             />
                         </div>
 
-                        <div className="grid grid-cols-4 gap-4 mb-2">
+                        <div className="grid grid-cols-4 gap-4 mt-2">
                             <ReadOnlyField
                                 label="Role"
                                 value={formattedRole}
                             />
-                            <ProfileField
+                            <ProfileField isEdit={isEdit}
                                 label="Phone"
                                 name="phone"
                                 value={user.phone || ""}
                             />
-                            <ProfileField
+                            <ProfileField isEdit={isEdit}
                                 label="WhatsApp"
                                 name="whatsapp"
                                 value={user.whatsapp || ""}
                             />
-                            <ProfileField
+                            <ProfileField isEdit={isEdit}
                                 label="Email"
                                 name="email"
                                 type="email"
@@ -584,8 +611,8 @@ function ProfileForm({
                             />
                         </div>
 
-                        <div className="grid grid-cols-4 gap-4 mb-2">
-                            <ProfileField
+                        <div className="grid grid-cols-4 gap-4 mt-2">
+                            <ProfileField isEdit={isEdit}
                                 label="Telegram"
                                 name="telegram"
                                 value={user.telegram || ""}
@@ -594,12 +621,12 @@ function ProfileForm({
                                 label="Country"
                                 value={country?.name || ""}
                             />
-                            <ProfileField
+                            <ProfileField isEdit={isEdit}
                                 label="City"
                                 name="city"
                                 value={user.city || ""}
                             />
-                            <ProfileField
+                            <ProfileField isEdit={isEdit}
                                 label="Passport / ID Number"
                                 name="passportNumber"
                                 value={user.passportNumber || ""}
@@ -609,7 +636,7 @@ function ProfileForm({
 
                     {/* Accommodation Read Only */}
                     <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
-                        <div className="grid grid-cols-4 gap-4 mb-2">
+                        <div className="grid grid-cols-4 gap-4 mt-2">
                             <ReadOnlyField
                                 label="Location"
                                 value="Phuket"
@@ -618,7 +645,7 @@ function ProfileForm({
                                 label="Hotel"
                                 value={hotel?.name || ""}
                             />
-                            <ProfileField
+                            <ProfileField isEdit={isEdit}
                                 label="Room Number"
                                 name="roomNumber"
                                 value={user.roomNumber || ""}

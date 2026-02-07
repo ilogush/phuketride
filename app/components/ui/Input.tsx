@@ -71,12 +71,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
         : true
 
     const baseStyle = error ? inputErrorStyles : inputBaseStyles
-    const inputClasses = `${baseStyle} ${disabled ? '!bg-gray-50 cursor-not-allowed !text-gray-500 !border-gray-200' : ''} ${addonLeft ? 'rounded-l-none' : ''} ${isPassword ? 'rounded-r-none' : ''} ${addonRight && !isPassword ? 'rounded-r-none' : ''}`
+    const inputClasses = `${baseStyle} ${disabled ? '!bg-gray-200 cursor-not-allowed !text-gray-800 !border-gray-200' : ''} ${addonLeft ? 'rounded-l-none' : ''} ${isPassword ? 'rounded-r-none' : ''} ${addonRight && !isPassword ? 'rounded-r-none' : ''}`
 
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
 
     return (
-        <div className={`mb-2 ${className}`}>
+        <div className={`mt-2 ${className}`}>
             {label && (
                 <label htmlFor={id || name} className="block text-xs text-gray-600 mb-1">
                     {label} {required && <span className="text-gray-500">*</span>}
@@ -96,7 +96,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     disabled={disabled}
                     className={inputClasses}
                     placeholder={shouldShowPlaceholder ? placeholder : ''}
-                    value={value}
+                    {...(value !== undefined ? { value } : {})}
                     onChange={handleChange}
                     onFocus={handleFocus}
                     onBlur={handleBlur}

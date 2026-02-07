@@ -132,7 +132,7 @@ export default function DocumentPhotosUpload({
                         <button
                             type="button"
                             onClick={() => passportInputRef.current?.click()}
-                            className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-lg flex items-center justify-center cursor-pointer"
+                            className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-lg flex flex-col items-center justify-center cursor-pointer gap-1"
                         >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -148,11 +148,11 @@ export default function DocumentPhotosUpload({
                                     d="M12 4.5v15m7.5-7.5h-15"
                                 />
                             </svg>
+                            <span className="text-xs text-gray-400">
+                                ({passportPreviews.length}/2)
+                            </span>
                         </button>
                     )}
-                    <span className="text-xs text-gray-400 ml-1">
-                        ({passportPreviews.length}/2)
-                    </span>
                 </div>
                 <input
                     ref={passportInputRef}
@@ -192,7 +192,7 @@ export default function DocumentPhotosUpload({
                             <button
                                 type="button"
                                 onClick={() => driverLicenseInputRef.current?.click()}
-                                className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-lg flex items-center justify-center cursor-pointer"
+                                className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-lg flex flex-col items-center justify-center cursor-pointer gap-1"
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -208,11 +208,11 @@ export default function DocumentPhotosUpload({
                                         d="M12 4.5v15m7.5-7.5h-15"
                                     />
                                 </svg>
+                                <span className="text-xs text-gray-400">
+                                    ({driverLicensePreviews.length}/2)
+                                </span>
                             </button>
                         )}
-                        <span className="text-xs text-gray-400 ml-1">
-                            ({driverLicensePreviews.length}/2)
-                        </span>
                     </div>
                     <input
                         ref={driverLicenseInputRef}
