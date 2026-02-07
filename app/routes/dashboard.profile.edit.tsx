@@ -107,13 +107,19 @@ export default function EditProfilePage() {
     const { user, countries, hotels, locations, districts } = useLoaderData<typeof loader>();
 
     return (
-        <ProfileForm
-            user={user}
-            countries={countries}
-            hotels={hotels}
-            locations={locations}
-            districts={districts}
-            isEdit={true}
-        />
+        <div className="space-y-4">
+            <PageHeader
+                title="Edit Profile"
+                leftActions={<BackButton to="/profile" />}
+            />
+            <ProfileForm
+                user={user}
+                countries={countries}
+                hotels={hotels}
+                locations={locations}
+                districts={districts}
+                isEdit={true}
+            />
+        </div>
     );
 }
