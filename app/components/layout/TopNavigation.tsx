@@ -21,7 +21,7 @@ export function TopNavigation({ user }: TopNavigationProps) {
                         <input
                             type="text"
                             placeholder="Search..."
-                            className="w-full py-4 pl-10 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+                            className="w-full py-4 pl-10 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent"
                         />
                         <svg
                             className="absolute left-3 top-2.5 w-5 h-5 text-gray-400"
@@ -88,7 +88,7 @@ export function TopNavigation({ user }: TopNavigationProps) {
                         </button>
 
                         {showUserMenu && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50">
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg py-1 z-50">
                                 <Link
                                     to="/profile"
                                     className="block py-4 text-sm text-gray-700 hover:bg-gray-50"

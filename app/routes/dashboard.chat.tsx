@@ -26,7 +26,7 @@ export default function ChatPage() {
                             <input
                                 type="text"
                                 placeholder="Search chats..."
-                                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all"
+                                className="w-full pl-10 pr-4 py-2 bg-white rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all"
                             />
                             <MagnifyingGlassIcon className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                         </div>
@@ -56,7 +56,7 @@ export default function ChatPage() {
                                 type="text"
                                 disabled
                                 placeholder="Type a message..."
-                                className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none"
+                                className="flex-1 px-4 py-2 bg-gray-50 rounded-xl text-sm focus:outline-none"
                             />
                             <Button
                                 disabled

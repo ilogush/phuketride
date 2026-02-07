@@ -111,6 +111,11 @@ export default function EditProfilePage() {
             <PageHeader
                 title="Edit Profile"
                 leftActions={<BackButton to="/profile" />}
+                rightActions={
+                    <Button type="submit" variant="primary" form="profile-form">
+                        Save Changes
+                    </Button>
+                }
             />
             <ProfileForm
                 user={user}
@@ -119,7 +124,6 @@ export default function EditProfilePage() {
                 locations={locations}
                 districts={districts}
                 isEdit={true}
-                showHeader={false}
             />
         </div>
     );

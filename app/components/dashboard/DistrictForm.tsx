@@ -124,7 +124,7 @@ export function DistrictForm({ district, locations, defaultLocationId, onSubmit,
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
-                        className={`block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:outline-none focus:ring-0 focus:border-gray-500 transition-colors ${errors.name ? 'border-gray-600' : ''
+                        className={`block w-full rounded-xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:outline-none focus:ring-0 focus:border-gray-500 transition-colors ${errors.name ? 'border-gray-600' : ''
                             }`}
                         placeholder="Enter district name"
                     />
@@ -143,7 +143,7 @@ export function DistrictForm({ district, locations, defaultLocationId, onSubmit,
                             name="location_id"
                             value={formData.location_id}
                             onChange={handleChange}
-                            className={`block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:outline-none focus:ring-0 focus:border-gray-500 transition-colors ${errors.location_id ? 'border-gray-600' : ''
+                            className={`block w-full rounded-xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:outline-none focus:ring-0 focus:border-gray-500 transition-colors ${errors.location_id ? 'border-gray-600' : ''
                                 }`}
                         >
                             <option value="">Select a location</option>
@@ -168,7 +168,7 @@ export function DistrictForm({ district, locations, defaultLocationId, onSubmit,
                             name="beaches"
                             value={formData.beaches}
                             onChange={handleChange}
-                            className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:outline-none focus:ring-0 focus:border-gray-500 transition-colors"
+                            className="block w-full rounded-xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:outline-none focus:ring-0 focus:border-gray-500 transition-colors"
                             placeholder="e.g. Patong Beach, Kalim Beach OR Main St, Shopping Mall"
                         />
                         <p className="mt-1 text-[10px] text-gray-400 uppercase tracking-wider font-semibold">For beaches or main streets/landmarks (comma separated)</p>

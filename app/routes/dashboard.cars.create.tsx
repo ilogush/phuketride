@@ -64,7 +64,7 @@ export default function CreateCarPage() {
                             <label className="block text-xs text-gray-600 mb-1">Company</label>
                             <select
                                 name="companyId"
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
                                 required
                             >
                                 <option value="">Select Company</option>
@@ -80,7 +80,7 @@ export default function CreateCarPage() {
                             <label className="block text-xs text-gray-600 mb-1">Car Template</label>
                             <select
                                 name="templateId"
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
                                 required
                             >
                                 <option value="">Select Template</option>
@@ -95,7 +95,7 @@ export default function CreateCarPage() {
                             <label className="block text-xs text-gray-600 mb-1">Color</label>
                             <select
                                 name="colorId"
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
                                 required
                             >
                                 <option value="">Select Color</option>

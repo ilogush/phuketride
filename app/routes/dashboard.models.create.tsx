@@ -63,7 +63,7 @@ export default function CreateModelPage() {
                             <label className="block text-xs text-gray-600 mb-1">Brand</label>
                             <select
                                 name="brandId"
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
                                 required
                             >
                                 <option value="">Select Brand</option>
@@ -84,7 +84,7 @@ export default function CreateModelPage() {
                             <label className="block text-xs text-gray-600 mb-1">Body Type</label>
                             <select
                                 name="bodyType"
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
                                 required
                             >
                                 <option value="sedan">Sedan</option>

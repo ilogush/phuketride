@@ -25,7 +25,7 @@ export default function SearchCarsPage() {
                         <input
                             type="text"
                             placeholder="Search by model, brand, or location..."
-                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:border-gray-300 transition-all"
+                            className="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-2xl text-sm focus:outline-none focus:border-gray-300 transition-all"
                         />
                         <MagnifyingGlassIcon className="absolute left-3.5 top-3.5 w-5 h-5 text-gray-400" />
                     </div>

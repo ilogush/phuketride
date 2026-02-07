@@ -87,7 +87,7 @@ export default function CreateCarTemplatePage() {
                                 name="brandId"
                                 value={selectedBrandId}
                                 onChange={(e) => setSelectedBrandId(Number(e.target.value))}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
                                 required
                             >
                                 <option value="">Select Brand</option>
@@ -100,7 +100,7 @@ export default function CreateCarTemplatePage() {
                             <label className="block text-xs text-gray-600 mb-1">Model</label>
                             <select
                                 name="modelId"
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
                                 required
                             >
                                 <option value="">Select Model</option>
@@ -120,7 +120,7 @@ export default function CreateCarTemplatePage() {
                             <label className="block text-xs text-gray-600 mb-1">Transmission</label>
                             <select
                                 name="transmission"
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
                                 required
                             >
                                 <option value="automatic">Automatic</option>
@@ -142,7 +142,7 @@ export default function CreateCarTemplatePage() {
                             <label className="block text-xs text-gray-600 mb-1">Fuel</label>
                             <select
                                 name="fuelType"
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
                                 required
                             >
                                 <option value="gasoline">Gasoline 91/95</option>
@@ -181,7 +181,7 @@ export default function CreateCarTemplatePage() {
                         <textarea
                             name="description"
                             rows={4}
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                            className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
                             placeholder="Detailed car characteristics..."
                         ></textarea>
                     </div>

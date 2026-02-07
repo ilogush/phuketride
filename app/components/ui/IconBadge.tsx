@@ -13,7 +13,7 @@ export default function IconBadge({ children, className = '', size = 'md' }: Ico
     }
 
     return (
-        <div className={`bg-gray-200 rounded-lg border border-gray-200 ${sizeClasses[size]} ${className}`}>
+        <div className={`bg-gray-200 rounded-lg ${sizeClasses[size]} ${className}`}>
             {children}
         </div>
     )

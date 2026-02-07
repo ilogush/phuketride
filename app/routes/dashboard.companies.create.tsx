@@ -209,7 +209,7 @@ export default function CreateCompanyPage() {
                                     name="locationId"
                                     value={selectedLocationId}
                                     onChange={(e) => setSelectedLocationId(Number(e.target.value))}
-                                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                    className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
                                     required
                                 >
                                     {locations.map(l => (
@@ -221,7 +221,7 @@ export default function CreateCompanyPage() {
                                 <label className="block text-xs text-gray-600 mb-1">District <span className="text-gray-500">*</span></label>
                                 <select
                                     name="districtId"
-                                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                    className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
                                     required
                                 >
                                     {filteredDistricts.map(d => (
@@ -337,7 +337,7 @@ export default function CreateCompanyPage() {
                                 />
 
                                 {showSuggestions && searchQuery && filteredUsers.length > 0 && (
-                                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                                    <div className="absolute z-10 w-full mt-1 bg-white rounded-xl shadow-lg max-h-60 overflow-y-auto">
                                         {filteredUsers.slice(0, 10).map((user) => (
                                             <button
                                                 key={user.id}
@@ -381,25 +381,25 @@ export default function CreateCompanyPage() {
                                 <div className="grid grid-cols-4 gap-4">
                                     <div>
                                         <label className="block text-xs text-gray-600 mb-1">Name</label>
-                                        <div className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900">
+                                        <div className="px-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-900">
                                             {selectedManager.name || '-'}
                                         </div>
                                     </div>
                                     <div>
                                         <label className="block text-xs text-gray-600 mb-1">Surname</label>
-                                        <div className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900">
+                                        <div className="px-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-900">
                                             {selectedManager.surname || '-'}
                                         </div>
                                     </div>
                                     <div>
                                         <label className="block text-xs text-gray-600 mb-1">Email</label>
-                                        <div className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900">
+                                        <div className="px-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-900">
                                             {selectedManager.email}
                                         </div>
                                     </div>
                                     <div>
                                         <label className="block text-xs text-gray-600 mb-1">Phone</label>
-                                        <div className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900">
+                                        <div className="px-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-900">
                                             {selectedManager.phone || '-'}
                                         </div>
                                     </div>
@@ -407,7 +407,7 @@ export default function CreateCompanyPage() {
                                 <div className="grid grid-cols-4 gap-4">
                                     <div>
                                         <label className="block text-xs text-gray-600 mb-1">Role</label>
-                                        <div className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 capitalize">
+                                        <div className="px-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-900 capitalize">
                                             {selectedManager.role}
                                         </div>
                                     </div>

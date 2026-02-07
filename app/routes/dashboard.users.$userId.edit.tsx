@@ -99,7 +99,7 @@ export default function EditUserPage() {
             </div>
 
             {/* Profile Photo Section */}
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-4">
+            <div className="bg-white rounded-3xl shadow-sm p-4">
                 <div className="flex items-center gap-4">
                     <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
                         {initials}
@@ -133,7 +133,7 @@ export default function EditUserPage() {
                             <select
                                 name="gender"
                                 defaultValue={user.gender || ""}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
                             >
                                 <option value="">Select Gender</option>
                                 <option value="male">Male</option>
@@ -155,7 +155,7 @@ export default function EditUserPage() {
                             <select
                                 name="role"
                                 defaultValue={user.role}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
                                 required
                             >
                                 <option value="user">User</option>
@@ -198,7 +198,7 @@ export default function EditUserPage() {
                             <select
                                 name="countryId"
                                 defaultValue={user.countryId || ""}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
                             >
                                 <option value="">Select Country</option>
                                 {countries.map((country) => (
@@ -230,7 +230,7 @@ export default function EditUserPage() {
                             <select
                                 name="hotelId"
                                 defaultValue={user.hotelId || ""}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
                             >
                                 <option value="">Select Hotel</option>
                                 {hotels.map((hotel) => (
@@ -251,7 +251,7 @@ export default function EditUserPage() {
                             <select
                                 name="locationId"
                                 defaultValue={user.locationId || ""}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
                             >
                                 <option value="">Select Location</option>
                                 {locations.map((location) => (

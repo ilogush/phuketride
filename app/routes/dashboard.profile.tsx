@@ -31,12 +31,14 @@ export default function ProfilePage() {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <PageHeader title="Profile" />
-                <Link to="/profile/edit">
-                    <Button variant="primary">Edit</Button>
-                </Link>
-            </div>
+            <PageHeader
+                title="Profile"
+                rightActions={
+                    <Link to="/profile/edit">
+                        <Button variant="primary">Edit</Button>
+                    </Link>
+                }
+            />
             <ProfileForm
                 user={user}
                 countries={[]}

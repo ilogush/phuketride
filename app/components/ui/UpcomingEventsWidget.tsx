@@ -138,7 +138,7 @@ export default function UpcomingEventsWidget({ companyId, limit = 5 }: UpcomingE
                         return (
                             <div
                                 key={event.id}
-                                className="flex items-start space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                                className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
                             >
                                 <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${getEventColor(event.type)}`}>
                                     <Icon className="h-5 w-5" />

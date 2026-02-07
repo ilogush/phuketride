@@ -267,7 +267,7 @@ export default function DurationsPage() {
                     emptyDescription="Add rental duration periods to get started"
                 />
             ) : (
-                <div className="bg-white rounded-3xl shadow-sm p-12 border border-gray-200 py-4">
+                <div className="bg-white rounded-3xl shadow-sm p-12 py-4">
                     <div className="text-center">
                         <ClockIcon />
                         <h3 className="mt-4 text-lg font-medium text-gray-900">No durations configured</h3>

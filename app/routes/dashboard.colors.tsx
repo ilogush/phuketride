@@ -220,7 +220,7 @@ export default function ColorsPage() {
                     emptyDescription="Add available car colors to get started"
                 />
             ) : (
-                <div className="bg-white rounded-3xl shadow-sm p-12 border border-gray-200 py-4">
+                <div className="bg-white rounded-3xl shadow-sm p-12 py-4">
                     <div className="text-center">
                         <ColorIcon />
                         <h3 className="mt-4 text-lg font-medium text-gray-900">No colors configured</h3>

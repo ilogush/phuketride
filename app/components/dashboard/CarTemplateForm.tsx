@@ -138,7 +138,7 @@ export function CarTemplateForm({ template, brands, models, referenceData, onSub
         })
     }
 
-    const inputClass = "block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-800 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors"
+    const inputClass = "block w-full rounded-xl sm:text-sm py-2 px-3 bg-white text-gray-800 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors"
 
     return (
         <Modal

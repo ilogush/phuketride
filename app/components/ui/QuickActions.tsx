@@ -95,7 +95,7 @@ export default function QuickActions({ userRole = 'admin' }: QuickActionsProps) 
                         <Link
                             key={action.name}
                             to={action.href}
-                            className="flex items-center space-x-2.5 p-3 rounded-lg border border-gray-200 transition-colors bg-white text-gray-900 hover:bg-gray-50 hover:border-gray-200"
+                            className="flex items-center space-x-2.5 p-3 rounded-lg transition-colors bg-white text-gray-900 hover:bg-gray-50 hover:border-gray-200"
                         >
                             <Icon className="h-4 w-4 text-gray-600" />
                             <span className="text-sm font-medium">{action.name}</span>

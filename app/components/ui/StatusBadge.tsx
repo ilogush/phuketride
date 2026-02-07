@@ -12,7 +12,7 @@ export default function StatusBadge({ children, variant = 'neutral', className =
         error: 'bg-gray-300 text-gray-800 border border-gray-100',
         warning: 'bg-yellow-50 text-yellow-700 border border-yellow-100',
         info: 'bg-blue-50 text-blue-700 border border-blue-100',
-        neutral: 'bg-gray-50 text-gray-500 border border-gray-200',
+        neutral: 'bg-gray-50 text-gray-500',
         overdue: 'bg-pink-50 text-pink-700 border border-pink-100'
     }
 

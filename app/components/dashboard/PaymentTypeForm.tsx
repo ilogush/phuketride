@@ -136,7 +136,7 @@ export function PaymentTypeForm({ paymentType, onSubmit, onDelete, onCancel }: P
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
-                        className={`block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-800 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors ${errors.name ? 'border-gray-600' : ''
+                        className={`block w-full rounded-xl sm:text-sm py-2 px-3 bg-white text-gray-800 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors ${errors.name ? 'border-gray-600' : ''
                             }`}
                         placeholder="e.g., Fuel, Repair, Deposit"
                     />
@@ -155,7 +155,7 @@ export function PaymentTypeForm({ paymentType, onSubmit, onDelete, onCancel }: P
                         value={formData.sign}
                         onChange={handleChange}
                         disabled={!!paymentType?.is_used}
-                        className={`block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-800 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors ${errors.sign ? 'border-gray-600' : ''
+                        className={`block w-full rounded-xl sm:text-sm py-2 px-3 bg-white text-gray-800 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors ${errors.sign ? 'border-gray-600' : ''
                             } ${paymentType?.is_used ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         <option value="+">Income (+)</option>

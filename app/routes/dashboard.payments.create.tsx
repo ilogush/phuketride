@@ -63,7 +63,7 @@ export default function RecordPaymentPage() {
                             <label className="block text-xs text-gray-600 mb-1">Contract / Booking</label>
                             <select
                                 name="contractId"
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
                                 required
                             >
                                 <option value="">Select Contract</option>
@@ -76,7 +76,7 @@ export default function RecordPaymentPage() {
                             <label className="block text-xs text-gray-600 mb-1">Payment Type</label>
                             <select
                                 name="paymentTypeId"
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
                                 required
                             >
                                 <option value="">Select Type</option>
@@ -99,7 +99,7 @@ export default function RecordPaymentPage() {
                             <label className="block text-xs text-gray-600 mb-1">Method</label>
                             <select
                                 name="paymentMethod"
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
                                 required
                             >
                                 <option value="cash">Cash</option>

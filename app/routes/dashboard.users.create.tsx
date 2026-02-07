@@ -5,6 +5,7 @@ import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import ProfileForm from "~/components/profile/ProfileForm";
 import BackButton from "~/components/ui/BackButton";
+import Button from "~/components/ui/Button";
 import PageHeader from "~/components/ui/PageHeader";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
@@ -61,7 +62,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         driverLicensePhotos: null,
     });
 
-    return redirect("/dashboard.users");
+    return redirect("/users");
 }
 
 export default function CreateUserPage() {
@@ -97,7 +98,12 @@ export default function CreateUserPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Add New User"
-                leftActions={<BackButton to="/dashboard.users" />}
+                leftActions={<BackButton to="/users" />}
+                rightActions={
+                    <Button type="submit" variant="primary" form="profile-form">
+                        Create User
+                    </Button>
+                }
             />
             <ProfileForm
                 user={emptyUser}
@@ -106,7 +112,6 @@ export default function CreateUserPage() {
                 locations={locations}
                 districts={districts}
                 isEdit={true}
-                showHeader={false}
             />
         </div>
     );

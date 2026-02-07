@@ -40,7 +40,7 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
     };
 
     return (
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-3xl shadow-sm p-4">
             <div className="flex items-center gap-2 mb-4">
                 <CalendarIcon className="w-5 h-5 text-gray-600" />
                 <h3 className="text-sm font-bold text-gray-900">Holidays & Non-working Days</h3>
@@ -55,7 +55,7 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
                             value={newDate}
                             onChange={(e) => setNewDate(e.target.value)}
                             placeholder="Select date..."
-                            className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300"
+                            className="flex-1 px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300"
                         />
                         <Button
                             type="button"

@@ -76,7 +76,7 @@ export default function LoginPage() {
                                 type="email"
                                 autoComplete="email"
                                 required
-                                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-800 font-medium placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all duration-300"
+                                className="w-full px-4 py-2.5 rounded-xl bg-white text-gray-800 font-medium placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all duration-300"
                                 placeholder="name@example.com"
                             />
                         </div>
@@ -92,7 +92,7 @@ export default function LoginPage() {
                                     type={showPassword ? "text" : "password"}
                                     autoComplete="current-password"
                                     required
-                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-800 font-medium placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all duration-300"
+                                    className="w-full px-4 py-2.5 rounded-xl bg-white text-gray-800 font-medium placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all duration-300"
                                     placeholder="••••••••"
                                 />
                                 <button

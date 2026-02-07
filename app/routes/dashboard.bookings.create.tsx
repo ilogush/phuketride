@@ -49,7 +49,7 @@ export default function CreateBookingPage() {
                             <label className="block text-xs text-gray-600 mb-1">Client</label>
                             <select
                                 name="clientId"
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
                                 required
                             >
                                 <option value="">Select Client</option>
@@ -62,7 +62,7 @@ export default function CreateBookingPage() {
                             <label className="block text-xs text-gray-600 mb-1">Car</label>
                             <select
                                 name="carId"
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
                                 required
                             >
                                 <option value="">Select Car</option>

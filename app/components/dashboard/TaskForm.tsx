@@ -115,7 +115,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
                         name="title"
                         value={formData.title}
                         onChange={handleChange}
-                        className={`block w-full rounded-lg border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.title ? 'border-gray-600' : ''
+                        className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.title ? 'border-gray-600' : ''
                             }`}
                         placeholder="Enter task title"
                     />
@@ -127,7 +127,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
                         value={formData.description}
                         onChange={handleChange}
                         rows={4}
-                        className={`block w-full rounded-lg border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.description ? 'border-gray-600' : ''
+                        className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.description ? 'border-gray-600' : ''
                             }`}
                         placeholder="Enter task description"
                     />
@@ -139,7 +139,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
                             name="status"
                             value={formData.status}
                             onChange={handleChange}
-                            className={`block w-full rounded-lg border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.status ? 'border-gray-600' : ''
+                            className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.status ? 'border-gray-600' : ''
                                 }`}
                         >
                             <option value="pending">Pending</option>
@@ -155,7 +155,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
                             name="due_date"
                             value={formData.due_date}
                             onChange={handleChange}
-                            className={`block w-full rounded-lg border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.due_date ? 'border-gray-600' : ''
+                            className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.due_date ? 'border-gray-600' : ''
                                 }`}
                         />
                     </FormField>
@@ -176,7 +176,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
                                     setErrors(prev => ({ ...prev, assigned_to: '' }))
                                 }
                             }}
-                            className={`block w-full rounded-lg border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.assigned_to ? 'border-gray-600' : ''
+                            className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.assigned_to ? 'border-gray-600' : ''
                                 }`}
                         >
                             <option value="">Unassigned</option>
@@ -194,7 +194,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
                                 value={formData.assigned_to}
                                 onChange={handleMultiSelectChange}
                                 size={Math.min(users.length, 6)}
-                                className={`block w-full rounded-lg border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.assigned_to ? 'border-gray-600' : ''
+                                className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.assigned_to ? 'border-gray-600' : ''
                                     }`}
                             >
                                 {users.map((user) => (

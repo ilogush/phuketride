@@ -133,7 +133,7 @@ export default function MaintenanceForm({
                 <select
                     value={formData.maintenance_type}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleChange('maintenance_type', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                     {maintenanceTypes.map(type => (
                         <option key={type.value} value={type.value}>

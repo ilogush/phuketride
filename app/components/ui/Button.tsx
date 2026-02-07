@@ -68,7 +68,7 @@ export default function Button({
 
     const variantClasses = {
         primary: 'bg-gray-800 text-white border border-transparent hover:bg-gray-700 font-medium',
-        secondary: 'bg-gray-100 text-gray-800 border border-gray-200 hover:bg-gray-200 font-medium'
+        secondary: 'bg-gray-100 text-gray-800 hover:bg-gray-200 font-medium'
     }
 
     const widthClass = fullWidth ? 'w-full' : ''

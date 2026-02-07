@@ -104,7 +104,7 @@ export function ColorForm({ color, onSubmit, onCancel }: ColorFormProps) {
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
-                        className={`block w-full rounded-lg border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.name ? 'border-gray-600' : ''
+                        className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.name ? 'border-gray-600' : ''
                             }`}
                         placeholder="Enter color name"
                     />
@@ -129,7 +129,7 @@ export function ColorForm({ color, onSubmit, onCancel }: ColorFormProps) {
                             placeholder="#RRGGBB"
                         />
                         <div
-                            className="w-10 h-10 rounded-lg border border-gray-200"
+                            className="w-10 h-10 rounded-lg"
                             style={{ backgroundColor: formData.hex_code }}
                         />
                     </div>

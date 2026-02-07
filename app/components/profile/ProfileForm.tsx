@@ -1,8 +1,6 @@
 import { Form } from "react-router";
 import { useState } from "react";
 import { Input } from "~/components/ui/Input";
-import Button from "~/components/ui/Button";
-import BackButton from "~/components/ui/BackButton";
 import FormSection from "~/components/ui/FormSection";
 import PhotoUpload from "~/components/ui/PhotoUpload";
 import DocumentPhotosUpload from "~/components/ui/DocumentPhotosUpload";
@@ -42,7 +40,6 @@ interface ProfileFormProps {
     location?: { id: number; name: string } | null;
     district?: { id: number; name: string } | null;
     isEdit?: boolean;
-    showHeader?: boolean;
     onPhotoChange?: (base64: string | null, fileName: string | null) => void;
     onRemoveAvatar?: () => void;
 }
@@ -58,7 +55,6 @@ export default function ProfileForm({
     location,
     district,
     isEdit = false,
-    showHeader = true,
     onPhotoChange,
     onRemoveAvatar,
 }: ProfileFormProps) {
@@ -87,28 +83,17 @@ export default function ProfileForm({
     };
 
     const commonInputClass = isEdit
-        ? "w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-        : "w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl sm:text-sm text-gray-500 cursor-not-allowed";
+        ? "w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+        : "w-full px-4 py-2.5 bg-gray-100 rounded-xl sm:text-sm text-gray-500 cursor-not-allowed";
 
     const commonSelectClass = isEdit
-        ? "w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-        : "w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl sm:text-sm text-gray-500 cursor-not-allowed";
+        ? "w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
+        : "w-full px-4 py-2.5 bg-gray-100 rounded-xl sm:text-sm text-gray-500 cursor-not-allowed";
 
     return (
         <div className="space-y-4">
-            {showHeader && isEdit && (
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <BackButton to="/profile" />
-                    </div>
-                    <Button type="submit" variant="primary" form="profile-form">
-                        Save Changes
-                    </Button>
-                </div>
-            )}
-
             {/* Profile Photo Section */}
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-4">
+            <div className="bg-white rounded-3xl shadow-sm p-4">
                 <div className="flex items-center gap-4">
                     {isEdit ? (
                         <PhotoUpload
@@ -467,7 +452,7 @@ export default function ProfileForm({
                                     {user.passportPhotos && JSON.parse(user.passportPhotos).map((photo: { base64: string; fileName: string }, index: number) => (
                                         <div
                                             key={index}
-                                            className="relative w-20 h-20 border border-gray-200 rounded-lg overflow-hidden bg-gray-50"
+                                            className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-50"
                                         >
                                             <img
                                                 src={photo.base64}
@@ -495,7 +480,7 @@ export default function ProfileForm({
                                         {user.driverLicensePhotos && JSON.parse(user.driverLicensePhotos).map((photo: { base64: string; fileName: string }, index: number) => (
                                             <div
                                                 key={index}
-                                                className="relative w-20 h-20 border border-gray-200 rounded-lg overflow-hidden bg-gray-50"
+                                                className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-50"
                                             >
                                                 <img
                                                     src={photo.base64}

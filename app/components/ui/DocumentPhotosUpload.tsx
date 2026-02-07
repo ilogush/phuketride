@@ -112,7 +112,7 @@ export default function DocumentPhotosUpload({
                     {passportPreviews.map((photo) => (
                         <div
                             key={photo.id}
-                            className="relative w-20 h-20 border border-gray-200 rounded-lg overflow-hidden bg-gray-50"
+                            className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-50"
                         >
                             <img
                                 src={photo.base64}
@@ -172,7 +172,7 @@ export default function DocumentPhotosUpload({
                         {driverLicensePreviews.map((photo) => (
                             <div
                                 key={photo.id}
-                                className="relative w-20 h-20 border border-gray-200 rounded-lg overflow-hidden bg-gray-50"
+                                className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-50"
                             >
                                 <img
                                     src={photo.base64}

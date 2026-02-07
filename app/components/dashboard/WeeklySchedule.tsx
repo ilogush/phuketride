@@ -74,7 +74,7 @@ export default function WeeklySchedule({ value, onChange }: WeeklyScheduleProps)
     };
 
     return (
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-3xl shadow-sm p-4">
             <div className="flex items-center gap-2 mb-4">
                 <ClockIcon className="w-5 h-5 text-gray-600" />
                 <h3 className="text-sm font-bold text-gray-900">Weekly Schedule</h3>
@@ -108,7 +108,7 @@ export default function WeeklySchedule({ value, onChange }: WeeklyScheduleProps)
                                         type="time"
                                         value={daySchedule.startTime}
                                         onChange={(e) => handleTimeChange(key as keyof WeeklyScheduleData, "startTime", e.target.value)}
-                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300"
+                                        className="w-full px-3 py-2 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300"
                                     />
                                 ) : (
                                     <span className="text-sm text-gray-400">-</span>
@@ -120,7 +120,7 @@ export default function WeeklySchedule({ value, onChange }: WeeklyScheduleProps)
                                         type="time"
                                         value={daySchedule.endTime}
                                         onChange={(e) => handleTimeChange(key as keyof WeeklyScheduleData, "endTime", e.target.value)}
-                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300"
+                                        className="w-full px-3 py-2 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300"
                                     />
                                 ) : (
                                     <span className="text-sm text-gray-400">-</span>

@@ -19,7 +19,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     let roleCounts = { all: 0, admin: 0, partner: 0, manager: 0, user: 0 };
 
     try {
-        const usersQuery = db.select({
+        usersList = await db.select({
             id: users.id,
             email: users.email,
             name: users.name,
@@ -28,8 +28,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             phone: users.phone,
         }).from(users).limit(50);
 
-        usersList = await usersQuery;
-
         roleCounts.all = usersList.length;
         roleCounts.admin = usersList.filter(u => u.role === "admin").length;
         roleCounts.partner = usersList.filter(u => u.role === "partner").length;
@@ -37,6 +35,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         roleCounts.user = usersList.filter(u => u.role === "user").length;
     } catch (error) {
         console.error("Error loading users:", error);
+        // Return empty data on error instead of throwing
+        return { user, users: [], roleCounts };
     }
 
     return { user, users: usersList, roleCounts };
@@ -53,7 +53,7 @@ export default function UsersPage() {
         { id: "user", label: "User", count: roleCounts.user },
     ];
 
-    const filteredUsers = usersList.filter(user => user.role === activeTab);
+    const filteredUsers = usersList?.filter(user => user.role === activeTab) || [];
 
     const columns: Column<typeof usersList[0]>[] = [
         {

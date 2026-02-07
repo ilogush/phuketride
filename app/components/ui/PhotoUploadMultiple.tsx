@@ -107,7 +107,7 @@ export default function PhotoUploadMultiple({
                 {previews.map((photo) => (
                     <div
                         key={photo.id}
-                        className="relative aspect-square border border-gray-200 rounded-lg overflow-hidden bg-gray-50"
+                        className="relative aspect-square rounded-lg overflow-hidden bg-gray-50"
                     >
                         <img
                             src={photo.base64}

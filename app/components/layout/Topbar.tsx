@@ -59,7 +59,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
                         <input
                             type="text"
                             placeholder="Global search (companies, cars, users...)"
-                            className="w-full pl-4 pr-14 py-2.5 bg-white border border-gray-200 rounded-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-200 transition-all"
+                            className="w-full pl-4 pr-14 py-2.5 bg-white rounded-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-200 transition-all"
                         />
                         <div className="absolute inset-y-2 right-1.5 flex items-center">
                             <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center shadow-sm transition-transform group-focus-within:scale-105">
