@@ -95,10 +95,10 @@ export default function CreateUserPage() {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center gap-4">
-                <BackButton to="/dashboard.users" />
-                <PageHeader title="Add New User" />
-            </div>
+            <PageHeader
+                title="Add New User"
+                leftActions={<BackButton to="/dashboard.users" />}
+            />
             <ProfileForm
                 user={emptyUser}
                 countries={countries}
