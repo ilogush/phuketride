@@ -42,6 +42,7 @@ interface ProfileFormProps {
     location?: { id: number; name: string } | null;
     district?: { id: number; name: string } | null;
     isEdit?: boolean;
+    showHeader?: boolean;
     onPhotoChange?: (base64: string | null, fileName: string | null) => void;
     onRemoveAvatar?: () => void;
 }
@@ -57,6 +58,7 @@ export default function ProfileForm({
     location,
     district,
     isEdit = false,
+    showHeader = true,
     onPhotoChange,
     onRemoveAvatar,
 }: ProfileFormProps) {
@@ -94,7 +96,7 @@ export default function ProfileForm({
 
     return (
         <div className="space-y-4">
-            {isEdit && (
+            {showHeader && isEdit && (
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <BackButton to="/profile" />

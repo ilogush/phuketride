@@ -106,6 +106,7 @@ export default function CreateUserPage() {
                 locations={locations}
                 districts={districts}
                 isEdit={true}
+                showHeader={false}
             />
         </div>
     );

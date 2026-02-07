@@ -119,6 +119,7 @@ export default function EditProfilePage() {
                 locations={locations}
                 districts={districts}
                 isEdit={true}
+                showHeader={false}
             />
         </div>
     );
