@@ -349,16 +349,16 @@ function ProfileForm({
                 {isEdit ? (
                     <DocumentPhotosUpload
                         onPassportPhotosChange={(photos) => {
-                            console.log('Passport photos:', photos);
+                            console.log('Passport:', photos);
                         }}
                         onDriverLicensePhotosChange={(photos) => {
-                            console.log('Driver license photos:', photos);
+                            console.log('Driver License:', photos);
                         }}
                     />
                 ) : (
                     <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
-                        <DocumentPreview photos={passportPhotos} label="Passport Photos" />
-                        <DocumentPreview photos={driverLicensePhotos} label="Driver License Photos" />
+                        <DocumentPreview photos={passportPhotos} label="Passport" />
+                        <DocumentPreview photos={driverLicensePhotos} label="Driver License" />
                     </div>
                 )}
             </FormSection>

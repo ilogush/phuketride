@@ -70,24 +70,24 @@ export default function PageHeader({
 
     return (
         <div>
-            <div className={`flex flex-col sm:flex-row items-start sm:items-center ${hasRightActions ? 'justify-between' : 'justify-start'} gap-3 sm:gap-6`}>
-                <div className="flex items-center gap-4 w-full sm:w-auto">
+            <div className={`flex items-center ${hasRightActions ? 'justify-between' : 'justify-start'} gap-2 sm:gap-6`}>
+                <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                     {leftActions}
                     {title && (
-                        <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight animate-in fade-in slide-in-from-left-4 duration-500">
+                        <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight animate-in fade-in slide-in-from-left-4 duration-500 truncate">
                             {title}
                         </h1>
                     )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto animate-in fade-in slide-in-from-right-4 duration-500">
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 animate-in fade-in slide-in-from-right-4 duration-500">
                     {withSearch && onSearchChange && (
                         <input
                             type="text"
                             value={searchValue || ''}
                             onChange={(e) => onSearchChange(e.target.value)}
                             placeholder={searchPlaceholder || 'Search...'}
-                            className="flex-1 sm:flex-none py-2 sm:py-4 px-3 sm:px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent text-sm"
+                            className="hidden sm:block py-2 sm:py-4 px-3 sm:px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent text-sm"
                         />
                     )}
                     {finalActions && (

@@ -17,7 +17,11 @@ export default function DashboardLayout() {
 
     return (
         <div className="h-screen bg-gray-100 flex overflow-hidden">
-            <Sidebar user={user} isOpen={isSidebarOpen} />
+            <Sidebar
+                user={user}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+            />
 
             {/* Main content */}
             <div className="flex-1 overflow-y-auto">

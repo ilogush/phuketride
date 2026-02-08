@@ -105,9 +105,9 @@ export default function DocumentPhotosUpload({
 
     return (
         <div className="flex">
-            {/* Passport Photos - left aligned */}
+            {/* Passport - left aligned */}
             <div className="w-1/3">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">Passport Photos</h4>
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Passport</h4>
                 <div className="flex items-center gap-2">
                     {passportPreviews.map((photo) => (
                         <div
@@ -164,10 +164,10 @@ export default function DocumentPhotosUpload({
                 />
             </div>
 
-            {/* Driver License Photos - center */}
+            {/* Driver License - center */}
             <div className="w-1/3 flex justify-center">
                 <div>
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">Driver License Photos</h4>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">Driver License</h4>
                     <div className="flex items-center gap-2">
                         {driverLicensePreviews.map((photo) => (
                             <div

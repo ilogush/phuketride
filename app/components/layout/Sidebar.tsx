@@ -17,6 +17,7 @@ import {
     CalendarIcon,
     ChatBubbleLeftRightIcon,
     UserIcon,
+    XMarkIcon,
 } from "@heroicons/react/24/outline";
 import type { UserRole } from "~/lib/auth.server";
 
@@ -29,6 +30,7 @@ interface SidebarProps {
         surname: string | null;
     };
     isOpen: boolean;
+    onClose?: () => void;
 }
 
 const getMenuItems = (role: UserRole) => {
@@ -97,7 +99,7 @@ const getMenuItems = (role: UserRole) => {
     ];
 };
 
-export default function Sidebar({ user, isOpen }: SidebarProps) {
+export default function Sidebar({ user, isOpen, onClose }: SidebarProps) {
     const location = useLocation();
     const [hoveredItem, setHoveredItem] = useState<{ label: string; top: number } | null>(null);
     const menuItems = getMenuItems(user.role);
@@ -106,6 +108,14 @@ export default function Sidebar({ user, isOpen }: SidebarProps) {
 
     return (
         <>
+            {/* Mobile Overlay */}
+            {isOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                    onClick={onClose}
+                />
+            )}
+
             <aside
                 className={`fixed md:static inset-y-0 left-0 bg-white h-screen flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out z-50 print:hidden ${isOpen
                     ? "w-[240px] border-r border-gray-200 translate-x-0"
@@ -114,7 +124,7 @@ export default function Sidebar({ user, isOpen }: SidebarProps) {
             >
                 {/* Logo Area */}
                 <div
-                    className={`h-16 flex items-center flex-shrink-0 transition-all ${isOpen ? "px-4" : "justify-center"
+                    className={`h-16 flex items-center flex-shrink-0 transition-all ${isOpen ? "px-4 justify-between" : "justify-center"
                         }`}
                 >
                     <NavLink to="/" className="flex items-center group">
@@ -124,9 +134,22 @@ export default function Sidebar({ user, isOpen }: SidebarProps) {
                             className={`transition-all rounded-xl ${isOpen ? "h-10 w-10" : "h-8 w-8"}`}
                         />
                         {isOpen && (
-                            <span className="ml-3 font-black text-xl tracking-tight text-black group-hover:scale-105 transition-transform">Phuket Ride</span>
+                            <span className="ml-3 font-black text-xl tracking-tight text-black group-hover:scale-105 transition-transform hidden md:block">
+                                Phuket Ride
+                            </span>
                         )}
                     </NavLink>
+
+                    {/* Close Button - Mobile Only */}
+                    {isOpen && (
+                        <button
+                            onClick={onClose}
+                            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                            aria-label="Close menu"
+                        >
+                            <XMarkIcon className="w-6 h-6 text-gray-600" />
+                        </button>
+                    )}
                 </div>
 
                 {/* Navigation */}
@@ -139,6 +162,12 @@ export default function Sidebar({ user, isOpen }: SidebarProps) {
                                 key={item.to}
                                 to={item.to}
                                 end={item.end}
+                                onClick={() => {
+                                    // Close sidebar on mobile when clicking a link
+                                    if (window.innerWidth < 768 && onClose) {
+                                        onClose();
+                                    }
+                                }}
                                 className={({ isActive }) => `
                                     flex items-center gap-3 rounded-xl transition-all duration-300 group relative
                                     ${isOpen ? "p-2.5 w-full" : "w-10 h-10 justify-center p-0 mx-auto"}
