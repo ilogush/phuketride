@@ -77,7 +77,7 @@ export { default as HolidaysManager } from './dashboard/HolidaysManager'
 export { default as ProfileForm } from './profile/ProfileForm'
 
 // Layout Components (app/components/layout/)
-export { DashboardLayout } from './layout/DashboardLayout'
+export { Layout } from './layout/DashboardLayout'
 export { default as Sidebar } from './layout/Sidebar'
 export { default as Topbar } from './layout/Topbar'
 export { TopNavigation } from './layout/TopNavigation'

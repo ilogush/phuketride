@@ -217,7 +217,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     return { user, statCards, tasks };
 }
 
-export default function DashboardIndex() {
+export default function Index() {
     const { user, statCards, tasks } = useLoaderData<typeof loader>();
 
     return (

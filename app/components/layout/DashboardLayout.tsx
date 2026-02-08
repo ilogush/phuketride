@@ -1,1 +1,34 @@
-[{"react": "import type { ReactNode"}, {"./TopNavigation": "interface DashboardLayoutProps {\n    children: ReactNode;\n    user: {\n        id: string;\n        full_name: string;\n        email: string;\n        role: 'admin' | 'partner' | 'manager' | 'user';\n        company_id?: string;"}, {"bg-gray-50": {"className=": "ixed inset-0 bg-black/50 z-40 md:hidden", "ml-0": "ml-0 md:ml-[240px]"}, "className=": "lex-1 overflow-y-auto p-4 sm:p-6"}]
+import type { ReactNode } from 'react';
+import { Sidebar } from './Sidebar';
+import { TopNavigation } from './TopNavigation';
+
+interface LayoutProps {
+    children: ReactNode;
+    user: {
+        id: string;
+        full_name: string;
+        email: string;
+        role: 'admin' | 'partner' | 'manager' | 'user';
+        company_id?: string;
+    };
+}
+
+export function Layout({ children, user }: LayoutProps) {
+    return (
+        <div className="flex h-screen bg-gray-50">
+            {/* Sidebar */}
+            <Sidebar user={user} />
+
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Top Navigation */}
+                <TopNavigation user={user} />
+
+                {/* Page Content */}
+                <main className="flex-1 overflow-y-auto p-6">
+                    {children}
+                </main>
+            </div>
+        </div>
+    );
+}

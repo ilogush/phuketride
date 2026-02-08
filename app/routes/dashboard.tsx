@@ -10,7 +10,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return { user };
 }
 
-export default function DashboardLayout() {
+export default function Layout() {
     const { user } = useLoaderData<typeof loader>();
     const location = useLocation();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
