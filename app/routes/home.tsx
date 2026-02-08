@@ -28,6 +28,11 @@ export default function Home() {
               <Button size="lg" variant="secondary">Create Account</Button>
             </Link>
           </div>
+          <div className="mt-6">
+            <Link to="/locations" className="text-gray-600 hover:text-gray-800 underline">
+              View All Phuket Locations
+            </Link>
+          </div>
         </div>
 
         <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto">

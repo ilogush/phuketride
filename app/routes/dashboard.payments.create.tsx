@@ -6,8 +6,10 @@ import * as schema from "~/db/schema";
 import PageHeader from "~/components/ui/PageHeader";
 import Card from "~/components/ui/Card";
 import { Input } from "~/components/ui/Input";
+import { Select } from "~/components/ui/Select";
 import Button from "~/components/ui/Button";
 import BackButton from "~/components/ui/BackButton";
+import FormActions from "~/components/ui/FormActions";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -51,78 +53,69 @@ export default function RecordPaymentPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <BackButton to="/payments" />
-                <PageHeader title="Record" />
-            </div>
+            <PageHeader
+                title="Record Payment"
+                leftActions={<BackButton to="/payments" />}
+            />
 
             <Card className="max-w-2xl p-8 border-gray-200">
                 <Form method="post" className="space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Contract / Booking</label>
-                            <select
+                    <div className="grid grid-cols-4 gap-4">
+                        <div className="col-span-2">
+                            <Select
+                                label="Contract / Booking"
                                 name="contractId"
-                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                                options={contracts.map(c => ({ id: c.id, name: `Contract #${c.id}` }))}
+                                placeholder="Select Contract"
                                 required
-                            >
-                                <option value="">Select Contract</option>
-                                {contracts.map(c => (
-                                    <option key={c.id} value={c.id}>Contract #{c.id}</option>
-                                ))}
-                            </select>
+                            />
                         </div>
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Payment Type</label>
-                            <select
+                        <div className="col-span-2">
+                            <Select
+                                label="Payment Type"
                                 name="paymentTypeId"
-                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                                options={paymentTypes.map(t => ({ id: t.id, name: `${t.name} (${t.sign})` }))}
+                                placeholder="Select Type"
                                 required
-                            >
-                                <option value="">Select Type</option>
-                                {paymentTypes.map(t => (
-                                    <option key={t.id} value={t.id}>{t.name} ({t.sign})</option>
-                                ))}
-                            </select>
+                            />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Input
-                            label="Amount (THB)"
-                            name="amount"
-                            type="number"
-                            placeholder="5000"
-                            required
-                        />
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Method</label>
-                            <select
+                    <div className="grid grid-cols-4 gap-4">
+                        <div className="col-span-2">
+                            <Input
+                                label="Amount (THB)"
+                                name="amount"
+                                type="number"
+                                placeholder="5000"
+                                required
+                            />
+                        </div>
+                        <div className="col-span-2">
+                            <Select
+                                label="Method"
                                 name="paymentMethod"
-                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
+                                options={[
+                                    { id: "cash", name: "Cash" },
+                                    { id: "bank_transfer", name: "Bank Transfer" },
+                                    { id: "card", name: "Credit/Debit Card" }
+                                ]}
                                 required
-                            >
-                                <option value="cash">Cash</option>
-                                <option value="bank_transfer">Bank Transfer</option>
-                                <option value="card">Credit/Debit Card</option>
-                            </select>
+                            />
                         </div>
                     </div>
 
-                    <Input
-                        label="Notes / Transaction ID"
-                        name="notes"
-                        placeholder="Any additional info..."
-                    />
-
-                    <div className="flex justify-end gap-4 pt-6">
-                        <Button variant="secondary" onClick={() => window.history.back()}>
-                            Cancel
-                        </Button>
-                        <Button type="submit" variant="primary">
-                            Record
-                        </Button>
+                    <div className="grid grid-cols-4 gap-4">
+                        <div className="col-span-4">
+                            <Input
+                                label="Notes / Transaction ID"
+                                name="notes"
+                                placeholder="Any additional info..."
+                            />
+                        </div>
                     </div>
+
+                    <FormActions submitLabel="Record Payment" />
                 </Form>
             </Card>
         </div>

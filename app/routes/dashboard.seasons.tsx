@@ -342,7 +342,7 @@ export default function SeasonsPage() {
                                 name="startMonth"
                                 value={formData.startMonth}
                                 onChange={(e) => setFormData({ ...formData, startMonth: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 text-gray-500 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-800 focus:border-transparent"
                                 required
                             >
                                 {MONTHS.map((month) => (
@@ -360,7 +360,7 @@ export default function SeasonsPage() {
                                 name="startDay"
                                 value={formData.startDay}
                                 onChange={(e) => setFormData({ ...formData, startDay: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 text-gray-500 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-800 focus:border-transparent"
                                 required
                             >
                                 {DAYS.map((day) => (
@@ -381,7 +381,7 @@ export default function SeasonsPage() {
                                 name="endMonth"
                                 value={formData.endMonth}
                                 onChange={(e) => setFormData({ ...formData, endMonth: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 text-gray-500 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-800 focus:border-transparent"
                                 required
                             >
                                 {MONTHS.map((month) => (
@@ -399,7 +399,7 @@ export default function SeasonsPage() {
                                 name="endDay"
                                 value={formData.endDay}
                                 onChange={(e) => setFormData({ ...formData, endDay: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 text-gray-500 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-800 focus:border-transparent"
                                 required
                             >
                                 {DAYS.map((day) => (

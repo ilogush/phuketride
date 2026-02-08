@@ -38,9 +38,9 @@ export default function ConfirmModal({
     }
 
     const variantStyles = {
-        danger: 'bg-gray-600 hover:bg-gray-700 text-white',
-        warning: 'bg-yellow-500 hover:bg-yellow-600 text-white',
-        info: 'bg-blue-600 hover:bg-blue-700 text-white'
+        danger: 'bg-gray-600 hover:bg-gray-700 text-gray-500',
+        warning: 'bg-yellow-500 hover:bg-yellow-600 text-gray-500',
+        info: 'bg-blue-600 hover:bg-blue-700 text-gray-500'
     }
 
     const iconStyles = {
@@ -61,7 +61,7 @@ export default function ConfirmModal({
                         type="button"
                         onClick={onClose}
                         disabled={loading}
-                        className="py-4 text-sm font-medium text-gray-500 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
+                        className="py-4 text-sm font-medium text-gray-500 bg-gray-200 rounded-3xl hover:bg-gray-300 transition-colors disabled:opacity-50"
                     >
                         {cancelText}
                     </button>
@@ -69,7 +69,7 @@ export default function ConfirmModal({
                         type="button"
                         onClick={handleConfirm}
                         disabled={loading}
-                        className={`py-4 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 ${variantStyles[variant]}`}
+                        className={`py-4 text-sm font-medium rounded-3xl transition-colors disabled:opacity-50 ${variantStyles[variant]}`}
                     >
                         {loading ? (
                             <span className="flex items-center space-x-2">

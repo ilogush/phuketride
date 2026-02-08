@@ -1,21 +1,7 @@
 # Правила для AI Агента
 
-## 0. Референсный проект
-- **ВАЖНО**: Используем `.exemple/` (Next.js проект) как образец и источник компонентов.
-- Полный путь к исходнику: `/Users/ulethai/Documents/Dev/PR/.exemple`
-- При копировании компонентов из `.exemple/` ВСЕГДА адаптировать под React Router v7:
-  - `next/link` → `react-router` (Link)
-  - `next/navigation` → `react-router` (useNavigate, useLocation)
-  - `'use client'` → удалить
-  - `href` → `to` в Link компонентах
-  - `prefetch={false}` → удалить
-  - Supabase auth → адаптировать под текущую auth систему (Drizzle + D1)
-- Сохранять логику, стили и структуру компонентов из образца.
-- Исходник доступен в workspace как `.exemple/` директория.
-- **Подробное руководство**: См. docs/REFERENCE_PROJECT.md
-
 ## 1. Язык и Коммуникация
-- Общайся на русском языке (ответы, рассуждения, объяснения).
+- Общайся на русском языке КОРОТКО (ответы, рассуждения, объяснения).
 - **ЗАПРЕЩЕНО** создавать markdown файлы (.md) без явного разрешения.
 - Все отчеты и резюме работы выводить в чате, НЕ в файлах.
 - Весь код, комментарии, схемы БД и документация ТОЛЬКО на английском.
@@ -34,7 +20,7 @@
 - **Подробное руководство**: См. docs/ROUTING.md
 
 ### 2.3 Компоненты и Переиспользование
-- **КРИТИЧНО**: Все основные UI компоненты находятся в `/Users/ulethai/Documents/Dev/PR/app/components/ui/`
+- **КРИТИЧНО**: Все основные UI компоненты находятся в `/Users/ulethai/Documents/Dev/PR/app/components`
 - **НЕ создавать новые папки для компонентов** - работать с существующими
 - Редактировать, изменять, расширять существующие компоненты в `app/components/ui/`
 - Избегать дублирования кода между компонентами.
@@ -74,14 +60,9 @@
 - ВСЯ обратная связь через Toast (useToast из @/lib/toast).
 - НИКОГДА не использовать alert/confirm.
 - ВСЕГДА await перед вызовом Toast.
-- БЕЗ эмодзи в текстах Toast.
-- Примеры: "Email is required", "Start date cannot be after end date".
 
 ### 4.3 Стиль и компоненты
 - Иконки: ТОЛЬКО @heroicons/react/24/outline (версия 2.2.0).
-- Input поля: rounded-xl.
-- Кнопки: компонент Button из @/components/ui/Button.
-- Loading states: всегда включать `loading` prop для async действий.
 
 ### 4.3.1 Стандартизация кнопок (КРИТИЧНО)
 - **ТОЛЬКО 2 ВАРИАНТА КНОПОК**:
@@ -90,34 +71,14 @@
 - **ЗАПРЕЩЕНО** использовать другие варианты (delete, destructive, danger и т.д.)
 - **ЗАПРЕЩЕНО** создавать кастомные стили кнопок через className
 - Все кнопки должны использовать компонент Button из @/components/ui/Button
-- Примеры:
-  ```tsx
-  <Button variant="primary" type="submit">Create Company</Button>
-  <Button variant="secondary" onClick={handleCancel}>Cancel</Button>
-  ```
 
 ### 4.4 Единообразие форм (КРИТИЧНО)
 - **ПРАВИЛО 4 ПОЛЕЙ**: ВСЕ формы используют сетку из 4 колонок (`grid-cols-4`)
 - Каждая строка формы содержит РОВНО 4 поля ввода
 - Если полей меньше 4 в строке - оставить пустые колонки
-- Использовать `FormSection` для группировки полей с заголовком и иконкой
+- Использовать только `FormSection` для группировки полей с заголовком и иконкой
 - Отступы между секциями: `space-y-4`
 - Отступы между строками внутри секции: `gap-4` (горизонтально и вертикально)
-- Примеры:
-  ```tsx
-  <FormSection title="Company Information" icon={<BuildingOfficeIcon />}>
-    <div className="grid grid-cols-4 gap-4">
-      <Input label="Field 1" name="field1" />
-      <Input label="Field 2" name="field2" />
-      <Input label="Field 3" name="field3" />
-      <Input label="Field 4" name="field4" />
-    </div>
-    <div className="grid grid-cols-4 gap-4">
-      <Input label="Field 5" name="field5" />
-      {/* Only 1 field in this row - 3 empty columns */}
-    </div>
-  </FormSection>
-  ```
 
 ## 5. База Данных и Логирование
 
@@ -129,9 +90,19 @@
 - Drizzle ORM для типобезопасных запросов к D1.
 - НЕ использовать Soft Delete.
 - Именование: таблицы и колонки в `snake_case`.
-- Миграции через `npm run db:generate` и `npm run db:migrate`.
-- Локальная разработка: использовать Wrangler dev с локальной D1 (`wrangler dev`).
+- Миграции через `npm run db:generate` и `npm run db:migrate:local` (локально) или `npm run db:migrate:remote` (продакшн).
 - **Схема БД и запросы**: См. docs/DATABASE.md
+
+### 5.1.1 Синхронизация БД (КРИТИЧНО)
+- **ПРАВИЛО**: Локальная БД в `.wrangler/state/v3/d1/` - ТОЛЬКО для разработки через `wrangler dev`.
+- **ЗАПРЕЩЕНО** напрямую работать с SQLite файлами в `.wrangler/`.
+- **Синхронизация с Cloudflare D1**:
+  1. Применить миграции локально: `npm run db:migrate:local`
+  2. Проверить данные через `wrangler d1 execute phuketride-bd --local --command "SELECT * FROM users LIMIT 5"`
+  3. Применить миграции на продакшн: `npm run db:migrate:remote`
+  4. Проверить продакшн: `wrangler d1 execute phuketride-bd --remote --command "SELECT * FROM users LIMIT 5"`
+- **Очистка локальной БД**: Удалить `.wrangler/state/` и запустить `npm run db:migrate:local` заново.
+- **НИКОГДА** не коммитить `.wrangler/` в git (уже в .gitignore).
 
 ### 5.2 Оптимизация запросов
 - ВСЕГДА `LIMIT 10` для тестовых запросов.

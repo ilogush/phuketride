@@ -19,5 +19,8 @@
 			"binding": "ASSETS",
 			"bucket_name": "phuketride-cache"
 		}
-	]
+	],
+	"dev": {
+		"remote": true
+	}
 }

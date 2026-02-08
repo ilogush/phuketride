@@ -40,7 +40,7 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
 
             if (!response.ok) {
                 const errorData = await response.json()
-                throw new Error(errorData.error || 'Failed to create company')
+                throw new Error(errorData.error || 'Failed to Create')
             }
 
             await toast.success('Welcome to company partnership! You can now manage your vehicles and bookings.')
@@ -84,7 +84,7 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
     }
 
     return (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-3xl shadow p-6">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">Account Type</h3>
                 <div className="flex items-center space-x-2">
@@ -107,7 +107,7 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                     <p className="text-sm text-gray-600">
                         You're currently using the platform as a user. You can rent cars and manage your bookings.
                     </p>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-3xl p-4">
                         <div className="flex">
                             <BuildingOfficeIcon className="h-5 w-5 text-blue-400 mt-0.5" />
                             <div className="ml-3">
@@ -120,7 +120,7 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                     </div>
                     <button
                         onClick={() => setShowModal(true)}
-                        className="w-full flex items-center justify-center py-4 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                        className="w-full flex items-center justify-center py-4 border border-transparent text-sm font-medium rounded-lg text-gray-500 bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
                     >
                         <BuildingOfficeIcon className="h-4 w-4 mr-2" />
                         Become a Company Partner
@@ -131,7 +131,7 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                     <p className="text-sm text-gray-600">
                         You're currently managing your company. You can add vehicles, manage bookings, and view reports.
                     </p>
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="bg-green-50 border border-green-200 rounded-3xl p-4">
                         <div className="flex">
                             <UserIcon className="h-5 w-5 text-green-400 mt-0.5" />
                             <div className="ml-3">
@@ -192,7 +192,7 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                         />
                     </div>
 
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-3xl p-3">
                         <p className="text-sm text-yellow-800">
                             <strong>Note:</strong> After creating your company, you'll have access to vehicle management,
                             booking oversight, and financial reports.
@@ -210,9 +210,9 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                         <button
                             onClick={handleBecomePartner}
                             disabled={loading || !companyName.trim()}
-                            className="flex-1 py-4 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex-1 py-4 border border-transparent text-sm font-medium rounded-lg text-gray-500 bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {loading ? 'Creating...' : 'Create Company'}
+                            {loading ? 'Creating...' : 'Create'}
                         </button>
                     </div>
                 </div>

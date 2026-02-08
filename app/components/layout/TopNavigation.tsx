@@ -82,7 +82,7 @@ export function TopNavigation({ user }: TopNavigationProps) {
                                 <p className="text-sm font-medium text-gray-900">{user.full_name}</p>
                                 <p className="text-xs text-gray-500 capitalize">{user.role}</p>
                             </div>
-                            <div className="w-10 h-10 bg-gray-800 text-white rounded-full flex items-center justify-center font-semibold">
+                            <div className="w-10 h-10 bg-gray-800 text-gray-500 rounded-full flex items-center justify-center font-semibold">
                                 {user.full_name.charAt(0)}
                             </div>
                         </button>

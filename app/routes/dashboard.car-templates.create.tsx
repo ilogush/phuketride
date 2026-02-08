@@ -9,8 +9,9 @@ import { Select } from "~/components/ui/Select";
 import { Textarea } from "~/components/ui/Textarea";
 import Button from "~/components/ui/Button";
 import BackButton from "~/components/ui/BackButton";
-import FormBox from "~/components/ui/FormBox";
+import FormSection from "~/components/ui/FormSection";
 import { useState } from "react";
+import { TruckIcon, Cog6ToothIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -70,104 +71,101 @@ export default function CreateCarTemplatePage() {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <BackButton to="/dashboard/car-templates" />
-                    <PageHeader title="Add New Car Template" />
-                </div>
-                <Button type="submit" variant="primary" form="template-form">
-                    Create Template
-                </Button>
-            </div>
+            <PageHeader
+                title="Add New Car Template"
+                leftActions={<BackButton to="/car-templates" />}
+                rightActions={
+                    <Button type="submit" variant="primary" form="template-form">
+                        Create Template
+                    </Button>
+                }
+            />
 
-            <FormBox>
-                <Form id="template-form" method="post" className="space-y-4">
-                    <div className="grid grid-cols-4 gap-4">
-                        <Select
-                            label="Brand"
-                            name="brandId"
-                            value={selectedBrandId}
-                            onChange={(e) => setSelectedBrandId(Number(e.target.value))}
-                            options={brands}
-                            required
-                        />
-                        <Select
-                            label="Model"
-                            name="modelId"
-                            options={filteredModels}
-                            required
-                        />
-                        <Input
-                            label="Year"
-                            name="productionYear"
-                            type="number"
-                            placeholder="2023"
-                            required
-                        />
-                        <Select
-                            label="Transmission"
-                            name="transmission"
-                            options={[
-                                { id: "automatic", name: "Automatic" },
-                                { id: "manual", name: "Manual" }
-                            ]}
-                            required
-                        />
-                    </div>
+            <Form id="template-form" method="post" className="space-y-4">
+                <FormSection title="Basic Information" icon={<TruckIcon />} grid="cols-4">
+                    <Select
+                        label="Brand"
+                        name="brandId"
+                        value={selectedBrandId}
+                        onChange={(e) => setSelectedBrandId(Number(e.target.value))}
+                        options={brands}
+                        required
+                    />
+                    <Select
+                        label="Model"
+                        name="modelId"
+                        options={filteredModels}
+                        required
+                    />
+                    <Input
+                        label="Year"
+                        name="productionYear"
+                        type="number"
+                        placeholder="2023"
+                        required
+                    />
+                    <Select
+                        label="Transmission"
+                        name="transmission"
+                        options={[
+                            { id: "automatic", name: "Automatic" },
+                            { id: "manual", name: "Manual" }
+                        ]}
+                        required
+                    />
+                </FormSection>
 
-                    <div className="grid grid-cols-4 gap-4">
-                        <Input
-                            label="Engine (CC)"
-                            name="engineVolume"
-                            type="number"
-                            step="0.1"
-                            placeholder="1.5"
-                            required
-                        />
-                        <Select
-                            label="Fuel"
-                            name="fuelType"
-                            options={[
-                                { id: "gasoline", name: "Gasoline 91/95" },
-                                { id: "diesel", name: "Diesel" },
-                                { id: "electric", name: "Electric" },
-                                { id: "hybrid", name: "Hybrid" }
-                            ]}
-                            required
-                        />
-                        <Input
-                            label="Body Type"
-                            name="bodyType"
-                            placeholder="e.g., Sedan"
-                            required
-                        />
-                        <Input
-                            label="Seats"
-                            name="seats"
-                            type="number"
-                            placeholder="5"
-                            required
-                        />
-                    </div>
+                <FormSection title="Technical Specifications" icon={<Cog6ToothIcon />} grid="cols-4">
+                    <Input
+                        label="Engine (CC)"
+                        name="engineVolume"
+                        type="number"
+                        step="0.1"
+                        placeholder="1.5"
+                        required
+                    />
+                    <Select
+                        label="Fuel"
+                        name="fuelType"
+                        options={[
+                            { id: "gasoline", name: "Gasoline 91/95" },
+                            { id: "diesel", name: "Diesel" },
+                            { id: "electric", name: "Electric" },
+                            { id: "hybrid", name: "Hybrid" }
+                        ]}
+                        required
+                    />
+                    <Input
+                        label="Body Type"
+                        name="bodyType"
+                        placeholder="e.g., Sedan"
+                        required
+                    />
+                    <Input
+                        label="Seats"
+                        name="seats"
+                        type="number"
+                        placeholder="5"
+                        required
+                    />
+                    <Input
+                        label="Doors"
+                        name="doors"
+                        type="number"
+                        placeholder="4"
+                        required
+                    />
+                </FormSection>
 
-                    <div className="grid grid-cols-4 gap-4">
-                        <Input
-                            label="Doors"
-                            name="doors"
-                            type="number"
-                            placeholder="4"
-                            required
-                        />
-                    </div>
-
+                <FormSection title="Description" icon={<TruckIcon />}>
                     <Textarea
                         label="Description"
                         name="description"
                         rows={4}
                         placeholder="Detailed car characteristics..."
                     />
-                </Form>
-            </FormBox>
+                </FormSection>
+            </Form>
         </div>
     );
 }

@@ -50,6 +50,13 @@
       "when": 1770480780824,
       "tag": "0006_petite_warhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1770568223036,
+      "tag": "0007_rainy_brood",
+      "breakpoints": true
     }
   ]
 }

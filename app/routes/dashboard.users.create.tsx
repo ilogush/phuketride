@@ -107,6 +107,7 @@ export default function CreateUserPage() {
             />
             <ProfileForm
                 user={emptyUser}
+                currentUserRole={user.role}
                 countries={countries}
                 hotels={hotels}
                 locations={locations}

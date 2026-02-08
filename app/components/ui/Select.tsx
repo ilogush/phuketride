@@ -32,8 +32,6 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         ref
     ) => {
         const baseStyle = error ? selectErrorStyles : selectBaseStyles;
-        const selectClasses = `${baseStyle} ${disabled ? "!bg-gray-200 cursor-not-allowed !text-gray-800 !border-gray-200" : ""
-            }`;
 
         return (
             <div className={`mt-2 ${className}`}>
@@ -47,7 +45,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                     id={id || name}
                     name={name}
                     disabled={disabled}
-                    className={selectClasses}
+                    className={baseStyle}
                     {...props}
                 >
                     <option value="">{placeholder || `Select ${label || "option"}`}</option>

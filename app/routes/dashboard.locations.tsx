@@ -17,6 +17,7 @@ interface District {
     name: string;
     locationId: number;
     beaches: string | null;
+    streets: string | null;
     deliveryPrice: number | null;
     createdAt: Date;
     updatedAt: Date;
@@ -47,13 +48,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const id = Number(formData.get("id"));
         const name = formData.get("name") as string;
         const beaches = formData.get("beaches") as string;
+        const streets = formData.get("streets") as string;
         const deliveryPrice = Number(formData.get("deliveryPrice"));
 
         const beachesArray = beaches.split(",").map(b => b.trim()).filter(b => b);
         const beachesJson = JSON.stringify(beachesArray);
+        
+        const streetsArray = streets.split(",").map(s => s.trim()).filter(s => s);
+        const streetsJson = JSON.stringify(streetsArray);
 
         await db.update(schema.districts)
-            .set({ name, beaches: beachesJson, deliveryPrice })
+            .set({ name, beaches: beachesJson, streets: streetsJson, deliveryPrice })
             .where(eq(schema.districts.id, id));
 
         return data({ success: true, message: "District updated successfully" });
@@ -62,15 +67,20 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (intent === "create") {
         const name = formData.get("name") as string;
         const beaches = formData.get("beaches") as string;
+        const streets = formData.get("streets") as string;
         const deliveryPrice = Number(formData.get("deliveryPrice"));
 
         const beachesArray = beaches.split(",").map(b => b.trim()).filter(b => b);
         const beachesJson = JSON.stringify(beachesArray);
+        
+        const streetsArray = streets.split(",").map(s => s.trim()).filter(s => s);
+        const streetsJson = JSON.stringify(streetsArray);
 
         await db.insert(schema.districts).values({
             name,
             locationId: 1,
             beaches: beachesJson,
+            streets: streetsJson,
             deliveryPrice
         });
 
@@ -84,7 +94,7 @@ export default function LocationsPage() {
     const { districts, user } = useLoaderData<typeof loader>();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDistrict, setEditingDistrict] = useState<District | null>(null);
-    const [formData, setFormData] = useState({ name: "", beaches: "", deliveryPrice: "0" });
+    const [formData, setFormData] = useState({ name: "", beaches: "", streets: "", deliveryPrice: "0" });
 
     const isAdmin = user.role === "admin";
 
@@ -97,12 +107,23 @@ export default function LocationsPage() {
         }
     };
 
+    const parseStreets = (streets: string | null): string[] => {
+        if (!streets) return [];
+        try {
+            return JSON.parse(streets);
+        } catch {
+            return [];
+        }
+    };
+
     const handleEdit = (district: District) => {
         setEditingDistrict(district);
         const beaches = parseBeaches(district.beaches);
+        const streets = parseStreets(district.streets);
         setFormData({
             name: district.name,
             beaches: beaches.join(", "),
+            streets: streets.join(", "),
             deliveryPrice: String(district.deliveryPrice || 0)
         });
         setIsModalOpen(true);
@@ -111,7 +132,7 @@ export default function LocationsPage() {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingDistrict(null);
-        setFormData({ name: "", beaches: "", deliveryPrice: "0" });
+        setFormData({ name: "", beaches: "", streets: "", deliveryPrice: "0" });
     };
 
     const columns: Column<District>[] = [
@@ -125,7 +146,16 @@ export default function LocationsPage() {
             label: "Beaches / Locations",
             render: (item) => {
                 const beaches = parseBeaches(item.beaches);
-                return <span>{beaches.join(", ")}</span>;
+                return <span className="text-sm">{beaches.join(", ")}</span>;
+            },
+            wrap: true,
+        },
+        {
+            key: "streets",
+            label: "Streets / Roads",
+            render: (item) => {
+                const streets = parseStreets(item.streets);
+                return <span className="text-sm">{streets.join(", ")}</span>;
             },
             wrap: true,
         },
@@ -218,10 +248,24 @@ export default function LocationsPage() {
                                 name="beaches"
                                 value={formData.beaches}
                                 onChange={(e) => setFormData({ ...formData, beaches: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 text-gray-500 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-800 focus:border-transparent"
                                 rows={3}
                                 placeholder="e.g., Patong Beach, Kalim Beach, Paradise Beach"
                                 required
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs text-gray-600 mb-1">
+                                Streets / Roads (comma separated)
+                            </label>
+                            <textarea
+                                name="streets"
+                                value={formData.streets}
+                                onChange={(e) => setFormData({ ...formData, streets: e.target.value })}
+                                className="w-full px-4 py-2 text-gray-500 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-800 focus:border-transparent"
+                                rows={3}
+                                placeholder="e.g., Bangla Road, Beach Road, Rat-U-Thit Road"
                             />
                         </div>
 

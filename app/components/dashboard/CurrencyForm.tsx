@@ -131,40 +131,44 @@ export function CurrencyForm({ currency, onSubmit, onCancel }: CurrencyFormProps
                     />
                 </FormField>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                        label="Code (ISO)"
-                        required
-                        error={errors.code}
-                    >
-                        <input
-                            type="text"
-                            id="code"
-                            name="code"
-                            value={formData.code}
-                            onChange={handleChange}
-                            maxLength={3}
-                            className={`${inputBaseStyles} font-mono uppercase ${errors.code ? 'border-gray-600' : ''}`}
-                            placeholder="USD"
-                        />
-                    </FormField>
+                <div className="grid grid-cols-4 gap-4">
+                    <div className="col-span-2">
+                        <FormField
+                            label="Code (ISO)"
+                            required
+                            error={errors.code}
+                        >
+                            <input
+                                type="text"
+                                id="code"
+                                name="code"
+                                value={formData.code}
+                                onChange={handleChange}
+                                maxLength={3}
+                                className={`${inputBaseStyles} font-mono uppercase ${errors.code ? 'border-gray-600' : ''}`}
+                                placeholder="USD"
+                            />
+                        </FormField>
+                    </div>
 
-                    <FormField
-                        label="Symbol"
-                        required
-                        error={errors.symbol}
-                    >
-                        <input
-                            type="text"
-                            id="symbol"
-                            name="symbol"
-                            value={formData.symbol}
-                            onChange={handleChange}
-                            maxLength={10}
-                            className={`${inputBaseStyles} text-lg ${errors.symbol ? 'border-gray-600' : ''}`}
-                            placeholder="$"
-                        />
-                    </FormField>
+                    <div className="col-span-2">
+                        <FormField
+                            label="Symbol"
+                            required
+                            error={errors.symbol}
+                        >
+                            <input
+                                type="text"
+                                id="symbol"
+                                name="symbol"
+                                value={formData.symbol}
+                                onChange={handleChange}
+                                maxLength={10}
+                                className={`${inputBaseStyles} text-lg ${errors.symbol ? 'border-gray-600' : ''}`}
+                                placeholder="$"
+                            />
+                        </FormField>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2 px-1">

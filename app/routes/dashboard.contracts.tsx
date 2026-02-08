@@ -94,10 +94,10 @@ export default function ContractsPage() {
             label: "Actions",
             render: (contract) => (
                 <div className="flex gap-2">
-                    <Link to={`/dashboard/contracts/${contract.id}`}>
+                    <Link to={`/contracts/${contract.id}`}>
                         <Button variant="secondary" size="sm">View</Button>
                     </Link>
-                    <Link to={`/dashboard/contracts/${contract.id}/edit`}>
+                    <Link to={`/contracts/${contract.id}/edit`}>
                         <Button variant="secondary" size="sm">Edit</Button>
                     </Link>
                 </div>

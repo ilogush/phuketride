@@ -13,6 +13,133 @@
 - All new UI components MUST go in `app/components/ui/`
 - All components exported from `app/components/index.ts` for easy imports
 
+## Page Structure Standards (CRITICAL)
+
+### Standard Page Layout Pattern
+
+**ALL pages MUST follow this standardized structure:**
+
+```tsx
+// ✅ CORRECT - Standardized PageHeader usage
+<div className="space-y-4">
+    <PageHeader
+        title="Page Title"
+        leftActions={<BackButton to="/previous-page" />}
+        rightActions={
+            <Button type="submit" variant="primary" form="form-id">
+                Action Label
+            </Button>
+        }
+    />
+    
+    <FormBox>
+        <Form id="form-id">...</Form>
+    </FormBox>
+</div>
+
+// ❌ WRONG - Manual layout (deprecated)
+<div className="flex items-center justify-between">
+    <div className="flex items-center gap-4">
+        <BackButton to="/previous-page" />
+        <PageHeader title="Page Title" />
+    </div>
+    <Button>Action</Button>
+</div>
+```
+
+**Benefits**:
+- Consistent spacing and alignment across all pages
+- Responsive behavior handled automatically
+- Animations and transitions built-in
+- Easier to maintain and update
+
+### PageHeader Component
+
+**Location**: `app/components/ui/PageHeader.tsx`
+
+Flexible header component for all dashboard pages with built-in support for actions, search, and navigation.
+
+```tsx
+import PageHeader from '@/components/ui/PageHeader'
+import BackButton from '@/components/ui/BackButton'
+import Button from '@/components/ui/Button'
+
+// Basic usage
+<PageHeader title="Dashboard" />
+
+// With back button
+<PageHeader
+    title="Add New Company"
+    leftActions={<BackButton to="/companies" />}
+/>
+
+// With action button
+<PageHeader
+    title="Companies"
+    rightActions={
+        <Link to="/companies/create">
+            <Button variant="primary" icon={<PlusIcon />}>
+                Add Company
+            </Button>
+        </Link>
+    }
+/>
+
+// With form submit button
+<PageHeader
+    title="Add New Brand"
+    leftActions={<BackButton to="/brands" />}
+    rightActions={
+        <Button type="submit" variant="primary" form="brand-form">
+            Create Brand
+        </Button>
+    }
+/>
+
+// With search
+<PageHeader
+    title="Users"
+    withSearch
+    searchValue={searchQuery}
+    onSearchChange={setSearchQuery}
+    searchPlaceholder="Search users..."
+/>
+
+// Using shorthand props
+<PageHeader
+    title="Create Item"
+    actionLabel="Save"
+    actionIcon={<CheckIcon />}
+    actionType="submit"
+    onAction={handleSubmit}
+/>
+```
+
+**Props**:
+- `title` (ReactNode) - Page title
+- `leftActions` (ReactNode) - Actions on the left (typically BackButton)
+- `rightActions` (ReactNode) - Actions on the right (typically Button or Link)
+- `actions` (ReactNode) - Alias for rightActions
+- `children` (ReactNode) - Additional custom content
+- `withSearch` (boolean) - Show search input
+- `searchValue` (string) - Search input value
+- `onSearchChange` (function) - Search change handler
+- `searchPlaceholder` (string) - Search placeholder text
+- `actionLabel` (string) - Shorthand for creating action button
+- `actionIcon` (ReactNode) - Icon for action button
+- `actionType` ('button' | 'link' | 'submit') - Type of action
+- `href` (string) - Link href (when actionType='link')
+- `onAction` (function) - Click handler (when actionType='button')
+- `loading` (boolean) - Show loading state on action button
+- `disabled` (boolean) - Disable action button
+
+**Features**:
+- Responsive layout with proper spacing
+- Built-in animations (fade-in, slide-in)
+- Automatic text truncation for long titles
+- Flexible action placement
+- Search integration
+
 ## Available UI Components
 
 ### Form Components

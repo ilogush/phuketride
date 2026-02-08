@@ -211,7 +211,7 @@ export default function Sidebar({ user, isOpen, onClose }: SidebarProps) {
             {/* Tooltip for Collapsed Sidebar */}
             {!isOpen && hoveredItem && (
                 <div
-                    className="fixed z-50 bg-gray-800 text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-xl border border-gray-700 pointer-events-none whitespace-nowrap left-[80px]"
+                    className="fixed z-50 bg-gray-800 text-gray-500 text-xs font-medium px-3 py-1.5 rounded-lg shadow-xl border border-gray-700 pointer-events-none whitespace-nowrap left-[80px]"
                     style={{ top: hoveredItem.top + 6 }}
                 >
                     {hoveredItem.label}

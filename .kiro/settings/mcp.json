@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "tailwind-mcp": {
+      "command": "npx",
+      "args": ["-y", "@mcp/tailwind-css-server"],
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}

@@ -70,15 +70,26 @@ companies {
   ownerId: text (FK to users, not null)
   email: text (not null)
   phone: text (not null)
-  telegram: text (not null)
+  telegram: text
   locationId: integer (FK, not null)
   districtId: integer (FK, not null)
   street: text (not null)
   houseNumber: text (not null)
   address: text
+  // Bank Details
+  bankName: text
+  accountNumber: text
+  accountName: text
+  swiftCode: text
+  // Booking Settings
+  preparationTime: integer (default: 30)
+  deliveryFeeAfterHours: real (default: 0)
   islandTripPrice: real
   krabiTripPrice: real
   babySeatPricePerDay: real
+  // Schedule & Holidays
+  weeklySchedule: text (JSON)
+  holidays: text (JSON array)
   settings: text (JSON)
   createdAt: timestamp
   updatedAt: timestamp
@@ -315,30 +326,31 @@ districts {
   name: text (not null)
   locationId: integer (FK, not null)
   beaches: text (JSON array of beach/location names)
+  streets: text (JSON array of main streets/roads)
   deliveryPrice: real (default: 0)
   createdAt: timestamp
   updatedAt: timestamp
 }
 ```
 
-**Phuket Districts (location_id = 1)**: 15 districts with beaches/locations:
-- Airport: Phuket Airport, Thepkrasattri Rd, Heroines Monument, Mai Khao area, Nai Yang area
-- Bang Tao: Bang Tao Beach, Layan Beach
-- Chalong: Chalong Bay, Cape Panwa Beach, Khao Khad Beach
-- Kamala: Kamala Beach
-- Karon: Karon Beach, Karon Noi Beach
-- Kata: Kata Beach, Kata Noi Beach
-- Kathu: Central Festival, Phang Muang Sai Kor Rd, Loch Palm Golf, Patong Hill
-- Mai Khao: Mai Khao Beach, Sai Kaew Beach
-- Nai Harn: Nai Harn Beach
-- Nai Thon: Nai Thon Beach, Banana Beach
-- Nai Yang: Nai Yang Beach
-- Patong: Patong Beach, Kalim Beach, Paradise Beach
-- Phuket Town: Phuket Old Town, Thalang Rd, Yaowarat Rd, Boat Lagoon, Koh Kaew
-- Rawai: Rawai Beach, Friendship Beach, Yanui Beach
-- Surin: Surin Beach, Pansea Beach
+**Phuket Districts (location_id = 1)**: 15 districts with beaches and streets:
+- Airport: Mai Khao area, Nai Yang area, Phuket Airport | Thepkrasattri Road, Airport Road
+- Bang Tao: Bang Tao Beach, Layan Beach | Laguna Road, Cherngtalay Road
+- Chalong: Chalong Bay, Cape Panwa Beach | Chao Fah East/West Road, Patak Road
+- Kamala: Kamala Beach | Kamala Beach Road, Rim Had Road
+- Karon: Karon Beach, Karon Noi Beach | Karon Road, Patak Road
+- Kata: Kata Beach, Kata Noi Beach | Kata Road, Patak Road
+- Kathu: Patong Hill | Vichit Songkram Road, Phang Muang Sai Kor Road
+- Mai Khao: Mai Khao Beach, Sai Kaew Beach | Mai Khao Beach Road
+- Nai Harn: Nai Harn Beach | Nai Harn Beach Road, Viset Road
+- Nai Thon: Nai Thon Beach, Banana Beach | Nai Thon Beach Road
+- Nai Yang: Nai Yang Beach | Nai Yang Beach Road, Sakhu Road
+- Patong: Patong Beach, Kalim Beach, Paradise Beach | Bangla Road, Beach Road, Rat-U-Thit Road
+- Phuket Town: Phuket Old Town, Boat Lagoon | Thalang Road, Yaowarat Road, Dibuk Road, Phang Nga Road
+- Rawai: Rawai Beach, Friendship Beach, Yanui Beach | Viset Road, Rawai Beach Road
+- Surin: Surin Beach, Pansea Beach | Surin Beach Road
 
-**Seeding**: Use `scripts/seed-districts.sql` to populate districts data
+**Seeding**: Use `drizzle/0005_phuket_districts.sql` and `drizzle/0008_update_districts_streets.sql` to populate districts data
 ```
 
 ### Car Brands
@@ -604,6 +616,8 @@ await db.transaction(async (tx) => {
 Several fields store JSON data:
 - `users.passportPhotos`: string[]
 - `users.driverLicensePhotos`: string[]
+- `companies.weeklySchedule`: object (e.g., {monday: {open: true, start: "08:00", end: "20:00"}, ...})
+- `companies.holidays`: string[] (e.g., ["2024-01-01", "2024-12-25"])
 - `companies.settings`: object
 - `companyCars.photos`: string[] (max 12)
 - `companyCars.seasonalPrices`: array

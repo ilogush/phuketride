@@ -156,8 +156,8 @@ export function CarTemplateForm({ template, brands, models, referenceData, onSub
             }
         >
             <form id="car-template-form" onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
+                <div className="grid grid-cols-4 gap-4">
+                    <div className="col-span-2">
                         <label className="block text-xs font-medium text-gray-500 mb-1">Brand *</label>
                         <select
                             value={formData.brand_id}
@@ -172,7 +172,7 @@ export function CarTemplateForm({ template, brands, models, referenceData, onSub
                         {errors.brand_id && <p className="mt-1 text-sm text-gray-700">{errors.brand_id}</p>}
                     </div>
 
-                    <div>
+                    <div className="col-span-2">
                         <label className="block text-xs font-medium text-gray-500 mb-1">Model *</label>
                         <select
                             value={formData.model_id}

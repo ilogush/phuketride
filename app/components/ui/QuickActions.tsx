@@ -19,7 +19,7 @@ export default function QuickActions({ userRole = 'admin' }: QuickActionsProps) 
     // Define actions based on user role
     const adminActions = [
         {
-            name: 'Create Company',
+            name: 'Create',
             href: '/dashboard/companies/create',
             icon: BuildingOfficeIcon
         },

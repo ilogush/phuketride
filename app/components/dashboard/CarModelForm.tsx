@@ -101,8 +101,8 @@ export function CarModelForm({ model, brands, onSubmit, onCancel }: CarModelForm
                 </Button>
             }
         >
-            <form id="car-model-form" onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="md:col-span-2">
+            <form id="car-model-form" onSubmit={handleSubmit} className="grid grid-cols-4 gap-4">
+                <div className="col-span-2">
                     <FormField
                         label="Brand"
                         required
@@ -125,7 +125,7 @@ export function CarModelForm({ model, brands, onSubmit, onCancel }: CarModelForm
                     </FormField>
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="col-span-2">
                     <FormField
                         label="Model Name"
                         required

@@ -81,7 +81,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     // Managers to assign
     const managerIds = formData.getAll("managerIds") as string[];
 
-    // Create company with current user as owner
+    // Create with current user as owner
     const [newCompany] = await db.insert(schema.companies).values({
         name,
         ownerId: user.id,
@@ -125,7 +125,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         ]);
     }
 
-    return redirect("/dashboard/companies");
+    return redirect("/companies");
 }
 
 export default function CreateCompanyPage() {
@@ -163,15 +163,15 @@ export default function CreateCompanyPage() {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <BackButton to="/dashboard/companies" />
-                    <PageHeader title="Add New Company" />
-                </div>
-                <Button type="submit" variant="primary" form="company-form">
-                    Create Company
-                </Button>
-            </div>
+            <PageHeader
+                title="Add New Company"
+                leftActions={<BackButton to="/companies" />}
+                rightActions={
+                    <Button type="submit" variant="primary" form="company-form">
+                        Create
+                    </Button>
+                }
+            />
 
             <Form id="company-form" method="post" className="space-y-4">
                 {/* Basic Information */}
@@ -208,7 +208,7 @@ export default function CreateCompanyPage() {
                             <Select
                                 label="Location"
                                 name="locationId"
-                                value={selectedLocationId}
+                                value={selectedLocationId.toString()}
                                 onChange={(e) => setSelectedLocationId(Number(e.target.value))}
                                 options={locations}
                                 required
@@ -216,6 +216,7 @@ export default function CreateCompanyPage() {
                             <Select
                                 label="District"
                                 name="districtId"
+                                defaultValue={filteredDistricts[0]?.id.toString()}
                                 options={filteredDistricts}
                                 required
                             />

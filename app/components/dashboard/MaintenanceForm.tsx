@@ -151,44 +151,52 @@ export default function MaintenanceForm({
                 />
             </FormField>
 
-            <div className="grid grid-cols-2 gap-4">
-                <FormField label="Mileage (km)" required error={errors.mileage}>
-                    <Input
-                        type="number"
-                        value={formData.mileage}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('mileage', e.target.value)}
-                        min={0}
-                    />
-                </FormField>
+            <div className="grid grid-cols-4 gap-4">
+                <div className="col-span-2">
+                    <FormField label="Mileage (km)" required error={errors.mileage}>
+                        <Input
+                            type="number"
+                            value={formData.mileage}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('mileage', e.target.value)}
+                            min={0}
+                        />
+                    </FormField>
+                </div>
 
-                <FormField label="Cost" error={errors.cost}>
-                    <Input
-                        type="number"
-                        value={formData.cost}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('cost', e.target.value)}
-                        min={0}
-                        step={0.01}
-                        placeholder="0.00"
-                    />
-                </FormField>
+                <div className="col-span-2">
+                    <FormField label="Cost" error={errors.cost}>
+                        <Input
+                            type="number"
+                            value={formData.cost}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('cost', e.target.value)}
+                            min={0}
+                            step={0.01}
+                            placeholder="0.00"
+                        />
+                    </FormField>
+                </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                <FormField label="Performed At" required>
-                    <Input
-                        type="datetime-local"
-                        value={formData.performed_at}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('performed_at', e.target.value)}
-                    />
-                </FormField>
+            <div className="grid grid-cols-4 gap-4">
+                <div className="col-span-2">
+                    <FormField label="Performed At" required>
+                        <Input
+                            type="datetime-local"
+                            value={formData.performed_at}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('performed_at', e.target.value)}
+                        />
+                    </FormField>
+                </div>
 
-                <FormField label="Next Maintenance Date">
-                    <Input
-                        type="datetime-local"
-                        value={formData.next_maintenance_date}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('next_maintenance_date', e.target.value)}
-                    />
-                </FormField>
+                <div className="col-span-2">
+                    <FormField label="Next Maintenance Date">
+                        <Input
+                            type="datetime-local"
+                            value={formData.next_maintenance_date}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('next_maintenance_date', e.target.value)}
+                        />
+                    </FormField>
+                </div>
             </div>
 
             <FormField label="Notes">

@@ -44,8 +44,8 @@ export default function CreateBookingPage() {
 
             <Card className="max-w-4xl p-8 border-gray-200">
                 <Form method="post" className="space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
+                    <div className="grid grid-cols-4 gap-4">
+                        <div className="col-span-2">
                             <label className="block text-xs text-gray-600 mb-1">Client</label>
                             <select
                                 name="clientId"
@@ -58,7 +58,7 @@ export default function CreateBookingPage() {
                                 ))}
                             </select>
                         </div>
-                        <div>
+                        <div className="col-span-2">
                             <label className="block text-xs text-gray-600 mb-1">Car</label>
                             <select
                                 name="carId"
@@ -73,19 +73,23 @@ export default function CreateBookingPage() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Input
-                            label="Start Date"
-                            name="startDate"
-                            type="date"
-                            required
-                        />
-                        <Input
-                            label="End Date"
-                            name="endDate"
-                            type="date"
-                            required
-                        />
+                    <div className="grid grid-cols-4 gap-4">
+                        <div className="col-span-2">
+                            <Input
+                                label="Start Date"
+                                name="startDate"
+                                type="date"
+                                required
+                            />
+                        </div>
+                        <div className="col-span-2">
+                            <Input
+                                label="End Date"
+                                name="endDate"
+                                type="date"
+                                required
+                            />
+                        </div>
                     </div>
 
                     <div className="flex justify-end gap-4 pt-6">

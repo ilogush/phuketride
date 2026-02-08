@@ -32,7 +32,7 @@ const Avatar = memo(function Avatar({
 
     return (
         <div
-            className={`${sizeClasses[size]} rounded-full bg-green-500 flex items-center justify-center text-white font-bold flex-shrink-0 ${className}`}
+            className={`${sizeClasses[size]} rounded-full bg-green-500 flex items-center justify-center text-gray-500 font-bold flex-shrink-0 ${className}`}
         >
             {initials}
         </div>

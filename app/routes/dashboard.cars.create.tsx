@@ -61,54 +61,68 @@ export default function CreateCarPage() {
             <Card className="max-w-4xl p-8 border-gray-200">
                 <Form method="post" className="space-y-8">
                     {user.role === "admin" && (
-                        <Select
-                            label="Company"
-                            name="companyId"
-                            options={companies}
-                            required
-                        />
+                        <div className="grid grid-cols-4 gap-4">
+                            <div className="col-span-4">
+                                <Select
+                                    label="Company"
+                                    name="companyId"
+                                    options={companies}
+                                    required
+                                />
+                            </div>
+                        </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
-                        <Select
-                            label="Car Template"
-                            name="templateId"
-                            options={templates.map(t => ({
-                                id: t.id,
-                                name: `Template #${t.id} (BrandID ${t.brandId}, ModelID ${t.modelId})`
-                            }))}
-                            required
-                        />
-                        <Select
-                            label="Color"
-                            name="colorId"
-                            options={colors}
-                            required
-                        />
+                    <div className="grid grid-cols-4 gap-4 pt-4 border-t border-gray-100">
+                        <div className="col-span-2">
+                            <Select
+                                label="Car Template"
+                                name="templateId"
+                                options={templates.map(t => ({
+                                    id: t.id,
+                                    name: `Template #${t.id} (BrandID ${t.brandId}, ModelID ${t.modelId})`
+                                }))}
+                                required
+                            />
+                        </div>
+                        <div className="col-span-2">
+                            <Select
+                                label="Color"
+                                name="colorId"
+                                options={colors}
+                                required
+                            />
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Input
-                            label="License Plate"
-                            name="licensePlate"
-                            placeholder="777"
-                            required
-                        />
-                        <Input
-                            label="VIN"
-                            name="vin"
-                            placeholder="ZFA..."
-                        />
+                    <div className="grid grid-cols-4 gap-4">
+                        <div className="col-span-2">
+                            <Input
+                                label="License Plate"
+                                name="licensePlate"
+                                placeholder="777"
+                                required
+                            />
+                        </div>
+                        <div className="col-span-2">
+                            <Input
+                                label="VIN"
+                                name="vin"
+                                placeholder="ZFA..."
+                            />
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Input
-                            label="Price Per Day (THB)"
-                            name="pricePerDay"
-                            type="number"
-                            placeholder="1200"
-                            required
-                        />
+                    <div className="grid grid-cols-4 gap-4">
+                        <div className="col-span-2">
+                            <Input
+                                label="Price Per Day (THB)"
+                                name="pricePerDay"
+                                type="number"
+                                placeholder="1200"
+                                required
+                            />
+                        </div>
                     </div>
 
                     <div className="flex justify-end gap-4 pt-6">

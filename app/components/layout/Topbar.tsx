@@ -63,7 +63,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
                         />
                         <div className="absolute inset-y-2 right-1.5 flex items-center">
                             <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center shadow-sm transition-transform group-focus-within:scale-105">
-                                <MagnifyingGlassIcon className="w-4 h-4 text-white" />
+                                <MagnifyingGlassIcon className="w-4 h-4" />
                             </div>
                         </div>
                     </div>
@@ -87,7 +87,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
                             className="flex items-center gap-3 p-1.5 hover:bg-white hover:shadow-sm  rounded-full transition-all"
                         >
                             <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center shadow-sm">
-                                <span className="text-white text-xs font-bold">
+                                <span className="text-xs font-bold">
                                     {displayName.charAt(0).toUpperCase()}
                                 </span>
                             </div>

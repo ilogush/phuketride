@@ -66,7 +66,7 @@ export function Pagination({
                     value={pageSize}
                     onChange={handlePageSizeChange}
                     disabled={disabled}
-                    className="rounded-xl border border-gray-300 px-3 py-1.5 text-sm text-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-3xl border border-gray-300 px-3 py-1.5 text-sm text-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {pageSizeOptions.map((option) => (
                         <option key={option} value={option}>

@@ -64,7 +64,7 @@ export default function LocationsPage() {
             </div>
 
             {/* Hero Section */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-gray-500 py-16">
                 <div className="container mx-auto px-4">
                     <div className="max-w-3xl mx-auto text-center">
                         <h1 className="text-4xl md:text-5xl font-bold mb-4">
@@ -93,9 +93,9 @@ export default function LocationsPage() {
                                     <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                                <MapPinIcon className="w-6 h-6 text-white" />
+                                                <MapPinIcon className="w-6 h-6 text-gray-500" />
                                             </div>
-                                            <h3 className="text-xl font-bold text-white">
+                                            <h3 className="text-xl font-bold text-gray-500">
                                                 {district.name}
                                             </h3>
                                         </div>
@@ -144,7 +144,7 @@ export default function LocationsPage() {
             </div>
 
             {/* Footer CTA */}
-            <div className="bg-gray-800 text-white py-12">
+            <div className="bg-gray-800 text-gray-500 py-12">
                 <div className="container mx-auto px-4 text-center">
                     <h2 className="text-2xl font-bold mb-4">Ready to Rent a Car?</h2>
                     <p className="text-gray-300 mb-6">
@@ -152,7 +152,7 @@ export default function LocationsPage() {
                     </p>
                     <Link
                         to="/login"
-                        className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-xl transition-colors"
+                        className="inline-block bg-blue-600 hover:bg-blue-700 text-gray-500 font-semibold px-8 py-3 rounded-xl transition-colors"
                     >
                         Get Started
                     </Link>

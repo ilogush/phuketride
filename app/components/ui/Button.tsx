@@ -61,8 +61,8 @@ export default function Button({
     const roundedClasses = {
         sm: 'rounded-sm',
         md: 'rounded-md',
-        lg: 'rounded-lg',
-        xl: 'rounded-xl',
+        lg: 'rounded-3xl',
+        xl: 'rounded-3xl',
         full: 'rounded-full'
     }
 
@@ -71,8 +71,15 @@ export default function Button({
         secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-transparent font-medium'
     }
 
-    const widthClass = fullWidth ? 'w-full' : ''
-    const gapClass = icon && children ? 'space-x-1.5' : ''
+    const buttonClasses = [
+        baseClasses,
+        variantClasses[variant],
+        sizeClasses[size],
+        roundedClasses[rounded],
+        fullWidth && 'w-full',
+        icon && children && 'space-x-1.5',
+        className
+    ].filter(Boolean).join(' ')
 
     return (
         <button
@@ -81,7 +88,7 @@ export default function Button({
             disabled={isDisabled}
             form={form}
             title={title}
-            className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${roundedClasses[rounded]} ${widthClass} ${gapClass} ${className}`}
+            className={buttonClasses}
         >
             {isDisabled && (loading || isProcessing) ? (
                 <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />

@@ -7,7 +7,8 @@ import PageHeader from "~/components/ui/PageHeader";
 import { Input } from "~/components/ui/Input";
 import Button from "~/components/ui/Button";
 import BackButton from "~/components/ui/BackButton";
-import FormBox from "~/components/ui/FormBox";
+import FormSection from "~/components/ui/FormSection";
+import { TagIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -39,33 +40,31 @@ export async function action({ request, context }: ActionFunctionArgs) {
 export default function CreateBrandPage() {
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <BackButton to="/dashboard/brands" />
-                    <PageHeader title="Add New Brand" />
-                </div>
-                <Button type="submit" variant="primary" form="brand-form">
-                    Create Brand
-                </Button>
-            </div>
+            <PageHeader
+                title="Add New Brand"
+                leftActions={<BackButton to="/brands" />}
+                rightActions={
+                    <Button type="submit" variant="primary" form="brand-form">
+                        Create Brand
+                    </Button>
+                }
+            />
 
-            <FormBox>
-                <Form id="brand-form" method="post" className="space-y-4">
-                    <div className="grid grid-cols-4 gap-4">
-                        <Input
-                            label="Brand Name"
-                            name="name"
-                            placeholder="e.g., Toyota, BMW"
-                            required
-                        />
-                        <Input
-                            label="Logo URL (Optional)"
-                            name="logoUrl"
-                            placeholder="https://example.com/logo.png"
-                        />
-                    </div>
+            <FormSection title="Brand Information" icon={<TagIcon />} grid="cols-4">
+                <Form id="brand-form" method="post">
+                    <Input
+                        label="Brand Name"
+                        name="name"
+                        placeholder="e.g., Toyota, BMW"
+                        required
+                    />
+                    <Input
+                        label="Logo URL (Optional)"
+                        name="logoUrl"
+                        placeholder="https://example.com/logo.png"
+                    />
                 </Form>
-            </FormBox>
+            </FormSection>
         </div>
     );
 }

@@ -62,7 +62,7 @@ export default function Users({ loaderData, actionData }: Route.ComponentProps) 
 
                     <button
                         type="submit"
-                        className="bg-blue-500 text-white py-4 rounded-lg hover:bg-blue-600"
+                        className="bg-blue-500 text-gray-500 py-4 rounded-lg hover:bg-blue-600"
                     >
                         Add
                     </button>

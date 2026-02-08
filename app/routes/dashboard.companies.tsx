@@ -44,10 +44,10 @@ export default function CompaniesPage() {
             label: "Actions",
             render: (company) => (
                 <div className="flex gap-2">
-                    <Link to={`/dashboard/companies/${company.id}`}>
+                    <Link to={`/companies/${company.id}`}>
                         <Button variant="secondary" size="sm">View</Button>
                     </Link>
-                    <Link to={`/dashboard/companies/${company.id}/edit`}>
+                    <Link to={`/companies/${company.id}/edit`}>
                         <Button variant="secondary" size="sm">Edit</Button>
                     </Link>
                 </div>

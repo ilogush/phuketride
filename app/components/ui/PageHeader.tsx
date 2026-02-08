@@ -87,7 +87,7 @@ export default function PageHeader({
                             value={searchValue || ''}
                             onChange={(e) => onSearchChange(e.target.value)}
                             placeholder={searchPlaceholder || 'Search...'}
-                            className="hidden sm:block py-2 sm:py-4 px-3 sm:px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent text-sm"
+                            className="hidden sm:block py-2 sm:py-4 px-3 sm:px-4 border border-gray-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent text-sm"
                         />
                     )}
                     {finalActions && (

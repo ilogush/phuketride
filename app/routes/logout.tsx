@@ -38,7 +38,7 @@ export default function LogoutPage() {
                     </p>
                     <Link
                         to="/login"
-                        className="inline-block w-full bg-gray-900 hover:bg-black text-white font-bold py-3 rounded-xl transition-all duration-300 shadow-xl shadow-gray-200 hover:shadow-gray-300"
+                        className="inline-block w-full bg-gray-900 hover:bg-black text-gray-500 font-bold py-3 rounded-xl transition-all duration-300 shadow-xl shadow-gray-200 hover:shadow-gray-300"
                     >
                         Back to Login
                     </Link>

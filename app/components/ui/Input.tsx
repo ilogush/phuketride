@@ -71,7 +71,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
         : true
 
     const baseStyle = error ? inputErrorStyles : inputBaseStyles
-    const inputClasses = `${baseStyle} ${disabled ? '!bg-gray-200 cursor-not-allowed !text-gray-800 !border-gray-200' : ''} ${addonLeft ? 'rounded-l-none' : ''} ${isPassword ? 'rounded-r-none' : ''} ${addonRight && !isPassword ? 'rounded-r-none' : ''}`
+    
+    // Build rounded classes based on addons
+    let roundedClass = ''
+    if (addonLeft && (isPassword || addonRight)) {
+        roundedClass = 'rounded-none'
+    } else if (addonLeft) {
+        roundedClass = 'rounded-l-none'
+    } else if (isPassword || addonRight) {
+        roundedClass = 'rounded-r-none'
+    }
+    
+    const inputClasses = `${baseStyle} ${roundedClass}`.trim()
 
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
 
@@ -82,9 +93,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     {label} {required && <span className="text-gray-500">*</span>}
                 </label>
             )}
-            <div className={`${(addonLeft || addonRight || isPassword) ? 'flex' : ''} rounded-lg`}>
+            <div className={`${(addonLeft || addonRight || isPassword) ? 'flex' : ''} rounded-3xl`}>
                 {addonLeft && (
-                    <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-200 bg-gray-50 text-gray-500 sm:text-sm">
+                    <span className="inline-flex items-center px-3 rounded-l-3xl border border-r-0 border-gray-200 bg-gray-50 text-gray-500 sm:text-sm">
                         {addonLeft}
                     </span>
                 )}
@@ -106,7 +117,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-200 bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors"
+                        className="inline-flex items-center px-3 rounded-r-3xl border border-l-0 border-gray-200 bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors"
                     >
                         {showPassword ? (
                             <EyeSlashIcon className="w-5 h-5" />
@@ -116,7 +127,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     </button>
                 )}
                 {!isPassword && addonRight && (
-                    <span className="inline-flex items-center px-4 rounded-r-lg border border-l-0 border-gray-200 bg-gray-50 text-gray-500 sm:text-sm">
+                    <span className="inline-flex items-center px-4 rounded-r-3xl border border-l-0 border-gray-200 bg-gray-50 text-gray-500 sm:text-sm">
                         {addonRight}
                     </span>
                 )}

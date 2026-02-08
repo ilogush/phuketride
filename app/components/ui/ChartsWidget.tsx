@@ -66,19 +66,19 @@ export default function ChartsWidget() {
                 <div>
                     <h3 className="text-sm font-medium text-gray-700 mb-3">Contract Status</h3>
                     <div className="grid grid-cols-3 gap-4">
-                        <div className="bg-green-50 rounded-lg p-4">
+                        <div className="bg-green-50 rounded-3xl p-4">
                             <div className="text-2xl font-bold text-green-600">
                                 {data.contractStats.active}
                             </div>
                             <div className="text-xs text-green-700 mt-1">Active</div>
                         </div>
-                        <div className="bg-blue-50 rounded-lg p-4">
+                        <div className="bg-blue-50 rounded-3xl p-4">
                             <div className="text-2xl font-bold text-blue-600">
                                 {data.contractStats.completed}
                             </div>
                             <div className="text-xs text-blue-700 mt-1">Completed</div>
                         </div>
-                        <div className="bg-yellow-50 rounded-lg p-4">
+                        <div className="bg-yellow-50 rounded-3xl p-4">
                             <div className="text-2xl font-bold text-yellow-600">
                                 {data.contractStats.pending}
                             </div>

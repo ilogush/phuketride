@@ -66,7 +66,7 @@ export default function UsersPage() {
 
                 return (
                     <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-gray-500 text-sm font-medium flex-shrink-0">
                             {initials || "?"}
                         </div>
                         <div className="flex flex-col">

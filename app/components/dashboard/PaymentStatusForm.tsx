@@ -115,7 +115,7 @@ export function PaymentStatusForm({ status, onSubmit, onCancel }: PaymentStatusF
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
-                        className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.name ? 'border-gray-600' : ''
+                        className={`block w-full rounded-3xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.name ? 'border-gray-600' : ''
                             }`}
                         placeholder="e.g., Paid, Pending, Refund"
                     />
@@ -133,7 +133,7 @@ export function PaymentStatusForm({ status, onSubmit, onCancel }: PaymentStatusF
                         name="value"
                         value={formData.value}
                         onChange={handleChange}
-                        className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.value ? 'border-gray-600' : ''
+                        className={`block w-full rounded-3xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.value ? 'border-gray-600' : ''
                             }`}
                     >
                         <option value="1">Payment (+1)</option>
@@ -158,7 +158,7 @@ export function PaymentStatusForm({ status, onSubmit, onCancel }: PaymentStatusF
                         value={formData.description}
                         onChange={handleChange}
                         rows={3}
-                        className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.description ? 'border-gray-600' : ''
+                        className={`block w-full rounded-3xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.description ? 'border-gray-600' : ''
                             }`}
                         placeholder="Optional description of what this status means"
                     />

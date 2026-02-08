@@ -11,11 +11,11 @@ export interface Toast {
 }
 
 interface ToastContextType {
-    showToast: (message: string, type?: ToastType, duration?: number) => void
-    success: (message: string, duration?: number) => void
-    error: (message: string, duration?: number) => void
-    warning: (message: string, duration?: number) => void
-    info: (message: string, duration?: number) => void
+    showToast: (message: string, type?: ToastType, duration?: number) => Promise<void>
+    success: (message: string, duration?: number) => Promise<void>
+    error: (message: string, duration?: number) => Promise<void>
+    warning: (message: string, duration?: number) => Promise<void>
+    info: (message: string, duration?: number) => Promise<void>
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
@@ -28,7 +28,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     }, [])
 
     const showToast = useCallback(
-        (message: string, type: ToastType = 'info', duration: number = 5000) => {
+        async (message: string, type: ToastType = 'info', duration: number = 5000) => {
             const id = Math.random().toString(36).substring(2, 9)
             const newToast: Toast = { id, message, type, duration }
 
@@ -44,22 +44,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     )
 
     const success = useCallback(
-        (message: string, duration?: number) => showToast(message, 'success', duration),
+        async (message: string, duration?: number) => await showToast(message, 'success', duration),
         [showToast]
     )
 
     const error = useCallback(
-        (message: string, duration?: number) => showToast(message, 'error', duration),
+        async (message: string, duration?: number) => await showToast(message, 'error', duration),
         [showToast]
     )
 
     const warning = useCallback(
-        (message: string, duration?: number) => showToast(message, 'warning', duration),
+        async (message: string, duration?: number) => await showToast(message, 'warning', duration),
         [showToast]
     )
 
     const info = useCallback(
-        (message: string, duration?: number) => showToast(message, 'info', duration),
+        async (message: string, duration?: number) => await showToast(message, 'info', duration),
         [showToast]
     )
 

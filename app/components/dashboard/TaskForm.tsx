@@ -115,7 +115,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
                         name="title"
                         value={formData.title}
                         onChange={handleChange}
-                        className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.title ? 'border-gray-600' : ''
+                            className={`block w-full rounded-3xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.title ? 'border-gray-600' : ''
                             }`}
                         placeholder="Enter task title"
                     />
@@ -127,38 +127,42 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
                         value={formData.description}
                         onChange={handleChange}
                         rows={4}
-                        className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.description ? 'border-gray-600' : ''
+                        className={`block w-full rounded-3xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.description ? 'border-gray-600' : ''
                             }`}
                         placeholder="Enter task description"
                     />
                 </FormField>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <FormField label="Status" required error={errors.status}>
-                        <select
-                            name="status"
-                            value={formData.status}
-                            onChange={handleChange}
-                            className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.status ? 'border-gray-600' : ''
-                                }`}
-                        >
-                            <option value="pending">Pending</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="completed">Completed</option>
-                            <option value="cancelled">Cancelled</option>
-                        </select>
-                    </FormField>
+                <div className="grid grid-cols-4 gap-4">
+                    <div className="col-span-2">
+                        <FormField label="Status" required error={errors.status}>
+                            <select
+                                name="status"
+                                value={formData.status}
+                                onChange={handleChange}
+                                className={`block w-full rounded-3xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.status ? 'border-gray-600' : ''
+                                    }`}
+                            >
+                                <option value="pending">Pending</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </FormField>
+                    </div>
 
-                    <FormField label="Due Date" error={errors.due_date}>
-                        <input
-                            type="datetime-local"
-                            name="due_date"
-                            value={formData.due_date}
-                            onChange={handleChange}
-                            className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.due_date ? 'border-gray-600' : ''
-                                }`}
-                        />
-                    </FormField>
+                    <div className="col-span-2">
+                        <FormField label="Due Date" error={errors.due_date}>
+                            <input
+                                type="datetime-local"
+                                name="due_date"
+                                value={formData.due_date}
+                                onChange={handleChange}
+                                className={`block w-full rounded-3xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.due_date ? 'border-gray-600' : ''
+                                    }`}
+                            />
+                        </FormField>
+                    </div>
                 </div>
 
                 <FormField
@@ -176,7 +180,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
                                     setErrors(prev => ({ ...prev, assigned_to: '' }))
                                 }
                             }}
-                            className={`block w-full rounded-lg sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.assigned_to ? 'border-gray-600' : ''
+                            className={`block w-full rounded-3xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.assigned_to ? 'border-gray-600' : ''
                                 }`}
                         >
                             <option value="">Unassigned</option>
