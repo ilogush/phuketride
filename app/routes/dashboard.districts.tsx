@@ -17,28 +17,11 @@ interface District {
     id: number;
     name: string;
     locationId: number;
+    beaches: string | null;
     deliveryPrice: number | null;
     createdAt: Date;
     updatedAt: Date;
 }
-
-const DISTRICT_BEACHES: Record<string, string> = {
-    "Airport": "Phuket Airport, Thepkrasattri Rd, Heroines Monument, Mai Khao area, Nai Yang area",
-    "Bang Tao": "Bang Tao Beach, Layan Beach",
-    "Chalong": "Chalong Bay, Cape Panwa Beach, Khao Khad Beach",
-    "Kamala": "Kamala Beach",
-    "Karon": "Karon Beach, Karon Noi Beach",
-    "Kata": "Kata Beach, Kata Noi Beach",
-    "Kathu": "Central Festival, Phang Muang Sai Kor Rd, Loch Palm Golf, Patong Hill",
-    "Mai Khao": "Mai Khao Beach, Sai Kaew Beach",
-    "Nai Harn": "Nai Harn Beach",
-    "Nai Thon": "Nai Thon Beach, Banana Beach",
-    "Nai Yang": "Nai Yang Beach",
-    "Patong": "Patong Beach, Kalim Beach, Paradise Beach",
-    "Phuket Town": "Phuket Old Town, Thalang Rd, Yaowarat Rd, Boat Lagoon, Koh Kaew",
-    "Rawai": "Rawai Beach, Friendship Beach, Yanui Beach",
-    "Surin": "Surin Beach, Pansea Beach",
-};
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -132,11 +115,22 @@ export default function DistrictsPage() {
         {
             key: "beaches",
             label: "Beaches / Locations",
-            render: (item) => (
-                <span className="text-sm text-gray-500">
-                    {DISTRICT_BEACHES[item.name] || "-"}
-                </span>
-            ),
+            render: (item) => {
+                let beachesText = "-";
+                if (item.beaches) {
+                    try {
+                        const beachesArray = JSON.parse(item.beaches);
+                        beachesText = beachesArray.join(", ");
+                    } catch {
+                        beachesText = item.beaches;
+                    }
+                }
+                return (
+                    <span className="text-sm text-gray-500">
+                        {beachesText}
+                    </span>
+                );
+            },
             wrap: true,
         },
         {
