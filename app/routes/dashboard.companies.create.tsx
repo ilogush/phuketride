@@ -10,6 +10,7 @@ import { Select } from "~/components/ui/Select";
 import Button from "~/components/ui/Button";
 import BackButton from "~/components/ui/BackButton";
 import FormSection from "~/components/ui/FormSection";
+import ReadOnlyField from "~/components/ui/ReadOnlyField";
 import WeeklySchedule from "~/components/dashboard/WeeklySchedule";
 import HolidaysManager from "~/components/dashboard/HolidaysManager";
 import { useState } from "react";
@@ -363,38 +364,13 @@ export default function CreateCompanyPage() {
                                     </Button>
                                 </div>
                                 <div className="grid grid-cols-4 gap-4">
-                                    <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Name</label>
-                                        <div className="px-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-900">
-                                            {selectedManager.name || '-'}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Surname</label>
-                                        <div className="px-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-900">
-                                            {selectedManager.surname || '-'}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Email</label>
-                                        <div className="px-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-900">
-                                            {selectedManager.email}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Phone</label>
-                                        <div className="px-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-900">
-                                            {selectedManager.phone || '-'}
-                                        </div>
-                                    </div>
+                                    <ReadOnlyField label="Name" value={selectedManager.name} />
+                                    <ReadOnlyField label="Surname" value={selectedManager.surname} />
+                                    <ReadOnlyField label="Email" value={selectedManager.email} />
+                                    <ReadOnlyField label="Phone" value={selectedManager.phone} />
                                 </div>
                                 <div className="grid grid-cols-4 gap-4">
-                                    <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Role</label>
-                                        <div className="px-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-900 capitalize">
-                                            {selectedManager.role}
-                                        </div>
-                                    </div>
+                                    <ReadOnlyField label="Role" value={selectedManager.role} capitalize />
                                 </div>
                             </div>
                         )}
