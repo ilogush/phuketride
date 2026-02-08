@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, Form } from 'react-router'
+import { Bars3Icon } from '@heroicons/react/24/outline'
 
 interface TopNavigationProps {
     user: {
@@ -7,14 +8,39 @@ interface TopNavigationProps {
         email: string
         role: string
     }
+    onToggleSidebar?: () => void
 }
 
-export function TopNavigation({ user }: TopNavigationProps) {
+export function TopNavigation({ user, onToggleSidebar }: TopNavigationProps) {
     const [showUserMenu, setShowUserMenu] = useState(false)
+    const menuRef = useRef<HTMLDivElement>(null)
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setShowUserMenu(false)
+            }
+        }
+
+        if (showUserMenu) {
+            document.addEventListener('mousedown', handleClickOutside)
+            return () => document.removeEventListener('mousedown', handleClickOutside)
+        }
+    }, [showUserMenu])
 
     return (
         <header className="bg-white border-b border-gray-200 px-4 py-4">
             <div className="flex items-center justify-between">
+                {/* Hamburger Menu Button */}
+                <button
+                    onClick={onToggleSidebar}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors mr-4"
+                    aria-label="Toggle sidebar"
+                >
+                    <Bars3Icon className="w-6 h-6" />
+                </button>
+
                 {/* Search Bar */}
                 <div className="flex-1 max-w-2xl">
                     <div className="relative">
@@ -73,7 +99,7 @@ export function TopNavigation({ user }: TopNavigationProps) {
                     </button>
 
                     {/* User Menu */}
-                    <div className="relative">
+                    <div className="relative" ref={menuRef}>
                         <button
                             onClick={() => setShowUserMenu(!showUserMenu)}
                             className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors"
@@ -88,16 +114,18 @@ export function TopNavigation({ user }: TopNavigationProps) {
                         </button>
 
                         {showUserMenu && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg py-1 z-50">
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg py-1 z-50 border border-gray-200">
                                 <Link
                                     to="/profile"
-                                    className="block py-4 text-sm text-gray-700 hover:bg-gray-50"
+                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                    onClick={() => setShowUserMenu(false)}
                                 >
                                     Profile
                                 </Link>
                                 <Link
                                     to="/settings"
-                                    className="block py-4 text-sm text-gray-700 hover:bg-gray-50"
+                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                    onClick={() => setShowUserMenu(false)}
                                 >
                                     Settings
                                 </Link>
@@ -105,7 +133,7 @@ export function TopNavigation({ user }: TopNavigationProps) {
                                 <Form method="post" action="/logout">
                                     <button
                                         type="submit"
-                                        className="w-full text-left py-4 text-sm text-red-600 hover:bg-gray-50"
+                                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
                                     >
                                         Logout
                                     </button>

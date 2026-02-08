@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Toggle from "~/components/ui/Toggle";
+import Toggle from "~/components/dashboard/Toggle";
 import { ClockIcon } from "@heroicons/react/24/outline";
 
 interface DaySchedule {

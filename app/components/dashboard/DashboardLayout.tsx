@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { Sidebar } from './Sidebar';
+import { useState, type ReactNode } from 'react';
+import Sidebar from './Sidebar';
 import { TopNavigation } from './TopNavigation';
 
 interface LayoutProps {
@@ -14,15 +14,24 @@ interface LayoutProps {
 }
 
 export function Layout({ children, user }: LayoutProps) {
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
     return (
         <div className="flex h-screen bg-gray-50">
             {/* Sidebar */}
-            <Sidebar user={user} />
+            <Sidebar 
+                user={user} 
+                isOpen={isSidebarOpen} 
+                onClose={() => setIsSidebarOpen(false)} 
+            />
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Top Navigation */}
-                <TopNavigation user={user} />
+                <TopNavigation 
+                    user={user} 
+                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
+                />
 
                 {/* Page Content */}
                 <main className="flex-1 overflow-y-auto p-6">

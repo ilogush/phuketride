@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import DataTable, { Column } from '~/components/ui/DataTable'
-import Loader from '~/components/ui/Loader'
+import DataTable, { Column } from '~/components/dashboard/DataTable'
+import Loader from '~/components/dashboard/Loader'
 
 interface Season {
     id: string | number

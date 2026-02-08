@@ -4,15 +4,15 @@ import * as schema from '~/db/schema'
 import type { Route } from './+types/dashboard.car-templates'
 import { Link, redirect, useSearchParams } from 'react-router'
 import { requireAuth } from '~/lib/auth.server'
-import PageHeader from '~/components/ui/PageHeader'
-import Button from '~/components/ui/Button'
-import DataTable from '~/components/ui/DataTable'
-import EmptyState from '~/components/ui/EmptyState'
-import Tabs from '~/components/ui/Tabs'
-import Modal from '~/components/ui/Modal'
+import PageHeader from '~/components/dashboard/PageHeader'
+import Button from '~/components/dashboard/Button'
+import DataTable from '~/components/dashboard/DataTable'
+import EmptyState from '~/components/dashboard/EmptyState'
+import Tabs from '~/components/dashboard/Tabs'
+import Modal from '~/components/dashboard/Modal'
+import IdBadge from '~/components/dashboard/IdBadge'
 import { PlusIcon, TruckIcon, TagIcon, CubeIcon } from '@heroicons/react/24/outline'
-import { BrandForm } from '~/components/dashboard/BrandForm'
-import { CarModelForm } from '~/components/dashboard/CarModelForm'
+import { GenericDictionaryForm, type FieldConfig } from '~/components/dashboard/GenericDictionaryForm'
 import { useState } from 'react'
 import { useToast } from '~/lib/toast'
 
@@ -141,21 +141,47 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
     const { brands, models, templates } = loaderData
-    const [searchParams, setSearchParams] = useSearchParams()
+    const [searchParams] = useSearchParams()
     const activeTab = searchParams.get('tab') || 'templates'
     const [showBrandModal, setShowBrandModal] = useState(false)
     const [showModelModal, setShowModelModal] = useState(false)
-    const toast = useToast()
+    const { addToast } = useToast()
 
-    const tabs = [
-        { id: 'brands', label: 'Brands' },
-        { id: 'models', label: 'Models' },
-        { id: 'templates', label: 'Car Templates' },
+    const brandFields: FieldConfig[] = [
+        {
+            name: 'name',
+            label: 'Brand Name',
+            type: 'text',
+            required: true,
+            placeholder: 'Enter brand name',
+            className: 'col-span-4'
+        }
     ]
 
-    const handleTabChange = (tabId: string | number) => {
-        setSearchParams({ tab: tabId.toString() })
-    }
+    const modelFields: FieldConfig[] = [
+        {
+            name: 'brand_id',
+            label: 'Brand',
+            type: 'select',
+            required: true,
+            options: brands.map(b => ({ id: b.id, name: b.name })),
+            className: 'col-span-2'
+        },
+        {
+            name: 'name',
+            label: 'Model Name',
+            type: 'text',
+            required: true,
+            placeholder: 'Enter model name',
+            className: 'col-span-2'
+        }
+    ]
+
+    const tabs = [
+        { id: 'templates', label: 'Car Templates' },
+        { id: 'brands', label: 'Brands' },
+        { id: 'models', label: 'Models' },
+    ]
 
     const handleBrandSubmit = async (data: any) => {
         const formData = new FormData()
@@ -169,14 +195,14 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
             })
             const result = await response.json()
             if (result.success) {
-                await toast.success(result.message)
+                await addToast(result.message, 'success')
                 setShowBrandModal(false)
                 window.location.reload()
             } else {
-                await toast.error(result.error)
+                await addToast(result.error, 'error')
             }
         } catch (error) {
-            await toast.error('Failed to create brand')
+            await addToast('Failed to create brand', 'error')
         }
     }
 
@@ -193,14 +219,14 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
             })
             const result = await response.json()
             if (result.success) {
-                await toast.success(result.message)
+                await addToast(result.message, 'success')
                 setShowModelModal(false)
                 window.location.reload()
             } else {
-                await toast.error(result.error)
+                await addToast(result.error, 'error')
             }
         } catch (error) {
-            await toast.error('Failed to create model')
+            await addToast('Failed to create model', 'error')
         }
     }
 
@@ -208,9 +234,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         {
             key: 'id',
             label: 'ID',
-            render: (brand: any) => (
-                <span className="text-sm font-medium text-gray-900">#{brand.id}</span>
-            ),
+            render: (brand: any) => <IdBadge>#{brand.id}</IdBadge>,
         },
         {
             key: 'name',
@@ -225,9 +249,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         {
             key: 'id',
             label: 'ID',
-            render: (model: any) => (
-                <span className="text-sm font-medium text-gray-900">#{model.id}</span>
-            ),
+            render: (model: any) => <IdBadge>#{model.id}</IdBadge>,
         },
         {
             key: 'brand',
@@ -249,9 +271,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         {
             key: 'id',
             label: 'ID',
-            render: (template: any) => (
-                <span className="text-sm font-medium text-gray-900">#{template.id}</span>
-            ),
+            render: (template: any) => <IdBadge>#{template.id}</IdBadge>,
         },
         {
             key: 'brand',
@@ -284,13 +304,21 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
             ),
         },
         {
-            key: 'specs',
-            label: 'Specs',
+            key: 'engine',
+            label: 'Engine',
             render: (template: any) => (
-                <div className="text-sm text-gray-600">
-                    {template.engine_volume && <div>{template.engine_volume}L</div>}
-                    {template.seats && <div>{template.seats} seats</div>}
-                </div>
+                <span className="text-sm text-gray-600">
+                    {template.engine_volume ? `${template.engine_volume}L` : '-'}
+                </span>
+            ),
+        },
+        {
+            key: 'seats',
+            label: 'Seats',
+            render: (template: any) => (
+                <span className="text-sm text-gray-600">
+                    {template.seats ? `${template.seats} seats` : '-'}
+                </span>
             ),
         },
     ]
@@ -319,14 +347,18 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                     ) : (
                         <Link to="/car-templates/create">
                             <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                                Create Template
+                                Create
                             </Button>
                         </Link>
                     )
                 }
             />
 
-            <Tabs tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
+            <Tabs 
+                tabs={tabs} 
+                activeTab={activeTab} 
+                baseUrl="/car-templates"
+            />
 
             {activeTab === 'brands' && (
                 <>
@@ -384,7 +416,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                             action={
                                 <Link to="/car-templates/create">
                                     <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                                        Create Template
+                                        Create
                                     </Button>
                                 </Link>
                             }
@@ -402,15 +434,18 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
             )}
 
             {showBrandModal && (
-                <BrandForm
+                <GenericDictionaryForm
+                    title="Create Brand"
+                    fields={brandFields}
                     onSubmit={handleBrandSubmit}
                     onCancel={() => setShowBrandModal(false)}
                 />
             )}
 
             {showModelModal && (
-                <CarModelForm
-                    brands={brands}
+                <GenericDictionaryForm
+                    title="Create Car Model"
+                    fields={modelFields}
                     onSubmit={handleModelSubmit}
                     onCancel={() => setShowModelModal(false)}
                 />

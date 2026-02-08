@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type LoaderFunctionArgs } from "react-router";
 import { Outlet, useLoaderData, useLocation } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import Sidebar from "~/components/layout/Sidebar";
-import Topbar from "~/components/layout/Topbar";
+import Sidebar from "~/components/dashboard/Sidebar";
+import Topbar from "~/components/dashboard/Topbar";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -14,6 +14,20 @@ export default function Layout() {
     const { user } = useLoaderData<typeof loader>();
     const location = useLocation();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    // Detect mobile and close sidebar by default
+    useEffect(() => {
+        const checkMobile = () => {
+            const isMobile = window.innerWidth < 768;
+            if (isMobile) {
+                setIsSidebarOpen(false);
+            }
+        };
+
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     return (
         <div className="h-screen bg-gray-100 flex overflow-hidden">

@@ -4,9 +4,9 @@ import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import { desc, eq } from "drizzle-orm";
-import PageHeader from "~/components/ui/PageHeader";
-import DataTable, { type Column } from "~/components/ui/DataTable";
-import Button from "~/components/ui/Button";
+import PageHeader from "~/components/dashboard/PageHeader";
+import DataTable, { type Column } from "~/components/dashboard/DataTable";
+import Button from "~/components/dashboard/Button";
 
 interface AuditLog {
     id: number;
@@ -116,7 +116,7 @@ export default function AuditLogsPage() {
             label: "Action",
             render: (log) => (
                 <span
-                    className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${ACTION_COLORS[log.action] || "bg-gray-100 text-gray-800"
+                    className={`inline-flex px-2 py-1 text-xs font-medium rounded-xl ${ACTION_COLORS[log.action] || "bg-gray-100 text-gray-800"
                         }`}
                 >
                     {log.action}

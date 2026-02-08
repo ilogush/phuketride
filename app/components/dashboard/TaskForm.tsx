@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import Button from '~/components/ui/Button'
-import Modal from '~/components/ui/Modal'
-import FormField from '~/components/ui/FormField'
+import Button from '~/components/dashboard/Button'
+import Modal from '~/components/dashboard/Modal'
+import FormField from '~/components/dashboard/FormField'
 
 interface User {
     id: string

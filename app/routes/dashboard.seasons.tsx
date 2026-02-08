@@ -5,11 +5,11 @@ import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import { eq, and } from "drizzle-orm";
 import { useState } from "react";
-import DataTable, { type Column } from "~/components/ui/DataTable";
-import Button from "~/components/ui/Button";
-import Modal from "~/components/ui/Modal";
-import { Input } from "~/components/ui/Input";
-import PageHeader from "~/components/ui/PageHeader";
+import DataTable, { type Column } from "~/components/dashboard/DataTable";
+import Button from "~/components/dashboard/Button";
+import Modal from "~/components/dashboard/Modal";
+import { Input } from "~/components/dashboard/Input";
+import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
 
 

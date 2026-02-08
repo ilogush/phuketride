@@ -1,13 +1,13 @@
 import { Form } from "react-router";
 import { useState, useMemo, useCallback, memo } from "react";
-import FormSection from "~/components/ui/FormSection";
-import PhotoUpload from "~/components/ui/PhotoUpload";
-import DocumentPhotosUpload from "~/components/ui/DocumentPhotosUpload";
-import DocumentPreview, { type DocumentPhoto } from "~/components/ui/DocumentPreview";
-import Avatar from "~/components/ui/Avatar";
-import ProfileHeader from "~/components/ui/ProfileHeader";
-import FormInput from "~/components/ui/FormInput";
-import FormSelect from "~/components/ui/FormSelect";
+import FormSection from "~/components/dashboard/FormSection";
+import PhotoUpload from "~/components/dashboard/PhotoUpload";
+import DocumentPhotosUpload from "~/components/dashboard/DocumentPhotosUpload";
+import DocumentPreview, { type DocumentPhoto } from "~/components/dashboard/DocumentPreview";
+import Avatar from "~/components/dashboard/Avatar";
+import ProfileHeader from "~/components/dashboard/ProfileHeader";
+import FormInput from "~/components/dashboard/FormInput";
+import FormSelect from "~/components/dashboard/FormSelect";
 import { UserIcon, BuildingOfficeIcon, DocumentTextIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import { getInitials, formatDateForInput, parseJSON, formatRole } from "~/lib/formatters";
 

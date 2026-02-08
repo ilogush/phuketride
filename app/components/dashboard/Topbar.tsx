@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, Form } from "react-router";
 import {
     MagnifyingGlassIcon,
@@ -20,6 +20,21 @@ interface TopbarProps {
 
 export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarProps) {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setShowProfileMenu(false);
+            }
+        }
+
+        if (showProfileMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [showProfileMenu]);
 
     const displayName = user.name && user.surname
         ? `${user.name} ${user.surname}`
@@ -81,7 +96,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
                     </button>
 
                     {/* Profile */}
-                    <div className="relative">
+                    <div className="relative" ref={menuRef}>
                         <button
                             onClick={() => setShowProfileMenu(!showProfileMenu)}
                             className="flex items-center gap-3 p-1.5 hover:bg-white hover:shadow-sm  rounded-full transition-all"
@@ -106,33 +121,27 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
 
                         {/* Profile Dropdown */}
                         {showProfileMenu && (
-                            <>
-                                <div
-                                    className="fixed inset-0 z-40"
+                            <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 overflow-hidden animate-in fade-in zoom-in duration-200">
+                                <Link
+                                    to="/profile"
+                                    className="flex items-center gap-4 px-4 py-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                                     onClick={() => setShowProfileMenu(false)}
-                                />
-                                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 overflow-hidden animate-in fade-in zoom-in duration-200">
-                                    <Link
-                                        to="/profile"
-                                        className="flex items-center gap-4 px-4 py-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                                        onClick={() => setShowProfileMenu(false)}
-                                    >
-                                        <UserCircleIcon className="w-6 h-6 text-gray-500" />
-                                        <span>Profile Settings</span>
-                                    </Link>
+                                >
+                                    <UserCircleIcon className="w-6 h-6 text-gray-500" />
+                                    <span>Profile Settings</span>
+                                </Link>
 
-                                    <Link
-                                        to="/logout"
-                                        className="flex items-center gap-4 px-4 py-4 text-sm font-medium text-red-600 hover:bg-gray-50 border-t border-gray-50 transition-colors w-full"
-                                        onClick={() => setShowProfileMenu(false)}
-                                    >
-                                        <svg className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 11-6 0v-1m6-10V7a3 3 0 00-6 0v1" />
-                                        </svg>
-                                        <span>Logout</span>
-                                    </Link>
-                                </div>
-                            </>
+                                <Link
+                                    to="/logout"
+                                    className="flex items-center gap-4 px-4 py-4 text-sm font-medium text-red-600 hover:bg-gray-50 border-t border-gray-50 transition-colors w-full"
+                                    onClick={() => setShowProfileMenu(false)}
+                                >
+                                    <svg className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 11-6 0v-1m6-10V7a3 3 0 00-6 0v1" />
+                                    </svg>
+                                    <span>Logout</span>
+                                </Link>
+                            </div>
                         )}
                     </div>
                 </div>

@@ -52,7 +52,7 @@ export default function ToastItem({ toast, onRemove }: ToastItemProps) {
             </div>
             <button
                 onClick={() => onRemove(toast.id)}
-                className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-500 hover:bg-gray-800 transition-all"
+                className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-500 hover:bg-gray-800 transition-all"
                 aria-label="Close"
             >
                 <XMarkIcon className="h-4 w-4" />

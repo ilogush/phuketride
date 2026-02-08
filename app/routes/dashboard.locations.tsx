@@ -4,12 +4,12 @@ import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import { eq } from "drizzle-orm";
-import PageHeader from "~/components/ui/PageHeader";
-import Button from "~/components/ui/Button";
-import DataTable, { type Column } from "~/components/ui/DataTable";
+import PageHeader from "~/components/dashboard/PageHeader";
+import Button from "~/components/dashboard/Button";
+import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import { useState } from "react";
-import Modal from "~/components/ui/Modal";
-import { Input } from "~/components/ui/Input";
+import Modal from "~/components/dashboard/Modal";
+import { Input } from "~/components/dashboard/Input";
 import { PlusIcon } from "@heroicons/react/24/outline";
 
 interface District {

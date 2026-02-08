@@ -5,6 +5,7 @@ import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import { eq } from "drizzle-orm";
 import { MapPinIcon, HomeIcon } from "@heroicons/react/24/outline";
+import Button from "~/components/dashboard/Button";
 
 interface District {
     id: number;
@@ -92,7 +93,7 @@ export default function LocationsPage() {
                                 >
                                     <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
                                                 <MapPinIcon className="w-6 h-6 text-gray-500" />
                                             </div>
                                             <h3 className="text-xl font-bold text-gray-500">
@@ -150,11 +151,10 @@ export default function LocationsPage() {
                     <p className="text-gray-300 mb-6">
                         Sign in to browse available cars and make a booking
                     </p>
-                    <Link
-                        to="/login"
-                        className="inline-block bg-blue-600 hover:bg-blue-700 text-gray-500 font-semibold px-8 py-3 rounded-xl transition-colors"
-                    >
-                        Get Started
+                    <Link to="/login">
+                        <Button size="lg" variant="primary">
+                            Get Started
+                        </Button>
                     </Link>
                 </div>
             </div>

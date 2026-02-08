@@ -4,9 +4,9 @@ import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import { eq } from "drizzle-orm";
-import Button from "~/components/ui/Button";
-import PageHeader from "~/components/ui/PageHeader";
-import ProfileForm from "~/components/profile/ProfileForm";
+import Button from "~/components/dashboard/Button";
+import PageHeader from "~/components/dashboard/PageHeader";
+import ProfileForm from "~/components/dashboard/ProfileForm";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);

@@ -4,10 +4,10 @@ import * as schema from '~/db/schema'
 import type { Route } from './+types/dashboard.car-templates.create'
 import { requireAuth } from '~/lib/auth.server'
 import { CarTemplateForm } from '~/components/dashboard/CarTemplateForm'
-import PageHeader from '~/components/ui/PageHeader'
-import BackButton from '~/components/ui/BackButton'
-import Button from '~/components/ui/Button'
-import FormBox from '~/components/ui/FormBox'
+import PageHeader from '~/components/dashboard/PageHeader'
+import BackButton from '~/components/dashboard/BackButton'
+import Button from '~/components/dashboard/Button'
+import FormBox from '~/components/dashboard/FormBox'
 
 export async function loader({ request, context }: Route.LoaderArgs) {
     const user = await requireAuth(request)
@@ -89,7 +89,7 @@ export default function CreateCarTemplatePage({ loaderData }: Route.ComponentPro
                 leftActions={<BackButton to="/car-templates" />}
                 rightActions={
                     <Button type="submit" variant="primary" form="car-template-form">
-                        Create Template
+                        Create
                     </Button>
                 }
             />

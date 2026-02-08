@@ -33,7 +33,11 @@ export default [
         route("hotels", "routes/dashboard.hotels.tsx"),
         route("durations", "routes/dashboard.durations.tsx"),
         route("seasons", "routes/dashboard.seasons.tsx"),
-        route("colors", "routes/dashboard.colors.tsx"),
+        // Colors with nested modal routes
+        route("colors", "routes/dashboard.colors.tsx", [
+            route("new", "routes/dashboard.colors_.new.tsx"),
+            route(":colorId/edit", "routes/dashboard.colors_.$colorId.edit.tsx"),
+        ]),
         route("reports", "routes/dashboard.reports.tsx"),
         route("admin/audit-logs", "routes/dashboard.admin.audit-logs.tsx"),
 

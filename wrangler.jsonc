@@ -21,6 +21,6 @@
 		}
 	],
 	"dev": {
-		"remote": true
+		"remote": false
 	}
 }

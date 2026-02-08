@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router'
-import DataTable, { Column, Tab } from '~/components/ui/DataTable'
-import IdBadge from '~/components/ui/IdBadge'
+import DataTable, { Column, Tab } from '~/components/dashboard/DataTable'
+import IdBadge from '~/components/dashboard/IdBadge'
 import { format } from 'date-fns'
 import { useToast } from '~/lib/toast'
 

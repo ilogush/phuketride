@@ -3,10 +3,10 @@ import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
-import ProfileForm from "~/components/profile/ProfileForm";
-import BackButton from "~/components/ui/BackButton";
-import Button from "~/components/ui/Button";
-import PageHeader from "~/components/ui/PageHeader";
+import ProfileForm from "~/components/dashboard/ProfileForm";
+import BackButton from "~/components/dashboard/BackButton";
+import Button from "~/components/dashboard/Button";
+import PageHeader from "~/components/dashboard/PageHeader";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);

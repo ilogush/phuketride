@@ -19,6 +19,68 @@
 - Деплой на Cloudflare Pages через `npm run deploy`.
 - **Подробное руководство**: См. docs/ROUTING.md
 
+### 2.2.1 Интерактивность и State Management (КРИТИЧНО)
+**ПРАВИЛО**: Используй правильные паттерны React Router v7 для интерактивности:
+
+1. **Модальные окна через URL (Nested Routes)**:
+   - Модалки открываются через вложенные маршруты, НЕ через useState
+   - Пример: `/colors/new` открывает модалку создания поверх `/colors`
+   - Пример: `/colors/123/edit` открывает модалку редактирования
+   - В родительском роуте добавить `<Outlet />` для рендера вложенных роутов
+   - В `routes.ts`: `route("colors", "routes/dashboard.colors.tsx", [route("new", "routes/dashboard.colors.new.tsx")])`
+   - Закрытие модалки через `navigate("/colors")` вместо `setIsOpen(false)`
+
+2. **Табы через URL (Search Params)**:
+   - Табы переключаются через query параметры: `/settings?tab=profile`
+   - Использовать `useSearchParams()` для чтения активного таба
+   - Ссылки на табы: `<Link to="/settings?tab=profile">Profile</Link>`
+   - НЕ использовать useState для activeTab, если нужна навигация в истории браузера
+
+3. **Локальный State (useState)**:
+   - Использовать ТОЛЬКО для UI состояний БЕЗ навигации:
+     - Открытие/закрытие dropdown меню
+     - Показ/скрытие tooltip
+     - Сворачивание/разворачивание sidebar
+     - Форм inputs (контролируемые компоненты)
+   - НЕ использовать для модалок, табов, фильтров, которые должны быть в URL
+
+4. **Условный рендеринг**:
+   - JSX: `{isOpen && <Dropdown />}` для локальных UI элементов
+   - CSS отвечает ТОЛЬКО за внешний вид (анимации, позиционирование)
+   - JavaScript отвечает за логику показа/скрытия
+
+**Примеры правильного использования**:
+```tsx
+// ✅ ПРАВИЛЬНО: Модалка через nested route
+// routes.ts
+route("colors", "routes/dashboard.colors.tsx", [
+  route("new", "routes/dashboard.colors.new.tsx"),
+  route(":id/edit", "routes/dashboard.colors.$id.edit.tsx"),
+])
+
+// dashboard.colors.tsx
+<Link to="/colors/new"><Button>Add</Button></Link>
+<Outlet /> {/* Рендерит модалку */}
+
+// dashboard.colors.new.tsx
+<Modal isOpen={true} onClose={() => navigate("/colors")}>
+  <Form method="post">...</Form>
+</Modal>
+
+// ✅ ПРАВИЛЬНО: Табы через URL
+const [searchParams] = useSearchParams()
+const activeTab = searchParams.get('tab') || 'profile'
+<Link to="/settings?tab=profile">Profile</Link>
+
+// ✅ ПРАВИЛЬНО: Локальный state для UI
+const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+<Sidebar isOpen={isSidebarOpen} />
+
+// ❌ НЕПРАВИЛЬНО: Модалка через useState
+const [isModalOpen, setIsModalOpen] = useState(false)
+<Button onClick={() => setIsModalOpen(true)}>Add</Button>
+```
+
 ### 2.3 Компоненты и Переиспользование
 - **КРИТИЧНО**: Все основные UI компоненты находятся в `/Users/ulethai/Documents/Dev/PR/app/components`
 - **НЕ создавать новые папки для компонентов** - работать с существующими

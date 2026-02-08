@@ -3,6 +3,7 @@ import { Form, Link, useActionData, useNavigation } from "react-router";
 import { getUserFromSession } from "~/lib/auth.server";
 import { useState } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import Button from "~/components/dashboard/Button";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     // If already logged in, redirect to dashboard
@@ -150,13 +151,15 @@ export default function RegisterPage() {
                             </div>
                         )}
 
-                        <button
+                        <Button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-gray-500 font-semibold py-2 px-4 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            variant="primary"
+                            fullWidth
+                            loading={isSubmitting}
                         >
-                            {isSubmitting ? "Creating account..." : "Create Account"}
-                        </button>
+                            Create Account
+                        </Button>
                     </Form>
 
                     <div className="mt-6 text-center">

@@ -1,9 +1,9 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import PageHeader from "~/components/ui/PageHeader";
-import Card from "~/components/ui/Card";
-import Button from "~/components/ui/Button";
+import PageHeader from "~/components/dashboard/PageHeader";
+import Card from "~/components/dashboard/Card";
+import Button from "~/components/dashboard/Button";
 import { MagnifyingGlassIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request }: LoaderFunctionArgs) {

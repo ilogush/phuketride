@@ -1,6 +1,7 @@
 import type { Route } from "./+types/users";
 import { getDb, schema } from "../db";
 import { userSchema } from "../schemas/user";
+import Button from "~/components/dashboard/Button";
 
 export async function loader({ context }: Route.LoaderArgs) {
     const db = getDb(context.cloudflare.env.DB);
@@ -60,12 +61,13 @@ export default function Users({ loaderData, actionData }: Route.ComponentProps) 
                         )}
                     </div>
 
-                    <button
+                    <Button
                         type="submit"
-                        className="bg-blue-500 text-gray-500 py-4 rounded-lg hover:bg-blue-600"
+                        variant="primary"
+                        fullWidth
                     >
                         Add
-                    </button>
+                    </Button>
                 </form>
 
                 <div className="bg-white rounded-lg shadow">

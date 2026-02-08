@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Button from "~/components/ui/Button";
+import Button from "~/components/dashboard/Button";
 import { CalendarIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 interface HolidaysManagerProps {

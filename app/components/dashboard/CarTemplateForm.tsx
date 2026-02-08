@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Form } from 'react-router'
-import FormField from '~/components/ui/FormField'
-import FormSection from '~/components/ui/FormSection'
+import FormField from '~/components/dashboard/FormField'
+import FormSection from '~/components/dashboard/FormSection'
 import { inputBaseStyles } from '~/lib/styles/input'
 import { TruckIcon } from '@heroicons/react/24/outline'
 

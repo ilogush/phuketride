@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 interface ButtonProps {
     children?: ReactNode
-    onClick?: () => void | Promise<void>
+    onClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void | Promise<void>
     disabled?: boolean
     type?: 'button' | 'submit' | 'reset'
     className?: string
@@ -36,13 +36,13 @@ export default function Button({
 }: ButtonProps) {
     const [isProcessing, setIsProcessing] = useState(false)
 
-    const handleClick = async () => {
+    const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
         if (isProcessing || disabled || loading) return
         if (!onClick) return
 
         setIsProcessing(true)
         try {
-            await onClick()
+            await onClick(e)
         } finally {
             setIsProcessing(false)
         }

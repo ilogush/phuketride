@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import useSWR from 'swr'
 import { format } from 'date-fns'
-import DataTable, { Column } from '~/components/ui/DataTable'
-import Button from '~/components/ui/Button'
-import Modal from '~/components/ui/Modal'
+import DataTable, { Column } from '~/components/dashboard/DataTable'
+import Button from '~/components/dashboard/Button'
+import Modal from '~/components/dashboard/Modal'
 import MaintenanceForm from '~/components/dashboard/MaintenanceForm'
 import { PlusIcon, WrenchIcon } from '@heroicons/react/24/outline'
 

@@ -5,11 +5,11 @@ import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { companyCars } from "~/db/schema";
-import PageHeader from "~/components/ui/PageHeader";
-import Tabs from "~/components/ui/Tabs";
-import DataTable, { type Column } from "~/components/ui/DataTable";
-import StatusBadge from "~/components/ui/StatusBadge";
-import Button from "~/components/ui/Button";
+import PageHeader from "~/components/dashboard/PageHeader";
+import Tabs from "~/components/dashboard/Tabs";
+import DataTable, { type Column } from "~/components/dashboard/DataTable";
+import StatusBadge from "~/components/dashboard/StatusBadge";
+import Button from "~/components/dashboard/Button";
 import { TruckIcon, PlusIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {

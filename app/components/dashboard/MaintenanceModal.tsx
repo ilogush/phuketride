@@ -1,4 +1,4 @@
-import Modal from '~/components/ui/Modal'
+import Modal from '~/components/dashboard/Modal'
 import MaintenanceForm from '~/components/dashboard/MaintenanceForm'
 
 interface MaintenanceModalProps {

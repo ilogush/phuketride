@@ -4,16 +4,16 @@ import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import { eq } from "drizzle-orm";
-import PageHeader from "~/components/ui/PageHeader";
-import Button from "~/components/ui/Button";
-import BackButton from "~/components/ui/BackButton";
-import { Input } from "~/components/ui/Input";
-import FormSection from "~/components/ui/FormSection";
-import PhotoUpload from "~/components/ui/PhotoUpload";
-import DocumentPhotosUpload from "~/components/ui/DocumentPhotosUpload";
+import PageHeader from "~/components/dashboard/PageHeader";
+import Button from "~/components/dashboard/Button";
+import BackButton from "~/components/dashboard/BackButton";
+import { Input } from "~/components/dashboard/Input";
+import FormSection from "~/components/dashboard/FormSection";
+import PhotoUpload from "~/components/dashboard/PhotoUpload";
+import DocumentPhotosUpload from "~/components/dashboard/DocumentPhotosUpload";
 import { UserIcon, BuildingOfficeIcon, DocumentTextIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import { uploadAvatarFromBase64, deleteAvatar } from "~/lib/r2.server";
-import ProfileForm from "~/components/profile/ProfileForm";
+import ProfileForm from "~/components/dashboard/ProfileForm";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);

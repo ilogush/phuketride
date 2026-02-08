@@ -1,9 +1,9 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import PageHeader from "~/components/ui/PageHeader";
-import Button from "~/components/ui/Button";
-import Card from "~/components/ui/Card";
+import PageHeader from "~/components/dashboard/PageHeader";
+import Button from "~/components/dashboard/Button";
+import Card from "~/components/dashboard/Card";
 import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request }: LoaderFunctionArgs) {

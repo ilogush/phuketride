@@ -549,6 +549,114 @@ import { Section } from '@/components'
 <IdBadge id={123} />
 ```
 
+### Dictionary Forms
+
+#### GenericDictionaryForm
+**Location**: `app/components/dashboard/GenericDictionaryForm.tsx`
+
+Universal form component for all dictionary entities (brands, colors, currencies, districts, payment types, etc.).
+
+```tsx
+import { GenericDictionaryForm, type FieldConfig } from '@/components/dashboard/GenericDictionaryForm'
+
+const fields: FieldConfig[] = [
+    {
+        name: 'name',
+        label: 'Brand Name',
+        type: 'text',
+        required: true,
+        placeholder: 'Enter brand name',
+        className: 'col-span-4'
+    },
+    {
+        name: 'code',
+        label: 'Code',
+        type: 'text',
+        required: true,
+        maxLength: 3,
+        transform: (value) => value.toUpperCase(),
+        validation: (value) => {
+            if (!/^[A-Z]{3}$/.test(value)) {
+                return 'Code must be 3 uppercase letters'
+            }
+            return null
+        },
+        className: 'col-span-2'
+    },
+    {
+        name: 'is_active',
+        label: 'Active',
+        type: 'toggle',
+        className: 'col-span-4'
+    }
+]
+
+<GenericDictionaryForm
+    title="Create Brand"
+    fields={fields}
+    data={existingData}
+    onSubmit={handleSubmit}
+    onCancel={handleCancel}
+    onDelete={handleDelete}
+    gridCols={4}
+/>
+```
+
+**Field Types**:
+- `text` - Text input with Latin validation
+- `number` - Numeric input
+- `select` - Dropdown with options
+- `textarea` - Multi-line text
+- `checkbox` - Checkbox input
+- `toggle` - Toggle switch
+- `color` - Color picker with hex preview
+
+**Field Config Props**:
+- `name` (string, required) - Field name
+- `label` (string, required) - Field label
+- `type` (FieldType, required) - Field type
+- `required` (boolean) - Mark as required
+- `placeholder` (string) - Placeholder text
+- `maxLength` (number) - Max character length
+- `options` (Array) - Options for select (format: `{id, name}`)
+- `validation` (function) - Custom validation: `(value, formData) => string | null`
+- `disabled` (boolean) - Disable field
+- `className` (string) - CSS classes (use `col-span-X` for grid)
+- `rows` (number) - Rows for textarea
+- `helpText` (string) - Help text below field
+- `transform` (function) - Transform value: `(value) => any`
+
+**Component Props**:
+- `title` (string, required) - Modal title
+- `fields` (FieldConfig[], required) - Field configurations
+- `data` (object) - Existing data for edit mode
+- `onSubmit` (function, required) - Submit handler
+- `onCancel` (function, required) - Cancel handler
+- `onDelete` (function) - Delete handler (shows delete button)
+- `submitLabel` (string) - Custom submit button label
+- `gridCols` (number, default: 4) - Grid columns
+
+**Features**:
+- Automatic validation (required, Latin-only for text)
+- Custom validation per field
+- Value transformation (e.g., uppercase)
+- Edit/Create mode detection
+- Delete button support
+- Grid layout (4 columns by default)
+- Error handling and display
+- Modal wrapper included
+
+**Migration Examples**:
+See `BrandFormExample.tsx`, `CurrencyFormExample.tsx`, `PaymentTypeFormExample.tsx` for migration patterns.
+
+**Replaces**:
+- BrandForm
+- ColorForm
+- CurrencyForm
+- DistrictForm
+- PaymentStatusForm
+- PaymentTypeForm
+
 ### Dashboard Components
 
 #### StatsCards
@@ -728,16 +836,58 @@ Role-agnostic locations health widget for dashboard.
 #### Tabs
 **Location**: `app/components/ui/Tabs.tsx`
 
+**CRITICAL - React Router v7 + Cloudflare Workers Compatibility**:
+- **ALWAYS use `baseUrl` prop** for URL-based tab navigation
+- **DO NOT use `onTabChange` with `navigate()` or `setSearchParams()`** - causes issues in local development
+- Component uses native `<a>` links which work reliably in all environments
+
 ```tsx
+import { Tabs } from '@/components'
+import { useSearchParams } from 'react-router'
+
+// ✅ CORRECT - Using baseUrl for URL-based navigation
+const [searchParams] = useSearchParams()
+const activeTab = searchParams.get('tab') || 'default'
+
 <Tabs
   tabs={[
-    { id: 'tab1', label: 'Tab 1', content: <div>Content 1</div> },
-    { id: 'tab2', label: 'Tab 2', content: <div>Content 2</div> },
+    { id: 'tab1', label: 'Tab 1' },
+    { id: 'tab2', label: 'Tab 2' },
   ]}
-  activeTab="tab1"
-  onTabChange={(id) => {}}
+  activeTab={activeTab}
+  baseUrl="/page-path"  // Component generates: /page-path?tab=tab1
+/>
+
+// ❌ WRONG - Using onTabChange with navigate (unreliable locally)
+const navigate = useNavigate()
+<Tabs
+  tabs={tabs}
+  activeTab={activeTab}
+  onTabChange={(id) => navigate(`/page?tab=${id}`)}  // DON'T DO THIS
+/>
+
+// ❌ WRONG - Using setSearchParams (unreliable locally)
+const [searchParams, setSearchParams] = useSearchParams()
+<Tabs
+  tabs={tabs}
+  activeTab={activeTab}
+  onTabChange={(id) => setSearchParams({ tab: id })}  // DON'T DO THIS
 />
 ```
+
+**Props**:
+- `tabs`: Array of `{ id: string | number, label: string, count?: number }`
+- `activeTab`: Current active tab ID
+- `baseUrl`: (Recommended) Base URL for tab navigation - generates `?tab=` query params
+- `onTabChange`: (Optional) Callback for custom tab handling - only use for non-URL state
+- `className`: Additional CSS classes
+- `variant`: 'pill' | 'underline' (default: 'pill')
+
+**Why baseUrl is Required**:
+- React Router v7 on Cloudflare Workers handles navigation differently in local vs production
+- `navigate()` and `setSearchParams()` can fail silently in local development
+- Native `<a>` links work consistently in all environments
+- React Router automatically intercepts link clicks for SPA behavior
 
 #### Toggle
 **Location**: `app/components/ui/Toggle.tsx`
@@ -882,12 +1032,20 @@ Core reusable UI components:
 
 ### app/components/dashboard/
 Domain-specific forms and tables:
-- BrandForm, CarModelForm, CarTemplateForm
-- ColorForm, CurrencyForm, DistrictForm
+- **GenericDictionaryForm** - Universal form for all dictionary entities (323 lines, replaces 7 forms)
+- CarTemplateForm
 - MaintenanceForm, MaintenanceModal, MaintenanceHistory
-- PaymentStatusForm, PaymentTypeForm
 - PaymentsTable, SeasonalPricingTable
 - TaskForm, RoleSwitcher
+
+**Deprecated (replaced by GenericDictionaryForm)**:
+- ~~BrandForm~~ ✅ Replaced
+- ~~CarModelForm~~ ✅ Replaced
+- ~~ColorForm~~ ✅ Replaced
+- ~~CurrencyForm~~ ✅ Replaced
+- ~~DistrictForm~~ ✅ Replaced
+- ~~PaymentStatusForm~~ ✅ Replaced
+- ~~PaymentTypeForm~~ ✅ Replaced
 
 ### app/components/layout/
 Layout structure components:

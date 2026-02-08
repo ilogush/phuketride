@@ -70,7 +70,7 @@ export default function StatCard({
                 <div className="flex justify-between items-start">
                     <span className="text-xs text-gray-500 font-medium">{name}</span>
                     {icon && (
-                        <div className={`${currentColor.bg} rounded-lg p-2`}>
+                        <div className={`${currentColor.bg} rounded-xl p-2`}>
                             <div className={`h-6 w-6 ${currentColor.icon}`}>{icon}</div>
                         </div>
                     )}
@@ -156,7 +156,7 @@ export default function StatCard({
                 </div>
 
                 {icon && (
-                    <div className={`${currentColor.bg} rounded-lg p-3`}>
+                    <div className={`${currentColor.bg} rounded-xl p-3`}>
                         <div className={`h-6 w-6 ${currentColor.icon}`}>
                             {icon}
                         </div>

@@ -5,12 +5,12 @@ import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import { eq } from "drizzle-orm";
 import { useState } from "react";
-import DataTable, { type Column } from "~/components/ui/DataTable";
-import Button from "~/components/ui/Button";
-import Modal from "~/components/ui/Modal";
-import { Input } from "~/components/ui/Input";
-import { Select } from "~/components/ui/Select";
-import PageHeader from "~/components/ui/PageHeader";
+import DataTable, { type Column } from "~/components/dashboard/DataTable";
+import Button from "~/components/dashboard/Button";
+import Modal from "~/components/dashboard/Modal";
+import { Input } from "~/components/dashboard/Input";
+import { Select } from "~/components/dashboard/Select";
+import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
 
 interface Hotel {
@@ -151,17 +151,17 @@ export default function HotelsPage() {
             ),
         },
         {
-            key: "location",
-            label: "Location",
-            render: (item) => (
-                <span className="text-gray-700">{getLocationName(item.locationId)}</span>
-            ),
-        },
-        {
             key: "district",
             label: "District",
             render: (item) => (
                 <span className="text-gray-700">{getDistrictName(item.districtId)}</span>
+            ),
+        },
+        {
+            key: "location",
+            label: "Location",
+            render: (item) => (
+                <span className="text-gray-700">{getLocationName(item.locationId)}</span>
             ),
         },
         {

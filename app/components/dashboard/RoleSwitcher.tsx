@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useToast } from '~/lib/toast'
-import Modal from '~/components/ui/Modal'
+import Modal from '~/components/dashboard/Modal'
+import Button from '~/components/dashboard/Button'
 import { BuildingOfficeIcon, UserIcon } from '@heroicons/react/24/outline'
 
 interface RoleSwitcherProps {
@@ -93,7 +94,7 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                     ) : (
                         <BuildingOfficeIcon className="h-5 w-5 text-green-500" />
                     )}
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${currentRole === 'user'
+                    <span className={`px-2 py-1 rounded-xl text-xs font-medium ${currentRole === 'user'
                         ? 'bg-blue-100 text-blue-800'
                         : 'bg-green-100 text-green-800'
                         }`}>
@@ -118,13 +119,14 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                             </div>
                         </div>
                     </div>
-                    <button
+                    <Button
                         onClick={() => setShowModal(true)}
-                        className="w-full flex items-center justify-center py-4 border border-transparent text-sm font-medium rounded-lg text-gray-500 bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                        variant="primary"
+                        fullWidth
+                        icon={<BuildingOfficeIcon className="h-4 w-4" />}
                     >
-                        <BuildingOfficeIcon className="h-4 w-4 mr-2" />
                         Become a Company Partner
-                    </button>
+                    </Button>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -142,14 +144,16 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                             </div>
                         </div>
                     </div>
-                    <button
+                    <Button
                         onClick={handleBecomeUser}
                         disabled={loading}
-                        className="w-full flex items-center justify-center py-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors disabled:opacity-50"
+                        variant="secondary"
+                        fullWidth
+                        icon={<UserIcon className="h-4 w-4" />}
+                        loading={loading}
                     >
-                        <UserIcon className="h-4 w-4 mr-2" />
-                        {loading ? 'Switching...' : 'Switch to User Mode'}
-                    </button>
+                        Switch to User Mode
+                    </Button>
                 </div>
             )}
 
@@ -171,7 +175,7 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                             id="companyName"
                             type="text"
                             required
-                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-gray-500 focus:ring-gray-500 sm:text-sm"
+                            className="block w-full rounded-xl border-gray-300 shadow-sm focus:border-gray-500 focus:ring-gray-500 sm:text-sm"
                             placeholder="Your Company Name"
                             value={companyName}
                             onChange={(e) => setCompanyName(e.target.value)}
@@ -185,7 +189,7 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                         <input
                             id="companyPhone"
                             type="tel"
-                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-gray-500 focus:ring-gray-500 sm:text-sm"
+                            className="block w-full rounded-xl border-gray-300 shadow-sm focus:border-gray-500 focus:ring-gray-500 sm:text-sm"
                             placeholder="+6699123456"
                             value={companyPhone}
                             onChange={(e) => setCompanyPhone(e.target.value)}
@@ -200,20 +204,23 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                     </div>
 
                     <div className="flex space-x-3 pt-4">
-                        <button
+                        <Button
                             type="button"
                             onClick={() => setShowModal(false)}
-                            className="flex-1 py-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                            variant="secondary"
+                            className="flex-1"
                         >
                             Cancel
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={handleBecomePartner}
                             disabled={loading || !companyName.trim()}
-                            className="flex-1 py-4 border border-transparent text-sm font-medium rounded-lg text-gray-500 bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            variant="primary"
+                            className="flex-1"
+                            loading={loading}
                         >
-                            {loading ? 'Creating...' : 'Create'}
-                        </button>
+                            Create
+                        </Button>
                     </div>
                 </div>
             </Modal>

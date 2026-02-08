@@ -3,11 +3,11 @@ import { Form } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
-import PageHeader from "~/components/ui/PageHeader";
-import { Input } from "~/components/ui/Input";
-import Button from "~/components/ui/Button";
-import BackButton from "~/components/ui/BackButton";
-import FormSection from "~/components/ui/FormSection";
+import PageHeader from "~/components/dashboard/PageHeader";
+import { Input } from "~/components/dashboard/Input";
+import Button from "~/components/dashboard/Button";
+import BackButton from "~/components/dashboard/BackButton";
+import FormSection from "~/components/dashboard/FormSection";
 import { TagIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request }: LoaderFunctionArgs) {

@@ -14,8 +14,8 @@ import {
     CalendarIcon,
     ClockIcon,
 } from "@heroicons/react/24/outline";
-import StatCard from "~/components/ui/StatCard";
-import TasksWidget from "~/components/ui/TasksWidget";
+import StatCard from "~/components/dashboard/StatCard";
+import TasksWidget from "~/components/dashboard/TasksWidget";
 
 const ICON_MAP: Record<string, any> = {
     BuildingOfficeIcon,

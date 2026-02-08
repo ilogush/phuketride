@@ -1,10 +1,10 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import PageHeader from "~/components/ui/PageHeader";
-import Card from "~/components/ui/Card";
+import PageHeader from "~/components/dashboard/PageHeader";
+import Card from "~/components/dashboard/Card";
 import { MagnifyingGlassIcon, AdjustmentsHorizontalIcon, TruckIcon } from "@heroicons/react/24/outline";
-import Button from "~/components/ui/Button";
+import Button from "~/components/dashboard/Button";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);

@@ -1,9 +1,9 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import PageHeader from "~/components/ui/PageHeader";
-import Button from "~/components/ui/Button";
-import DataTable, { type Column } from "~/components/ui/DataTable";
+import PageHeader from "~/components/dashboard/PageHeader";
+import Button from "~/components/dashboard/Button";
+import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import { PlusIcon, BanknotesIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request }: LoaderFunctionArgs) {
