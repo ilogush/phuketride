@@ -6,6 +6,7 @@ import * as schema from "~/db/schema";
 import PageHeader from "~/components/ui/PageHeader";
 import Card from "~/components/ui/Card";
 import { Input } from "~/components/ui/Input";
+import { Select } from "~/components/ui/Select";
 import Button from "~/components/ui/Button";
 import BackButton from "~/components/ui/BackButton";
 
@@ -60,50 +61,30 @@ export default function CreateCarPage() {
             <Card className="max-w-4xl p-8 border-gray-200">
                 <Form method="post" className="space-y-8">
                     {user.role === "admin" && (
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Company</label>
-                            <select
-                                name="companyId"
-                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
-                                required
-                            >
-                                <option value="">Select Company</option>
-                                {companies.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <Select
+                            label="Company"
+                            name="companyId"
+                            options={companies}
+                            required
+                        />
                     )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Car Template</label>
-                            <select
-                                name="templateId"
-                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
-                                required
-                            >
-                                <option value="">Select Template</option>
-                                {templates.map(t => (
-                                    <option key={t.id} value={t.id}>
-                                        Template #{t.id} (BrandID {t.brandId}, ModelID {t.modelId})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Color</label>
-                            <select
-                                name="colorId"
-                                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
-                                required
-                            >
-                                <option value="">Select Color</option>
-                                {colors.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <Select
+                            label="Car Template"
+                            name="templateId"
+                            options={templates.map(t => ({
+                                id: t.id,
+                                name: `Template #${t.id} (BrandID ${t.brandId}, ModelID ${t.modelId})`
+                            }))}
+                            required
+                        />
+                        <Select
+                            label="Color"
+                            name="colorId"
+                            options={colors}
+                            required
+                        />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

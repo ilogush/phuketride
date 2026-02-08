@@ -5,6 +5,7 @@ import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import PageHeader from "~/components/ui/PageHeader";
 import { Input } from "~/components/ui/Input";
+import { Select } from "~/components/ui/Select";
 import Button from "~/components/ui/Button";
 import BackButton from "~/components/ui/BackButton";
 import FormBox from "~/components/ui/FormBox";
@@ -59,19 +60,12 @@ export default function CreateModelPage() {
             <FormBox>
                 <Form id="model-form" method="post" className="space-y-4">
                     <div className="grid grid-cols-4 gap-4">
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Brand</label>
-                            <select
-                                name="brandId"
-                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                                required
-                            >
-                                <option value="">Select Brand</option>
-                                {brands.map(b => (
-                                    <option key={b.id} value={b.id}>{b.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <Select
+                            label="Brand"
+                            name="brandId"
+                            options={brands}
+                            required
+                        />
 
                         <Input
                             label="Model Name"
@@ -80,21 +74,19 @@ export default function CreateModelPage() {
                             required
                         />
 
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Body Type</label>
-                            <select
-                                name="bodyType"
-                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                                required
-                            >
-                                <option value="sedan">Sedan</option>
-                                <option value="suv">SUV</option>
-                                <option value="hatchback">Hatchback</option>
-                                <option value="convertible">Convertible</option>
-                                <option value="pickup">Pickup</option>
-                                <option value="van">Van</option>
-                            </select>
-                        </div>
+                        <Select
+                            label="Body Type"
+                            name="bodyType"
+                            options={[
+                                { id: "sedan", name: "Sedan" },
+                                { id: "suv", name: "SUV" },
+                                { id: "hatchback", name: "Hatchback" },
+                                { id: "convertible", name: "Convertible" },
+                                { id: "pickup", name: "Pickup" },
+                                { id: "van", name: "Van" }
+                            ]}
+                            required
+                        />
                     </div>
                 </Form>
             </FormBox>
