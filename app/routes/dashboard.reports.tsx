@@ -3,7 +3,7 @@ import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/ui/PageHeader";
 import Card from "~/components/ui/Card";
-import { ChartBarIcon, ArrowDownTrayIcon } from "@heroicons/react/24/outline";
+import { ChartBarIcon } from "@heroicons/react/24/outline";
 import Button from "~/components/ui/Button";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -23,14 +23,7 @@ export default function ReportsPage() {
 
     return (
         <div className="space-y-4">
-            <PageHeader
-                title="Reports & Analytics"
-                rightActions={
-                    <Button variant="secondary" icon={<ArrowDownTrayIcon className="w-5 h-5" />}>
-                        Export All
-                    </Button>
-                }
-            />
+            <PageHeader title="Reports & Analytics" />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {reports.map((report) => (

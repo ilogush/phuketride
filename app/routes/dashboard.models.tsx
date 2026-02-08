@@ -44,7 +44,7 @@ export default function ModelsPage() {
                 columns={columns}
                 totalCount={0}
                 emptyTitle="No models found"
-                emptyDescription="Add car models to the database"
+                emptyDescription="Add models to the database"
                 emptyIcon={<CubeIcon className="w-16 h-16" />}
             />
         </div>

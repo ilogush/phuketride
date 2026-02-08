@@ -111,14 +111,11 @@ export default function PaymentsPage() {
             <PageHeader
                 title="Payments"
                 rightActions={
-                    <>
-                        <Button variant="secondary">Export</Button>
-                        <Link to="/payments/create">
-                            <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                                Record Payment
-                            </Button>
-                        </Link>
-                    </>
+                    <Link to="/payments/create">
+                        <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                            Record
+                        </Button>
+                    </Link>
                 }
             />
 

@@ -42,7 +42,7 @@ export default function QuickActions({ userRole = 'admin' }: QuickActionsProps) 
 
     const partnerActions = [
         {
-            name: 'Add Car',
+            name: 'Add',
             href: '/dashboard/cars/create',
             icon: TruckIcon
         },
@@ -65,7 +65,7 @@ export default function QuickActions({ userRole = 'admin' }: QuickActionsProps) 
             icon: ClipboardDocumentListIcon
         },
         {
-            name: 'Add Car',
+            name: 'Add',
             href: '/dashboard/cars/create',
             icon: TruckIcon
         }

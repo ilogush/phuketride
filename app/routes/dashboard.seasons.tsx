@@ -288,7 +288,7 @@ export default function SeasonsPage() {
                             icon={<PlusIcon className="w-5 h-5" />}
                             onClick={() => setIsModalOpen(true)}
                         >
-                            Add Season
+                            Add
                         </Button>
                     </div>
                 }
@@ -300,7 +300,7 @@ export default function SeasonsPage() {
                     data={seasons}
                     disablePagination={true}
                     emptyTitle="No seasons configured"
-                    emptyDescription="Add seasonal pricing periods to get started"
+                    emptyDescription="Addal pricing periods to get started"
                 />
             ) : (
                 <div className="bg-white rounded-3xl shadow-sm p-12 py-4">
@@ -315,7 +315,7 @@ export default function SeasonsPage() {
             )}
 
             <Modal
-                title={editingSeason ? "Edit Season" : "Add Season"}
+                title={editingSeason ? "Edit Season" : "Add"}
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}
                 size="md"

@@ -115,7 +115,7 @@ export default function CarsPage() {
                         <Button variant="secondary">Import</Button>
                         <Link to="/cars/create">
                             <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                                Add Car
+                                Add
                             </Button>
                         </Link>
                     </>

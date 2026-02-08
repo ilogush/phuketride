@@ -62,7 +62,7 @@ export default function CompaniesPage() {
                 rightActions={
                     <Link to="/companies/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                            Add Company
+                            Add
                         </Button>
                     </Link>
                 }

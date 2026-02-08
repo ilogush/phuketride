@@ -110,12 +110,9 @@ export default function ContractsPage() {
             <PageHeader
                 title="Contracts"
                 rightActions={
-                    <>
-                        <Button variant="secondary">Export</Button>
-                        <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                            New Contract
-                        </Button>
-                    </>
+                    <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                        New Contract
+                    </Button>
                 }
             />
 

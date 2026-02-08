@@ -135,7 +135,7 @@ export default function CreateCarPage() {
                             Cancel
                         </Button>
                         <Button type="submit" variant="primary">
-                            Add Car to Fleet
+                            Add to Fleet
                         </Button>
                     </div>
                 </Form>

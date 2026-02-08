@@ -53,7 +53,7 @@ export default function RecordPaymentPage() {
         <div className="space-y-6">
             <div className="flex items-center gap-4">
                 <BackButton to="/payments" />
-                <PageHeader title="Record Payment" />
+                <PageHeader title="Record" />
             </div>
 
             <Card className="max-w-2xl p-8 border-gray-200">
@@ -120,7 +120,7 @@ export default function RecordPaymentPage() {
                             Cancel
                         </Button>
                         <Button type="submit" variant="primary">
-                            Record Payment
+                            Record
                         </Button>
                     </div>
                 </Form>

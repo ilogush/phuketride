@@ -252,7 +252,7 @@ export default function DurationsPage() {
                             icon={<PlusIcon className="w-5 h-5" />}
                             onClick={() => setIsModalOpen(true)}
                         >
-                            Add Duration
+                            Add
                         </Button>
                     </div>
                 }

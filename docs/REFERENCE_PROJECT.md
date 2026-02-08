@@ -365,7 +365,7 @@ export default function CarsPage() {
     <div>
       <h1>Cars</h1>
       <Link href="/dashboard/cars/new" prefetch={false}>
-        <Button>Add Car</Button>
+        <Button>Add</Button>
       </Link>
       {cars.map(car => (
         <div key={car.id}>
@@ -414,7 +414,7 @@ export default function CarsPage({ loaderData }: Route.ComponentProps) {
     <div>
       <h1>Cars</h1>
       <Link to="/dashboard/cars/new">
-        <Button>Add Car</Button>
+        <Button>Add</Button>
       </Link>
       {cars.map(car => (
         <div key={car.id}>

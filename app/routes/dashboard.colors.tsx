@@ -205,7 +205,7 @@ export default function ColorsPage() {
                             icon={<PlusIcon className="w-5 h-5" />}
                             onClick={() => setIsModalOpen(true)}
                         >
-                            Add Color
+                            Add
                         </Button>
                     </div>
                 }
@@ -232,7 +232,7 @@ export default function ColorsPage() {
             )}
 
             <Modal
-                title={editingColor ? "Edit Color" : "Add Color"}
+                title={editingColor ? "Edit Color" : "Add"}
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}
                 size="md"

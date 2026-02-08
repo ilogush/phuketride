@@ -173,7 +173,7 @@ export default function DistrictsPage() {
                         icon={<PlusIcon className="w-5 h-5" />}
                         onClick={() => setIsModalOpen(true)}
                     >
-                        Add District
+                        Add
                     </Button>
                 }
             />
@@ -183,11 +183,11 @@ export default function DistrictsPage() {
                 data={districts}
                 disablePagination={true}
                 emptyTitle="No districts configured"
-                emptyDescription="Add districts to get started"
+                emptyDescription="Adds to get started"
             />
 
             <Modal
-                title={editingDistrict ? "Edit District" : "Add District"}
+                title={editingDistrict ? "Edit District" : "Add"}
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}
                 size="md"

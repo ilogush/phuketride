@@ -174,7 +174,7 @@ export default function LocationsPage() {
                 rightActions={
                     isAdmin ? (
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />} onClick={() => setIsModalOpen(true)}>
-                            Add District
+                            Add
                         </Button>
                     ) : undefined
                 }
@@ -190,7 +190,7 @@ export default function LocationsPage() {
 
             {isAdmin && (
                 <Modal
-                    title={editingDistrict ? "Edit District" : "Add District"}
+                    title={editingDistrict ? "Edit District" : "Add"}
                     isOpen={isModalOpen}
                     onClose={handleCloseModal}
                     size="md"

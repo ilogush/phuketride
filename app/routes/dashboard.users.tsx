@@ -113,14 +113,11 @@ export default function UsersPage() {
             <PageHeader
                 title="Users Management"
                 rightActions={
-                    <>
-                        <Button variant="secondary">Import Users</Button>
-                        <Link to="/users/create">
-                            <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                                Add User
-                            </Button>
-                        </Link>
-                    </>
+                    <Link to="/users/create">
+                        <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                            Add
+                        </Button>
+                    </Link>
                 }
             />
 
