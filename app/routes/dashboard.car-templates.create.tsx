@@ -5,6 +5,8 @@ import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import PageHeader from "~/components/ui/PageHeader";
 import { Input } from "~/components/ui/Input";
+import { Select } from "~/components/ui/Select";
+import { Textarea } from "~/components/ui/Textarea";
 import Button from "~/components/ui/Button";
 import BackButton from "~/components/ui/BackButton";
 import FormBox from "~/components/ui/FormBox";
@@ -81,34 +83,20 @@ export default function CreateCarTemplatePage() {
             <FormBox>
                 <Form id="template-form" method="post" className="space-y-4">
                     <div className="grid grid-cols-4 gap-4">
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Brand</label>
-                            <select
-                                name="brandId"
-                                value={selectedBrandId}
-                                onChange={(e) => setSelectedBrandId(Number(e.target.value))}
-                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                                required
-                            >
-                                <option value="">Select Brand</option>
-                                {brands.map(b => (
-                                    <option key={b.id} value={b.id}>{b.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Model</label>
-                            <select
-                                name="modelId"
-                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                                required
-                            >
-                                <option value="">Select Model</option>
-                                {filteredModels.map(m => (
-                                    <option key={m.id} value={m.id}>{m.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <Select
+                            label="Brand"
+                            name="brandId"
+                            value={selectedBrandId}
+                            onChange={(e) => setSelectedBrandId(Number(e.target.value))}
+                            options={brands}
+                            required
+                        />
+                        <Select
+                            label="Model"
+                            name="modelId"
+                            options={filteredModels}
+                            required
+                        />
                         <Input
                             label="Year"
                             name="productionYear"
@@ -116,17 +104,15 @@ export default function CreateCarTemplatePage() {
                             placeholder="2023"
                             required
                         />
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Transmission</label>
-                            <select
-                                name="transmission"
-                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                                required
-                            >
-                                <option value="automatic">Automatic</option>
-                                <option value="manual">Manual</option>
-                            </select>
-                        </div>
+                        <Select
+                            label="Transmission"
+                            name="transmission"
+                            options={[
+                                { id: "automatic", name: "Automatic" },
+                                { id: "manual", name: "Manual" }
+                            ]}
+                            required
+                        />
                     </div>
 
                     <div className="grid grid-cols-4 gap-4">
@@ -138,19 +124,17 @@ export default function CreateCarTemplatePage() {
                             placeholder="1.5"
                             required
                         />
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Fuel</label>
-                            <select
-                                name="fuelType"
-                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                                required
-                            >
-                                <option value="gasoline">Gasoline 91/95</option>
-                                <option value="diesel">Diesel</option>
-                                <option value="electric">Electric</option>
-                                <option value="hybrid">Hybrid</option>
-                            </select>
-                        </div>
+                        <Select
+                            label="Fuel"
+                            name="fuelType"
+                            options={[
+                                { id: "gasoline", name: "Gasoline 91/95" },
+                                { id: "diesel", name: "Diesel" },
+                                { id: "electric", name: "Electric" },
+                                { id: "hybrid", name: "Hybrid" }
+                            ]}
+                            required
+                        />
                         <Input
                             label="Body Type"
                             name="bodyType"
@@ -176,15 +160,12 @@ export default function CreateCarTemplatePage() {
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-xs text-gray-600 mb-1">Description</label>
-                        <textarea
-                            name="description"
-                            rows={4}
-                            className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:border-gray-300 transition-all font-medium"
-                            placeholder="Detailed car characteristics..."
-                        ></textarea>
-                    </div>
+                    <Textarea
+                        label="Description"
+                        name="description"
+                        rows={4}
+                        placeholder="Detailed car characteristics..."
+                    />
                 </Form>
             </FormBox>
         </div>

@@ -129,19 +129,17 @@ export default function EditUserPage() {
                             placeholder="Carlson"
                             required
                         />
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Gender</label>
-                            <select
-                                name="gender"
-                                defaultValue={user.gender || ""}
-                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                            >
-                                <option value="">Select Gender</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
+                        <Select
+                            label="Gender"
+                            name="gender"
+                            defaultValue={user.gender || ""}
+                            options={[
+                                { id: "male", name: "Male" },
+                                { id: "female", name: "Female" },
+                                { id: "other", name: "Other" }
+                            ]}
+                            placeholder="Select Gender"
+                        />
                         <Input
                             label="Date of Birth"
                             name="dateOfBirth"
@@ -151,20 +149,18 @@ export default function EditUserPage() {
                     </div>
 
                     <div className="grid grid-cols-4 gap-4">
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Role</label>
-                            <select
-                                name="role"
-                                defaultValue={user.role}
-                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                                required
-                            >
-                                <option value="user">User</option>
-                                <option value="partner">Partner</option>
-                                <option value="manager">Manager</option>
-                                <option value="admin">Administrator</option>
-                            </select>
-                        </div>
+                        <Select
+                            label="Role"
+                            name="role"
+                            defaultValue={user.role}
+                            options={[
+                                { id: "user", name: "User" },
+                                { id: "partner", name: "Partner" },
+                                { id: "manager", name: "Manager" },
+                                { id: "admin", name: "Administrator" }
+                            ]}
+                            required
+                        />
                         <Input
                             label="Phone"
                             name="phone"
@@ -194,21 +190,13 @@ export default function EditUserPage() {
                             defaultValue={user.telegram || ""}
                             placeholder="@user_471322f2"
                         />
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Country</label>
-                            <select
-                                name="countryId"
-                                defaultValue={user.countryId || ""}
-                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                            >
-                                <option value="">Select Country</option>
-                                {countries.map((country) => (
-                                    <option key={country.id} value={country.id}>
-                                        {country.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        <Select
+                            label="Country"
+                            name="countryId"
+                            defaultValue={user.countryId || ""}
+                            options={countries}
+                            placeholder="Select Country"
+                        />
                         <Input
                             label="City"
                             name="city"
@@ -226,21 +214,13 @@ export default function EditUserPage() {
 
                 <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
                     <div className="grid grid-cols-4 gap-4">
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Hotel</label>
-                            <select
-                                name="hotelId"
-                                defaultValue={user.hotelId || ""}
-                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                            >
-                                <option value="">Select Hotel</option>
-                                {hotels.map((hotel) => (
-                                    <option key={hotel.id} value={hotel.id}>
-                                        {hotel.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        <Select
+                            label="Hotel"
+                            name="hotelId"
+                            defaultValue={user.hotelId || ""}
+                            options={hotels}
+                            placeholder="Select Hotel"
+                        />
                         <Input
                             label="Room Number"
                             name="roomNumber"
