@@ -9,6 +9,7 @@ import DataTable, { type Column } from "~/components/ui/DataTable";
 import Button from "~/components/ui/Button";
 import Modal from "~/components/ui/Modal";
 import { Input } from "~/components/ui/Input";
+import { Select } from "~/components/ui/Select";
 import PageHeader from "~/components/ui/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
 
@@ -232,49 +233,29 @@ export default function HotelsPage() {
                         required
                     />
 
-                    <div>
-                        <label className="block text-xs text-gray-600 mb-1">
-                            Location
-                        </label>
-                        <select
-                            name="locationId"
-                            value={formData.locationId}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    locationId: e.target.value,
-                                    districtId: filteredDistricts[0]?.id.toString() || "1",
-                                })
-                            }
-                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                        >
-                            {locations.map((location) => (
-                                <option key={location.id} value={location.id}>
-                                    {location.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <Select
+                        label="Location"
+                        name="locationId"
+                        value={formData.locationId}
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                locationId: e.target.value,
+                                districtId: filteredDistricts[0]?.id.toString() || "1",
+                            })
+                        }
+                        options={locations}
+                        required
+                    />
 
-                    <div>
-                        <label className="block text-xs text-gray-600 mb-1">
-                            District
-                        </label>
-                        <select
-                            name="districtId"
-                            value={formData.districtId}
-                            onChange={(e) => setFormData({ ...formData, districtId: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                        >
-                            {filteredDistricts.map((district) => (
-                                <option key={district.id} value={district.id}>
-                                    {district.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <Select
+                        label="District"
+                        name="districtId"
+                        value={formData.districtId}
+                        onChange={(e) => setFormData({ ...formData, districtId: e.target.value })}
+                        options={filteredDistricts}
+                        required
+                    />
 
                     <Input
                         label="Address (Optional)"

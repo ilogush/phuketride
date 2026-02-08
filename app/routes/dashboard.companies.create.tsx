@@ -6,6 +6,7 @@ import { ne, eq } from "drizzle-orm";
 import * as schema from "~/db/schema";
 import PageHeader from "~/components/ui/PageHeader";
 import { Input } from "~/components/ui/Input";
+import { Select } from "~/components/ui/Select";
 import Button from "~/components/ui/Button";
 import BackButton from "~/components/ui/BackButton";
 import FormSection from "~/components/ui/FormSection";
@@ -203,32 +204,20 @@ export default function CreateCompanyPage() {
                         </div>
 
                         <div className="grid grid-cols-4 gap-4">
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Location <span className="text-gray-500">*</span></label>
-                                <select
-                                    name="locationId"
-                                    value={selectedLocationId}
-                                    onChange={(e) => setSelectedLocationId(Number(e.target.value))}
-                                    className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                                    required
-                                >
-                                    {locations.map(l => (
-                                        <option key={l.id} value={l.id}>{l.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">District <span className="text-gray-500">*</span></label>
-                                <select
-                                    name="districtId"
-                                    className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                                    required
-                                >
-                                    {filteredDistricts.map(d => (
-                                        <option key={d.id} value={d.id}>{d.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            <Select
+                                label="Location"
+                                name="locationId"
+                                value={selectedLocationId}
+                                onChange={(e) => setSelectedLocationId(Number(e.target.value))}
+                                options={locations}
+                                required
+                            />
+                            <Select
+                                label="District"
+                                name="districtId"
+                                options={filteredDistricts}
+                                required
+                            />
                             <Input
                                 label="Street"
                                 name="street"

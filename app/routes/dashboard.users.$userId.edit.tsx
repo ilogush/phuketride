@@ -6,6 +6,7 @@ import * as schema from "~/db/schema";
 import { eq } from "drizzle-orm";
 import PageHeader from "~/components/ui/PageHeader";
 import { Input } from "~/components/ui/Input";
+import { Select } from "~/components/ui/Select";
 import Button from "~/components/ui/Button";
 import BackButton from "~/components/ui/BackButton";
 import FormSection from "~/components/ui/FormSection";
@@ -246,21 +247,13 @@ export default function EditUserPage() {
                             defaultValue={user.roomNumber || ""}
                             placeholder="900"
                         />
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">Location</label>
-                            <select
-                                name="locationId"
-                                defaultValue={user.locationId || ""}
-                                className="w-full px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 transition-all"
-                            >
-                                <option value="">Select Location</option>
-                                {locations.map((location) => (
-                                    <option key={location.id} value={location.id}>
-                                        {location.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        <Select
+                            label="Location"
+                            name="locationId"
+                            defaultValue={user.locationId || ""}
+                            options={locations}
+                            placeholder="Select Location"
+                        />
                     </div>
                 </FormSection>
 

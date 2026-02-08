@@ -9,6 +9,7 @@ import DataTable, { type Column } from "~/components/ui/DataTable";
 import Button from "~/components/ui/Button";
 import Modal from "~/components/ui/Modal";
 import { Input } from "~/components/ui/Input";
+import { Select } from "~/components/ui/Select";
 import PageHeader from "~/components/ui/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
 
@@ -207,24 +208,14 @@ export default function DistrictsPage() {
                         required
                     />
 
-                    <div>
-                        <label className="block text-xs text-gray-600 mb-1">
-                            Location
-                        </label>
-                        <select
-                            name="locationId"
-                            value={formData.locationId}
-                            onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                        >
-                            {locations.map((location) => (
-                                <option key={location.id} value={location.id}>
-                                    {location.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <Select
+                        label="Location"
+                        name="locationId"
+                        value={formData.locationId}
+                        onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
+                        options={locations}
+                        required
+                    />
 
                     <Input
                         label="Delivery Price (THB)"
