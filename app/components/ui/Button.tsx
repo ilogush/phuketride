@@ -53,9 +53,9 @@ export default function Button({
     const baseClasses = 'flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
 
     const sizeClasses = {
-        sm: 'px-3 py-1 text-sm',
-        md: 'p-4 py-2 text-sm',
-        lg: 'p-4 py-3 text-base'
+        sm: 'px-2 sm:px-3 py-1 text-xs sm:text-sm',
+        md: 'px-3 sm:px-4 py-2 text-xs sm:text-sm',
+        lg: 'px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base'
     }
 
     const roundedClasses = {

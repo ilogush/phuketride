@@ -20,8 +20,8 @@ const ProfileHeader = memo(function ProfileHeader({
 
     return (
         <div className={`flex-1 ${className}`}>
-            <h2 className="text-2xl font-semibold text-gray-900">{displayName}</h2>
-            <p className="text-sm text-gray-600 mt-1">{formattedRole}</p>
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 break-words">{displayName}</h2>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">{formattedRole}</p>
         </div>
     );
 });

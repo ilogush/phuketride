@@ -137,7 +137,7 @@ export default function HotelsPage() {
             key: "id",
             label: "ID",
             render: (item) => (
-                <span className="font-mono text-sm bg-gray-800 text-white px-2 py-1 rounded-full">
+                <span className="font-mono text-xs bg-gray-800 text-white px-2 py-1 rounded-full">
                     {String(item.id).padStart(4, "0")}
                 </span>
             ),

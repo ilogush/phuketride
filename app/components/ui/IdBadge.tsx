@@ -7,7 +7,7 @@ interface IdBadgeProps {
 
 export default function IdBadge({ children, className = '' }: IdBadgeProps) {
     return (
-        <span className={`font-mono text-sm bg-gray-800 text-white px-2 py-1 rounded-full ${className}`}>
+        <span className={`font-mono text-xs bg-gray-800 text-white px-2 py-1 rounded-full ${className}`}>
             {children}
         </span>
     )

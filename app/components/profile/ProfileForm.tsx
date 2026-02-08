@@ -142,7 +142,7 @@ function ProfileForm({
         <div className="space-y-4">
             {/* Profile Information Section */}
             <FormSection title="Profile Information" icon={<UserIcon />}>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <FormInput
                         isEdit={isEdit}
                         label="First Name"
@@ -184,7 +184,7 @@ function ProfileForm({
                     />
                 </div>
 
-                <div className="grid grid-cols-4 gap-4 mt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
                     {isEdit ? (
                         <FormSelect
                             isEdit={isEdit}
@@ -235,7 +235,7 @@ function ProfileForm({
                     />
                 </div>
 
-                <div className="grid grid-cols-4 gap-4 mt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
                     <FormInput
                         isEdit={isEdit}
                         label="Telegram"
@@ -282,7 +282,7 @@ function ProfileForm({
 
             {/* Accommodation Section */}
             <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
-                <div className="grid grid-cols-4 gap-4 mt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
                     {isEdit ? (
                         <FormInput
                             isEdit={isEdit}
@@ -356,7 +356,7 @@ function ProfileForm({
                         }}
                     />
                 ) : (
-                    <div className="flex gap-8">
+                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
                         <DocumentPreview photos={passportPhotos} label="Passport Photos" />
                         <DocumentPreview photos={driverLicensePhotos} label="Driver License Photos" />
                     </div>
@@ -366,7 +366,7 @@ function ProfileForm({
             {/* Change Password Section */}
             {isEdit && (
                 <FormSection title="Change Password" icon={<LockClosedIcon />}>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <FormInput
                             isEdit={isEdit}
                             label="New Password"

@@ -70,28 +70,28 @@ export default function PageHeader({
 
     return (
         <div>
-            <div className={`flex items-center ${hasRightActions ? 'justify-between' : 'justify-start'} gap-6`}>
-                <div className="flex items-center gap-4">
+            <div className={`flex flex-col sm:flex-row items-start sm:items-center ${hasRightActions ? 'justify-between' : 'justify-start'} gap-3 sm:gap-6`}>
+                <div className="flex items-center gap-4 w-full sm:w-auto">
                     {leftActions}
                     {title && (
-                        <h1 className="text-xl md:text-xl font-black text-gray-900 tracking-tight animate-in fade-in slide-in-from-left-4 duration-500">
+                        <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight animate-in fade-in slide-in-from-left-4 duration-500">
                             {title}
                         </h1>
                     )}
                 </div>
 
-                <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto animate-in fade-in slide-in-from-right-4 duration-500">
                     {withSearch && onSearchChange && (
                         <input
                             type="text"
                             value={searchValue || ''}
                             onChange={(e) => onSearchChange(e.target.value)}
                             placeholder={searchPlaceholder || 'Search...'}
-                            className="py-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+                            className="flex-1 sm:flex-none py-2 sm:py-4 px-3 sm:px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent text-sm"
                         />
                     )}
                     {finalActions && (
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
                             {finalActions}
                         </div>
                     )}

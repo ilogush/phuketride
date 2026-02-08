@@ -26,11 +26,11 @@ const DocumentPreview = memo(function DocumentPreview({
             {!hasPhotos ? (
                 <span className="text-xs text-gray-400">No photos uploaded</span>
             ) : (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     {photos.map((photo, index) => (
                         <div
                             key={index}
-                            className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-50"
+                            className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden bg-gray-50"
                         >
                             <img
                                 src={photo.base64}
