@@ -322,48 +322,43 @@ export default function CreateCompanyPage() {
                 <FormSection title="Assign Users" icon={<UserIcon />}>
                     <div className="space-y-4">
                         {!selectedManager ? (
-                            <div className="relative">
-                                <Input
-                                    label="Search Users"
-                                    name="userSearch"
-                                    placeholder="Type email or name..."
-                                    value={searchQuery}
-                                    onChange={(e) => {
-                                        setSearchQuery(e.target.value);
-                                        setShowSuggestions(true);
-                                    }}
-                                    onFocus={() => setShowSuggestions(true)}
-                                    autoComplete="off"
-                                />
+                            <div className="grid grid-cols-4 gap-4">
+                                <div className="relative">
+                                    <Input
+                                        label="Search Users"
+                                        name="userSearch"
+                                        placeholder="Type email or name..."
+                                        value={searchQuery}
+                                        onChange={(e) => {
+                                            setSearchQuery(e.target.value);
+                                            setShowSuggestions(true);
+                                        }}
+                                        onFocus={() => setShowSuggestions(true)}
+                                        autoComplete="off"
+                                    />
 
-                                {showSuggestions && searchQuery && filteredUsers.length > 0 && (
-                                    <div className="absolute z-10 w-full mt-1 bg-white rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                                        {filteredUsers.slice(0, 10).map((user) => (
-                                            <button
-                                                key={user.id}
-                                                type="button"
-                                                onClick={() => handleSelectManager(user)}
-                                                className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
-                                            >
-                                                <div className="text-sm font-medium text-gray-900">
-                                                    {user.name && user.surname
-                                                        ? `${user.name} ${user.surname}`
-                                                        : user.email}
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                    {user.email} • {user.role}
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {!searchQuery && (
-                                    <div className="text-center py-8">
-                                        <UserIcon className="w-20 h-20 mx-auto text-gray-300 mb-2" />
-                                        <p className="text-sm text-gray-400">Search and select a user to assign to this company</p>
-                                    </div>
-                                )}
+                                    {showSuggestions && searchQuery && filteredUsers.length > 0 && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                                            {filteredUsers.slice(0, 10).map((user) => (
+                                                <button
+                                                    key={user.id}
+                                                    type="button"
+                                                    onClick={() => handleSelectManager(user)}
+                                                    className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
+                                                >
+                                                    <div className="text-sm font-medium text-gray-900">
+                                                        {user.name && user.surname
+                                                            ? `${user.name} ${user.surname}`
+                                                            : user.email}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {user.email} • {user.role}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         ) : (
                             <div className="space-y-4">
