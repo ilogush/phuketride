@@ -66,7 +66,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function CreateUserPage() {
-    const { countries, hotels, locations, districts } = useLoaderData<typeof loader>();
+    const { user, countries, hotels, locations, districts } = useLoaderData<typeof loader>();
 
     // Empty user object for create mode
     const emptyUser = {

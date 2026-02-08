@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
-import Modal from '~/components/ui/Modal'
-import Button from '~/components/ui/Button'
+import { Form } from 'react-router'
+import FormField from '~/components/ui/FormField'
+import FormSection from '~/components/ui/FormSection'
+import { inputBaseStyles } from '~/lib/styles/input'
+import { TruckIcon } from '@heroicons/react/24/outline'
 
 interface CarBrand {
     id: number
@@ -17,40 +20,35 @@ interface CarTemplate {
     id: number
     brand_id: number
     model_id: number
-    body_type_id?: number
-    fuel_type_id?: number
-    door_count_id?: number
-    seat_count_id?: number
-    transmission_type_id?: number
-    engine_volume_id?: number
+    production_year?: number
+    transmission?: 'automatic' | 'manual'
+    engine_volume?: number
+    body_type?: string
+    seats?: number
+    doors?: number
+    fuel_type?: string
+    description?: string
+    photos?: string
 }
 
 interface CarTemplateFormProps {
     template?: CarTemplate | null
     brands: CarBrand[]
     models: CarModel[]
-    referenceData?: {
-        bodyTypes: Array<{ id: number; name: string }>
-        fuelTypes: Array<{ id: number; name: string }>
-        doorCounts: Array<{ id: number; count: number }>
-        seatCounts: Array<{ id: number; count: number }>
-        transmissionTypes: Array<{ id: number; name: string }>
-        engineVolumes: Array<{ id: number; volume: number }>
-    }
-    onSubmit: (data: any) => void
-    onCancel: () => void
 }
 
-export function CarTemplateForm({ template, brands, models, referenceData, onSubmit, onCancel }: CarTemplateFormProps) {
+export function CarTemplateForm({ template, brands, models }: CarTemplateFormProps) {
     const [formData, setFormData] = useState({
         brand_id: '',
         model_id: '',
-        body_type_id: '',
-        fuel_type_id: '',
-        door_count_id: '',
-        seat_count_id: '',
-        transmission_type_id: '',
-        engine_volume_id: ''
+        production_year: '',
+        transmission: '',
+        engine_volume: '',
+        body_type: '',
+        seats: '',
+        doors: '',
+        fuel_type: '',
+        description: ''
     })
     const [filteredModels, setFilteredModels] = useState<CarModel[]>([])
     const [errors, setErrors] = useState<Record<string, string>>({})
@@ -60,221 +58,203 @@ export function CarTemplateForm({ template, brands, models, referenceData, onSub
             setFormData({
                 brand_id: template.brand_id.toString(),
                 model_id: template.model_id.toString(),
-                body_type_id: template.body_type_id?.toString() || '',
-                fuel_type_id: template.fuel_type_id?.toString() || '',
-                door_count_id: template.door_count_id?.toString() || '',
-                seat_count_id: template.seat_count_id?.toString() || '',
-                transmission_type_id: template.transmission_type_id?.toString() || '',
-                engine_volume_id: template.engine_volume_id?.toString() || ''
+                production_year: template.production_year?.toString() || '',
+                transmission: template.transmission || '',
+                engine_volume: template.engine_volume?.toString() || '',
+                body_type: template.body_type || '',
+                seats: template.seats?.toString() || '',
+                doors: template.doors?.toString() || '',
+                fuel_type: template.fuel_type || '',
+                description: template.description || ''
             })
         }
     }, [template])
 
     useEffect(() => {
         if (formData.brand_id) {
-            const brandId = parseInt(formData.brand_id)
-            const filtered = models.filter(model => model.brand_id === brandId)
+            const filtered = models.filter(m => m.brand_id === parseInt(formData.brand_id))
             setFilteredModels(filtered)
+            
+            if (!filtered.find(m => m.id === parseInt(formData.model_id))) {
+                setFormData(prev => ({ ...prev, model_id: '' }))
+            }
         } else {
             setFilteredModels([])
+            setFormData(prev => ({ ...prev, model_id: '' }))
         }
     }, [formData.brand_id, models])
 
-    const handleFieldChange = (name: string, value: string) => {
-        if (name === 'brand_id') {
-            setFormData(prev => ({
-                ...prev,
-                [name]: value,
-                model_id: ''
-            }))
-        } else {
-            setFormData(prev => ({ ...prev, [name]: value }))
-        }
-
-        if (errors[name]) {
-            setErrors(prev => ({ ...prev, [name]: '' }))
-        }
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target
+        setFormData(prev => ({ ...prev, [name]: value }))
     }
-
-    const validate = () => {
-        const newErrors: Record<string, string> = {}
-
-        if (!formData.brand_id) {
-            newErrors.brand_id = 'Brand is required'
-        }
-
-        if (!formData.model_id) {
-            newErrors.model_id = 'Model is required'
-        }
-
-        if (!formData.body_type_id) {
-            newErrors.body_type_id = 'Body type is required'
-        }
-
-        if (!formData.fuel_type_id) {
-            newErrors.fuel_type_id = 'Fuel type is required'
-        }
-
-        setErrors(newErrors)
-        return Object.keys(newErrors).length === 0
-    }
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault()
-
-        if (!validate()) {
-            return
-        }
-
-        onSubmit({
-            brand_id: parseInt(formData.brand_id),
-            model_id: parseInt(formData.model_id),
-            body_type_id: formData.body_type_id ? parseInt(formData.body_type_id) : undefined,
-            fuel_type_id: formData.fuel_type_id ? parseInt(formData.fuel_type_id) : undefined,
-            door_count_id: formData.door_count_id ? parseInt(formData.door_count_id) : undefined,
-            seat_count_id: formData.seat_count_id ? parseInt(formData.seat_count_id) : undefined,
-            transmission_type_id: formData.transmission_type_id ? parseInt(formData.transmission_type_id) : undefined,
-            engine_volume_id: formData.engine_volume_id ? parseInt(formData.engine_volume_id) : undefined
-        })
-    }
-
-    const inputClass = "block w-full rounded-xl sm:text-sm py-2 px-3 bg-white text-gray-800 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors"
 
     return (
-        <Modal
-            title={template ? 'Edit Car Template' : 'Create Car Template'}
-            onClose={onCancel}
-            maxWidth="lg"
-            actions={
-                <Button
-                    type="submit"
-                    form="car-template-form"
-                    variant="primary"
-                >
-                    {template ? 'Save' : 'Add'}
-                </Button>
-            }
-        >
-            <form id="car-template-form" onSubmit={handleSubmit} className="space-y-4">
+        <Form method="post" id="car-template-form" className="space-y-4">
+            <FormSection title="Basic Information" icon={<TruckIcon className="w-5 h-5" />}>
                 <div className="grid grid-cols-4 gap-4">
                     <div className="col-span-2">
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Brand *</label>
-                        <select
-                            value={formData.brand_id}
-                            onChange={(e) => handleFieldChange('brand_id', e.target.value)}
-                            className={`${inputClass} ${errors.brand_id ? 'border-gray-600' : ''}`}
-                        >
-                            <option value="">Select a brand</option>
-                            {brands.map(b => (
-                                <option key={b.id} value={b.id}>{b.name}</option>
-                            ))}
-                        </select>
-                        {errors.brand_id && <p className="mt-1 text-sm text-gray-700">{errors.brand_id}</p>}
+                        <FormField label="Brand" required error={errors.brand_id}>
+                            <select
+                                name="brand_id"
+                                value={formData.brand_id}
+                                onChange={handleChange}
+                                className={`${inputBaseStyles} ${errors.brand_id ? 'border-gray-600' : ''}`}
+                                required
+                            >
+                                <option value="">Select brand</option>
+                                {brands.map(brand => (
+                                    <option key={brand.id} value={brand.id}>
+                                        {brand.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </FormField>
                     </div>
 
                     <div className="col-span-2">
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Model *</label>
-                        <select
-                            value={formData.model_id}
-                            onChange={(e) => handleFieldChange('model_id', e.target.value)}
-                            disabled={!formData.brand_id}
-                            className={`${inputClass} ${errors.model_id ? 'border-gray-600' : ''} ${!formData.brand_id ? 'opacity-50' : ''}`}
-                        >
-                            <option value="">Select a model</option>
-                            {filteredModels.map(m => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
-                            ))}
-                        </select>
-                        {errors.model_id && <p className="mt-1 text-sm text-gray-700">{errors.model_id}</p>}
+                        <FormField label="Model" required error={errors.model_id}>
+                            <select
+                                name="model_id"
+                                value={formData.model_id}
+                                onChange={handleChange}
+                                className={`${inputBaseStyles} ${errors.model_id ? 'border-gray-600' : ''}`}
+                                disabled={!formData.brand_id}
+                                required
+                            >
+                                <option value="">Select model</option>
+                                {filteredModels.map(model => (
+                                    <option key={model.id} value={model.id}>
+                                        {model.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </FormField>
                     </div>
 
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Body Type *</label>
-                        <select
-                            value={formData.body_type_id}
-                            onChange={(e) => handleFieldChange('body_type_id', e.target.value)}
-                            className={`${inputClass} ${errors.body_type_id ? 'border-gray-600' : ''}`}
-                        >
-                            <option value="">Select body type</option>
-                            {(referenceData?.bodyTypes || []).map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
-                        </select>
-                        {errors.body_type_id && <p className="mt-1 text-sm text-gray-700">{errors.body_type_id}</p>}
+                    <div className="col-span-1">
+                        <FormField label="Year" error={errors.production_year}>
+                            <input
+                                type="number"
+                                name="production_year"
+                                value={formData.production_year}
+                                onChange={handleChange}
+                                className={`${inputBaseStyles} ${errors.production_year ? 'border-gray-600' : ''}`}
+                                placeholder="2024"
+                                min="1900"
+                                max={new Date().getFullYear() + 1}
+                            />
+                        </FormField>
                     </div>
 
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Fuel Type *</label>
-                        <select
-                            value={formData.fuel_type_id}
-                            onChange={(e) => handleFieldChange('fuel_type_id', e.target.value)}
-                            className={`${inputClass} ${errors.fuel_type_id ? 'border-gray-600' : ''}`}
-                        >
-                            <option value="">Select fuel type</option>
-                            {(referenceData?.fuelTypes || []).map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
-                        </select>
-                        {errors.fuel_type_id && <p className="mt-1 text-sm text-gray-700">{errors.fuel_type_id}</p>}
+                    <div className="col-span-1">
+                        <FormField label="Transmission" error={errors.transmission}>
+                            <select
+                                name="transmission"
+                                value={formData.transmission}
+                                onChange={handleChange}
+                                className={inputBaseStyles}
+                            >
+                                <option value="">Select</option>
+                                <option value="automatic">Automatic</option>
+                                <option value="manual">Manual</option>
+                            </select>
+                        </FormField>
                     </div>
 
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Doors</label>
-                        <select
-                            value={formData.door_count_id}
-                            onChange={(e) => handleFieldChange('door_count_id', e.target.value)}
-                            className={inputClass}
-                        >
-                            <option value="">Select doors</option>
-                            {(referenceData?.doorCounts || []).map(d => (
-                                <option key={d.id} value={d.id}>{d.count}</option>
-                            ))}
-                        </select>
+                    <div className="col-span-1">
+                        <FormField label="Body Type" error={errors.body_type}>
+                            <input
+                                type="text"
+                                name="body_type"
+                                value={formData.body_type}
+                                onChange={handleChange}
+                                className={`${inputBaseStyles} ${errors.body_type ? 'border-gray-600' : ''}`}
+                                placeholder="Sedan"
+                            />
+                        </FormField>
                     </div>
 
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Seats</label>
-                        <select
-                            value={formData.seat_count_id}
-                            onChange={(e) => handleFieldChange('seat_count_id', e.target.value)}
-                            className={inputClass}
-                        >
-                            <option value="">Select seats</option>
-                            {(referenceData?.seatCounts || []).map(s => (
-                                <option key={s.id} value={s.id}>{s.count}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Transmission</label>
-                        <select
-                            value={formData.transmission_type_id}
-                            onChange={(e) => handleFieldChange('transmission_type_id', e.target.value)}
-                            className={inputClass}
-                        >
-                            <option value="">Select transmission</option>
-                            {(referenceData?.transmissionTypes || []).map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Engine Volume</label>
-                        <select
-                            value={formData.engine_volume_id}
-                            onChange={(e) => handleFieldChange('engine_volume_id', e.target.value)}
-                            className={inputClass}
-                        >
-                            <option value="">Select engine volume</option>
-                            {(referenceData?.engineVolumes || []).map(e => (
-                                <option key={e.id} value={e.id}>{e.volume}L</option>
-                            ))}
-                        </select>
+                    <div className="col-span-1">
+                        <FormField label="Fuel Type" error={errors.fuel_type}>
+                            <input
+                                type="text"
+                                name="fuel_type"
+                                value={formData.fuel_type}
+                                onChange={handleChange}
+                                className={`${inputBaseStyles} ${errors.fuel_type ? 'border-gray-600' : ''}`}
+                                placeholder="Gasoline"
+                            />
+                        </FormField>
                     </div>
                 </div>
-            </form>
-        </Modal>
+            </FormSection>
+
+            <FormSection title="Specifications">
+                <div className="grid grid-cols-4 gap-4">
+                    <div className="col-span-1">
+                        <FormField label="Engine Volume (L)" error={errors.engine_volume}>
+                            <input
+                                type="number"
+                                name="engine_volume"
+                                value={formData.engine_volume}
+                                onChange={handleChange}
+                                className={`${inputBaseStyles} ${errors.engine_volume ? 'border-gray-600' : ''}`}
+                                placeholder="2.0"
+                                step="0.1"
+                                min="0"
+                            />
+                        </FormField>
+                    </div>
+
+                    <div className="col-span-1">
+                        <FormField label="Seats" error={errors.seats}>
+                            <input
+                                type="number"
+                                name="seats"
+                                value={formData.seats}
+                                onChange={handleChange}
+                                className={`${inputBaseStyles} ${errors.seats ? 'border-gray-600' : ''}`}
+                                placeholder="5"
+                                min="1"
+                            />
+                        </FormField>
+                    </div>
+
+                    <div className="col-span-1">
+                        <FormField label="Doors" error={errors.doors}>
+                            <input
+                                type="number"
+                                name="doors"
+                                value={formData.doors}
+                                onChange={handleChange}
+                                className={`${inputBaseStyles} ${errors.doors ? 'border-gray-600' : ''}`}
+                                placeholder="4"
+                                min="1"
+                            />
+                        </FormField>
+                    </div>
+
+                    <div className="col-span-1"></div>
+                </div>
+            </FormSection>
+
+            <FormSection title="Description">
+                <div className="grid grid-cols-4 gap-4">
+                    <div className="col-span-4">
+                        <FormField label="Description" error={errors.description}>
+                            <textarea
+                                name="description"
+                                value={formData.description}
+                                onChange={handleChange}
+                                className={inputBaseStyles}
+                                placeholder="Enter template description"
+                                rows={4}
+                            />
+                        </FormField>
+                    </div>
+                </div>
+            </FormSection>
+        </Form>
     )
 }

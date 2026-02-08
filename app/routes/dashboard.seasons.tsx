@@ -333,8 +333,8 @@ export default function SeasonsPage() {
                         required
                     />
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
+                    <div className="grid grid-cols-4 gap-4">
+                        <div className="col-span-2">
                             <label className="block text-xs text-gray-600 mb-1">
                                 Start Month
                             </label>
@@ -352,7 +352,7 @@ export default function SeasonsPage() {
                                 ))}
                             </select>
                         </div>
-                        <div>
+                        <div className="col-span-2">
                             <label className="block text-xs text-gray-600 mb-1">
                                 Start Day
                             </label>
@@ -372,8 +372,8 @@ export default function SeasonsPage() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
+                    <div className="grid grid-cols-4 gap-4">
+                        <div className="col-span-2">
                             <label className="block text-xs text-gray-600 mb-1">
                                 End Month
                             </label>
@@ -391,7 +391,7 @@ export default function SeasonsPage() {
                                 ))}
                             </select>
                         </div>
-                        <div>
+                        <div className="col-span-2">
                             <label className="block text-xs text-gray-600 mb-1">
                                 End Day
                             </label>

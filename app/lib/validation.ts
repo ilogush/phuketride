@@ -84,7 +84,7 @@ export function hasNonLatinChars(value: string): boolean {
     return NON_LATIN_REGEX.test(value)
 }
 
-export function getNonLatinWarning(value: string): string | null => {
+export function getNonLatinWarning(value: string): string | null {
     if (hasNonLatinChars(value)) {
         return 'Please use English (Latin) characters only'
     }

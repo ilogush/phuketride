@@ -1,171 +1,102 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { useLoaderData, Form } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import PageHeader from "~/components/ui/PageHeader";
-import { Input } from "~/components/ui/Input";
-import { Select } from "~/components/ui/Select";
-import { Textarea } from "~/components/ui/Textarea";
-import Button from "~/components/ui/Button";
-import BackButton from "~/components/ui/BackButton";
-import FormSection from "~/components/ui/FormSection";
-import { useState } from "react";
-import { TruckIcon, Cog6ToothIcon } from "@heroicons/react/24/outline";
+import { drizzle } from 'drizzle-orm/d1'
+import { redirect } from 'react-router'
+import * as schema from '~/db/schema'
+import type { Route } from './+types/dashboard.car-templates.create'
+import { requireAuth } from '~/lib/auth.server'
+import { CarTemplateForm } from '~/components/dashboard/CarTemplateForm'
+import PageHeader from '~/components/ui/PageHeader'
+import BackButton from '~/components/ui/BackButton'
+import Button from '~/components/ui/Button'
+import FormBox from '~/components/ui/FormBox'
 
-export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    if (user.role !== "admin") {
-        throw new Response("Forbidden", { status: 403 });
+export async function loader({ request, context }: Route.LoaderArgs) {
+    const user = await requireAuth(request)
+    
+    if (user.role !== 'admin') {
+        throw new Response('Forbidden', { status: 403 })
     }
-    const db = drizzle(context.cloudflare.env.DB, { schema });
 
-    const [brandsList, modelsList] = await Promise.all([
-        db.select().from(schema.carBrands).limit(100),
-        db.select().from(schema.carModels).limit(500),
-    ]);
+    const db = drizzle(context.cloudflare.env.DB, { schema })
 
-    return { brands: brandsList, models: modelsList };
+    const brands = await db
+        .select({
+            id: schema.carBrands.id,
+            name: schema.carBrands.name,
+        })
+        .from(schema.carBrands)
+        .orderBy(schema.carBrands.name)
+        .limit(100)
+
+    const models = await db
+        .select({
+            id: schema.carModels.id,
+            name: schema.carModels.name,
+            brand_id: schema.carModels.brandId,
+        })
+        .from(schema.carModels)
+        .orderBy(schema.carModels.name)
+        .limit(500)
+
+    return { brands, models }
 }
 
-export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    if (user.role !== "admin") {
-        throw new Response("Forbidden", { status: 403 });
-    }
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-    const formData = await request.formData();
+export async function action({ request, context }: Route.ActionArgs) {
+    const formData = await request.formData()
+    const db = drizzle(context.cloudflare.env.DB, { schema })
 
-    const brandId = Number(formData.get("brandId"));
-    const modelId = Number(formData.get("modelId"));
-    const productionYear = Number(formData.get("productionYear"));
-    const transmission = formData.get("transmission") as "automatic" | "manual";
-    const engineVolume = Number(formData.get("engineVolume"));
-    const bodyType = formData.get("bodyType") as string;
-    const seats = Number(formData.get("seats"));
-    const doors = Number(formData.get("doors"));
-    const fuelType = formData.get("fuelType") as string;
-    const description = formData.get("description") as string;
+    const data = {
+        brand_id: formData.get('brand_id'),
+        model_id: formData.get('model_id'),
+        production_year: formData.get('production_year'),
+        transmission: formData.get('transmission'),
+        engine_volume: formData.get('engine_volume'),
+        body_type: formData.get('body_type'),
+        seats: formData.get('seats'),
+        doors: formData.get('doors'),
+        fuel_type: formData.get('fuel_type'),
+        description: formData.get('description'),
+        photos: formData.get('photos'),
+    }
+
+    if (!data.brand_id || !data.model_id) {
+        return { error: 'Brand and model are required' }
+    }
 
     await db.insert(schema.carTemplates).values({
-        brandId,
-        modelId,
-        productionYear,
-        transmission,
-        engineVolume,
-        bodyType,
-        seats,
-        doors,
-        fuelType,
-        description,
-    });
+        brandId: Number(data.brand_id),
+        modelId: Number(data.model_id),
+        productionYear: data.production_year ? Number(data.production_year) : null,
+        transmission: data.transmission as 'automatic' | 'manual' | null,
+        engineVolume: data.engine_volume ? Number(data.engine_volume) : null,
+        bodyType: data.body_type as string | null,
+        seats: data.seats ? Number(data.seats) : null,
+        doors: data.doors ? Number(data.doors) : null,
+        fuelType: data.fuel_type as string | null,
+        description: data.description as string | null,
+        photos: data.photos as string | null,
+    })
 
-    return redirect("/car-templates");
+    return redirect('/car-templates')
 }
 
-export default function CreateCarTemplatePage() {
-    const { brands, models } = useLoaderData<typeof loader>();
-    const [selectedBrandId, setSelectedBrandId] = useState(brands[0]?.id || 0);
-
-    const filteredModels = models.filter(m => m.brandId === selectedBrandId);
+export default function CreateCarTemplatePage({ loaderData }: Route.ComponentProps) {
+    const { brands, models } = loaderData
 
     return (
         <div className="space-y-4">
             <PageHeader
-                title="Add New Car Template"
+                title="Create Car Template"
                 leftActions={<BackButton to="/car-templates" />}
                 rightActions={
-                    <Button type="submit" variant="primary" form="template-form">
+                    <Button type="submit" variant="primary" form="car-template-form">
                         Create Template
                     </Button>
                 }
             />
 
-            <Form id="template-form" method="post" className="space-y-4">
-                <FormSection title="Basic Information" icon={<TruckIcon />} grid="cols-4">
-                    <Select
-                        label="Brand"
-                        name="brandId"
-                        value={selectedBrandId}
-                        onChange={(e) => setSelectedBrandId(Number(e.target.value))}
-                        options={brands}
-                        required
-                    />
-                    <Select
-                        label="Model"
-                        name="modelId"
-                        options={filteredModels}
-                        required
-                    />
-                    <Input
-                        label="Year"
-                        name="productionYear"
-                        type="number"
-                        placeholder="2023"
-                        required
-                    />
-                    <Select
-                        label="Transmission"
-                        name="transmission"
-                        options={[
-                            { id: "automatic", name: "Automatic" },
-                            { id: "manual", name: "Manual" }
-                        ]}
-                        required
-                    />
-                </FormSection>
-
-                <FormSection title="Technical Specifications" icon={<Cog6ToothIcon />} grid="cols-4">
-                    <Input
-                        label="Engine (CC)"
-                        name="engineVolume"
-                        type="number"
-                        step="0.1"
-                        placeholder="1.5"
-                        required
-                    />
-                    <Select
-                        label="Fuel"
-                        name="fuelType"
-                        options={[
-                            { id: "gasoline", name: "Gasoline 91/95" },
-                            { id: "diesel", name: "Diesel" },
-                            { id: "electric", name: "Electric" },
-                            { id: "hybrid", name: "Hybrid" }
-                        ]}
-                        required
-                    />
-                    <Input
-                        label="Body Type"
-                        name="bodyType"
-                        placeholder="e.g., Sedan"
-                        required
-                    />
-                    <Input
-                        label="Seats"
-                        name="seats"
-                        type="number"
-                        placeholder="5"
-                        required
-                    />
-                    <Input
-                        label="Doors"
-                        name="doors"
-                        type="number"
-                        placeholder="4"
-                        required
-                    />
-                </FormSection>
-
-                <FormSection title="Description" icon={<TruckIcon />}>
-                    <Textarea
-                        label="Description"
-                        name="description"
-                        rows={4}
-                        placeholder="Detailed car characteristics..."
-                    />
-                </FormSection>
-            </Form>
+            <FormBox>
+                <CarTemplateForm brands={brands} models={models} />
+            </FormBox>
         </div>
-    );
+    )
 }

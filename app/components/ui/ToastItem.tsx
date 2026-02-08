@@ -41,7 +41,7 @@ export default function ToastItem({ toast, onRemove }: ToastItemProps) {
 
     return (
         <div
-            className="bg-gray-900 border border-gray-700 text-gray-500 rounded-2xl shadow-2xl p-3 flex items-center gap-3 transition-all duration-500 ease-out transform animate-in fade-in slide-in-from-right-8"
+            className="pointer-events-auto bg-gray-900 border border-gray-700 text-gray-500 rounded-2xl shadow-2xl p-3 flex items-center gap-3 transition-all duration-500 ease-out transform animate-in fade-in slide-in-from-right-8"
             role="alert"
         >
             <div className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center">
