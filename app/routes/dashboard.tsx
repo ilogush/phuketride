@@ -16,7 +16,7 @@ export default function DashboardLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     return (
-        <div className="h-screen bg-gray-50 flex overflow-hidden">
+        <div className="h-screen bg-gray-100 flex overflow-hidden">
             <Sidebar user={user} isOpen={isSidebarOpen} />
 
             {/* Main content */}

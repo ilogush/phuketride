@@ -15,6 +15,89 @@
 
 ## Available UI Components
 
+### Form Components
+
+#### FormInput
+**Location**: `app/components/ui/FormInput.tsx`
+
+Universal input component that automatically switches between edit and view modes.
+
+```tsx
+import FormInput from '@/components/ui/FormInput'
+
+// Edit mode (editable input)
+<FormInput 
+  label="First Name" 
+  name="name" 
+  defaultValue={user.name}
+  placeholder="Enter name"
+  required
+  isEdit={true}
+/>
+
+// View mode (readonly with gray background)
+<FormInput 
+  label="First Name" 
+  name="name" 
+  value={user.name}
+  isEdit={false}
+/>
+```
+
+**Props**:
+- `label` (string, required) - Field label
+- `name` (string, required) - Form field name
+- `type` (string, optional) - Input type (text, email, password, date, etc.)
+- `value` (string | number | null, optional) - Value for view mode
+- `defaultValue` (string | number | null, optional) - Default value for edit mode
+- `placeholder` (string, optional) - Placeholder text
+- `required` (boolean, optional) - Mark field as required
+- `disabled` (boolean, optional) - Disable field
+- `isEdit` (boolean, optional, default: true) - Toggle between edit/view mode
+
+#### FormSelect
+**Location**: `app/components/ui/FormSelect.tsx`
+
+Universal select dropdown component that automatically switches between edit and view modes.
+
+```tsx
+import FormSelect from '@/components/ui/FormSelect'
+
+// Edit mode (editable select)
+<FormSelect
+  label="Country"
+  name="countryId"
+  defaultValue={user.countryId}
+  options={countries}
+  isEdit={true}
+/>
+
+// View mode (readonly with gray background)
+<FormSelect
+  label="Country"
+  name="countryId"
+  value={user.countryId}
+  options={countries}
+  isEdit={false}
+/>
+```
+
+**Props**:
+- `label` (string, required) - Field label
+- `name` (string, required) - Form field name
+- `value` (string | number | null, optional) - Value for view mode
+- `defaultValue` (string | number | null, optional) - Default value for edit mode
+- `options` (Array<{id: number | string, name: string}>, required) - Select options
+- `placeholder` (string, optional) - Placeholder text
+- `required` (boolean, optional) - Mark field as required
+- `disabled` (boolean, optional) - Disable field
+- `isEdit` (boolean, optional, default: true) - Toggle between edit/view mode
+
+#### Input
+**Location**: `app/components/ui/Input.tsx`
+
+Basic input component for simple forms without view/edit modes.
+
 ### Core Components
 
 #### Button

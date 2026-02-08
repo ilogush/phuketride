@@ -59,7 +59,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
                         <input
                             type="text"
                             placeholder="Global search (companies, cars, users...)"
-                            className="w-full pl-4 pr-14 py-2.5 bg-white rounded-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-200 transition-all"
+                            className="w-full pl-4 pr-14 py-2.5 bg-white rounded-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-200 transition-all border border-gray-200"
                         />
                         <div className="absolute inset-y-2 right-1.5 flex items-center">
                             <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center shadow-sm transition-transform group-focus-within:scale-105">
@@ -84,9 +84,9 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
                     <div className="relative">
                         <button
                             onClick={() => setShowProfileMenu(!showProfileMenu)}
-                            className="flex items-center gap-3 p-1.5 hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200 rounded-xl transition-all"
+                            className="flex items-center gap-3 p-1.5 hover:bg-white hover:shadow-sm  rounded-full transition-all"
                         >
-                            <div className="w-9 h-9 bg-gray-900 rounded-full flex items-center justify-center shadow-sm">
+                            <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center shadow-sm">
                                 <span className="text-white text-xs font-bold">
                                     {displayName.charAt(0).toUpperCase()}
                                 </span>
