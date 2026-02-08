@@ -106,8 +106,6 @@ export default function Sidebar({ user, isOpen, onClose }: SidebarProps) {
     const [hoveredItem, setHoveredItem] = useState<{ label: string; top: number } | null>(null);
     const menuItems = getMenuItems(user.role);
 
-    console.log("Sidebar render - currentPath:", location.pathname);
-
     return (
         <>
             {/* Mobile Overlay */}

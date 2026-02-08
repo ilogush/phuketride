@@ -18,8 +18,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    console.log("Login attempt:", { email });
-
     if (!email || !password) {
         return { error: "Email and password are required" };
     }
@@ -27,11 +25,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const result = await login(context.cloudflare.env.DB, email, password);
 
     if ("error" in result) {
-        console.log("Login failed:", result.error);
         return { error: result.error };
     }
-
-    console.log("Login successful, redirecting to dashboard");
 
     // Set cookie and redirect to dashboard
     return redirect("/dashboard", {

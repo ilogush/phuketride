@@ -348,12 +348,8 @@ function ProfileForm({
             <FormSection title="Document Photos" icon={<DocumentTextIcon />}>
                 {isEdit ? (
                     <DocumentPhotosUpload
-                        onPassportPhotosChange={(photos) => {
-                            console.log('Passport:', photos);
-                        }}
-                        onDriverLicensePhotosChange={(photos) => {
-                            console.log('Driver License:', photos);
-                        }}
+                        onPassportPhotosChange={() => {}}
+                        onDriverLicensePhotosChange={() => {}}
                     />
                 ) : (
                     <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">

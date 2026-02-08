@@ -1,4 +1,4 @@
-import { Toast } from '~/lib/toast'
+import type { Toast } from '~/lib/toast'
 import ToastItem from './ToastItem'
 
 interface ToastContainerProps {

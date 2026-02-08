@@ -25,13 +25,9 @@ export interface SessionUser {
 
 // Simple password verification (in production, use proper hashing like bcrypt)
 function verifyPassword(password: string, email: string): boolean {
-    console.log("verifyPassword called:", { email, password, passwordLength: password.length });
-
     // Admin has special password
     if (email === "ilogush@icloud.com") {
-        const isValid = password === "220232";
-        console.log("Admin password check:", { password, expected: "220232", isValid });
-        return isValid;
+        return password === "220232";
     }
     // For demo purposes, all other test users have password "password123"
     return password === "password123";

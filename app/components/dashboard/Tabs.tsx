@@ -20,7 +20,6 @@ export default function Tabs({ tabs, activeTab, onTabChange, className = '', var
         if (onTabChange) {
             e.preventDefault()
             e.stopPropagation()
-            console.log('Tab clicked:', tabId)
             onTabChange(tabId)
         }
         // If baseUrl is provided and no onTabChange, let the link handle navigation

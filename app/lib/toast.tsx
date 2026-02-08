@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useId, type ReactNode } from 'react'
 import ToastContainer from '~/components/dashboard/ToastContainer'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
@@ -29,7 +29,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
     const showToast = useCallback(
         async (message: string, type: ToastType = 'info', duration: number = 5000) => {
-            const id = Math.random().toString(36).substring(2, 9)
+            const id = useId()
             const newToast: Toast = { id, message, type, duration }
 
             setToasts((prev) => [...prev, newToast])
