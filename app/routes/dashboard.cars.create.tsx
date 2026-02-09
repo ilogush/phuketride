@@ -9,6 +9,10 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
 import Tabs from "~/components/dashboard/Tabs";
+import { Input } from "~/components/dashboard/Input";
+import { Select } from "~/components/dashboard/Select";
+import { Textarea } from "~/components/dashboard/Textarea";
+import Toggle from "~/components/dashboard/Toggle";
 import CarPhotosUpload from "~/components/dashboard/CarPhotosUpload";
 import DocumentPhotosUpload from "~/components/dashboard/DocumentPhotosUpload";
 
@@ -181,127 +185,100 @@ export default function CreateCarPage() {
                 {activeTab === "specifications" && (
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Car Template *</label>
-                                <select
-                                    name="templateId"
-                                    required
-                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors"
-                                >
-                                    <option value="">Select a template</option>
-                                    {templates.map(t => (
-                                        <option key={t.id} value={t.id}>
-                                            {getTemplateName(t)}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">License Plate *</label>
-                                <input
-                                    name="licensePlate"
-                                    required
-                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors"
-                                    placeholder="ABC-1234"
-                                    type="text"
-                                    defaultValue="UY-6787"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Production Year *</label>
-                                <input
-                                    name="productionYear"
-                                    min="1900"
-                                    max="2027"
-                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors"
-                                    placeholder="e.g. 2024"
-                                    required
-                                    type="number"
-                                    defaultValue="2026"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Color *</label>
-                                <select
-                                    name="colorId"
-                                    required
-                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors"
-                                >
-                                    <option value="">Select color</option>
-                                    {colors.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            <Select
+                                label="Car Template"
+                                name="templateId"
+                                required
+                                options={templates.map(t => ({
+                                    id: t.id,
+                                    name: getTemplateName(t)
+                                }))}
+                                placeholder="Select a template"
+                            />
+                            <Input
+                                label="License Plate"
+                                name="licensePlate"
+                                required
+                                placeholder="ABC-1234"
+                                defaultValue="UY-6787"
+                            />
+                            <Input
+                                label="Production Year"
+                                name="productionYear"
+                                type="number"
+                                min={1900}
+                                max={2027}
+                                required
+                                placeholder="e.g. 2024"
+                                defaultValue="2026"
+                            />
+                            <Select
+                                label="Color"
+                                name="colorId"
+                                required
+                                options={colors}
+                                placeholder="Select color"
+                            />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Transmission *</label>
-                                <select
-                                    name="transmission"
-                                    required
-                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors"
-                                >
-                                    <option value="Automatic">Automatic</option>
-                                    <option value="Manual">Manual</option>
-                                    <option value="CVT">CVT</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Engine Volume (L) *</label>
-                                <input
-                                    name="engineVolume"
-                                    step="0.1"
-                                    min="0.5"
-                                    max="10"
-                                    required
-                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors"
-                                    placeholder="e.g. 1.5"
-                                    type="number"
-                                    defaultValue="1.5"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Fuel Type *</label>
-                                <select
-                                    name="fuelType"
-                                    required
-                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors"
-                                >
-                                    <option value="Gasoline">Gasoline</option>
-                                    <option value="Diesel">Diesel</option>
-                                    <option value="Hybrid">Hybrid</option>
-                                    <option value="Electric">Electric</option>
-                                    <option value="LPG">LPG</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Status *</label>
-                                <select
-                                    name="status"
-                                    required
-                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors"
-                                >
-                                    <option value="available">Available</option>
-                                    <option value="maintenance">Maintenance</option>
-                                    <option value="rented">Rented</option>
-                                </select>
-                            </div>
+                            <Select
+                                label="Transmission"
+                                name="transmission"
+                                required
+                                options={[
+                                    { id: "Automatic", name: "Automatic" },
+                                    { id: "Manual", name: "Manual" },
+                                    { id: "CVT", name: "CVT" },
+                                ]}
+                                defaultValue="Automatic"
+                            />
+                            <Input
+                                label="Engine Volume (L)"
+                                name="engineVolume"
+                                type="number"
+                                step={0.1}
+                                min={0.5}
+                                max={10}
+                                required
+                                placeholder="e.g. 1.5"
+                                defaultValue="1.5"
+                            />
+                            <Select
+                                label="Fuel Type"
+                                name="fuelType"
+                                required
+                                options={[
+                                    { id: "Gasoline", name: "Gasoline" },
+                                    { id: "Diesel", name: "Diesel" },
+                                    { id: "Hybrid", name: "Hybrid" },
+                                    { id: "Electric", name: "Electric" },
+                                    { id: "LPG", name: "LPG" },
+                                ]}
+                                defaultValue="Gasoline"
+                            />
+                            <Select
+                                label="Status"
+                                name="status"
+                                required
+                                options={[
+                                    { id: "available", name: "Available" },
+                                    { id: "maintenance", name: "Maintenance" },
+                                    { id: "rented", name: "Rented" },
+                                ]}
+                                defaultValue="available"
+                            />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">VIN Number</label>
-                                <input
-                                    name="vin"
-                                    maxLength={17}
-                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors font-mono"
-                                    placeholder="Optional"
-                                    type="text"
-                                    defaultValue="7X7I4EIQ2OMQRU9SW"
-                                />
-                            </div>
+                            <Input
+                                label="VIN Number"
+                                name="vin"
+                                maxLength={17}
+                                className="font-mono"
+                                placeholder="Optional"
+                                defaultValue="7X7I4EIQ2OMQRU9SW"
+                            />
                         </div>
 
                         <div className="space-y-2">
@@ -318,52 +295,38 @@ export default function CreateCarPage() {
                 {activeTab === "maintenance" && (
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <Input
+                                label="Daily Mileage Limit"
+                                name="dailyMileageLimit"
+                                type="number"
+                                min={0}
+                                placeholder="Optional"
+                                addonRight="km/day"
+                            />
+                            <Input
+                                label="Current Mileage"
+                                name="currentMileage"
+                                type="number"
+                                required
+                                min={0}
+                                placeholder="0"
+                                value={currentMileage}
+                                onChange={(e) => setCurrentMileage(Number(e.target.value))}
+                                addonRight="km"
+                            />
                             <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Daily Mileage Limit</label>
-                                <div className="relative">
-                                    <input
-                                        name="dailyMileageLimit"
-                                        min="0"
-                                        className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors pr-16"
-                                        placeholder="Optional"
-                                        type="number"
-                                    />
-                                    <span className="absolute right-3 top-2.5 text-xs text-gray-400 font-medium">km/day</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Current Mileage *</label>
-                                <div className="relative">
-                                    <input
-                                        name="currentMileage"
-                                        required
-                                        min="0"
-                                        className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors pr-8"
-                                        placeholder="0"
-                                        type="number"
-                                        value={currentMileage}
-                                        onChange={(e) => setCurrentMileage(Number(e.target.value))}
-                                    />
-                                    <span className="absolute right-3 top-2.5 text-xs text-gray-400 font-medium">km</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Next Oil Change Mileage *</label>
-                                <div className="relative">
-                                    <input
-                                        name="nextOilChangeMileage"
-                                        min="0"
-                                        className={`block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors pr-8 ${
-                                            isOilChangeDueSoon ? 'bg-gray-100 font-bold' : 'bg-white'
-                                        }`}
-                                        placeholder="e.g. 50000"
-                                        required
-                                        type="number"
-                                        value={nextOilChange}
-                                        onChange={(e) => setNextOilChange(Number(e.target.value))}
-                                    />
-                                    <span className="absolute right-3 top-2.5 text-xs text-gray-400 font-medium">km</span>
-                                </div>
+                                <Input
+                                    label="Next Oil Change Mileage"
+                                    name="nextOilChangeMileage"
+                                    type="number"
+                                    required
+                                    min={0}
+                                    placeholder="e.g. 50000"
+                                    value={nextOilChange}
+                                    onChange={(e) => setNextOilChange(Number(e.target.value))}
+                                    addonRight="km"
+                                    className={isOilChangeDueSoon ? 'bg-gray-100 font-bold' : ''}
+                                />
                                 {isOilChangeDueSoon && (
                                     <div className="mt-2 flex items-center gap-2 text-orange-600 animate-pulse">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -373,21 +336,16 @@ export default function CreateCarPage() {
                                     </div>
                                 )}
                             </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Oil Change Interval (km)</label>
-                                <div className="relative">
-                                    <input
-                                        name="oilChangeInterval"
-                                        min="1000"
-                                        step="1000"
-                                        className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors pr-8"
-                                        placeholder="10000"
-                                        type="number"
-                                        defaultValue="10000"
-                                    />
-                                    <span className="absolute right-3 top-2.5 text-xs text-gray-400 font-medium">km</span>
-                                </div>
-                            </div>
+                            <Input
+                                label="Oil Change Interval (km)"
+                                name="oilChangeInterval"
+                                type="number"
+                                min={1000}
+                                step={1000}
+                                placeholder="10000"
+                                defaultValue="10000"
+                                addonRight="km"
+                            />
                         </div>
                     </div>
                 )}
@@ -395,39 +353,29 @@ export default function CreateCarPage() {
                 {activeTab === "pricing" && (
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Price per Day *</label>
-                                <div className="relative">
-                                    <input
-                                        name="pricePerDay"
-                                        min="0"
-                                        className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors pr-8"
-                                        placeholder="0.00"
-                                        type="number"
-                                        value={pricePerDay}
-                                        onChange={(e) => setPricePerDay(Number(e.target.value))}
-                                        required
-                                        step="0.01"
-                                    />
-                                    <span className="absolute right-3 top-2.5 text-xs text-gray-400 font-medium">฿</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Deposit *</label>
-                                <div className="relative">
-                                    <input
-                                        name="deposit"
-                                        required
-                                        min="0"
-                                        className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors pr-8"
-                                        placeholder="0.00"
-                                        type="number"
-                                        defaultValue="13330"
-                                        step="0.01"
-                                    />
-                                    <span className="absolute right-3 top-2.5 text-xs text-gray-400 font-medium">฿</span>
-                                </div>
-                            </div>
+                            <Input
+                                label="Price per Day"
+                                name="pricePerDay"
+                                type="number"
+                                required
+                                min={0}
+                                step={0.01}
+                                placeholder="0.00"
+                                value={pricePerDay}
+                                onChange={(e) => setPricePerDay(Number(e.target.value))}
+                                addonRight="฿"
+                            />
+                            <Input
+                                label="Deposit"
+                                name="deposit"
+                                type="number"
+                                required
+                                min={0}
+                                step={0.01}
+                                placeholder="0.00"
+                                defaultValue="13330"
+                                addonRight="฿"
+                            />
                         </div>
 
                         <div className="mt-6">
@@ -509,56 +457,36 @@ export default function CreateCarPage() {
                 {activeTab === "insurance" && (
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Insurance Type</label>
-                                <select
-                                    name="insuranceType"
-                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors"
-                                >
-                                    <option value="">Select Insurance Type</option>
-                                    <option value="Business Insurance">Business Insurance</option>
-                                    <option value="First Class Insurance">First Class Insurance</option>
-                                </select>
-                            </div>
-                            <div>
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1.5">Insurance Expiry</label>
-                                    <input
-                                        name="insuranceExpiry"
-                                        placeholder="DD-MM-YYYY"
-                                        maxLength={10}
-                                        className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-gray-500"
-                                        type="text"
-                                        defaultValue={formatDateInput(new Date(new Date().setFullYear(new Date().getFullYear() + 3)))}
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1.5">Registration Expiry</label>
-                                    <input
-                                        name="registrationExpiry"
-                                        placeholder="DD-MM-YYYY"
-                                        maxLength={10}
-                                        className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-gray-500"
-                                        type="text"
-                                        defaultValue={formatDateInput(new Date(new Date().setFullYear(new Date().getFullYear() + 1)))}
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1.5">Tax Road Expiry</label>
-                                    <input
-                                        name="taxRoadExpiry"
-                                        placeholder="DD-MM-YYYY"
-                                        maxLength={10}
-                                        className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-gray-500"
-                                        type="text"
-                                        defaultValue={formatDateInput(new Date(new Date().setFullYear(new Date().getFullYear() + 3)))}
-                                    />
-                                </div>
-                            </div>
+                            <Select
+                                label="Insurance Type"
+                                name="insuranceType"
+                                options={[
+                                    { id: "Business Insurance", name: "Business Insurance" },
+                                    { id: "First Class Insurance", name: "First Class Insurance" },
+                                ]}
+                                placeholder="Select Insurance Type"
+                            />
+                            <Input
+                                label="Insurance Expiry"
+                                name="insuranceExpiry"
+                                placeholder="DD-MM-YYYY"
+                                maxLength={10}
+                                defaultValue={formatDateInput(new Date(new Date().setFullYear(new Date().getFullYear() + 3)))}
+                            />
+                            <Input
+                                label="Registration Expiry"
+                                name="registrationExpiry"
+                                placeholder="DD-MM-YYYY"
+                                maxLength={10}
+                                defaultValue={formatDateInput(new Date(new Date().setFullYear(new Date().getFullYear() + 1)))}
+                            />
+                            <Input
+                                label="Tax Road Expiry"
+                                name="taxRoadExpiry"
+                                placeholder="DD-MM-YYYY"
+                                maxLength={10}
+                                defaultValue={formatDateInput(new Date(new Date().setFullYear(new Date().getFullYear() + 3)))}
+                            />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -566,67 +494,43 @@ export default function CreateCarPage() {
                                 <label className="block text-xs font-medium text-gray-500 mb-1">Full Insurance</label>
                                 <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
                                     <span className="text-sm text-gray-900">Enabled</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setFullInsuranceEnabled(!fullInsuranceEnabled)}
-                                        className={`relative inline-flex flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 h-5 w-9 ${
-                                            fullInsuranceEnabled ? 'bg-gray-800' : 'bg-gray-200'
-                                        }`}
-                                        role="switch"
-                                        aria-checked={fullInsuranceEnabled}
-                                    >
-                                        <span
-                                            className={`pointer-events-none inline-block transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out h-4 w-4 ${
-                                                fullInsuranceEnabled ? 'translate-x-4' : 'translate-x-0'
-                                            }`}
-                                        />
-                                    </button>
+                                    <Toggle
+                                        enabled={fullInsuranceEnabled}
+                                        onChange={setFullInsuranceEnabled}
+                                    />
                                 </div>
                             </div>
                             {fullInsuranceEnabled && (
                                 <>
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-500 mb-1">Min Days</label>
-                                        <input
-                                            name="fullInsuranceMinDays"
-                                            min="1"
-                                            step="1"
-                                            className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors"
-                                            placeholder="5"
-                                            type="number"
-                                            defaultValue="5"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-500 mb-1">Price (short term)</label>
-                                        <div className="relative">
-                                            <input
-                                                name="minInsurancePrice"
-                                                min="0"
-                                                step="0.01"
-                                                className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors pr-8"
-                                                placeholder="0.00"
-                                                type="number"
-                                                defaultValue="500"
-                                            />
-                                            <span className="absolute right-3 top-2.5 text-xs text-gray-400 font-medium">฿</span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-500 mb-1">Price (long term)</label>
-                                        <div className="relative">
-                                            <input
-                                                name="maxInsurancePrice"
-                                                min="0"
-                                                step="0.01"
-                                                className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors pr-8"
-                                                placeholder="0.00"
-                                                type="number"
-                                                defaultValue="300"
-                                            />
-                                            <span className="absolute right-3 top-2.5 text-xs text-gray-400 font-medium">฿</span>
-                                        </div>
-                                    </div>
+                                    <Input
+                                        label="Min Days"
+                                        name="fullInsuranceMinDays"
+                                        type="number"
+                                        min={1}
+                                        step={1}
+                                        placeholder="5"
+                                        defaultValue="5"
+                                    />
+                                    <Input
+                                        label="Price (short term)"
+                                        name="minInsurancePrice"
+                                        type="number"
+                                        min={0}
+                                        step={0.01}
+                                        placeholder="0.00"
+                                        defaultValue="500"
+                                        addonRight="฿"
+                                    />
+                                    <Input
+                                        label="Price (long term)"
+                                        name="maxInsurancePrice"
+                                        type="number"
+                                        min={0}
+                                        step={0.01}
+                                        placeholder="0.00"
+                                        defaultValue="300"
+                                        addonRight="฿"
+                                    />
                                 </>
                             )}
                         </div>
@@ -662,26 +566,19 @@ export default function CreateCarPage() {
 
                 {activeTab === "details" && (
                     <div className="space-y-6">
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Marketing Headline</label>
-                            <input
-                                name="marketingHeadline"
-                                className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors"
-                                placeholder="e.g. Perfect for city trips"
-                                type="text"
-                                defaultValue="Comfortable Long-Distance Cruiser"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
-                            <textarea
-                                name="description"
-                                rows={4}
-                                className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-400 transition-colors"
-                                placeholder="Optional description"
-                                defaultValue="Spacious trunk and comfortable seating"
-                            />
-                        </div>
+                        <Input
+                            label="Marketing Headline"
+                            name="marketingHeadline"
+                            placeholder="e.g. Perfect for city trips"
+                            defaultValue="Comfortable Long-Distance Cruiser"
+                        />
+                        <Textarea
+                            label="Description"
+                            name="description"
+                            rows={4}
+                            placeholder="Optional description"
+                            value="Spacious trunk and comfortable seating"
+                        />
                     </div>
                 )}
             </Form>
