@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { useLoaderData, Form } from "react-router";
-import { useState } from "react";
+import { useLoaderData, Form, useSearchParams } from "react-router";
+import { useState, useEffect } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
@@ -15,6 +15,10 @@ import { Textarea } from "~/components/dashboard/Textarea";
 import Toggle from "~/components/dashboard/Toggle";
 import CarPhotosUpload from "~/components/dashboard/CarPhotosUpload";
 import DocumentPhotosUpload from "~/components/dashboard/DocumentPhotosUpload";
+import { useToast } from "~/lib/toast";
+import { useLatinValidation } from "~/lib/useLatinValidation";
+import { carSchema } from "~/schemas/car";
+import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -49,79 +53,100 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     const companyId = user.companyId!;
     
-    // Parse all form fields
-    const templateId = Number(formData.get("templateId"));
-    const colorId = Number(formData.get("colorId"));
-    const licensePlate = (formData.get("licensePlate") as string).toUpperCase();
-    const productionYear = Number(formData.get("productionYear"));
-    const transmission = formData.get("transmission") as string;
-    const engineVolume = Number(formData.get("engineVolume"));
-    const fuelType = formData.get("fuelType") as string;
-    const status = formData.get("status") as string;
-    const vin = formData.get("vin") as string;
-    
-    // Maintenance fields
-    const mileage = Number(formData.get("currentMileage"));
-    const nextOilChangeMileage = Number(formData.get("nextOilChangeMileage"));
-    const oilChangeInterval = Number(formData.get("oilChangeInterval")) || 10000;
-    const dailyMileageLimit = formData.get("dailyMileageLimit") ? Number(formData.get("dailyMileageLimit")) : null;
-    
-    // Pricing fields
-    const pricePerDay = Number(formData.get("pricePerDay"));
-    const deposit = Number(formData.get("deposit"));
-    
-    // Insurance fields
-    const insuranceType = formData.get("insuranceType") as string || null;
-    const insuranceExpiry = formData.get("insuranceExpiry") as string || null;
-    const registrationExpiry = formData.get("registrationExpiry") as string || null;
-    const taxRoadExpiry = formData.get("taxRoadExpiry") as string || null;
-    const fullInsuranceMinDays = formData.get("fullInsuranceMinDays") ? Number(formData.get("fullInsuranceMinDays")) : null;
-    const minInsurancePrice = formData.get("minInsurancePrice") ? Number(formData.get("minInsurancePrice")) : null;
-    const maxInsurancePrice = formData.get("maxInsurancePrice") ? Number(formData.get("maxInsurancePrice")) : null;
-    
-    // Details fields
-    const marketingHeadline = formData.get("marketingHeadline") as string || null;
-    const description = formData.get("description") as string || null;
+    // Parse form data
+    const rawData = {
+        templateId: Number(formData.get("templateId")),
+        colorId: Number(formData.get("colorId")),
+        licensePlate: (formData.get("licensePlate") as string).toUpperCase(),
+        productionYear: Number(formData.get("productionYear")),
+        transmission: formData.get("transmission") as "automatic" | "manual",
+        engineVolume: Number(formData.get("engineVolume")),
+        fuelType: formData.get("fuelType") as "petrol" | "diesel" | "electric" | "hybrid",
+        status: (formData.get("status") as "available" | "rented" | "maintenance" | "inactive") || "available",
+        vin: (formData.get("vin") as string) || null,
+        currentMileage: Number(formData.get("currentMileage")),
+        nextOilChangeMileage: Number(formData.get("nextOilChangeMileage")),
+        oilChangeInterval: Number(formData.get("oilChangeInterval")) || 10000,
+        dailyMileageLimit: formData.get("dailyMileageLimit") ? Number(formData.get("dailyMileageLimit")) : null,
+        pricePerDay: Number(formData.get("pricePerDay")),
+        deposit: Number(formData.get("deposit")),
+        insuranceType: (formData.get("insuranceType") as string) || null,
+        insuranceExpiry: (formData.get("insuranceExpiry") as string) || null,
+        registrationExpiry: (formData.get("registrationExpiry") as string) || null,
+        taxRoadExpiry: (formData.get("taxRoadExpiry") as string) || null,
+        fullInsuranceMinDays: formData.get("fullInsuranceMinDays") ? Number(formData.get("fullInsuranceMinDays")) : null,
+        minInsurancePrice: formData.get("minInsurancePrice") ? Number(formData.get("minInsurancePrice")) : null,
+        maxInsurancePrice: formData.get("maxInsurancePrice") ? Number(formData.get("maxInsurancePrice")) : null,
+    };
+
+    // Validate with Zod
+    const validation = carSchema.safeParse(rawData);
+    if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        return redirect(`/cars/create?error=${encodeURIComponent(firstError.message)}`);
+    }
+
+    const validData = validation.data;
 
     try {
-        await db.insert(schema.companyCars).values({
+        const marketingHeadline = formData.get("marketingHeadline") as string || null;
+        const description = formData.get("description") as string || null;
+
+        const [newCar] = await db.insert(schema.companyCars).values({
             companyId,
-            templateId,
-            colorId,
-            licensePlate,
-            year: productionYear,
-            transmission,
-            engineVolume,
-            fuelTypeId: null, // TODO: map fuelType to fuelTypeId
-            vin: vin || null,
-            status,
-            mileage,
-            nextOilChangeMileage,
-            oilChangeInterval,
-            pricePerDay,
-            deposit,
-            insuranceType,
-            insuranceExpiryDate: insuranceExpiry ? new Date(insuranceExpiry.split('-').reverse().join('-')) : null,
-            registrationExpiry: registrationExpiry ? new Date(registrationExpiry.split('-').reverse().join('-')) : null,
-            taxRoadExpiryDate: taxRoadExpiry ? new Date(taxRoadExpiry.split('-').reverse().join('-')) : null,
-            minInsurancePrice,
-            maxInsurancePrice,
+            templateId: validData.templateId,
+            colorId: validData.colorId,
+            licensePlate: validData.licensePlate,
+            year: validData.productionYear,
+            transmission: validData.transmission,
+            engineVolume: validData.engineVolume,
+            fuelTypeId: null,
+            vin: validData.vin,
+            status: validData.status,
+            mileage: validData.currentMileage,
+            nextOilChangeMileage: validData.nextOilChangeMileage,
+            oilChangeInterval: validData.oilChangeInterval,
+            pricePerDay: validData.pricePerDay,
+            deposit: validData.deposit,
+            insuranceType: validData.insuranceType,
+            insuranceExpiryDate: validData.insuranceExpiry ? new Date(validData.insuranceExpiry.split('-').reverse().join('-')) : null,
+            registrationExpiry: validData.registrationExpiry ? new Date(validData.registrationExpiry.split('-').reverse().join('-')) : null,
+            taxRoadExpiryDate: validData.taxRoadExpiry ? new Date(validData.taxRoadExpiry.split('-').reverse().join('-')) : null,
+            minInsurancePrice: validData.minInsurancePrice,
+            maxInsurancePrice: validData.maxInsurancePrice,
             marketingHeadline,
             description,
+        }).returning({ id: schema.companyCars.id });
+
+        // Audit log
+        const metadata = getRequestMetadata(request);
+        quickAudit({
+            db,
+            userId: user.id,
+            role: user.role,
+            companyId: user.companyId,
+            entityType: "car",
+            entityId: newCar.id,
+            action: "create",
+            afterState: { ...validData, id: newCar.id },
+            ...metadata,
         });
 
-        return redirect("/dashboard/cars");
+        return redirect(`/cars?success=${encodeURIComponent("Car created successfully")}`);
     } catch (error: any) {
-        // Handle duplicate license plate error
+        console.error("Failed to create car:", error);
         if (error.message?.includes('UNIQUE constraint failed') && error.message?.includes('license_plate')) {
-            throw new Error(`License plate "${licensePlate}" is already in use. Please use a different license plate.`);
+            return redirect(`/cars/create?error=${encodeURIComponent(`License plate "${validData.licensePlate}" is already in use`)}`);
         }
-        throw error;
+        return redirect(`/cars/create?error=${encodeURIComponent("Failed to create car")}`);
     }
 }
 
 export default function CreateCarPage() {
     const { templates, colors, seasons, durations, brands, models, bodyTypes } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
+    const { validateLatinInput } = useLatinValidation();
     const [activeTab, setActiveTab] = useState("specifications");
     const [photos, setPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [pricePerDay, setPricePerDay] = useState(2343);
@@ -131,6 +156,14 @@ export default function CreateCarPage() {
     const [taxRoadPhotos, setTaxRoadPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [currentMileage, setCurrentMileage] = useState(20321);
     const [nextOilChange, setNextOilChange] = useState(27986);
+
+    // Toast notifications
+    useEffect(() => {
+        const error = searchParams.get("error");
+        if (error) {
+            toast.error(error);
+        }
+    }, [searchParams, toast]);
 
     const tabs = [
         { id: "specifications", label: "Specifications" },
@@ -278,6 +311,7 @@ export default function CreateCarPage() {
                                 className="font-mono"
                                 placeholder="Optional"
                                 defaultValue="7X7I4EIQ2OMQRU9SW"
+                                onChange={(e) => validateLatinInput(e, 'VIN')}
                             />
                         </div>
 

@@ -117,6 +117,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         } else if (user.companyId) {
             // Partner/Manager stats
             
+            // Get company data to check if profile is complete
+            const [company] = await db
+                .select()
+                .from(companies)
+                .where(eq(companies.id, user.companyId))
+                .limit(1);
+
             // Get company users count (managers + users who have contracts with this company)
             const [managersCount] = await db
                 .select({ count: sql<number>`count(*)` })
@@ -189,6 +196,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 },
             ];
 
+            // Check if company profile is incomplete
+            const isCompanyIncomplete = company && (
+                !company.bankName ||
+                !company.accountNumber ||
+                !company.accountName
+            );
+
             // Load tasks from calendar events for partner/manager
             const upcomingTasks = await db
                 .select({
@@ -214,6 +228,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 status: task.status as "pending" | "in_progress" | "completed",
                 priority: "medium" as const,
             }));
+
+            // Add company profile completion notification if needed
+            if (isCompanyIncomplete) {
+                tasks.unshift({
+                    id: "company-setup",
+                    title: "Complete Company Profile",
+                    description: "Please fill in your company bank details in settings to start receiving payments",
+                    status: "pending" as const,
+                    priority: "high" as const,
+                });
+            }
         } else {
             // User role - show personal stats
             const [userContractsCount] = await db

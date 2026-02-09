@@ -1,35 +1,78 @@
 import { type ActionFunctionArgs, redirect } from "react-router";
-import { Form, useNavigate } from "react-router";
+import { Form, useNavigate, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
 import Button from "~/components/dashboard/Button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useToast } from "~/lib/toast";
+import { colorSchema } from "~/schemas/dictionary";
+import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    await requireAuth(request);
+    const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
-    const name = formData.get("name") as string;
-    const hexCode = formData.get("hexCode") as string;
+    const rawData = {
+        name: formData.get("name") as string,
+        hexCode: (formData.get("hexCode") as string) || null,
+    };
 
-    await db.insert(schema.colors).values({
-        name,
-        hexCode: hexCode || null,
-    });
+    // Validate with Zod
+    const validation = colorSchema.safeParse(rawData);
+    if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        return redirect(`/colors/new?error=${encodeURIComponent(firstError.message)}`);
+    }
 
-    return redirect("/colors");
+    const validData = validation.data;
+
+    try {
+        const [newColor] = await db.insert(schema.colors).values({
+            name: validData.name,
+            hexCode: validData.hexCode,
+        }).returning({ id: schema.colors.id });
+
+        // Audit log
+        const metadata = getRequestMetadata(request);
+        quickAudit({
+            db,
+            userId: user.id,
+            role: user.role,
+            companyId: user.companyId,
+            entityType: "color",
+            entityId: newColor.id,
+            action: "create",
+            afterState: { ...validData, id: newColor.id },
+            ...metadata,
+        });
+
+        return redirect("/colors?success=Color created successfully");
+    } catch (error) {
+        console.error("Failed to create color:", error);
+        return redirect("/colors/new?error=Failed to create color");
+    }
 }
 
 export default function NewColorModal() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
     const [formData, setFormData] = useState({
         name: "",
         hexCode: "#000000",
     });
+
+    // Toast notifications
+    useEffect(() => {
+        const error = searchParams.get("error");
+        if (error) {
+            toast.error(error);
+        }
+    }, [searchParams, toast]);
 
     return (
         <Modal

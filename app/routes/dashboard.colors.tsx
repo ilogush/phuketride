@@ -1,5 +1,6 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
-import { useLoaderData, Form, Link, Outlet } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { useLoaderData, Form, Link, Outlet, useSearchParams } from "react-router";
+import { useEffect } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
@@ -8,6 +9,8 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
+import { useToast } from "~/lib/toast";
+import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
 interface Color {
     id: number;
@@ -35,8 +38,36 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));
-        await db.delete(schema.colors).where(eq(schema.colors.id, id));
-        return data({ success: true, message: "Color deleted successfully" });
+        
+        // Get current color for audit log
+        const currentColor = await db
+            .select()
+            .from(schema.colors)
+            .where(eq(schema.colors.id, id))
+            .limit(1);
+
+        try {
+            await db.delete(schema.colors).where(eq(schema.colors.id, id));
+
+            // Audit log
+            const metadata = getRequestMetadata(request);
+            quickAudit({
+                db,
+                userId: user.id,
+                role: user.role,
+                companyId: user.companyId,
+                entityType: "color",
+                entityId: id,
+                action: "delete",
+                beforeState: currentColor[0],
+                ...metadata,
+            });
+
+            return redirect("/colors?success=Color deleted successfully");
+        } catch (error) {
+            console.error("Failed to delete color:", error);
+            return redirect("/colors?error=Failed to delete color");
+        }
     }
 
     if (intent === "seed") {
@@ -57,18 +88,37 @@ export async function action({ request, context }: ActionFunctionArgs) {
             { name: "Beige", hexCode: "#F5F5DC" },
         ];
 
-        for (const color of defaultColors) {
-            await db.insert(schema.colors).values(color);
+        try {
+            for (const color of defaultColors) {
+                await db.insert(schema.colors).values(color);
+            }
+            return redirect("/colors?success=Default colors created successfully");
+        } catch (error) {
+            console.error("Failed to create default colors:", error);
+            return redirect("/colors?error=Failed to create default colors");
         }
-
-        return data({ success: true, message: "Default colors created successfully" });
     }
 
-    return data({ success: false, message: "Invalid action" }, { status: 400 });
+    return redirect("/colors?error=Invalid action");
 }
 
 export default function ColorsPage() {
     const { colors } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
+
+    // Show toast messages from redirects
+    useEffect(() => {
+        const success = searchParams.get('success');
+        const error = searchParams.get('error');
+        
+        if (success) {
+            toast.success(success);
+        }
+        if (error) {
+            toast.error(error);
+        }
+    }, [searchParams, toast]);
 
     const columns: Column<Color>[] = [
         {
@@ -116,7 +166,10 @@ export default function ColorsPage() {
                             Edit
                         </Button>
                     </Link>
-                    <Form method="post" className="inline">
+                    <Form 
+                        method="post" 
+                        className="inline"
+                    >
                         <input type="hidden" name="intent" value="delete" />
                         <input type="hidden" name="id" value={item.id} />
                         <Button

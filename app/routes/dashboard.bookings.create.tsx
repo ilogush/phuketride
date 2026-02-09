@@ -264,7 +264,7 @@ export default function CreateBooking() {
                         <CalendarIcon className="h-5 w-5 text-gray-400" />
                         <h2 className="text-lg font-semibold">Rental Period</h2>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField label="Start Date" required>
                             <FormInput
                                 type="date"
@@ -291,7 +291,7 @@ export default function CreateBooking() {
                         <h2 className="text-lg font-semibold">Pickup & Return</h2>
                     </div>
                     <div className="space-y-4">
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <FormField label="Pickup District">
                                 <FormSelect name="pickupDistrictId">
                                     <option value="">Select district</option>
@@ -309,7 +309,7 @@ export default function CreateBooking() {
                                 <FormInput name="pickupRoom" placeholder="Room #" />
                             </FormField>
                         </div>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <FormField label="Return District">
                                 <FormSelect name="returnDistrictId">
                                     <option value="">Select district</option>

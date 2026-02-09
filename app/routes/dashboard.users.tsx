@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Link } from "react-router";
-import { useState } from "react";
+import { useLoaderData, Link, useSearchParams } from "react-router";
+import { useState, useEffect } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import { users } from "~/db/schema";
@@ -10,6 +10,7 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
 import { UserGroupIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { useToast } from "~/lib/toast";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -83,9 +84,23 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function UsersPage() {
     const { user, users: usersList, roleCounts } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
     const isPartner = user.role === "partner";
     
     const [activeTab, setActiveTab] = useState<string | number>(isPartner ? "manager" : "admin");
+
+    // Toast notifications
+    useEffect(() => {
+        const success = searchParams.get("success");
+        const error = searchParams.get("error");
+        if (success) {
+            toast.success(success);
+        }
+        if (error) {
+            toast.error(error);
+        }
+    }, [searchParams, toast]);
 
     const tabs = isPartner
         ? [

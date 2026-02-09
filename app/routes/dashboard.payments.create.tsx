@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { useLoaderData, Form } from "react-router";
+import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
@@ -11,6 +11,10 @@ import { Textarea } from "~/components/dashboard/Textarea";
 import FormActions from "~/components/dashboard/FormActions";
 import BackButton from "~/components/dashboard/BackButton";
 import { BanknotesIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { useToast } from "~/lib/toast";
+import { useEffect } from "react";
+import { paymentSchema } from "~/schemas/payment";
+import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -40,34 +44,72 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
-    const contractId = formData.get("contractId") ? Number(formData.get("contractId")) : null;
-    const paymentTypeId = Number(formData.get("paymentTypeId"));
-    const amount = Number(formData.get("amount"));
-    const currency = formData.get("currency") as string;
-    const paymentMethod = formData.get("paymentMethod") as "cash" | "bank_transfer" | "card" | "online";
-    const status = formData.get("status") as "pending" | "completed" | "cancelled";
-    const notes = formData.get("notes") as string;
+    // Parse form data
+    const rawData = {
+        contractId: formData.get("contractId") ? Number(formData.get("contractId")) : 0,
+        paymentTypeId: Number(formData.get("paymentTypeId")),
+        amount: Number(formData.get("amount")),
+        currency: (formData.get("currency") as string) || "THB",
+        paymentMethod: formData.get("paymentMethod") as "cash" | "bank_transfer" | "card" | "online",
+        status: (formData.get("status") as "pending" | "completed" | "cancelled") || "completed",
+        notes: (formData.get("notes") as string) || null,
+        createdBy: user.id,
+    };
 
-    if (!contractId) {
-        throw new Response("Contract is required", { status: 400 });
+    // Validate with Zod
+    const validation = paymentSchema.safeParse(rawData);
+    if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        return redirect(`/payments/create?error=${encodeURIComponent(firstError.message)}`);
     }
 
-    await db.insert(schema.payments).values({
-        contractId,
-        paymentTypeId,
-        amount,
-        currency,
-        paymentMethod,
-        status,
-        notes: notes || null,
-        createdBy: user.id,
-    });
+    const validData = validation.data;
 
-    return redirect("/payments");
+    try {
+        const [newPayment] = await db.insert(schema.payments).values({
+            contractId: validData.contractId,
+            paymentTypeId: validData.paymentTypeId,
+            amount: validData.amount,
+            currency: validData.currency,
+            paymentMethod: validData.paymentMethod,
+            status: validData.status,
+            notes: validData.notes,
+            createdBy: user.id,
+        }).returning({ id: schema.payments.id });
+
+        // Audit log
+        const metadata = getRequestMetadata(request);
+        quickAudit({
+            db,
+            userId: user.id,
+            role: user.role,
+            companyId: user.companyId,
+            entityType: "payment",
+            entityId: newPayment.id,
+            action: "create",
+            afterState: { ...validData, id: newPayment.id },
+            ...metadata,
+        });
+
+        return redirect(`/payments?success=${encodeURIComponent("Payment created successfully")}`);
+    } catch (error) {
+        console.error("Failed to create payment:", error);
+        return redirect(`/payments/create?error=${encodeURIComponent("Failed to create payment")}`);
+    }
 }
 
 export default function RecordPaymentPage() {
     const { contracts, paymentTypes, cars, currencies } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
+
+    // Toast notifications
+    useEffect(() => {
+        const error = searchParams.get("error");
+        if (error) {
+            toast.error(error);
+        }
+    }, [searchParams, toast]);
 
     return (
         <div className="space-y-6">
@@ -78,7 +120,7 @@ export default function RecordPaymentPage() {
 
             <Form method="post" className="space-y-4">
                 <FormSection title="Payment Details" icon={<BanknotesIcon />}>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <FormSelect
                             label="Auto"
                             name="carId"

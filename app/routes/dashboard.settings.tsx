@@ -1,5 +1,5 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
-import { useLoaderData, Form, useRevalidator } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { useLoaderData, Form, useRevalidator, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and } from "drizzle-orm";
@@ -15,7 +15,7 @@ import WeeklySchedule from "~/components/dashboard/WeeklySchedule";
 import HolidaysManager from "~/components/dashboard/HolidaysManager";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Modal from "~/components/dashboard/Modal";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     BuildingOfficeIcon,
     BanknotesIcon,
@@ -26,6 +26,9 @@ import {
     PlusIcon,
 } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
+import { companySchema } from "~/schemas/company";
+import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { useLatinValidation } from "~/lib/useLatinValidation";
 
 const MONTHS = [
     { value: "1", label: "Jan" },
@@ -77,56 +80,90 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const intent = formData.get("intent");
 
     if (!user.companyId) {
-        return data({ success: false, message: "Company not found" }, { status: 404 });
+        return redirect("/settings?error=Company not found");
     }
 
+    // Get current company for audit log
+    const currentCompany = await db.select().from(schema.companies).where(eq(schema.companies.id, user.companyId)).get();
+
     if (intent === "updateGeneral") {
-        const name = formData.get("name") as string;
-        const email = formData.get("email") as string;
-        const phone = formData.get("phone") as string;
-        const telegram = formData.get("telegram") as string;
-        const locationId = Number(formData.get("locationId"));
-        const districtId = Number(formData.get("districtId"));
-        const street = formData.get("street") as string;
-        const houseNumber = formData.get("houseNumber") as string;
-        const bankName = formData.get("bankName") as string;
-        const accountNumber = formData.get("accountNumber") as string;
-        const accountName = formData.get("accountName") as string;
-        const swiftCode = formData.get("swiftCode") as string;
-        const preparationTime = Number(formData.get("preparationTime")) || 30;
-        const deliveryFeeAfterHours = Number(formData.get("deliveryFeeAfterHours")) || 0;
-        const islandTripPrice = Number(formData.get("islandTripPrice")) || 0;
-        const krabiTripPrice = Number(formData.get("krabiTripPrice")) || 0;
-        const babySeatPricePerDay = Number(formData.get("babySeatPricePerDay")) || 0;
+        const rawData = {
+            name: formData.get("name") as string,
+            email: formData.get("email") as string,
+            phone: formData.get("phone") as string,
+            telegram: (formData.get("telegram") as string) || null,
+            locationId: Number(formData.get("locationId")),
+            districtId: Number(formData.get("districtId")),
+            street: formData.get("street") as string,
+            houseNumber: formData.get("houseNumber") as string,
+            bankName: (formData.get("bankName") as string) || null,
+            accountNumber: (formData.get("accountNumber") as string) || null,
+            accountName: (formData.get("accountName") as string) || null,
+            swiftCode: (formData.get("swiftCode") as string) || null,
+            preparationTime: formData.get("preparationTime") ? Number(formData.get("preparationTime")) : 30,
+            deliveryFeeAfterHours: formData.get("deliveryFeeAfterHours") ? Number(formData.get("deliveryFeeAfterHours")) : 0,
+            islandTripPrice: formData.get("islandTripPrice") ? Number(formData.get("islandTripPrice")) : null,
+            krabiTripPrice: formData.get("krabiTripPrice") ? Number(formData.get("krabiTripPrice")) : null,
+            babySeatPricePerDay: formData.get("babySeatPricePerDay") ? Number(formData.get("babySeatPricePerDay")) : null,
+        };
+
+        // Validate with Zod
+        const validation = companySchema.safeParse(rawData);
+        if (!validation.success) {
+            const firstError = validation.error.errors[0];
+            return redirect(`/settings?error=${encodeURIComponent(firstError.message)}`);
+        }
+
+        const validData = validation.data;
         const weeklySchedule = formData.get("weeklySchedule") as string;
         const holidays = formData.get("holidays") as string;
 
-        await db.update(schema.companies)
-            .set({
-                name,
-                email,
-                phone,
-                telegram,
-                locationId,
-                districtId,
-                street,
-                houseNumber,
-                bankName,
-                accountNumber,
-                accountName,
-                swiftCode,
-                preparationTime,
-                deliveryFeeAfterHours,
-                islandTripPrice,
-                krabiTripPrice,
-                babySeatPricePerDay,
-                weeklySchedule,
-                holidays,
-                updatedAt: new Date(),
-            })
-            .where(eq(schema.companies.id, user.companyId));
+        try {
+            await db.update(schema.companies)
+                .set({
+                    name: validData.name,
+                    email: validData.email,
+                    phone: validData.phone,
+                    telegram: validData.telegram,
+                    locationId: validData.locationId,
+                    districtId: validData.districtId,
+                    street: validData.street,
+                    houseNumber: validData.houseNumber,
+                    bankName: validData.bankName,
+                    accountNumber: validData.accountNumber,
+                    accountName: validData.accountName,
+                    swiftCode: validData.swiftCode,
+                    preparationTime: validData.preparationTime,
+                    deliveryFeeAfterHours: validData.deliveryFeeAfterHours,
+                    islandTripPrice: validData.islandTripPrice,
+                    krabiTripPrice: validData.krabiTripPrice,
+                    babySeatPricePerDay: validData.babySeatPricePerDay,
+                    weeklySchedule,
+                    holidays,
+                    updatedAt: new Date(),
+                })
+                .where(eq(schema.companies.id, user.companyId));
 
-        return data({ success: true, message: "Settings updated successfully" });
+            // Audit log
+            const metadata = getRequestMetadata(request);
+            quickAudit({
+                db,
+                userId: user.id,
+                role: user.role,
+                companyId: user.companyId,
+                entityType: "company",
+                entityId: user.companyId,
+                action: "update",
+                beforeState: currentCompany,
+                afterState: { ...validData, id: user.companyId },
+                ...metadata,
+            });
+
+            return redirect("/settings?success=Settings updated successfully");
+        } catch (error) {
+            console.error("Failed to update settings:", error);
+            return redirect("/settings?error=Failed to update settings");
+        }
     }
 
     // Seasons actions
@@ -139,18 +176,23 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const priceMultiplier = Number(formData.get("priceMultiplier"));
         const discountLabel = formData.get("discountLabel") as string | null;
 
-        await db.insert(schema.seasons).values({
-            companyId: user.companyId,
-            seasonName,
-            startMonth,
-            startDay,
-            endMonth,
-            endDay,
-            priceMultiplier,
-            discountLabel: discountLabel || null,
-        });
+        try {
+            await db.insert(schema.seasons).values({
+                companyId: user.companyId,
+                seasonName,
+                startMonth,
+                startDay,
+                endMonth,
+                endDay,
+                priceMultiplier,
+                discountLabel: discountLabel || null,
+            });
 
-        return data({ success: true, message: "Season created successfully" });
+            return redirect("/settings?success=Season created successfully");
+        } catch (error) {
+            console.error("Failed to create season:", error);
+            return redirect("/settings?error=Failed to create season");
+        }
     }
 
     if (intent === "updateSeason") {
@@ -163,27 +205,38 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const priceMultiplier = Number(formData.get("priceMultiplier"));
         const discountLabel = formData.get("discountLabel") as string | null;
 
-        await db.update(schema.seasons)
-            .set({
-                seasonName,
-                startMonth,
-                startDay,
-                endMonth,
-                endDay,
-                priceMultiplier,
-                discountLabel: discountLabel || null,
-            })
-            .where(and(eq(schema.seasons.id, id), eq(schema.seasons.companyId, user.companyId)));
+        try {
+            await db.update(schema.seasons)
+                .set({
+                    seasonName,
+                    startMonth,
+                    startDay,
+                    endMonth,
+                    endDay,
+                    priceMultiplier,
+                    discountLabel: discountLabel || null,
+                })
+                .where(and(eq(schema.seasons.id, id), eq(schema.seasons.companyId, user.companyId)));
 
-        return data({ success: true, message: "Season updated successfully" });
+            return redirect("/settings?success=Season updated successfully");
+        } catch (error) {
+            console.error("Failed to update season:", error);
+            return redirect("/settings?error=Failed to update season");
+        }
     }
 
     if (intent === "deleteSeason") {
         const id = Number(formData.get("id"));
-        await db.delete(schema.seasons)
-            .where(and(eq(schema.seasons.id, id), eq(schema.seasons.companyId, user.companyId)));
+        
+        try {
+            await db.delete(schema.seasons)
+                .where(and(eq(schema.seasons.id, id), eq(schema.seasons.companyId, user.companyId)));
 
-        return data({ success: true, message: "Season deleted successfully" });
+            return redirect("/settings?success=Season deleted successfully");
+        } catch (error) {
+            console.error("Failed to delete season:", error);
+            return redirect("/settings?error=Failed to delete season");
+        }
     }
 
     // Durations actions
@@ -194,16 +247,21 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const priceMultiplier = Number(formData.get("priceMultiplier"));
         const discountLabel = formData.get("discountLabel") as string | null;
 
-        await db.insert(schema.rentalDurations).values({
-            companyId: user.companyId,
-            rangeName,
-            minDays,
-            maxDays,
-            priceMultiplier,
-            discountLabel: discountLabel || null,
-        });
+        try {
+            await db.insert(schema.rentalDurations).values({
+                companyId: user.companyId,
+                rangeName,
+                minDays,
+                maxDays,
+                priceMultiplier,
+                discountLabel: discountLabel || null,
+            });
 
-        return data({ success: true, message: "Duration created successfully" });
+            return redirect("/settings?success=Duration created successfully");
+        } catch (error) {
+            console.error("Failed to create duration:", error);
+            return redirect("/settings?error=Failed to create duration");
+        }
     }
 
     if (intent === "updateDuration") {
@@ -214,36 +272,50 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const priceMultiplier = Number(formData.get("priceMultiplier"));
         const discountLabel = formData.get("discountLabel") as string | null;
 
-        await db.update(schema.rentalDurations)
-            .set({
-                rangeName,
-                minDays,
-                maxDays,
-                priceMultiplier,
-                discountLabel: discountLabel || null,
-            })
-            .where(and(eq(schema.rentalDurations.id, id), eq(schema.rentalDurations.companyId, user.companyId)));
+        try {
+            await db.update(schema.rentalDurations)
+                .set({
+                    rangeName,
+                    minDays,
+                    maxDays,
+                    priceMultiplier,
+                    discountLabel: discountLabel || null,
+                })
+                .where(and(eq(schema.rentalDurations.id, id), eq(schema.rentalDurations.companyId, user.companyId)));
 
-        return data({ success: true, message: "Duration updated successfully" });
+            return redirect("/settings?success=Duration updated successfully");
+        } catch (error) {
+            console.error("Failed to update duration:", error);
+            return redirect("/settings?error=Failed to update duration");
+        }
     }
 
     if (intent === "deleteDuration") {
         const id = Number(formData.get("id"));
-        await db.delete(schema.rentalDurations)
-            .where(and(eq(schema.rentalDurations.id, id), eq(schema.rentalDurations.companyId, user.companyId)));
+        
+        try {
+            await db.delete(schema.rentalDurations)
+                .where(and(eq(schema.rentalDurations.id, id), eq(schema.rentalDurations.companyId, user.companyId)));
 
-        return data({ success: true, message: "Duration deleted successfully" });
+            return redirect("/settings?success=Duration deleted successfully");
+        } catch (error) {
+            console.error("Failed to delete duration:", error);
+            return redirect("/settings?error=Failed to delete duration");
+        }
     }
 
-    return data({ success: false, message: "Invalid action" }, { status: 400 });
+    return redirect("/settings?error=Invalid action");
 }
 
 export default function SettingsPage() {
     const { company, locations, districts, seasons, durations } = useLoaderData<typeof loader>();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState<string | number>("general");
     const [selectedLocationId, setSelectedLocationId] = useState(company.locationId);
     const [weeklySchedule, setWeeklySchedule] = useState(company.weeklySchedule || "");
     const [holidays, setHolidays] = useState(company.holidays || "");
+    const shownToastsRef = useRef<Set<string>>(new Set());
+    const { validateLatinInput } = useLatinValidation();
     const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
     const [editingSeason, setEditingSeason] = useState<any | null>(null);
     const [seasonFormData, setSeasonFormData] = useState({
@@ -281,6 +353,35 @@ export default function SettingsPage() {
     const toast = useToast();
     const revalidator = useRevalidator();
 
+    // Toast notifications
+    useEffect(() => {
+        const success = searchParams.get("success");
+        const error = searchParams.get("error");
+        
+        const toastKey = success || error;
+        
+        if (toastKey && !shownToastsRef.current.has(toastKey)) {
+            // Mark as shown
+            shownToastsRef.current.add(toastKey);
+            
+            // Show toast
+            if (success) {
+                toast.success(success);
+            }
+            if (error) {
+                toast.error(error);
+            }
+            
+            // Clear URL params
+            setSearchParams((prev) => {
+                const newParams = new URLSearchParams(prev);
+                newParams.delete("success");
+                newParams.delete("error");
+                return newParams;
+            }, { replace: true });
+        }
+    }, [searchParams, toast, setSearchParams]);
+
     const tabs = [
         { id: "general", label: "General" },
         { id: "seasons", label: "Seasons" },
@@ -291,39 +392,16 @@ export default function SettingsPage() {
 
     const filteredDistricts = districts.filter(d => d.locationId === selectedLocationId);
 
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        const form = e.currentTarget;
-        const formData = new FormData(form);
-        
-        try {
-            const response = await fetch(form.action, {
-                method: form.method,
-                body: formData,
-            });
-            
-            if (response.ok) {
-                toast.success("Settings updated successfully");
-            } else {
-                toast.error("Failed to update settings");
-            }
-        } catch (error) {
-            toast.error("An error occurred");
-        }
-    };
-
     const handleSeasonSubmit = () => {
-        revalidator.revalidate();
         setIsSeasonModalOpen(false);
         setEditingSeason(null);
-        toast.success(editingSeason ? "Season updated" : "Season created");
+        revalidator.revalidate();
     };
 
     const handleDurationSubmit = () => {
-        revalidator.revalidate();
         setIsDurationModalOpen(false);
         setEditingDuration(null);
-        toast.success(editingDuration ? "Duration updated" : "Duration created");
+        revalidator.revalidate();
     };
 
     const seasonColumns: Column<any>[] = [
@@ -377,7 +455,7 @@ export default function SettingsPage() {
                     >
                         Edit
                     </Button>
-                    <Form method="post" onSubmit={() => { revalidator.revalidate(); toast.success("Season deleted"); }}>
+                    <Form method="post">
                         <input type="hidden" name="intent" value="deleteSeason" />
                         <input type="hidden" name="id" value={item.id} />
                         <Button type="submit" variant="secondary" size="sm">Delete</Button>
@@ -436,7 +514,7 @@ export default function SettingsPage() {
                     >
                         Edit
                     </Button>
-                    <Form method="post" onSubmit={() => { revalidator.revalidate(); toast.success("Duration deleted"); }}>
+                    <Form method="post">
                         <input type="hidden" name="intent" value="deleteDuration" />
                         <input type="hidden" name="id" value={item.id} />
                         <Button type="submit" variant="secondary" size="sm">Delete</Button>
@@ -559,18 +637,19 @@ export default function SettingsPage() {
             <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
             {activeTab === "general" && (
-                <Form id="settings-form" method="post" onSubmit={handleSubmit} className="space-y-4">
+                <Form id="settings-form" method="post" className="space-y-4">
                     <input type="hidden" name="intent" value="updateGeneral" />
 
                     {/* Company Information */}
                     <FormSection title="Company Information" icon={<BuildingOfficeIcon />}>
                         <div className="space-y-4">
-                            <div className="grid grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <Input
                                     label="Company Name"
                                     name="name"
                                     defaultValue={company.name}
                                     placeholder="e.g., Andaman Rentals"
+                                    onChange={(e) => validateLatinInput(e, "Company Name")}
                                     required
                                 />
                                 <Input
@@ -596,7 +675,7 @@ export default function SettingsPage() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <Select
                                     label="Location"
                                     name="locationId"
@@ -617,6 +696,7 @@ export default function SettingsPage() {
                                     name="street"
                                     defaultValue={company.street}
                                     placeholder="e.g., Beach Road"
+                                    onChange={(e) => validateLatinInput(e, "Street")}
                                     required
                                 />
                                 <Input
@@ -624,6 +704,7 @@ export default function SettingsPage() {
                                     name="houseNumber"
                                     defaultValue={company.houseNumber}
                                     placeholder="e.g., 45/1"
+                                    onChange={(e) => validateLatinInput(e, "House Number")}
                                     required
                                 />
                             </div>
@@ -632,12 +713,13 @@ export default function SettingsPage() {
 
                     {/* Bank Details */}
                     <FormSection title="Bank Details" icon={<BanknotesIcon />}>
-                        <div className="grid grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input
                                 label="Bank Name"
                                 name="bankName"
                                 defaultValue={company.bankName || ""}
                                 placeholder="e.g., Bangkok Bank"
+                                onChange={(e) => validateLatinInput(e, "Bank Name")}
                             />
                             <Input
                                 label="Account Number"
@@ -650,6 +732,7 @@ export default function SettingsPage() {
                                 name="accountName"
                                 defaultValue={company.accountName || ""}
                                 placeholder="e.g., Company Ltd."
+                                onChange={(e) => validateLatinInput(e, "Account Name")}
                             />
                             <Input
                                 label="SWIFT / BIC Code"
@@ -662,7 +745,7 @@ export default function SettingsPage() {
 
                     {/* Extras */}
                     <FormSection title="Extras" icon={<Cog6ToothIcon />}>
-                        <div className="grid grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input
                                 label="Preparation Time (min)"
                                 name="preparationTime"
@@ -698,7 +781,7 @@ export default function SettingsPage() {
                                 addonLeft="฿"
                             />
                         </div>
-                        <div className="grid grid-cols-4 gap-4 mt-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
                             <Input
                                 label="Baby Seat Cost (per day)"
                                 name="babySeatPricePerDay"
@@ -747,7 +830,7 @@ export default function SettingsPage() {
                                 placeholder="e.g., Peak Season"
                                 required
                             />
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs text-gray-600 mb-1">Start Month</label>
                                     <select name="startMonth" value={seasonFormData.startMonth} onChange={(e) => setSeasonFormData({ ...seasonFormData, startMonth: e.target.value })} className="w-full px-4 py-2 text-gray-600 border border-gray-200 rounded-xl" required>
@@ -761,7 +844,7 @@ export default function SettingsPage() {
                                     </select>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs text-gray-600 mb-1">End Month</label>
                                     <select name="endMonth" value={seasonFormData.endMonth} onChange={(e) => setSeasonFormData({ ...seasonFormData, endMonth: e.target.value })} className="w-full px-4 py-2 text-gray-600 border border-gray-200 rounded-xl" required>
@@ -805,7 +888,7 @@ export default function SettingsPage() {
                             <input type="hidden" name="intent" value={editingDuration ? "updateDuration" : "createDuration"} />
                             {editingDuration && <input type="hidden" name="id" value={editingDuration.id} />}
                             <Input label="Range Name" name="rangeName" value={durationFormData.rangeName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDurationFormData({ ...durationFormData, rangeName: e.target.value })} placeholder="e.g., Weekly" required />
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Input label="Min Days" name="minDays" type="number" value={durationFormData.minDays} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDurationFormData({ ...durationFormData, minDays: e.target.value })} required />
                                 <Input label="Max Days" name="maxDays" type="number" value={durationFormData.maxDays} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDurationFormData({ ...durationFormData, maxDays: e.target.value })} placeholder="Leave empty for unlimited" />
                             </div>
@@ -1151,7 +1234,7 @@ export default function SettingsPage() {
                                 placeholder="e.g., British Pound"
                                 required
                             />
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Input
                                     label="Currency Code"
                                     name="code"

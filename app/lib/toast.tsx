@@ -29,11 +29,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
     const showToast = useCallback(
         async (message: string, type: ToastType = 'info', duration: number = 5000) => {
-            const id = useId()
-            const newToast: Toast = { id, message, type, duration }
+            const id = `toast-${Date.now()}-${Math.random()}`
+            
+            // Check if toast with same message already exists
+            setToasts((prev) => {
+                const exists = prev.some(toast => toast.message === message && toast.type === type)
+                if (exists) return prev
+                
+                const newToast: Toast = { id, message, type, duration }
+                return [...prev, newToast]
+            })
 
-            setToasts((prev) => [...prev, newToast])
-
+            // Set timeout to remove toast
             if (duration > 0) {
                 setTimeout(() => {
                     removeToast(id)

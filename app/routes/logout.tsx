@@ -5,7 +5,7 @@ import { logout } from "~/lib/auth.server";
 export async function loader({ request }: LoaderFunctionArgs) {
     const cookie = await logout(request);
 
-    return redirect("/login", {
+    return redirect("/login?logout=success", {
         headers: {
             "Set-Cookie": cookie,
         },
@@ -15,7 +15,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
     const cookie = await logout(request);
 
-    return redirect("/login", {
+    return redirect("/login?logout=success", {
         headers: {
             "Set-Cookie": cookie,
         },

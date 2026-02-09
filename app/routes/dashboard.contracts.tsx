@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Link } from "react-router";
-import { useState } from "react";
+import { useLoaderData, Link, useSearchParams } from "react-router";
+import { useState, useEffect } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
@@ -12,6 +12,7 @@ import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
 import { ClipboardDocumentListIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
+import { useToast } from "~/lib/toast";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -58,7 +59,21 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function ContractsPage() {
     const { contracts: contractsList, statusCounts } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
     const [activeTab, setActiveTab] = useState<string>("active");
+
+    // Toast notifications
+    useEffect(() => {
+        const success = searchParams.get("success");
+        const error = searchParams.get("error");
+        if (success) {
+            toast.success(success);
+        }
+        if (error) {
+            toast.error(error);
+        }
+    }, [searchParams, toast]);
 
     const tabs = [
         { id: "active", label: "Active", count: statusCounts.active },

@@ -135,7 +135,7 @@ export default function CompanyEditPage() {
                     <input type="hidden" name="companyId" value={company.id} />
 
                     <FormSection title="Basic Information">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             <Input
                                 label="Company Name"
                                 name="name"
@@ -144,6 +144,7 @@ export default function CompanyEditPage() {
                                 required
                                 defaultValue={company.name}
                                 error={errors.name}
+                                onChange={(e) => validateLatinInput(e, 'Company Name')}
                             />
 
                             <Input
@@ -177,13 +178,14 @@ export default function CompanyEditPage() {
                     </FormSection>
 
                     <FormSection title="Address">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             <Input
                                 label="Street"
                                 name="street"
                                 type="text"
                                 placeholder="Enter street name"
                                 defaultValue={company.street}
+                                onChange={(e) => validateLatinInput(e, 'Street')}
                             />
 
                             <Input
@@ -200,12 +202,13 @@ export default function CompanyEditPage() {
                                 type="text"
                                 placeholder="Enter full address"
                                 defaultValue={company.address}
+                                onChange={(e) => validateLatinInput(e, 'Address')}
                             />
                         </div>
                     </FormSection>
 
                     <FormSection title="Bank Details">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             <Input
                                 label="Bank Name"
                                 name="bankName"
@@ -241,7 +244,7 @@ export default function CompanyEditPage() {
                     </FormSection>
 
                     <FormSection title="Settings">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             <Input
                                 label="Preparation Time (minutes)"
                                 name="preparationTime"

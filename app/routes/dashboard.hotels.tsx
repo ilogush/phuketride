@@ -1,10 +1,10 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
-import { useLoaderData, Form } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import { eq } from "drizzle-orm";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import Modal from "~/components/dashboard/Modal";
@@ -12,6 +12,8 @@ import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
+import { useToast } from "~/lib/toast";
+import { useLatinValidation } from "~/lib/useLatinValidation";
 
 interface Hotel {
     id: number;
@@ -55,8 +57,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));
-        await db.delete(schema.hotels).where(eq(schema.hotels.id, id));
-        return data({ success: true, message: "Hotel deleted successfully" });
+        try {
+            await db.delete(schema.hotels).where(eq(schema.hotels.id, id));
+            return redirect("/hotels?success=Hotel deleted successfully");
+        } catch (error) {
+            console.error("Failed to delete hotel:", error);
+            return redirect("/hotels?error=Failed to delete hotel");
+        }
     }
 
     if (intent === "create") {
@@ -65,14 +72,18 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const districtId = Number(formData.get("districtId"));
         const address = formData.get("address") as string | null;
 
-        await db.insert(schema.hotels).values({
-            name,
-            locationId,
-            districtId,
-            address: address || null,
-        });
-
-        return data({ success: true, message: "Hotel created successfully" });
+        try {
+            await db.insert(schema.hotels).values({
+                name,
+                locationId,
+                districtId,
+                address: address || null,
+            });
+            return redirect("/hotels?success=Hotel created successfully");
+        } catch (error) {
+            console.error("Failed to create hotel:", error);
+            return redirect("/hotels?error=Failed to create hotel");
+        }
     }
 
     if (intent === "update") {
@@ -82,21 +93,28 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const districtId = Number(formData.get("districtId"));
         const address = formData.get("address") as string | null;
 
-        await db
-            .update(schema.hotels)
-            .set({ name, locationId, districtId, address: address || null })
-            .where(eq(schema.hotels.id, id));
-
-        return data({ success: true, message: "Hotel updated successfully" });
+        try {
+            await db
+                .update(schema.hotels)
+                .set({ name, locationId, districtId, address: address || null })
+                .where(eq(schema.hotels.id, id));
+            return redirect("/hotels?success=Hotel updated successfully");
+        } catch (error) {
+            console.error("Failed to update hotel:", error);
+            return redirect("/hotels?error=Failed to update hotel");
+        }
     }
 
-    return data({ success: false, message: "Invalid action" }, { status: 400 });
+    return redirect("/hotels?error=Invalid action");
 }
 
 export default function HotelsPage() {
     const { hotels, locations, districts } = useLoaderData<typeof loader>();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingHotel, setEditingHotel] = useState<Hotel | null>(null);
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
+    const { validateLatinInput } = useLatinValidation();
     const [formData, setFormData] = useState({
         name: "",
         locationId: "1",
@@ -226,9 +244,10 @@ export default function HotelsPage() {
                         label="Hotel Name"
                         name="name"
                         value={formData.name}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            setFormData({ ...formData, name: e.target.value })
-                        }
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                            setFormData({ ...formData, name: e.target.value });
+                            validateLatinInput(e, 'Hotel Name');
+                        }}
                         placeholder="e.g., Amanpuri"
                         required
                     />
@@ -261,9 +280,10 @@ export default function HotelsPage() {
                         label="Address (Optional)"
                         name="address"
                         value={formData.address}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            setFormData({ ...formData, address: e.target.value })
-                        }
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                            setFormData({ ...formData, address: e.target.value });
+                            validateLatinInput(e, 'Address');
+                        }}
                         placeholder="Hotel address"
                     />
 

@@ -3,7 +3,7 @@ import { Form, Link, useActionData, useNavigation } from "react-router";
 import { getUserFromSession } from "~/lib/auth.server";
 import { useState } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
-import Button from "~/components/dashboard/Button";
+import { useLatinValidation } from "~/lib/useLatinValidation";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     // If already logged in, redirect to dashboard
@@ -30,37 +30,58 @@ export default function RegisterPage() {
     const navigation = useNavigation();
     const isSubmitting = navigation.state === "submitting";
     const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const { validateLatinInput } = useLatinValidation();
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-            <div className="max-w-md w-full">
-                <div className="bg-white rounded-2xl shadow-xl p-4">
+        <div className="min-h-screen flex items-center justify-center bg-gray-100">
+            <div className="max-w-2xl w-full px-6">
+                <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 p-8">
                     <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                        <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">
                             Create Account
                         </h1>
-                        <p className="text-gray-600">Sign up to get started</p>
+                        <p className="text-gray-600">Sign up to browse and rent cars</p>
                     </div>
 
-                    <Form method="post" className="space-y-6">
-                        <div>
-                            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                                Full Name
-                            </label>
-                            <input
-                                id="name"
-                                name="name"
-                                type="text"
-                                autoComplete="name"
-                                required
-                                className="w-full py-4 rounded-xl border border-gray-300 text-gray-900 placeholder:text-gray-400 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                placeholder="John Doe"
-                            />
+                    <Form method="post" className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                                    First Name
+                                </label>
+                                <input
+                                    id="firstName"
+                                    name="firstName"
+                                    type="text"
+                                    autoComplete="given-name"
+                                    required
+                                    pattern="[a-zA-Z\s\-']+"
+                                    onChange={(e) => validateLatinInput(e, 'First Name')}
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                                    placeholder="John"
+                                />
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                                    Last Name
+                                </label>
+                                <input
+                                    id="lastName"
+                                    name="lastName"
+                                    type="text"
+                                    autoComplete="family-name"
+                                    required
+                                    pattern="[a-zA-Z\s\-']+"
+                                    onChange={(e) => validateLatinInput(e, 'Last Name')}
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                                    placeholder="Smith"
+                                />
+                            </div>
                         </div>
 
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="space-y-2">
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                                 Email Address
                             </label>
                             <input
@@ -69,13 +90,13 @@ export default function RegisterPage() {
                                 type="email"
                                 autoComplete="email"
                                 required
-                                className="w-full py-4 rounded-xl border border-gray-300 text-gray-900 placeholder:text-gray-400 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                placeholder="you@example.com"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                                placeholder="john.smith@example.com"
                             />
                         </div>
 
-                        <div>
-                            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="space-y-2">
+                            <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
                                 Phone Number
                             </label>
                             <input
@@ -84,13 +105,13 @@ export default function RegisterPage() {
                                 type="tel"
                                 autoComplete="tel"
                                 required
-                                className="w-full py-4 rounded-xl border border-gray-300 text-gray-900 placeholder:text-gray-400 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                placeholder="+66812345678"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                                placeholder="+6699123456"
                             />
                         </div>
 
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="space-y-2">
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                                 Password
                             </label>
                             <div className="relative">
@@ -100,13 +121,13 @@ export default function RegisterPage() {
                                     type={showPassword ? "text" : "password"}
                                     autoComplete="new-password"
                                     required
-                                    className="w-full py-4 pr-12 rounded-xl border border-gray-300 text-gray-900 placeholder:text-gray-400 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                    placeholder="••••••••"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                                    placeholder="Min 6 characters"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition"
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                                 >
                                     {showPassword ? (
                                         <EyeSlashIcon className="w-5 h-5" />
@@ -117,49 +138,19 @@ export default function RegisterPage() {
                             </div>
                         </div>
 
-                        <div>
-                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                                Confirm Password
-                            </label>
-                            <div className="relative">
-                                <input
-                                    id="confirmPassword"
-                                    name="confirmPassword"
-                                    type={showConfirmPassword ? "text" : "password"}
-                                    autoComplete="new-password"
-                                    required
-                                    className="w-full py-4 pr-12 rounded-xl border border-gray-300 text-gray-900 placeholder:text-gray-400 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                    placeholder="••••••••"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition"
-                                >
-                                    {showConfirmPassword ? (
-                                        <EyeSlashIcon className="w-5 h-5" />
-                                    ) : (
-                                        <EyeIcon className="w-5 h-5" />
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-
                         {actionData?.error && (
-                            <div className="bg-red-50 border border-red-200 text-red-700 py-4 rounded-xl">
-                                {actionData.error}
+                            <div className="p-4 rounded-xl bg-red-50 border border-red-200">
+                                <p className="text-sm font-medium text-red-600">{actionData.error}</p>
                             </div>
                         )}
 
-                        <Button
+                        <button
                             type="submit"
                             disabled={isSubmitting}
-                            variant="primary"
-                            fullWidth
-                            loading={isSubmitting}
+                            className="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Create Account
-                        </Button>
+                            {isSubmitting ? "Creating account..." : "Create Account"}
+                        </button>
                     </Form>
 
                     <div className="mt-6 text-center">
@@ -167,9 +158,18 @@ export default function RegisterPage() {
                             Already have an account?{" "}
                             <Link
                                 to="/login"
-                                className="text-blue-600 hover:text-blue-700 font-medium transition"
+                                className="text-gray-900 font-semibold hover:underline"
                             >
                                 Sign in
+                            </Link>
+                        </p>
+                        <p className="text-sm text-gray-600 mt-2">
+                            Want to become a partner?{" "}
+                            <Link
+                                to="/register-partner"
+                                className="text-gray-900 font-semibold hover:underline"
+                            >
+                                Partner registration
                             </Link>
                         </p>
                     </div>

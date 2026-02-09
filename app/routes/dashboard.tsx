@@ -1,9 +1,14 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { type LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useLocation, useParams } from "react-router";
+import { Outlet, useLoaderData, useLocation, useParams, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
+import { drizzle } from "drizzle-orm/d1";
+import { eq, and, gte } from "drizzle-orm";
+import { addDays } from "date-fns";
+import * as schema from "~/db/schema";
 import Sidebar from "~/components/dashboard/Sidebar";
 import Topbar from "~/components/dashboard/Topbar";
+import { useToast } from "~/lib/toast";
 
 // Create context for mod mode
 interface ModModeContextType {
@@ -22,14 +27,67 @@ export function useModMode() {
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    return { user };
+    
+    // Count unread notifications for all roles
+    let notificationsCount = 0;
+    
+    try {
+        const db = drizzle(request.context.cloudflare.env.DB, { schema });
+        
+        // Count upcoming contract end dates (within 3 days)
+        const threeDaysFromNow = addDays(new Date(), 3);
+        const upcomingContracts = await db
+            .select()
+            .from(schema.contracts)
+            .where(
+                and(
+                    eq(schema.contracts.clientId, user.id),
+                    eq(schema.contracts.status, "active"),
+                    gte(schema.contracts.endDate, new Date())
+                )
+            )
+            .limit(10);
+        
+        // Filter contracts ending within 3 days
+        const upcomingCount = upcomingContracts.filter(
+            c => new Date(c.endDate) <= threeDaysFromNow
+        ).length;
+        
+        // Count recent contracts (last 7 days)
+        const sevenDaysAgo = addDays(new Date(), -7);
+        const recentContracts = await db
+            .select()
+            .from(schema.contracts)
+            .where(
+                and(
+                    eq(schema.contracts.clientId, user.id),
+                    gte(schema.contracts.createdAt, sevenDaysAgo)
+                )
+            )
+            .limit(5);
+        
+        notificationsCount = upcomingCount + recentContracts.length;
+    } catch (error) {
+        console.error("Error loading notifications count:", error);
+    }
+    
+    return { user, notificationsCount };
 }
 
 export default function Layout() {
-    const { user } = useLoaderData<typeof loader>();
+    const { user, notificationsCount } = useLoaderData<typeof loader>();
     const location = useLocation();
     const params = useParams();
+    const [searchParams] = useSearchParams();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const toast = useToast();
+
+    // Show welcome toast on login
+    useEffect(() => {
+        if (searchParams.get('login') === 'success') {
+            toast.success(`Welcome back, ${user.name || user.email}!`);
+        }
+    }, [searchParams.get('login'), user.name, user.email]);
 
     // Detect mod mode from URL
     const isModMode = !!(location.pathname.startsWith("/companies/") && 
@@ -68,6 +126,7 @@ export default function Layout() {
                         user={user}
                         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                         isSidebarOpen={isSidebarOpen}
+                        notificationsCount={notificationsCount}
                     />
                     <main className="p-4">
                         <Outlet key={location.pathname} />

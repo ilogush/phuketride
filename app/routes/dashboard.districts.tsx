@@ -1,10 +1,10 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
-import { useLoaderData, Form } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import { eq } from "drizzle-orm";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import Modal from "~/components/dashboard/Modal";
@@ -12,6 +12,7 @@ import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
+import { useToast } from "~/lib/toast";
 
 interface District {
     id: number;
@@ -43,8 +44,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));
-        await db.delete(schema.districts).where(eq(schema.districts.id, id));
-        return data({ success: true, message: "District deleted successfully" });
+        try {
+            await db.delete(schema.districts).where(eq(schema.districts.id, id));
+            return redirect("/districts?success=District deleted successfully");
+        } catch (error) {
+            console.error("Failed to delete district:", error);
+            return redirect("/districts?error=Failed to delete district");
+        }
     }
 
     if (intent === "create") {
@@ -52,13 +58,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const locationId = Number(formData.get("locationId"));
         const deliveryPrice = Number(formData.get("deliveryPrice"));
 
-        await db.insert(schema.districts).values({
-            name,
-            locationId,
-            deliveryPrice,
-        });
-
-        return data({ success: true, message: "District created successfully" });
+        try {
+            await db.insert(schema.districts).values({
+                name,
+                locationId,
+                deliveryPrice,
+            });
+            return redirect("/districts?success=District created successfully");
+        } catch (error) {
+            console.error("Failed to create district:", error);
+            return redirect("/districts?error=Failed to create district");
+        }
     }
 
     if (intent === "update") {
@@ -67,19 +77,25 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const locationId = Number(formData.get("locationId"));
         const deliveryPrice = Number(formData.get("deliveryPrice"));
 
-        await db
-            .update(schema.districts)
-            .set({ name, locationId, deliveryPrice })
-            .where(eq(schema.districts.id, id));
-
-        return data({ success: true, message: "District updated successfully" });
+        try {
+            await db
+                .update(schema.districts)
+                .set({ name, locationId, deliveryPrice })
+                .where(eq(schema.districts.id, id));
+            return redirect("/districts?success=District updated successfully");
+        } catch (error) {
+            console.error("Failed to update district:", error);
+            return redirect("/districts?error=Failed to update district");
+        }
     }
 
-    return data({ success: false, message: "Invalid action" }, { status: 400 });
+    return redirect("/districts?error=Invalid action");
 }
 
 export default function DistrictsPage() {
     const { districts, locations } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDistrict, setEditingDistrict] = useState<District | null>(null);
     const [formData, setFormData] = useState({
@@ -87,6 +103,18 @@ export default function DistrictsPage() {
         locationId: "1",
         deliveryPrice: "500",
     });
+
+    // Toast notifications
+    useEffect(() => {
+        const success = searchParams.get("success");
+        const error = searchParams.get("error");
+        if (success) {
+            toast.success(success);
+        }
+        if (error) {
+            toast.error(error);
+        }
+    }, [searchParams, toast]);
 
     const handleEdit = (district: District) => {
         setEditingDistrict(district);

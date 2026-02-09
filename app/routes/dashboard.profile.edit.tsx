@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { useLoaderData, Form } from "react-router";
+import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
@@ -14,6 +14,10 @@ import DocumentPhotosUpload from "~/components/dashboard/DocumentPhotosUpload";
 import { UserIcon, BuildingOfficeIcon, DocumentTextIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import { uploadAvatarFromBase64, deleteAvatar } from "~/lib/r2.server";
 import ProfileForm from "~/components/dashboard/ProfileForm";
+import { useToast } from "~/lib/toast";
+import { useEffect } from "react";
+import { userSchema } from "~/schemas/user";
+import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);
@@ -55,7 +59,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const avatarFileName = formData.get("avatarFileName") as string | null;
 
     if (avatarBase64 && avatarFileName) {
-        // Delete old avatar if exists
         if (currentUser.avatarUrl) {
             try {
                 await deleteAvatar(context.cloudflare.env.ASSETS, currentUser.avatarUrl);
@@ -63,8 +66,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 console.error("Failed to delete old avatar:", error);
             }
         }
-
-        // Upload new avatar
         avatarUrl = await uploadAvatarFromBase64(
             context.cloudflare.env.ASSETS,
             user.id,
@@ -84,45 +85,91 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
     }
 
-    // Prepare update data
-    const updateData: any = {
-        name: formData.get("name") as string || null,
-        surname: formData.get("surname") as string || null,
-        phone: formData.get("phone") as string || null,
-        whatsapp: formData.get("whatsapp") as string || null,
-        telegram: formData.get("telegram") as string || null,
-        passportNumber: formData.get("passportNumber") as string || null,
-        citizenship: formData.get("citizenship") as string || null,
-        city: formData.get("city") as string || null,
+    // Parse form data
+    const rawData = {
+        email: currentUser.email, // Email cannot be changed
+        role: currentUser.role, // Role handled separately
+        name: (formData.get("name") as string) || null,
+        surname: (formData.get("surname") as string) || null,
+        phone: (formData.get("phone") as string) || null,
+        whatsapp: (formData.get("whatsapp") as string) || null,
+        telegram: (formData.get("telegram") as string) || null,
+        passportNumber: (formData.get("passportNumber") as string) || null,
+        citizenship: (formData.get("citizenship") as string) || null,
+        city: (formData.get("city") as string) || null,
         countryId: formData.get("countryId") ? parseInt(formData.get("countryId") as string) : null,
-        dateOfBirth: formData.get("dateOfBirth") ? new Date(formData.get("dateOfBirth") as string) : null,
-        gender: formData.get("gender") as "male" | "female" | "other" || null,
+        dateOfBirth: (formData.get("dateOfBirth") as string) || null,
+        gender: (formData.get("gender") as "male" | "female" | "other") || null,
         hotelId: formData.get("hotelId") ? parseInt(formData.get("hotelId") as string) : null,
-        roomNumber: formData.get("roomNumber") as string || null,
+        roomNumber: (formData.get("roomNumber") as string) || null,
         locationId: formData.get("locationId") ? parseInt(formData.get("locationId") as string) : null,
         districtId: formData.get("districtId") ? parseInt(formData.get("districtId") as string) : null,
-        address: formData.get("address") as string || null,
-        avatarUrl,
-        updatedAt: new Date(),
+        address: (formData.get("address") as string) || null,
     };
 
-    // Only admin can change role
-    if (user.role === "admin") {
-        const newRole = formData.get("role") as string;
-        if (newRole && ["admin", "partner", "manager", "user"].includes(newRole)) {
-            updateData.role = newRole;
-        }
+    // Validate with Zod
+    const validation = userSchema.safeParse(rawData);
+    if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        return redirect(`/profile/edit?error=${encodeURIComponent(firstError.message)}`);
     }
 
-    await db.update(schema.users)
-        .set(updateData)
-        .where(eq(schema.users.id, user.id));
+    const validData = validation.data;
 
-    return redirect("/profile");
+    try {
+        const updateData: any = {
+            ...validData,
+            dateOfBirth: validData.dateOfBirth ? new Date(validData.dateOfBirth) : null,
+            avatarUrl,
+            updatedAt: new Date(),
+        };
+
+        // Only admin can change role
+        if (user.role === "admin") {
+            const newRole = formData.get("role") as string;
+            if (newRole && ["admin", "partner", "manager", "user"].includes(newRole)) {
+                updateData.role = newRole;
+            }
+        }
+
+        await db.update(schema.users)
+            .set(updateData)
+            .where(eq(schema.users.id, user.id));
+
+        // Audit log
+        const metadata = getRequestMetadata(request);
+        quickAudit({
+            db,
+            userId: user.id,
+            role: user.role,
+            companyId: user.companyId,
+            entityType: "user",
+            entityId: user.id,
+            action: "update",
+            beforeState: currentUser,
+            afterState: { ...validData, id: user.id },
+            ...metadata,
+        });
+
+        return redirect(`/profile?success=${encodeURIComponent("Profile updated successfully")}`);
+    } catch (error) {
+        console.error("Failed to update profile:", error);
+        return redirect(`/profile/edit?error=${encodeURIComponent("Failed to update profile")}`);
+    }
 }
 
 export default function EditProfilePage() {
     const { user, currentUserRole, countries, hotels, locations, districts } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
+
+    // Toast notifications
+    useEffect(() => {
+        const error = searchParams.get("error");
+        if (error) {
+            toast.error(error);
+        }
+    }, [searchParams, toast]);
 
     return (
         <div className="space-y-4">

@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { Form, useNavigate, useLoaderData } from "react-router";
+import { Form, useNavigate, useLoaderData, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
@@ -7,7 +7,10 @@ import { eq } from "drizzle-orm";
 import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
 import Button from "~/components/dashboard/Button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useToast } from "~/lib/toast";
+import { colorSchema } from "~/schemas/dictionary";
+import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     await requireAuth(request);
@@ -28,32 +31,84 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
-    await requireAuth(request);
+    const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
     const colorId = Number(params.colorId);
 
-    const name = formData.get("name") as string;
-    const hexCode = formData.get("hexCode") as string;
+    // Get current color for audit log
+    const currentColor = await db
+        .select()
+        .from(schema.colors)
+        .where(eq(schema.colors.id, colorId))
+        .limit(1);
 
-    await db
-        .update(schema.colors)
-        .set({
-            name,
-            hexCode: hexCode || null,
-        })
-        .where(eq(schema.colors.id, colorId));
+    if (!currentColor[0]) {
+        return redirect("/colors?error=Color not found");
+    }
 
-    return redirect("/colors");
+    const rawData = {
+        name: formData.get("name") as string,
+        hexCode: (formData.get("hexCode") as string) || null,
+    };
+
+    // Validate with Zod
+    const validation = colorSchema.safeParse(rawData);
+    if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        return redirect(`/colors/${colorId}/edit?error=${encodeURIComponent(firstError.message)}`);
+    }
+
+    const validData = validation.data;
+
+    try {
+        await db
+            .update(schema.colors)
+            .set({
+                name: validData.name,
+                hexCode: validData.hexCode,
+            })
+            .where(eq(schema.colors.id, colorId));
+
+        // Audit log
+        const metadata = getRequestMetadata(request);
+        quickAudit({
+            db,
+            userId: user.id,
+            role: user.role,
+            companyId: user.companyId,
+            entityType: "color",
+            entityId: colorId,
+            action: "update",
+            beforeState: currentColor[0],
+            afterState: { ...validData, id: colorId },
+            ...metadata,
+        });
+
+        return redirect("/colors?success=Color updated successfully");
+    } catch (error) {
+        console.error("Failed to update color:", error);
+        return redirect(`/colors/${colorId}/edit?error=Failed to update color`);
+    }
 }
 
 export default function EditColorModal() {
     const navigate = useNavigate();
     const { color } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
     const [formData, setFormData] = useState({
         name: color.name,
         hexCode: color.hexCode || "#000000",
     });
+
+    // Toast notifications
+    useEffect(() => {
+        const error = searchParams.get("error");
+        if (error) {
+            toast.error(error);
+        }
+    }, [searchParams, toast]);
 
     return (
         <Modal

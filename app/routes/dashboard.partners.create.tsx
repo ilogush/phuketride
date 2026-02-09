@@ -112,7 +112,7 @@ export default function PartnersCreatePage() {
                     )}
 
                     <FormSection title="Basic Information">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             <Input
                                 label="Company Name"
                                 name="name"
@@ -120,6 +120,7 @@ export default function PartnersCreatePage() {
                                 placeholder="Enter company name"
                                 required
                                 error={errors.name}
+                                onChange={(e) => validateLatinInput(e, 'Company Name')}
                             />
 
                             <Input
@@ -150,12 +151,13 @@ export default function PartnersCreatePage() {
                     </FormSection>
 
                     <FormSection title="Address">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             <Input
                                 label="Street"
                                 name="street"
                                 type="text"
                                 placeholder="Enter street name"
+                                onChange={(e) => validateLatinInput(e, 'Street')}
                             />
 
                             <Input
@@ -170,12 +172,13 @@ export default function PartnersCreatePage() {
                                 name="address"
                                 type="text"
                                 placeholder="Enter full address"
+                                onChange={(e) => validateLatinInput(e, 'Address')}
                             />
                         </div>
                     </FormSection>
 
                     <FormSection title="Bank Details">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             <Input
                                 label="Bank Name"
                                 name="bankName"
@@ -207,7 +210,7 @@ export default function PartnersCreatePage() {
                     </FormSection>
 
                     <FormSection title="Settings">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             <Input
                                 label="Preparation Time (minutes)"
                                 name="preparationTime"

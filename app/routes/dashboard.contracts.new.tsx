@@ -1,10 +1,11 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { Form, useLoaderData, useNavigate } from "react-router";
-import { useState } from "react";
+import { Form, useLoaderData, useNavigate, useSearchParams } from "react-router";
+import { useState, useEffect } from "react";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "~/lib/auth.server";
 import { companyCars, districts, users } from "~/db/schema";
+import * as schema from "~/db/schema";
 import FormSection from "~/components/dashboard/FormSection";
 import FormInput from "~/components/dashboard/FormInput";
 import FormSelect from "~/components/dashboard/FormSelect";
@@ -16,6 +17,10 @@ import CarPhotosUpload from "~/components/dashboard/CarPhotosUpload";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
+import { useLatinValidation } from "~/lib/useLatinValidation";
+import { useToast } from "~/lib/toast";
+import { contractSchema } from "~/schemas/contract";
+import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import {
     TruckIcon,
     CalendarIcon,
@@ -51,16 +56,142 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
+    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
-    // TODO: Implement contract creation logic
-    // For now, just redirect back
-    return redirect("/contracts");
+    // Parse form data - simplified version for basic contract creation
+    const rawData = {
+        companyCarId: Number(formData.get("companyCarId")),
+        clientId: crypto.randomUUID(), // Generate new client ID for now
+        managerId: user.id,
+        startDate: formData.get("startDate") as string,
+        endDate: formData.get("endDate") as string,
+        totalDays: Number(formData.get("totalDays")) || 1,
+        pricePerDay: Number(formData.get("pricePerDay")),
+        totalPrice: Number(formData.get("totalPrice")),
+        deposit: Number(formData.get("deposit")),
+        currency: (formData.get("currency") as string) || "THB",
+        clientName: formData.get("clientName") as string,
+        clientSurname: formData.get("clientSurname") as string,
+        clientPhone: formData.get("clientPhone") as string,
+        clientEmail: (formData.get("clientEmail") as string) || null,
+        clientPassport: (formData.get("clientPassport") as string) || null,
+        clientCitizenship: (formData.get("clientCitizenship") as string) || null,
+        deliveryLocationId: formData.get("deliveryLocationId") ? Number(formData.get("deliveryLocationId")) : null,
+        deliveryDistrictId: formData.get("deliveryDistrictId") ? Number(formData.get("deliveryDistrictId")) : null,
+        deliveryAddress: (formData.get("deliveryAddress") as string) || null,
+        deliveryTime: (formData.get("deliveryTime") as string) || null,
+        deliveryFee: formData.get("deliveryFee") ? Number(formData.get("deliveryFee")) : 0,
+        returnLocationId: formData.get("returnLocationId") ? Number(formData.get("returnLocationId")) : null,
+        returnDistrictId: formData.get("returnDistrictId") ? Number(formData.get("returnDistrictId")) : null,
+        returnAddress: (formData.get("returnAddress") as string) || null,
+        returnTime: (formData.get("returnTime") as string) || null,
+        returnFee: formData.get("returnFee") ? Number(formData.get("returnFee")) : 0,
+        fuelLevelStart: (formData.get("fuelLevelStart") as string) || "Full",
+        fuelLevelEnd: (formData.get("fuelLevelEnd") as string) || "Full",
+        mileageStart: formData.get("mileageStart") ? Number(formData.get("mileageStart")) : 0,
+        mileageEnd: formData.get("mileageEnd") ? Number(formData.get("mileageEnd")) : 0,
+        cleanliness: (formData.get("cleanliness") as "clean" | "dirty" | "very_dirty") || "clean",
+        fullInsurance: formData.get("fullInsurance") === "true",
+        fullInsurancePrice: formData.get("fullInsurancePrice") ? Number(formData.get("fullInsurancePrice")) : 0,
+        islandTrip: formData.get("islandTrip") === "true",
+        islandTripPrice: formData.get("islandTripPrice") ? Number(formData.get("islandTripPrice")) : 0,
+        krabiTrip: formData.get("krabiTrip") === "true",
+        krabiTripPrice: formData.get("krabiTripPrice") ? Number(formData.get("krabiTripPrice")) : 0,
+        babySeat: formData.get("babySeat") === "true",
+        babySeatPrice: formData.get("babySeatPrice") ? Number(formData.get("babySeatPrice")) : 0,
+        status: "active" as const,
+        notes: (formData.get("notes") as string) || null,
+    };
+
+    // Validate with Zod
+    const validation = contractSchema.safeParse(rawData);
+    if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        return redirect(`/contracts/new?error=${encodeURIComponent(firstError.message)}`);
+    }
+
+    const validData = validation.data;
+
+    try {
+        // Create client user first
+        await db.insert(schema.users).values({
+            id: validData.clientId,
+            email: validData.clientEmail || `${validData.clientPhone}@temp.com`,
+            role: "user",
+            name: validData.clientName,
+            surname: validData.clientSurname,
+            phone: validData.clientPhone,
+            passportNumber: validData.clientPassport,
+            citizenship: validData.clientCitizenship,
+        });
+
+        // Create contract
+        const [newContract] = await db.insert(schema.contracts).values({
+            companyCarId: validData.companyCarId,
+            clientId: validData.clientId,
+            managerId: validData.managerId,
+            startDate: new Date(validData.startDate),
+            endDate: new Date(validData.endDate),
+            totalDays: validData.totalDays,
+            pricePerDay: validData.pricePerDay,
+            totalAmount: validData.totalPrice,
+            deposit: validData.deposit,
+            currency: validData.currency,
+            deliveryLocationId: validData.deliveryLocationId,
+            deliveryDistrictId: validData.deliveryDistrictId,
+            deliveryAddress: validData.deliveryAddress,
+            deliveryTime: validData.deliveryTime,
+            deliveryFee: validData.deliveryFee,
+            returnLocationId: validData.returnLocationId,
+            returnDistrictId: validData.returnDistrictId,
+            returnAddress: validData.returnAddress,
+            returnTime: validData.returnTime,
+            returnFee: validData.returnFee,
+            fuelLevelStart: validData.fuelLevelStart,
+            fuelLevelEnd: validData.fuelLevelEnd,
+            mileageStart: validData.mileageStart,
+            mileageEnd: validData.mileageEnd,
+            cleanliness: validData.cleanliness,
+            fullInsurance: validData.fullInsurance,
+            fullInsurancePrice: validData.fullInsurancePrice,
+            islandTrip: validData.islandTrip,
+            islandTripPrice: validData.islandTripPrice,
+            krabiTrip: validData.krabiTrip,
+            krabiTripPrice: validData.krabiTripPrice,
+            babySeat: validData.babySeat,
+            babySeatPrice: validData.babySeatPrice,
+            status: validData.status,
+            notes: validData.notes,
+        }).returning({ id: schema.contracts.id });
+
+        // Audit log
+        const metadata = getRequestMetadata(request);
+        quickAudit({
+            db,
+            userId: user.id,
+            role: user.role,
+            companyId: user.companyId,
+            entityType: "contract",
+            entityId: newContract.id,
+            action: "create",
+            afterState: { ...validData, id: newContract.id },
+            ...metadata,
+        });
+
+        return redirect(`/contracts?success=${encodeURIComponent("Contract created successfully")}`);
+    } catch (error) {
+        console.error("Failed to create contract:", error);
+        return redirect(`/contracts/new?error=${encodeURIComponent("Failed to create contract")}`);
+    }
 }
 
 export default function NewContract() {
     const { cars, districts } = useLoaderData<typeof loader>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
+    const { validateLatinInput } = useLatinValidation();
 
     const [startDate, setStartDate] = useState(new Date());
     const [endDate, setEndDate] = useState(new Date(Date.now() + 86400000));
@@ -71,6 +202,14 @@ export default function NewContract() {
     const [carPhotos, setCarPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [passportPhotos, setPassportPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [driverLicensePhotos, setDriverLicensePhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
+
+    // Toast notifications
+    useEffect(() => {
+        const error = searchParams.get("error");
+        if (error) {
+            toast.error(error);
+        }
+    }, [searchParams, toast]);
 
     const fuelLevels = [
         { id: "Full", name: "Full (8/8)" },
@@ -107,7 +246,7 @@ export default function NewContract() {
                     title="Car Details"
                     icon={<TruckIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <FormSelect
                             label="Car"
                             name="company_car_id"
@@ -155,7 +294,7 @@ export default function NewContract() {
                     title="Rental Details"
                     icon={<CalendarIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <Input
                             label="Start Date & Time"
                             type="datetime-local"
@@ -214,7 +353,7 @@ export default function NewContract() {
                     title="User Details"
                     icon={<UserIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <FormInput
                             label="Passport Number"
                             name="client_passport"
@@ -225,12 +364,16 @@ export default function NewContract() {
                             label="First Name"
                             name="client_name"
                             placeholder="John"
+                            pattern="[a-zA-Z\s\-']+"
+                            onChange={(e) => validateLatinInput(e, 'First Name')}
                             required
                         />
                         <FormInput
                             label="Last Name"
                             name="client_surname"
                             placeholder="Doe"
+                            pattern="[a-zA-Z\s\-']+"
+                            onChange={(e) => validateLatinInput(e, 'Last Name')}
                             required
                         />
                         <FormInput
@@ -294,7 +437,7 @@ export default function NewContract() {
                     title="Extras"
                     icon={<CubeIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
                             <span className="text-sm font-medium text-gray-700">Full Insurance</span>
                             <Toggle enabled={fullInsurance} onChange={setFullInsurance} />
@@ -319,7 +462,7 @@ export default function NewContract() {
                     title="Financial Summary"
                     icon={<BanknotesIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <FormInput
                             label="Delivery Price"
                             name="delivery_cost"

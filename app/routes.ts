@@ -4,6 +4,7 @@ export default [
     index("routes/home.tsx"),
     route("login", "routes/login.tsx"),
     route("register", "routes/register.tsx"),
+    route("register-partner", "routes/register-partner.tsx"),
     route("logout", "routes/logout.tsx"),
 
     // Company standalone dashboard (Phuket Ride Co.)

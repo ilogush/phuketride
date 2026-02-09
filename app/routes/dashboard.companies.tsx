@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Link } from "react-router";
+import { useLoaderData, Link, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import { companies, users, districts, companyCars } from "~/db/schema";
@@ -8,6 +8,8 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { BuildingOfficeIcon } from "@heroicons/react/24/outline";
+import { useToast } from "~/lib/toast";
+import { useEffect } from "react";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -75,6 +77,20 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function CompaniesPage() {
     const { companies: companiesList } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
+
+    // Toast notifications
+    useEffect(() => {
+        const success = searchParams.get("success");
+        const error = searchParams.get("error");
+        if (success) {
+            toast.success(success);
+        }
+        if (error) {
+            toast.error(error);
+        }
+    }, [searchParams, toast]);
 
     const columns: Column<typeof companiesList[0]>[] = [
         {

@@ -16,22 +16,22 @@ const toastConfig = {
     success: {
         icon: CheckCircleIcon,
         iconColor: 'text-green-500',
-        bgColor: 'bg-gray-900',
+        bgColor: 'bg-gray-800',
     },
     error: {
         icon: XCircleIcon,
-        iconColor: 'text-gray-600',
-        bgColor: 'bg-gray-900',
+        iconColor: 'text-red-500',
+        bgColor: 'bg-gray-800',
     },
     warning: {
         icon: ExclamationTriangleIcon,
         iconColor: 'text-yellow-500',
-        bgColor: 'bg-gray-900',
+        bgColor: 'bg-gray-800',
     },
     info: {
         icon: InformationCircleIcon,
         iconColor: 'text-blue-500',
-        bgColor: 'bg-gray-900',
+        bgColor: 'bg-gray-800',
     },
 }
 
@@ -41,18 +41,18 @@ export default function ToastItem({ toast, onRemove }: ToastItemProps) {
 
     return (
         <div
-            className="pointer-events-auto bg-gray-900 border border-gray-700 text-gray-500 rounded-2xl shadow-2xl p-3 flex items-center gap-3 transition-all duration-500 ease-out transform animate-in fade-in slide-in-from-right-8"
+            className="pointer-events-auto bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl p-4 flex items-center gap-3 transition-all duration-500 ease-out transform animate-in fade-in slide-in-from-right-8"
             role="alert"
         >
-            <div className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center">
-                <Icon className={`h-5 w-5 ${config.iconColor}`} />
+            <div className="flex-shrink-0">
+                <Icon className={`h-6 w-6 ${config.iconColor}`} />
             </div>
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold tracking-tight text-gray-500">{toast.message}</p>
+                <p className="text-sm font-medium text-white">{toast.message}</p>
             </div>
             <button
                 onClick={() => onRemove(toast.id)}
-                className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-500 hover:bg-gray-800 transition-all"
+                className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-all"
                 aria-label="Close"
             >
                 <XMarkIcon className="h-4 w-4" />

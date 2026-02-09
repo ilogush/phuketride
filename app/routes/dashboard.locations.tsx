@@ -220,8 +220,9 @@ export default function LocationsPage() {
             label: "Beaches / Locations",
             render: (item) => {
                 const beaches = parseBeaches(item.beaches);
-                return <span className="text-xs text-gray-400">{beaches.join(", ")}</span>;
+                return <span className="text-sm">{beaches.join(", ")}</span>;
             },
+            wrap: true,
         },
         ...(isPartner
             ? [

@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { useLoaderData, Form } from "react-router";
+import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
@@ -11,6 +11,11 @@ import Button from "~/components/dashboard/Button";
 import BackButton from "~/components/dashboard/BackButton";
 import FormSection from "~/components/dashboard/FormSection";
 import { UserIcon, BuildingOfficeIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { useToast } from "~/lib/toast";
+import { useEffect } from "react";
+import { userSchema } from "~/schemas/user";
+import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { useLatinValidation } from "~/lib/useLatinValidation";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);
@@ -55,35 +60,103 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         throw new Response("User ID is required", { status: 400 });
     }
 
-    await db.update(schema.users)
-        .set({
-            email: formData.get("email") as string,
-            role: formData.get("role") as "admin" | "partner" | "manager" | "user",
-            name: formData.get("name") as string || null,
-            surname: formData.get("surname") as string || null,
-            phone: formData.get("phone") as string || null,
-            whatsapp: formData.get("whatsapp") as string || null,
-            telegram: formData.get("telegram") as string || null,
-            passportNumber: formData.get("passportNumber") as string || null,
-            citizenship: formData.get("citizenship") as string || null,
-            city: formData.get("city") as string || null,
-            countryId: formData.get("countryId") ? parseInt(formData.get("countryId") as string) : null,
-            dateOfBirth: formData.get("dateOfBirth") ? new Date(formData.get("dateOfBirth") as string) : null,
-            gender: formData.get("gender") as "male" | "female" | "other" || null,
-            hotelId: formData.get("hotelId") ? parseInt(formData.get("hotelId") as string) : null,
-            roomNumber: formData.get("roomNumber") as string || null,
-            locationId: formData.get("locationId") ? parseInt(formData.get("locationId") as string) : null,
-            districtId: formData.get("districtId") ? parseInt(formData.get("districtId") as string) : null,
-            address: formData.get("address") as string || null,
-            updatedAt: new Date(),
-        })
-        .where(eq(schema.users.id, userId));
+    // Get current user state for audit log
+    const currentUser = await db.select().from(schema.users).where(eq(schema.users.id, userId)).get();
+    if (!currentUser) {
+        throw new Response("User not found", { status: 404 });
+    }
 
-    return redirect(`/users/${userId}`);
+    // Parse form data
+    const rawData = {
+        email: formData.get("email") as string,
+        role: formData.get("role") as "admin" | "partner" | "manager" | "user",
+        name: (formData.get("name") as string) || null,
+        surname: (formData.get("surname") as string) || null,
+        phone: (formData.get("phone") as string) || null,
+        whatsapp: (formData.get("whatsapp") as string) || null,
+        telegram: (formData.get("telegram") as string) || null,
+        passportNumber: (formData.get("passportNumber") as string) || null,
+        citizenship: (formData.get("citizenship") as string) || null,
+        city: (formData.get("city") as string) || null,
+        countryId: formData.get("countryId") ? parseInt(formData.get("countryId") as string) : null,
+        dateOfBirth: (formData.get("dateOfBirth") as string) || null,
+        gender: (formData.get("gender") as "male" | "female" | "other") || null,
+        hotelId: formData.get("hotelId") ? parseInt(formData.get("hotelId") as string) : null,
+        roomNumber: (formData.get("roomNumber") as string) || null,
+        locationId: formData.get("locationId") ? parseInt(formData.get("locationId") as string) : null,
+        districtId: formData.get("districtId") ? parseInt(formData.get("districtId") as string) : null,
+        address: (formData.get("address") as string) || null,
+    };
+
+    // Validate with Zod
+    const validation = userSchema.safeParse(rawData);
+    if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        return redirect(`/users/${userId}/edit?error=${encodeURIComponent(firstError.message)}`);
+    }
+
+    const validData = validation.data;
+
+    try {
+        await db.update(schema.users)
+            .set({
+                email: validData.email,
+                role: validData.role,
+                name: validData.name,
+                surname: validData.surname,
+                phone: validData.phone,
+                whatsapp: validData.whatsapp,
+                telegram: validData.telegram,
+                passportNumber: validData.passportNumber,
+                citizenship: validData.citizenship,
+                city: validData.city,
+                countryId: validData.countryId,
+                dateOfBirth: validData.dateOfBirth ? new Date(validData.dateOfBirth) : null,
+                gender: validData.gender,
+                hotelId: validData.hotelId,
+                roomNumber: validData.roomNumber,
+                locationId: validData.locationId,
+                districtId: validData.districtId,
+                address: validData.address,
+                updatedAt: new Date(),
+            })
+            .where(eq(schema.users.id, userId));
+
+        // Audit log
+        const metadata = getRequestMetadata(request);
+        quickAudit({
+            db,
+            userId: sessionUser.id,
+            role: sessionUser.role,
+            companyId: sessionUser.companyId,
+            entityType: "user",
+            entityId: userId,
+            action: "update",
+            beforeState: currentUser,
+            afterState: { ...validData, id: userId },
+            ...metadata,
+        });
+
+        return redirect(`/users/${userId}?success=${encodeURIComponent("User updated successfully")}`);
+    } catch (error) {
+        console.error("Failed to update user:", error);
+        return redirect(`/users/${userId}/edit?error=${encodeURIComponent("Failed to update user")}`);
+    }
 }
 
 export default function EditUserPage() {
     const { user, countries, hotels, locations, districts } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
+    const { validateLatinInput } = useLatinValidation();
+
+    // Toast notifications
+    useEffect(() => {
+        const error = searchParams.get("error");
+        if (error) {
+            toast.error(error);
+        }
+    }, [searchParams, toast]);
 
     const initials = `${user.name?.[0] || ''}${user.surname?.[0] || ''}`.toUpperCase() || user.email[0].toUpperCase();
 
@@ -114,13 +187,14 @@ export default function EditUserPage() {
 
             <Form id="user-form" method="post" className="space-y-4">
                 <FormSection title="Profile Information" icon={<UserIcon />}>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Input
                             label="First Name"
                             name="name"
                             defaultValue={user.name || ""}
                             placeholder="Tom"
                             required
+                            onChange={(e) => validateLatinInput(e, 'First Name')}
                         />
                         <Input
                             label="Last Name"
@@ -128,6 +202,7 @@ export default function EditUserPage() {
                             defaultValue={user.surname || ""}
                             placeholder="Carlson"
                             required
+                            onChange={(e) => validateLatinInput(e, 'Last Name')}
                         />
                         <Select
                             label="Gender"
@@ -148,7 +223,7 @@ export default function EditUserPage() {
                         />
                     </div>
 
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Select
                             label="Role"
                             name="role"
@@ -183,7 +258,7 @@ export default function EditUserPage() {
                         />
                     </div>
 
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Input
                             label="Telegram"
                             name="telegram"
@@ -208,12 +283,13 @@ export default function EditUserPage() {
                             name="passportNumber"
                             defaultValue={user.passportNumber || ""}
                             placeholder="758024093"
+                            onChange={(e) => validateLatinInput(e, 'Passport Number')}
                         />
                     </div>
                 </FormSection>
 
                 <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Select
                             label="Hotel"
                             name="hotelId"

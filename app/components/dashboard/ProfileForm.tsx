@@ -10,6 +10,7 @@ import FormInput from "~/components/dashboard/FormInput";
 import FormSelect from "~/components/dashboard/FormSelect";
 import { UserIcon, BuildingOfficeIcon, DocumentTextIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import { getInitials, formatDateForInput, parseJSON, formatRole } from "~/lib/formatters";
+import { useLatinValidation } from "~/lib/useLatinValidation";
 
 // Типизации
 interface Country {
@@ -110,6 +111,7 @@ function ProfileForm({
     const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
     const [avatarFileName, setAvatarFileName] = useState<string | null>(null);
     const [removeAvatar, setRemoveAvatar] = useState(false);
+    const { validateLatinInput } = useLatinValidation();
 
     // Check if current user is admin
     const isAdmin = currentUserRole === "admin";
@@ -150,6 +152,8 @@ function ProfileForm({
                         value={isEdit ? undefined : (user.name || "")}
                         defaultValue={isEdit ? user.name : undefined}
                         placeholder="Tom"
+                        pattern="[a-zA-Z\s\-']+"
+                        onChange={isEdit ? (e) => validateLatinInput(e, 'First Name') : undefined}
                         required
                     />
                     <FormInput
@@ -159,6 +163,8 @@ function ProfileForm({
                         value={isEdit ? undefined : (user.surname || "")}
                         defaultValue={isEdit ? user.surname : undefined}
                         placeholder="Carlson"
+                        pattern="[a-zA-Z\s\-']+"
+                        onChange={isEdit ? (e) => validateLatinInput(e, 'Last Name') : undefined}
                         required
                     />
                     <FormSelect

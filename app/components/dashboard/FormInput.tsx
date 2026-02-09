@@ -12,6 +12,8 @@ interface FormInputProps {
     disabled?: boolean;
     isEdit?: boolean;
     className?: string;
+    pattern?: string;
+    onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const FormInput = memo(function FormInput({
@@ -25,6 +27,8 @@ const FormInput = memo(function FormInput({
     disabled = false,
     isEdit = true,
     className = "",
+    pattern,
+    onChange,
 }: FormInputProps) {
     const isFieldDisabled = disabled || !isEdit;
 
@@ -43,6 +47,8 @@ const FormInput = memo(function FormInput({
             required={required}
             disabled={isFieldDisabled}
             className={className}
+            pattern={pattern}
+            onChange={onChange}
         />
     );
 });

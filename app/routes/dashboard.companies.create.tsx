@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { useLoaderData, Form } from "react-router";
+import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import { ne, eq } from "drizzle-orm";
@@ -13,7 +13,11 @@ import FormSection from "~/components/dashboard/FormSection";
 import ReadOnlyField from "~/components/dashboard/ReadOnlyField";
 import WeeklySchedule from "~/components/dashboard/WeeklySchedule";
 import HolidaysManager from "~/components/dashboard/HolidaysManager";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useToast } from "~/lib/toast";
+import { companySchema } from "~/schemas/company";
+import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { useLatinValidation } from "~/lib/useLatinValidation";
 import {
     BuildingOfficeIcon,
     BanknotesIcon,
@@ -52,90 +56,124 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
-    const name = formData.get("name") as string;
-    const email = formData.get("email") as string;
-    const phone = formData.get("phone") as string;
-    const telegram = formData.get("telegram") as string;
-    const locationId = Number(formData.get("locationId"));
-    const districtId = Number(formData.get("districtId"));
-    const street = formData.get("street") as string;
-    const houseNumber = formData.get("houseNumber") as string;
+    // Parse form data
+    const rawData = {
+        name: formData.get("name") as string,
+        email: formData.get("email") as string,
+        phone: formData.get("phone") as string,
+        telegram: (formData.get("telegram") as string) || null,
+        locationId: Number(formData.get("locationId")),
+        districtId: Number(formData.get("districtId")),
+        street: formData.get("street") as string,
+        houseNumber: formData.get("houseNumber") as string,
+        bankName: (formData.get("bankName") as string) || null,
+        accountNumber: (formData.get("accountNumber") as string) || null,
+        accountName: (formData.get("accountName") as string) || null,
+        swiftCode: (formData.get("swiftCode") as string) || null,
+        preparationTime: Number(formData.get("preparationTime")) || 30,
+        deliveryFeeAfterHours: Number(formData.get("deliveryFeeAfterHours")) || 0,
+        islandTripPrice: Number(formData.get("islandTripPrice")) || null,
+        krabiTripPrice: Number(formData.get("krabiTripPrice")) || null,
+        babySeatPricePerDay: Number(formData.get("babySeatPricePerDay")) || null,
+    };
 
-    // Bank Details
-    const bankName = formData.get("bankName") as string;
-    const accountNumber = formData.get("accountNumber") as string;
-    const accountName = formData.get("accountName") as string;
-    const swiftCode = formData.get("swiftCode") as string;
-
-    // Extras
-    const preparationTime = Number(formData.get("preparationTime")) || 30;
-    const deliveryFeeAfterHours = Number(formData.get("deliveryFeeAfterHours")) || 0;
-    const islandTripPrice = Number(formData.get("islandTripPrice")) || 0;
-    const krabiTripPrice = Number(formData.get("krabiTripPrice")) || 0;
-    const babySeatPricePerDay = Number(formData.get("babySeatPricePerDay")) || 0;
-
-    // Schedule & Holidays
-    const weeklySchedule = formData.get("weeklySchedule") as string;
-    const holidays = formData.get("holidays") as string;
-
-    // Managers to assign
-    const managerIds = formData.getAll("managerIds") as string[];
-
-    // Create with current user as owner
-    const [newCompany] = await db.insert(schema.companies).values({
-        name,
-        ownerId: user.id,
-        email,
-        phone,
-        telegram,
-        locationId,
-        districtId,
-        street,
-        houseNumber,
-        bankName,
-        accountNumber,
-        accountName,
-        swiftCode,
-        preparationTime,
-        deliveryFeeAfterHours,
-        islandTripPrice,
-        krabiTripPrice,
-        babySeatPricePerDay,
-        weeklySchedule,
-        holidays,
-    }).returning({ id: schema.companies.id });
-
-    // Assign managers to company and update their role to partner
-    if (managerIds.length > 0 && newCompany?.id) {
-        await Promise.all([
-            // Create manager record
-            ...managerIds.map(userId =>
-                db.insert(schema.managers).values({
-                    userId,
-                    companyId: newCompany.id,
-                    isActive: true,
-                })
-            ),
-            // Update user role to partner
-            ...managerIds.map(userId =>
-                db.update(schema.users)
-                    .set({ role: "partner", updatedAt: new Date() })
-                    .where(eq(schema.users.id, userId))
-            )
-        ]);
+    // Validate with Zod
+    const validation = companySchema.safeParse(rawData);
+    if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        return redirect(`/companies/create?error=${encodeURIComponent(firstError.message)}`);
     }
 
-    return redirect("/companies");
+    const validData = validation.data;
+
+    try {
+        // Schedule & Holidays
+        const weeklySchedule = formData.get("weeklySchedule") as string;
+        const holidays = formData.get("holidays") as string;
+        const managerIds = formData.getAll("managerIds") as string[];
+
+        // Create company
+        const [newCompany] = await db.insert(schema.companies).values({
+            name: validData.name,
+            ownerId: user.id,
+            email: validData.email,
+            phone: validData.phone,
+            telegram: validData.telegram,
+            locationId: validData.locationId,
+            districtId: validData.districtId,
+            street: validData.street,
+            houseNumber: validData.houseNumber,
+            bankName: validData.bankName,
+            accountNumber: validData.accountNumber,
+            accountName: validData.accountName,
+            swiftCode: validData.swiftCode,
+            preparationTime: validData.preparationTime,
+            deliveryFeeAfterHours: validData.deliveryFeeAfterHours,
+            islandTripPrice: validData.islandTripPrice,
+            krabiTripPrice: validData.krabiTripPrice,
+            babySeatPricePerDay: validData.babySeatPricePerDay,
+            weeklySchedule,
+            holidays,
+        }).returning({ id: schema.companies.id });
+
+        // Assign managers
+        if (managerIds.length > 0 && newCompany?.id) {
+            await Promise.all([
+                ...managerIds.map(userId =>
+                    db.insert(schema.managers).values({
+                        userId,
+                        companyId: newCompany.id,
+                        isActive: true,
+                    })
+                ),
+                ...managerIds.map(userId =>
+                    db.update(schema.users)
+                        .set({ role: "partner", updatedAt: new Date() })
+                        .where(eq(schema.users.id, userId))
+                )
+            ]);
+        }
+
+        // Audit log
+        const metadata = getRequestMetadata(request);
+        quickAudit({
+            db,
+            userId: user.id,
+            role: user.role,
+            companyId: newCompany.id,
+            entityType: "company",
+            entityId: newCompany.id,
+            action: "create",
+            afterState: { ...validData, id: newCompany.id },
+            ...metadata,
+        });
+
+        return redirect(`/companies?success=${encodeURIComponent("Company created successfully")}`);
+    } catch (error) {
+        console.error("Failed to create company:", error);
+        return redirect(`/companies/create?error=${encodeURIComponent("Failed to create company")}`);
+    }
 }
 
 export default function CreateCompanyPage() {
     const { locations, districts, users } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
+    const { validateLatinInput } = useLatinValidation();
     const [selectedLocationId, setSelectedLocationId] = useState(locations[0]?.id || 1);
     const [weeklySchedule, setWeeklySchedule] = useState("");
     const [holidays, setHolidays] = useState("");
     const [selectedManager, setSelectedManager] = useState<{ id: string; email: string; name: string | null; surname: string | null; role: string; phone: string | null } | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [showSuggestions, setShowSuggestions] = useState(false);
+
+    // Toast notifications
+    useEffect(() => {
+        const error = searchParams.get("error");
+        if (error) {
+            toast.error(error);
+        }
+    }, [searchParams, toast]);
 
     const filteredDistricts = districts.filter(d => d.locationId === selectedLocationId);
 
@@ -177,12 +215,13 @@ export default function CreateCompanyPage() {
                 {/* Basic Information */}
                 <FormSection title="Company Information" icon={<BuildingOfficeIcon />}>
                     <div className="space-y-4">
-                        <div className="grid grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input
                                 label="Company Name"
                                 name="name"
                                 placeholder="e.g., Andaman Rentals"
                                 required
+                                onChange={(e) => validateLatinInput(e, 'Company Name')}
                             />
                             <Input
                                 label="Email Address"
@@ -204,7 +243,7 @@ export default function CreateCompanyPage() {
                             />
                         </div>
 
-                        <div className="grid grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Select
                                 label="Location"
                                 name="locationId"
@@ -225,6 +264,7 @@ export default function CreateCompanyPage() {
                                 name="street"
                                 placeholder="e.g., 123 Beach Road"
                                 required
+                                onChange={(e) => validateLatinInput(e, 'Street')}
                             />
                             <Input
                                 label="House Number"
@@ -238,7 +278,7 @@ export default function CreateCompanyPage() {
 
                 {/* Bank Details */}
                 <FormSection title="Bank Details" icon={<BanknotesIcon />}>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Input
                             label="Bank Name"
                             name="bankName"
@@ -264,7 +304,7 @@ export default function CreateCompanyPage() {
 
                 {/* Extras */}
                 <FormSection title="Extras" icon={<Cog6ToothIcon />}>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Input
                             label="Preparation Time (min)"
                             name="preparationTime"
@@ -297,7 +337,7 @@ export default function CreateCompanyPage() {
                             addonLeft="฿"
                         />
                     </div>
-                    <div className="grid grid-cols-4 gap-4 mt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
                         <Input
                             label="Baby Seat Cost (per day)"
                             name="babySeatPricePerDay"
@@ -313,7 +353,7 @@ export default function CreateCompanyPage() {
                 <FormSection title="Assign Users" icon={<UserIcon />}>
                     <div className="space-y-4">
                         {!selectedManager ? (
-                            <div className="grid grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div className="relative">
                                     <Input
                                         label="Search Users"
@@ -364,13 +404,13 @@ export default function CreateCompanyPage() {
                                         Remove
                                     </Button>
                                 </div>
-                                <div className="grid grid-cols-4 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <ReadOnlyField label="Name" value={selectedManager.name} />
                                     <ReadOnlyField label="Surname" value={selectedManager.surname} />
                                     <ReadOnlyField label="Email" value={selectedManager.email} />
                                     <ReadOnlyField label="Phone" value={selectedManager.phone} />
                                 </div>
-                                <div className="grid grid-cols-4 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <ReadOnlyField label="Role" value={selectedManager.role} capitalize />
                                 </div>
                             </div>

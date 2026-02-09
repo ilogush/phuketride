@@ -16,9 +16,10 @@ interface TopbarProps {
     };
     onToggleSidebar: () => void;
     isSidebarOpen: boolean;
+    notificationsCount?: number;
 }
 
-export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarProps) {
+export default function Topbar({ user, onToggleSidebar, isSidebarOpen, notificationsCount = 0 }: TopbarProps) {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -77,7 +78,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
                             className="w-full pl-4 pr-14 py-2.5 bg-white rounded-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-200 transition-all border border-gray-200"
                         />
                         <div className="absolute inset-y-2 right-1.5 flex items-center">
-                            <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center shadow-sm transition-transform group-focus-within:scale-105">
+                            <div className="w-8 h-8 text-white rounded-full bg-gray-800 flex items-center justify-center shadow-sm transition-transform group-focus-within:scale-105">
                                 <MagnifyingGlassIcon className="w-4 h-4" />
                             </div>
                         </div>
@@ -87,13 +88,16 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
                 {/* Right Side - Notifications & Profile */}
                 <div className="flex items-center gap-3 ml-6">
                     {/* Notifications */}
-                    <button
+                    <Link
+                        to="/dashboard"
                         className="relative p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
                         title="Notifications"
                     >
                         <BellIcon className="w-6 h-6" />
-                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
-                    </button>
+                        {notificationsCount > 0 && (
+                            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                        )}
+                    </Link>
 
                     {/* Profile */}
                     <div className="relative" ref={menuRef}>
@@ -102,7 +106,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen }: TopbarP
                             className="flex items-center gap-3 p-1.5 hover:bg-white hover:shadow-sm  rounded-full transition-all"
                         >
                             <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center shadow-sm">
-                                <span className="text-xs font-bold">
+                                <span className="text-white text-xs font-bold">
                                     {displayName.charAt(0).toUpperCase()}
                                 </span>
                             </div>
