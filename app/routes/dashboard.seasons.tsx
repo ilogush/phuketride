@@ -49,7 +49,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
 
-    const companyId = 1;
+    const companyId = user.companyId || 1;
 
     const seasons = await db
         .select()
@@ -66,7 +66,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
     const intent = formData.get("intent");
 
-    const companyId = 1;
+    const companyId = user.companyId || 1;
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));

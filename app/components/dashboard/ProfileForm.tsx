@@ -184,7 +184,7 @@ function ProfileForm({
                     />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {isEdit ? (
                         <FormSelect
                             isEdit={isEdit}
@@ -198,7 +198,6 @@ function ProfileForm({
                                 { id: "user", name: "User" }
                             ]}
                             disabled={!isAdmin}
-                            className="mt-2"
                         />
                     ) : (
                         <FormInput
@@ -235,7 +234,7 @@ function ProfileForm({
                     />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <FormInput
                         isEdit={isEdit}
                         label="Telegram"
@@ -251,7 +250,6 @@ function ProfileForm({
                             name="countryId"
                             defaultValue={user.countryId?.toString()}
                             options={countries}
-                            className="mt-2"
                         />
                     ) : (
                         <FormInput
@@ -282,7 +280,7 @@ function ProfileForm({
 
             {/* Accommodation Section */}
             <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {isEdit ? (
                         <FormInput
                             isEdit={isEdit}
@@ -306,7 +304,6 @@ function ProfileForm({
                             name="hotelId"
                             defaultValue={user.hotelId?.toString()}
                             options={hotels}
-                            className="mt-2"
                         />
                     ) : (
                         <FormInput
@@ -331,7 +328,6 @@ function ProfileForm({
                             name="locationId"
                             defaultValue={user.locationId?.toString()}
                             options={locations}
-                            className="mt-2"
                         />
                     ) : (
                         <FormInput

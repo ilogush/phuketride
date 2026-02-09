@@ -980,6 +980,28 @@ const handleSubmit = async (e: FormEvent) => {
 
 ## Styling Standards
 
+### Spacing & Layout (CRITICAL)
+
+**Form Component Spacing**:
+- **Label to Input**: `mb-1` (4px) - ONLY spacing between label and input field
+- **NO additional margins**: Components (Input, Select, Textarea, FormInput, FormSelect) have NO top/bottom margins
+- **Grid spacing**: Use `gap-4` (16px) for form grids
+- **Section spacing**: Use `space-y-4` (16px) between form sections
+
+**Standardized Components**:
+- `Input` - No margin, label has `mb-1`
+- `Select` - No margin, label has `mb-1`
+- `Textarea` - No margin, label has `mb-1`
+- `FormInput` - No margin, wraps Input
+- `FormSelect` - No margin, label has `mb-1`
+- `FormField` - No margin, label has `mb-1`, no wrapper div around children
+
+**Rules**:
+- ❌ NEVER add `mt-2`, `mt-1`, or any top margin to form components
+- ❌ NEVER add `className="mt-2"` to FormInput, FormSelect, Select, or Input
+- ✅ ALWAYS use grid `gap-4` for spacing between fields
+- ✅ ALWAYS use `mb-1` for label spacing (already built-in)
+
 ### Icons
 - **ONLY Heroicons outline**: `@heroicons/react/24/outline`
 - Never use solid icons

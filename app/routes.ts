@@ -44,7 +44,7 @@ export default [
             route(":colorId/edit", "routes/dashboard.colors_.$colorId.edit.tsx"),
         ]),
         route("reports", "routes/dashboard.reports.tsx"),
-        route("admin/audit-logs", "routes/dashboard.admin.audit-logs.tsx"),
+        route("logs", "routes/dashboard.logs.tsx"),
 
         // Partner/Manager routes
         route("contracts", "routes/dashboard.contracts.tsx"),

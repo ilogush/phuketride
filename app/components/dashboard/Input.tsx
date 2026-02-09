@@ -95,7 +95,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
             )}
             <div className={`${(addonLeft || addonRight || isPassword) ? 'flex' : ''} rounded-3xl`}>
                 {addonLeft && (
-                    <span className="inline-flex items-center px-3 rounded-l-3xl border border-r-0 border-gray-200 bg-gray-50 text-gray-500 sm:text-sm">
+                    <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-gray-200 bg-gray-50 text-gray-500 sm:text-sm">
                         {addonLeft}
                     </span>
                 )}

@@ -34,7 +34,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         const baseStyle = error ? selectErrorStyles : selectBaseStyles;
 
         return (
-            <div className={`mt-2 ${className}`}>
+            <div className={className}>
                 {label && (
                     <label htmlFor={id || name} className="block text-xs text-gray-600 mb-1">
                         {label} {required && <span className="text-gray-500">*</span>}

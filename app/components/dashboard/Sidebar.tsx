@@ -60,7 +60,7 @@ const getMenuItems = (role: UserRole) => {
             { to: "/durations", icon: ClockIcon, label: "Durations" },
             { to: "/seasons", icon: SunIcon, label: "Seasons" },
             { to: "/colors", icon: SwatchIcon, label: "Colors" },
-            { to: "/admin/audit-logs", icon: ClipboardDocumentListIcon, label: "Audit Logs" },
+            { to: "/logs", icon: ClipboardDocumentListIcon, label: "Audit Logs" },
         ];
     }
 
@@ -75,7 +75,7 @@ const getMenuItems = (role: UserRole) => {
             { to: "/users", icon: UsersIcon, label: "Users" },
             { to: "/calendar", icon: CalendarIcon, label: "Calendar" },
             { to: "/chat", icon: ChatBubbleLeftRightIcon, label: "Chat" },
-            { to: "/admin/audit-logs", icon: ClipboardDocumentCheckIcon, label: "Logs" },
+            { to: "/logs", icon: ClipboardDocumentCheckIcon, label: "Logs" },
             { to: "/settings", icon: Cog6ToothIcon, label: "Settings" },
         ];
     }

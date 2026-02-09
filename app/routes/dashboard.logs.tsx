@@ -40,7 +40,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
 
-    const logs = await db
+    let logsQuery = db
         .select({
             id: schema.auditLogs.id,
             userId: schema.auditLogs.userId,
@@ -62,6 +62,22 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         .orderBy(desc(schema.auditLogs.createdAt))
         .limit(100);
 
+    // Partner can only see logs from their company
+    if (user.role === "partner") {
+        const companyResult = await context.cloudflare.env.DB
+            .prepare("SELECT id FROM companies WHERE owner_id = ? LIMIT 1")
+            .bind(user.id)
+            .first<{ id: number }>();
+
+        if (!companyResult) {
+            return { user, logs: [] };
+        }
+
+        logsQuery = logsQuery.where(eq(schema.auditLogs.companyId, companyResult.id));
+    }
+
+    const logs = await logsQuery;
+
     return { user, logs };
 }
 
@@ -72,7 +88,23 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const intent = formData.get("intent");
 
     if (intent === "clear") {
-        await db.delete(schema.auditLogs);
+        if (user.role === "partner") {
+            // Partner can only clear logs from their company
+            const companyResult = await context.cloudflare.env.DB
+                .prepare("SELECT id FROM companies WHERE owner_id = ? LIMIT 1")
+                .bind(user.id)
+                .first<{ id: number }>();
+
+            if (!companyResult) {
+                return data({ success: false, message: "Company not found" }, { status: 404 });
+            }
+
+            await db.delete(schema.auditLogs).where(eq(schema.auditLogs.companyId, companyResult.id));
+        } else {
+            // Admin can clear all logs
+            await db.delete(schema.auditLogs);
+        }
+        
         return data({ success: true, message: "Audit logs cleared successfully" });
     }
 

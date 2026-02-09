@@ -102,6 +102,7 @@ export const districts = sqliteTable("districts", {
     locationId: integer("location_id").notNull(),
     beaches: text("beaches"), // JSON array of beach/location names
     streets: text("streets"), // JSON array of main streets/roads
+    isActive: integer("is_active", { mode: "boolean" }).default(false),
     deliveryPrice: real("delivery_price").default(0),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),

@@ -14,9 +14,7 @@ export default function FormField({ label, required = false, error, children, cl
             <label className="block text-xs text-gray-600 mb-1">
                 {label} {required && <span className="text-gray-500">*</span>}
             </label>
-            <div className="mt-1">
-                {children}
-            </div>
+            {children}
             {error && (
                 <p className="mt-1 text-sm text-gray-700">{error}</p>
             )}

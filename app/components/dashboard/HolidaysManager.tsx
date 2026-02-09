@@ -55,7 +55,7 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
                             value={newDate}
                             onChange={(e) => setNewDate(e.target.value)}
                             placeholder="Select date..."
-                            className="flex-1 px-4 py-2.5 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300"
+                            className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-500"
                         />
                         <Button
                             type="button"

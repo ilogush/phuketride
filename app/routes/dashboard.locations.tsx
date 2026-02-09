@@ -12,6 +12,7 @@ import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
 import { Textarea } from "~/components/dashboard/Textarea";
 import { PlusIcon } from "@heroicons/react/24/outline";
+import { useToast } from "~/lib/toast";
 
 interface District {
     id: number;
@@ -19,6 +20,7 @@ interface District {
     locationId: number;
     beaches: string | null;
     streets: string | null;
+    isActive: boolean;
     deliveryPrice: number | null;
     createdAt: Date;
     updatedAt: Date;
@@ -38,6 +40,44 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
     const intent = formData.get("intent");
+
+    if (intent === "bulkUpdate") {
+        const updates = JSON.parse(formData.get("updates") as string);
+        
+        for (const update of updates) {
+            await db.update(schema.districts)
+                .set({ 
+                    isActive: update.isActive,
+                    deliveryPrice: update.deliveryPrice,
+                    updatedAt: new Date() 
+                })
+                .where(eq(schema.districts.id, update.id));
+        }
+
+        return data({ success: true, message: "All changes saved successfully" });
+    }
+
+    if (intent === "toggleStatus") {
+        const id = Number(formData.get("id"));
+        const isActive = formData.get("isActive") === "true";
+        
+        await db.update(schema.districts)
+            .set({ isActive, updatedAt: new Date() })
+            .where(eq(schema.districts.id, id));
+
+        return data({ success: true, message: "Status updated successfully" });
+    }
+
+    if (intent === "updatePrice") {
+        const id = Number(formData.get("id"));
+        const deliveryPrice = Number(formData.get("deliveryPrice"));
+        
+        await db.update(schema.districts)
+            .set({ deliveryPrice, updatedAt: new Date() })
+            .where(eq(schema.districts.id, id));
+
+        return data({ success: true, message: "Price updated successfully" });
+    }
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));
@@ -96,8 +136,11 @@ export default function LocationsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDistrict, setEditingDistrict] = useState<District | null>(null);
     const [formData, setFormData] = useState({ name: "", beaches: "", streets: "", deliveryPrice: "0" });
+    const [localDistricts, setLocalDistricts] = useState(districts);
+    const toast = useToast();
 
     const isAdmin = user.role === "admin";
+    const isPartner = user.role === "partner";
 
     const parseBeaches = (beaches: string | null): string[] => {
         if (!beaches) return [];
@@ -114,6 +157,36 @@ export default function LocationsPage() {
             return JSON.parse(streets);
         } catch {
             return [];
+        }
+    };
+
+    const handleToggleStatus = (id: number, currentStatus: boolean) => {
+        const district = localDistricts.find(d => d.id === id);
+        const newStatus = !currentStatus;
+        
+        setLocalDistricts(prev => 
+            prev.map(d => d.id === id ? { ...d, isActive: newStatus } : d)
+        );
+
+        if (district) {
+            toast.success(
+                `${district.name} ${newStatus ? 'activated' : 'deactivated'}`,
+                { duration: 3000 }
+            );
+        }
+    };
+
+    const handlePriceChange = (id: number, price: string) => {
+        const numPrice = Number(price) || 0;
+        setLocalDistricts(prev => 
+            prev.map(d => d.id === id ? { ...d, deliveryPrice: numPrice } : d)
+        );
+    };
+
+    const handleSaveAll = async () => {
+        const form = document.getElementById("bulk-update-form") as HTMLFormElement;
+        if (form) {
+            form.requestSubmit();
         }
     };
 
@@ -140,28 +213,75 @@ export default function LocationsPage() {
         {
             key: "name",
             label: "District",
-            render: (item) => <span className="font-semibold">{item.name}</span>,
+            render: (item) => <span className="font-medium">{item.name}</span>,
         },
         {
             key: "beaches",
             label: "Beaches / Locations",
             render: (item) => {
                 const beaches = parseBeaches(item.beaches);
-                return <span className="text-sm">{beaches.join(", ")}</span>;
+                return <span className="text-xs text-gray-400">{beaches.join(", ")}</span>;
             },
-            wrap: true,
         },
-        {
-            key: "streets",
-            label: "Streets / Roads",
-            render: (item) => {
-                const streets = parseStreets(item.streets);
-                return <span className="text-sm">{streets.join(", ")}</span>;
-            },
-            wrap: true,
-        },
+        ...(isPartner
+            ? [
+                {
+                    key: "status",
+                    label: "Status",
+                    render: (item: District) => {
+                        const district = localDistricts.find(d => d.id === item.id) || item;
+                        return (
+                            <button
+                                type="button"
+                                onClick={() => handleToggleStatus(item.id, district.isActive)}
+                                className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
+                                    district.isActive ? "bg-gray-900 border-transparent" : "bg-gray-200 border-transparent"
+                                }`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                        district.isActive ? "translate-x-4" : "translate-x-0"
+                                    }`}
+                                />
+                            </button>
+                        );
+                    },
+                },
+                {
+                    key: "deliveryPrice",
+                    label: "Cost (฿)",
+                    render: (item: District) => {
+                        const district = localDistricts.find(d => d.id === item.id) || item;
+                        return (
+                            <div className="relative max-w-[120px]">
+                                <input
+                                    type="number"
+                                    value={district.deliveryPrice || 0}
+                                    onChange={(e) => handlePriceChange(item.id, e.target.value)}
+                                    disabled={!district.isActive}
+                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-gray-500 read-only:bg-gray-100 read-only:text-gray-500 read-only:cursor-not-allowed read-only:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed disabled:border-gray-200"
+                                />
+                                <span className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">
+                                    ฿
+                                </span>
+                            </div>
+                        );
+                    },
+                    className: "hidden sm:table-cell",
+                },
+            ]
+            : []),
         ...(isAdmin
             ? [
+                {
+                    key: "streets",
+                    label: "Streets / Roads",
+                    render: (item: District) => {
+                        const streets = parseStreets(item.streets);
+                        return <span className="text-sm">{streets.join(", ")}</span>;
+                    },
+                    wrap: true,
+                },
                 {
                     key: "actions",
                     label: "Actions",
@@ -186,33 +306,41 @@ export default function LocationsPage() {
                     ),
                 },
             ]
-            : [
-                {
-                    key: "deliveryPrice",
-                    label: "Delivery Price",
-                    render: (item: District) => (
-                        <span className="font-medium">฿{item.deliveryPrice || 0}</span>
-                    ),
-                    className: "text-right",
-                },
-            ]),
+            : []),
     ];
 
     return (
         <div className="space-y-4">
             <PageHeader
-                title="Districts & Locations (Phuket)"
+                title="Delivery"
                 rightActions={
                     isAdmin ? (
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />} onClick={() => setIsModalOpen(true)}>
                             Add
                         </Button>
+                    ) : isPartner ? (
+                        <Button variant="primary" onClick={handleSaveAll}>
+                            Save
+                        </Button>
                     ) : undefined
                 }
             />
 
+            {isPartner && (
+                <Form id="bulk-update-form" method="post" className="hidden">
+                    <input type="hidden" name="intent" value="bulkUpdate" />
+                    <input type="hidden" name="updates" value={JSON.stringify(
+                        localDistricts.map(d => ({
+                            id: d.id,
+                            isActive: d.isActive,
+                            deliveryPrice: d.deliveryPrice
+                        }))
+                    )} />
+                </Form>
+            )}
+
             <DataTable
-                data={districts}
+                data={localDistricts}
                 columns={columns}
                 disablePagination={true}
                 emptyTitle="No districts found"

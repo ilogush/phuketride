@@ -46,6 +46,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 .select({ count: sql<number>`count(*)` })
                 .from(users);
 
+            // TODO: Implement online users tracking (requires session management)
+            const onlineUsers = 0;
+
             const [carsCount] = await db
                 .select({ count: sql<number>`count(*)` })
                 .from(companyCars);
@@ -62,18 +65,18 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
             statCards = [
                 {
+                    name: "Users",
+                    value: `${usersCount?.count || 0}/${onlineUsers}`,
+                    subtext: "total / online",
+                    icon: "UserGroupIcon",
+                    href: "/users",
+                },
+                {
                     name: "Companies",
                     value: companiesCount?.count || 0,
                     subtext: "total registered",
                     icon: "BuildingOfficeIcon",
                     href: "/companies",
-                },
-                {
-                    name: "Users",
-                    value: `${usersCount?.count || 0}/0`,
-                    subtext: "total / online",
-                    icon: "UserGroupIcon",
-                    href: "/users",
                 },
                 {
                     name: "Cars",
@@ -113,6 +116,22 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             }));
         } else if (user.companyId) {
             // Partner/Manager stats
+            
+            // Get company users count (managers + users who have contracts with this company)
+            const [managersCount] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(users)
+                .innerJoin(sql`managers`, sql`managers.user_id = users.id`)
+                .where(
+                    and(
+                        sql`managers.company_id = ${user.companyId}`,
+                        sql`managers.is_active = 1`
+                    )
+                );
+
+            // TODO: Implement online users tracking
+            const onlineUsers = 0;
+
             const [carsCount] = await db
                 .select({ count: sql<number>`count(*)` })
                 .from(companyCars)
@@ -140,6 +159,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 );
 
             statCards = [
+                {
+                    name: "Users",
+                    value: `${managersCount?.count || 0}/${onlineUsers}`,
+                    subtext: "total / online",
+                    icon: "UserGroupIcon",
+                    href: "/users",
+                },
                 {
                     name: "Cars",
                     value: `${carsCount?.count || 0}/0`,
