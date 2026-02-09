@@ -93,7 +93,7 @@ export default function ColorsPage() {
             render: (item) => (
                 <div className="flex items-center gap-2">
                     <div
-                        className="w-8 h-8 rounded border border-gray-300"
+                        className="w-6 h-6 rounded-full border border-gray-300"
                         style={{ backgroundColor: item.hexCode || "#000000" }}
                     />
                     <span className="text-gray-700 font-mono text-sm">

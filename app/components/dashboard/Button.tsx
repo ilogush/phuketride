@@ -61,8 +61,8 @@ export default function Button({
     const roundedClasses = {
         sm: 'rounded-sm',
         md: 'rounded-md',
-        lg: 'rounded-3xl',
-        xl: 'rounded-3xl',
+        lg: 'rounded-xl',
+        xl: 'rounded-xl',
         full: 'rounded-full'
     }
 

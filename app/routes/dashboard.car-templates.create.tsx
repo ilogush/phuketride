@@ -7,7 +7,6 @@ import { CarTemplateForm } from '~/components/dashboard/CarTemplateForm'
 import PageHeader from '~/components/dashboard/PageHeader'
 import BackButton from '~/components/dashboard/BackButton'
 import Button from '~/components/dashboard/Button'
-import FormBox from '~/components/dashboard/FormBox'
 
 export async function loader({ request, context }: Route.LoaderArgs) {
     const user = await requireAuth(request)
@@ -85,7 +84,7 @@ export default function CreateCarTemplatePage({ loaderData }: Route.ComponentPro
     return (
         <div className="space-y-4">
             <PageHeader
-                title="Create Car Template"
+                title="Create"
                 leftActions={<BackButton to="/car-templates" />}
                 rightActions={
                     <Button type="submit" variant="primary" form="car-template-form">
@@ -94,9 +93,7 @@ export default function CreateCarTemplatePage({ loaderData }: Route.ComponentPro
                 }
             />
 
-            <FormBox>
-                <CarTemplateForm brands={brands} models={models} />
-            </FormBox>
+            <CarTemplateForm brands={brands} models={models} />
         </div>
     )
 }

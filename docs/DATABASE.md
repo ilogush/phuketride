@@ -128,7 +128,7 @@ companyCars {
   year: integer
   transmission: text
   engineVolume: real
-  fuelType: text
+  fuelTypeId: integer (FK to fuelTypes)
   pricePerDay: real (default: 0)
   deposit: real (default: 0)
   minInsurancePrice: real
@@ -370,7 +370,7 @@ carModels {
   id: integer (PK, auto-increment)
   brandId: integer (FK, not null)
   name: text (not null)
-  bodyType: text
+  bodyTypeId: integer (FK to bodyTypes)
   createdAt: timestamp
   updatedAt: timestamp
 }
@@ -386,6 +386,32 @@ colors {
 }
 ```
 
+### Body Types
+Reference table for vehicle body types.
+
+```typescript
+bodyTypes {
+  id: integer (PK, auto-increment)
+  name: text (unique, not null)
+  createdAt: timestamp
+}
+```
+
+**Seeded Values**: Sedan, SUV, Hatchback, Coupe, Convertible, Wagon, Van, Pickup, Minivan, Crossover, Scooter
+
+### Fuel Types
+Reference table for fuel types.
+
+```typescript
+fuelTypes {
+  id: integer (PK, auto-increment)
+  name: text (unique, not null)
+  createdAt: timestamp
+}
+```
+
+**Seeded Values**: Petrol, Diesel, Electric, Hybrid, Plug-in Hybrid, LPG, CNG
+
 ### Car Templates
 ```typescript
 carTemplates {
@@ -395,10 +421,10 @@ carTemplates {
   productionYear: integer
   transmission: enum ['automatic', 'manual']
   engineVolume: real
-  bodyType: text
+  bodyTypeId: integer (FK to bodyTypes)
   seats: integer
   doors: integer
-  fuelType: text
+  fuelTypeId: integer (FK to fuelTypes)
   description: text
   photos: text (JSON array)
   createdAt: timestamp

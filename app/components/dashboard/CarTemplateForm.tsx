@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { Form } from 'react-router'
 import FormField from '~/components/dashboard/FormField'
 import FormSection from '~/components/dashboard/FormSection'
-import { inputBaseStyles } from '~/lib/styles/input'
-import { TruckIcon } from '@heroicons/react/24/outline'
+import CarPhotosUpload from '~/components/dashboard/CarPhotosUpload'
+import { inputBaseStyles, selectBaseStyles } from '~/lib/styles/input'
+import { TruckIcon, PhotoIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
 
 interface CarBrand {
     id: number
@@ -48,13 +49,15 @@ export function CarTemplateForm({ template, brands, models }: CarTemplateFormPro
         seats: '',
         doors: '',
         fuel_type: '',
-        description: ''
+        description: '',
+        photos: [] as Array<{ base64: string; fileName: string }>
     })
     const [filteredModels, setFilteredModels] = useState<CarModel[]>([])
     const [errors, setErrors] = useState<Record<string, string>>({})
 
     useEffect(() => {
         if (template) {
+            const existingPhotos = template.photos ? JSON.parse(template.photos) : []
             setFormData({
                 brand_id: template.brand_id.toString(),
                 model_id: template.model_id.toString(),
@@ -65,7 +68,8 @@ export function CarTemplateForm({ template, brands, models }: CarTemplateFormPro
                 seats: template.seats?.toString() || '',
                 doors: template.doors?.toString() || '',
                 fuel_type: template.fuel_type || '',
-                description: template.description || ''
+                description: template.description || '',
+                photos: existingPhotos
             })
         }
     }, [template])
@@ -89,17 +93,21 @@ export function CarTemplateForm({ template, brands, models }: CarTemplateFormPro
         setFormData(prev => ({ ...prev, [name]: value }))
     }
 
+    const handlePhotosChange = (photos: Array<{ base64: string; fileName: string }>) => {
+        setFormData(prev => ({ ...prev, photos }))
+    }
+
     return (
         <Form method="post" id="car-template-form" className="space-y-4">
             <FormSection title="Basic Information" icon={<TruckIcon className="w-5 h-5" />}>
                 <div className="grid grid-cols-4 gap-4">
-                    <div className="col-span-2">
+                    <div className="col-span-1">
                         <FormField label="Brand" required error={errors.brand_id}>
                             <select
                                 name="brand_id"
                                 value={formData.brand_id}
                                 onChange={handleChange}
-                                className={`${inputBaseStyles} ${errors.brand_id ? 'border-gray-600' : ''}`}
+                                className={`${selectBaseStyles} ${errors.brand_id ? 'border-gray-600' : ''}`}
                                 required
                             >
                                 <option value="">Select brand</option>
@@ -112,14 +120,13 @@ export function CarTemplateForm({ template, brands, models }: CarTemplateFormPro
                         </FormField>
                     </div>
 
-                    <div className="col-span-2">
+                    <div className="col-span-1">
                         <FormField label="Model" required error={errors.model_id}>
                             <select
                                 name="model_id"
                                 value={formData.model_id}
                                 onChange={handleChange}
-                                className={`${inputBaseStyles} ${errors.model_id ? 'border-gray-600' : ''}`}
-                                disabled={!formData.brand_id}
+                                className={`${selectBaseStyles} ${errors.model_id ? 'border-gray-600' : ''}`}
                                 required
                             >
                                 <option value="">Select model</option>
@@ -153,7 +160,7 @@ export function CarTemplateForm({ template, brands, models }: CarTemplateFormPro
                                 name="transmission"
                                 value={formData.transmission}
                                 onChange={handleChange}
-                                className={inputBaseStyles}
+                                className={selectBaseStyles}
                             >
                                 <option value="">Select</option>
                                 <option value="automatic">Automatic</option>
@@ -187,11 +194,7 @@ export function CarTemplateForm({ template, brands, models }: CarTemplateFormPro
                             />
                         </FormField>
                     </div>
-                </div>
-            </FormSection>
 
-            <FormSection title="Specifications">
-                <div className="grid grid-cols-4 gap-4">
                     <div className="col-span-1">
                         <FormField label="Engine Volume (L)" error={errors.engine_volume}>
                             <input
@@ -239,7 +242,16 @@ export function CarTemplateForm({ template, brands, models }: CarTemplateFormPro
                 </div>
             </FormSection>
 
-            <FormSection title="Description">
+            <FormSection title="Photos" icon={<PhotoIcon className="w-5 h-5" />}>
+                <CarPhotosUpload
+                    currentPhotos={formData.photos.map(p => p.base64)}
+                    onPhotosChange={handlePhotosChange}
+                    maxPhotos={12}
+                />
+                <input type="hidden" name="photos" value={JSON.stringify(formData.photos)} />
+            </FormSection>
+
+            <FormSection title="Description" icon={<DocumentTextIcon className="w-5 h-5" />}>
                 <div className="grid grid-cols-4 gap-4">
                     <div className="col-span-4">
                         <FormField label="Description" error={errors.description}>

@@ -133,7 +133,7 @@ export const carModels = sqliteTable("car_models", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     brandId: integer("brand_id").notNull(),
     name: text("name").notNull(),
-    bodyType: text("body_type"),
+    bodyTypeId: integer("body_type_id"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
@@ -145,6 +145,18 @@ export const colors = sqliteTable("colors", {
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
+export const bodyTypes = sqliteTable("body_types", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull().unique(),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
+export const fuelTypes = sqliteTable("fuel_types", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull().unique(),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
 // Car templates table
 export const carTemplates = sqliteTable("car_templates", {
     id: integer("id").primaryKey({ autoIncrement: true }),
@@ -153,10 +165,10 @@ export const carTemplates = sqliteTable("car_templates", {
     productionYear: integer("production_year"),
     transmission: text("transmission", { enum: ["automatic", "manual"] }),
     engineVolume: real("engine_volume"),
-    bodyType: text("body_type"),
+    bodyTypeId: integer("body_type_id"),
     seats: integer("seats"),
     doors: integer("doors"),
-    fuelType: text("fuel_type"),
+    fuelTypeId: integer("fuel_type_id"),
     description: text("description"),
     photos: text("photos"), // JSON array
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
@@ -174,7 +186,7 @@ export const companyCars = sqliteTable("company_cars", {
     year: integer("year"),
     transmission: text("transmission"),
     engineVolume: real("engine_volume"),
-    fuelType: text("fuel_type"),
+    fuelTypeId: integer("fuel_type_id"),
     pricePerDay: real("price_per_day").default(0),
     deposit: real("deposit").default(0),
     minInsurancePrice: real("min_insurance_price"),
