@@ -201,6 +201,7 @@ export default function CompanyDetailPage() {
                 leftActions={
                     <Link to="/companies">
                         <Button variant="secondary">
+                            <ArrowLeftIcon className="w-4 h-4 mr-2" />
                             Back to Companies
                         </Button>
                     </Link>
@@ -236,27 +237,21 @@ export default function CompanyDetailPage() {
                 </div>
             </div>
 
-            <div className="bg-white rounded-3xl border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Cars ({cars.length})</h2>
-                <DataTable
-                    data={cars}
-                    columns={carColumns}
-                    totalCount={cars.length}
-                    emptyTitle="No cars found"
-                    emptyDescription="Cars will appear here when added"
-                />
-            </div>
+            <DataTable
+                data={cars}
+                columns={carColumns}
+                totalCount={cars.length}
+                emptyTitle="No cars found"
+                emptyDescription="Cars will appear here when added"
+            />
 
-            <div className="bg-white rounded-3xl border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Contracts ({contracts.length})</h2>
-                <DataTable
-                    data={contracts}
-                    columns={contractColumns}
-                    totalCount={contracts.length}
-                    emptyTitle="No contracts found"
-                    emptyDescription="Contracts will appear here when created"
-                />
-            </div>
+            <DataTable
+                data={contracts}
+                columns={contractColumns}
+                totalCount={contracts.length}
+                emptyTitle="No contracts found"
+                emptyDescription="Contracts will appear here when created"
+            />
         </div>
     );
 }
