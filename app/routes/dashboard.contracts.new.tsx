@@ -8,6 +8,8 @@ import { companyCars, districts, users } from "~/db/schema";
 import FormSection from "~/components/dashboard/FormSection";
 import FormInput from "~/components/dashboard/FormInput";
 import FormSelect from "~/components/dashboard/FormSelect";
+import { Input } from "~/components/dashboard/Input";
+import { Textarea } from "~/components/dashboard/Textarea";
 import Toggle from "~/components/dashboard/Toggle";
 import DocumentPhotosUpload from "~/components/dashboard/DocumentPhotosUpload";
 import CarPhotosUpload from "~/components/dashboard/CarPhotosUpload";
@@ -154,19 +156,14 @@ export default function NewContract() {
                     icon={<CalendarIcon className="w-6 h-6" />}
                 >
                     <div className="grid grid-cols-4 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Start Date & Time <span className="text-gray-500">*</span>
-                            </label>
-                            <input
-                                type="datetime-local"
-                                name="start_date"
-                                defaultValue={startDate.toISOString().slice(0, 16)}
-                                onChange={(e) => setStartDate(new Date(e.target.value))}
-                                className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors"
-                                required
-                            />
-                        </div>
+                        <Input
+                            label="Start Date & Time"
+                            type="datetime-local"
+                            name="start_date"
+                            required
+                            defaultValue={startDate.toISOString().slice(0, 16)}
+                            onChange={(e) => setStartDate(new Date(e.target.value))}
+                        />
                         <FormSelect
                             label="Pickup District"
                             name="pickup_district_id"
@@ -184,19 +181,14 @@ export default function NewContract() {
                             name="pickup_room"
                             placeholder="Room..."
                         />
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                End Date & Time <span className="text-gray-500">*</span>
-                            </label>
-                            <input
-                                type="datetime-local"
-                                name="end_date"
-                                defaultValue={endDate.toISOString().slice(0, 16)}
-                                onChange={(e) => setEndDate(new Date(e.target.value))}
-                                className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors"
-                                required
-                            />
-                        </div>
+                        <Input
+                            label="End Date & Time"
+                            type="datetime-local"
+                            name="end_date"
+                            required
+                            defaultValue={endDate.toISOString().slice(0, 16)}
+                            onChange={(e) => setEndDate(new Date(e.target.value))}
+                        />
                         <FormSelect
                             label="Return District"
                             name="return_district_id"
@@ -361,15 +353,12 @@ export default function NewContract() {
                     title="Notes & Terms"
                     icon={<DocumentTextIcon className="w-6 h-6" />}
                 >
-                    <div>
-                        <label className="block text-xs text-gray-600 mb-1">Contract Notes</label>
-                        <textarea
-                            name="notes"
-                            rows={4}
-                            placeholder="Add any extra information (flight info, car condition, etc.)"
-                            className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-gray-500"
-                        />
-                    </div>
+                    <Textarea
+                        label="Contract Notes"
+                        name="notes"
+                        rows={4}
+                        placeholder="Add any extra information (flight info, car condition, etc.)"
+                    />
                 </FormSection>
 
                 {/* Actions */}

@@ -10,6 +10,7 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import { useState } from "react";
 import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
+import { Textarea } from "~/components/dashboard/Textarea";
 import { PlusIcon } from "@heroicons/react/24/outline";
 
 interface District {
@@ -240,34 +241,24 @@ export default function LocationsPage() {
                             required
                         />
 
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">
-                                Beaches / Locations (comma separated)
-                            </label>
-                            <textarea
-                                name="beaches"
-                                value={formData.beaches}
-                                onChange={(e) => setFormData({ ...formData, beaches: e.target.value })}
-                                className="w-full px-4 py-2 text-gray-500 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-800 focus:border-transparent"
-                                rows={3}
-                                placeholder="e.g., Patong Beach, Kalim Beach, Paradise Beach"
-                                required
-                            />
-                        </div>
+                        <Textarea
+                            label="Beaches / Locations (comma separated)"
+                            name="beaches"
+                            value={formData.beaches}
+                            onChange={(value) => setFormData({ ...formData, beaches: value })}
+                            rows={3}
+                            placeholder="e.g., Patong Beach, Kalim Beach, Paradise Beach"
+                            required
+                        />
 
-                        <div>
-                            <label className="block text-xs text-gray-600 mb-1">
-                                Streets / Roads (comma separated)
-                            </label>
-                            <textarea
-                                name="streets"
-                                value={formData.streets}
-                                onChange={(e) => setFormData({ ...formData, streets: e.target.value })}
-                                className="w-full px-4 py-2 text-gray-500 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-800 focus:border-transparent"
-                                rows={3}
-                                placeholder="e.g., Bangla Road, Beach Road, Rat-U-Thit Road"
-                            />
-                        </div>
+                        <Textarea
+                            label="Streets / Roads (comma separated)"
+                            name="streets"
+                            value={formData.streets}
+                            onChange={(value) => setFormData({ ...formData, streets: value })}
+                            rows={3}
+                            placeholder="e.g., Bangla Road, Beach Road, Rat-U-Thit Road"
+                        />
 
                         <Input
                             label="Delivery Price (THB)"

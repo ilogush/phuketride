@@ -87,7 +87,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
 
     return (
-        <div className={`mt-2 ${className}`}>
+        <div className={className}>
             {label && (
                 <label htmlFor={id || name} className="block text-xs text-gray-600 mb-1">
                     {label} {required && <span className="text-gray-500">*</span>}
@@ -127,7 +127,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     </button>
                 )}
                 {!isPassword && addonRight && (
-                    <span className="inline-flex items-center px-4 rounded-r-3xl border border-l-0 border-gray-200 bg-gray-50 text-gray-500 sm:text-sm">
+                    <span className="inline-flex items-center px-4 rounded-r-xl border border-l-0 border-gray-200 bg-gray-50 text-gray-500 sm:text-sm">
                         {addonRight}
                     </span>
                 )}
