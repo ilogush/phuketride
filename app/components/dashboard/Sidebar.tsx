@@ -19,6 +19,7 @@ import {
     UserIcon,
     XMarkIcon,
     RectangleStackIcon,
+    ClipboardDocumentCheckIcon,
 } from "@heroicons/react/24/outline";
 import type { UserRole } from "~/lib/auth.server";
 
@@ -32,6 +33,8 @@ interface SidebarProps {
     };
     isOpen: boolean;
     onClose?: () => void;
+    isModMode?: boolean;
+    modCompanyId?: number | null;
 }
 
 const getMenuItems = (role: UserRole) => {
@@ -41,8 +44,8 @@ const getMenuItems = (role: UserRole) => {
         label: string;
         end?: boolean;
     }> = [
-            { to: "/dashboard", icon: Squares2X2Icon, label: "Dashboard", end: true },
-        ];
+        { to: "/dashboard", icon: Squares2X2Icon, label: "Dashboard", end: true },
+    ];
 
     if (role === "admin") {
         return [
@@ -72,6 +75,7 @@ const getMenuItems = (role: UserRole) => {
             { to: "/users", icon: UsersIcon, label: "Users" },
             { to: "/calendar", icon: CalendarIcon, label: "Calendar" },
             { to: "/chat", icon: ChatBubbleLeftRightIcon, label: "Chat" },
+            { to: "/admin/audit-logs", icon: ClipboardDocumentCheckIcon, label: "Logs" },
             { to: "/settings", icon: Cog6ToothIcon, label: "Settings" },
         ];
     }
@@ -101,14 +105,16 @@ const getMenuItems = (role: UserRole) => {
     ];
 };
 
-export default function Sidebar({ user, isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ user, isOpen, onClose, isModMode = false, modCompanyId = null }: SidebarProps) {
     const location = useLocation();
     const [hoveredItem, setHoveredItem] = useState<{ label: string; top: number } | null>(null);
-    const menuItems = getMenuItems(user.role);
+    
+    // В режиме модерации используем меню партнёра
+    const effectiveRole = isModMode ? "partner" : user.role;
+    const menuItems = getMenuItems(effectiveRole);
 
     return (
         <>
-            {/* Mobile Overlay */}
             {isOpen && (
                 <div
                     className="fixed inset-0 bg-black/50 z-40 md:hidden"
@@ -122,7 +128,6 @@ export default function Sidebar({ user, isOpen, onClose }: SidebarProps) {
                     : "w-0 border-none md:w-[72px] md:border-r md:border-gray-200 overflow-hidden -translate-x-full md:translate-x-0"
                     }`}
             >
-                {/* Logo Area */}
                 <div
                     className={`h-16 flex items-center flex-shrink-0 transition-all ${isOpen ? "px-4 justify-between" : "justify-center"
                         }`}
@@ -140,7 +145,6 @@ export default function Sidebar({ user, isOpen, onClose }: SidebarProps) {
                         )}
                     </NavLink>
 
-                    {/* Close Button - Mobile Only */}
                     {isOpen && (
                         <button
                             onClick={onClose}
@@ -152,7 +156,6 @@ export default function Sidebar({ user, isOpen, onClose }: SidebarProps) {
                     )}
                 </div>
 
-                {/* Navigation */}
                 <nav className="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
                     {menuItems.map((item) => {
                         const Icon = item.icon;
@@ -163,7 +166,6 @@ export default function Sidebar({ user, isOpen, onClose }: SidebarProps) {
                                 to={item.to}
                                 end={item.end}
                                 onClick={() => {
-                                    // Close sidebar on mobile when clicking a link
                                     if (window.innerWidth < 768 && onClose) {
                                         onClose();
                                     }
@@ -206,9 +208,9 @@ export default function Sidebar({ user, isOpen, onClose }: SidebarProps) {
                         );
                     })}
                 </nav>
+
             </aside>
 
-            {/* Tooltip for Collapsed Sidebar */}
             {!isOpen && hoveredItem && (
                 <div
                     className="fixed z-50 bg-gray-800 text-gray-500 text-xs font-medium px-3 py-1.5 rounded-lg shadow-xl border border-gray-700 pointer-events-none whitespace-nowrap left-[80px]"

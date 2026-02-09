@@ -200,7 +200,7 @@ export default function AuditLogsPage() {
                     logs.length > 0 && (
                         <Form method="post">
                             <input type="hidden" name="intent" value="clear" />
-                            <Button type="submit" variant="secondary">
+                            <Button type="submit" variant="primary">
                                 Clear All Logs
                             </Button>
                         </Form>

@@ -13,6 +13,8 @@ export default [
         // Admin routes
         route("companies", "routes/dashboard.companies.tsx"),
         route("companies/create", "routes/dashboard.companies.create.tsx"),
+        route("companies/:companyId", "routes/dashboard.companies.$companyId.tsx"),
+        route("companies/:companyId/edit", "routes/dashboard.companies.edit.tsx"),
         route("users", "routes/dashboard.users.tsx"),
         route("users/create", "routes/dashboard.users.create.tsx"),
         route("users/:userId", "routes/dashboard.users.$userId.tsx"),
