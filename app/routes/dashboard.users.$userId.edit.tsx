@@ -102,7 +102,7 @@ export default function EditUserPage() {
             {/* Profile Photo Section */}
             <div className="bg-white rounded-3xl shadow-sm p-4">
                 <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center text-gray-500 text-2xl font-bold flex-shrink-0">
+                    <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
                         {initials}
                     </div>
                     <div>

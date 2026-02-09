@@ -21,26 +21,27 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     let statusCounts = { all: 0, draft: 0, active: 0, completed: 0, cancelled: 0 };
 
     try {
-        const contractsQuery = user.role === "admin"
-            ? db.select({
-                id: contracts.id,
-                startDate: contracts.startDate,
-                endDate: contracts.endDate,
-                totalAmount: contracts.totalAmount,
-                status: contracts.status,
-            }).from(contracts).limit(50)
-            : db.select({
-                id: contracts.id,
-                startDate: contracts.startDate,
-                endDate: contracts.endDate,
-                totalAmount: contracts.totalAmount,
-                status: contracts.status,
-            }).from(contracts)
-                .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-                .where(eq(companyCars.companyId, user.companyId!))
-                .limit(50);
+        if (user.role === "admin") {
+            // Admin sees all contracts
+            contractsList = await db.select().from(contracts).limit(50);
+        } else if (user.companyId) {
+            // Partner/Manager sees only their company's contracts
+            const companyCarsForCompany = await db
+                .select({ id: companyCars.id })
+                .from(companyCars)
+                .where(eq(companyCars.companyId, user.companyId));
 
-        contractsList = await contractsQuery;
+            const carIds = companyCarsForCompany.map(car => car.id);
+
+            if (carIds.length > 0) {
+                // Get contracts for these cars
+                const allContracts = await db.select().from(contracts).limit(100);
+                contractsList = allContracts.filter(c => carIds.includes(c.companyCarId));
+            }
+        } else {
+            // Fallback - show all contracts (for testing)
+            contractsList = await db.select().from(contracts).limit(50);
+        }
 
         statusCounts.all = contractsList.length;
         statusCounts.draft = contractsList.filter(c => c.status === "draft").length;
@@ -49,6 +50,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         statusCounts.cancelled = contractsList.filter(c => c.status === "cancelled").length;
     } catch (error) {
         console.error("Error loading contracts:", error);
+        console.error("User:", user);
     }
 
     return { user, contracts: contractsList, statusCounts };
@@ -56,10 +58,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function ContractsPage() {
     const { contracts: contractsList, statusCounts } = useLoaderData<typeof loader>();
-    const [activeTab, setActiveTab] = useState<string>("draft");
+    const [activeTab, setActiveTab] = useState<string>("active");
 
     const tabs = [
-        { id: "draft", label: "Draft", count: statusCounts.draft },
         { id: "active", label: "Active", count: statusCounts.active },
         { id: "completed", label: "Completed", count: statusCounts.completed },
         { id: "cancelled", label: "Cancelled", count: statusCounts.cancelled },
@@ -110,9 +111,11 @@ export default function ContractsPage() {
             <PageHeader
                 title="Contracts"
                 rightActions={
-                    <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                        New Contract
-                    </Button>
+                    <Link to="/contracts/new">
+                        <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                            New Contract
+                        </Button>
+                    </Link>
                 }
             />
 

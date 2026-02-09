@@ -162,6 +162,32 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     href: "/payments",
                 },
             ];
+
+            // Load tasks from calendar events for partner/manager
+            const upcomingTasks = await db
+                .select({
+                    id: calendarEvents.id,
+                    title: calendarEvents.title,
+                    description: calendarEvents.description,
+                    status: calendarEvents.status,
+                })
+                .from(calendarEvents)
+                .where(
+                    and(
+                        eq(calendarEvents.companyId, user.companyId),
+                        eq(calendarEvents.status, "pending")
+                    )
+                )
+                .orderBy(desc(calendarEvents.startDate))
+                .limit(5);
+
+            tasks = upcomingTasks.map(task => ({
+                id: task.id.toString(),
+                title: task.title,
+                description: task.description || "",
+                status: task.status as "pending" | "in_progress" | "completed",
+                priority: "medium" as const,
+            }));
         } else {
             // User role - show personal stats
             const [userContractsCount] = await db

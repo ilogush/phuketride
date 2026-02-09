@@ -80,7 +80,7 @@ export default function CarPhotosUpload({
                     <button
                         type="button"
                         onClick={() => handleRemove(photo.id)}
-                        className="absolute top-1 right-1 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-white transition-colors"
+                        className="absolute top-1 right-1 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center text-white hover:text-red-500 hover:bg-white transition-colors"
                     >
                         <XMarkIcon className="w-4 h-4" />
                     </button>

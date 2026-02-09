@@ -48,6 +48,9 @@ export default [
 
         // Partner/Manager routes
         route("contracts", "routes/dashboard.contracts.tsx"),
+        route("contracts/new", "routes/dashboard.contracts.new.tsx"),
+        route("contracts/:id", "routes/dashboard.contracts.$id.tsx"),
+        route("contracts/:id/edit", "routes/dashboard.contracts.$id.edit.tsx"),
         route("calendar", "routes/dashboard.calendar.tsx"),
         route("chat", "routes/dashboard.chat.tsx"),
         route("settings", "routes/dashboard.settings.tsx"),
