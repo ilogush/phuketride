@@ -17,6 +17,16 @@ interface CarModel {
     brand_id: number
 }
 
+interface BodyType {
+    id: number
+    name: string
+}
+
+interface FuelType {
+    id: number
+    name: string
+}
+
 interface CarTemplate {
     id: number
     brand_id: number
@@ -24,10 +34,10 @@ interface CarTemplate {
     production_year?: number
     transmission?: 'automatic' | 'manual'
     engine_volume?: number
-    body_type?: string
+    body_type_id?: number
     seats?: number
     doors?: number
-    fuel_type?: string
+    fuel_type_id?: number
     description?: string
     photos?: string
 }
@@ -36,19 +46,21 @@ interface CarTemplateFormProps {
     template?: CarTemplate | null
     brands: CarBrand[]
     models: CarModel[]
+    bodyTypes: BodyType[]
+    fuelTypes: FuelType[]
 }
 
-export function CarTemplateForm({ template, brands, models }: CarTemplateFormProps) {
+export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes }: CarTemplateFormProps) {
     const [formData, setFormData] = useState({
         brand_id: '',
         model_id: '',
         production_year: '',
         transmission: '',
         engine_volume: '',
-        body_type: '',
+        body_type_id: '',
         seats: '',
         doors: '',
-        fuel_type: '',
+        fuel_type_id: '',
         description: '',
         photos: [] as Array<{ base64: string; fileName: string }>
     })
@@ -64,10 +76,10 @@ export function CarTemplateForm({ template, brands, models }: CarTemplateFormPro
                 production_year: template.production_year?.toString() || '',
                 transmission: template.transmission || '',
                 engine_volume: template.engine_volume?.toString() || '',
-                body_type: template.body_type || '',
+                body_type_id: template.body_type_id?.toString() || '',
                 seats: template.seats?.toString() || '',
                 doors: template.doors?.toString() || '',
-                fuel_type: template.fuel_type || '',
+                fuel_type_id: template.fuel_type_id?.toString() || '',
                 description: template.description || '',
                 photos: existingPhotos
             })
@@ -170,28 +182,38 @@ export function CarTemplateForm({ template, brands, models }: CarTemplateFormPro
                     </div>
 
                     <div className="col-span-1">
-                        <FormField label="Body Type" error={errors.body_type}>
-                            <input
-                                type="text"
-                                name="body_type"
-                                value={formData.body_type}
+                        <FormField label="Body Type" error={errors.body_type_id}>
+                            <select
+                                name="body_type_id"
+                                value={formData.body_type_id}
                                 onChange={handleChange}
-                                className={`${inputBaseStyles} ${errors.body_type ? 'border-gray-600' : ''}`}
-                                placeholder="Sedan"
-                            />
+                                className={`${selectBaseStyles} ${errors.body_type_id ? 'border-gray-600' : ''}`}
+                            >
+                                <option value="">Select body type</option>
+                                {bodyTypes.map(type => (
+                                    <option key={type.id} value={type.id}>
+                                        {type.name}
+                                    </option>
+                                ))}
+                            </select>
                         </FormField>
                     </div>
 
                     <div className="col-span-1">
-                        <FormField label="Fuel Type" error={errors.fuel_type}>
-                            <input
-                                type="text"
-                                name="fuel_type"
-                                value={formData.fuel_type}
+                        <FormField label="Fuel Type" error={errors.fuel_type_id}>
+                            <select
+                                name="fuel_type_id"
+                                value={formData.fuel_type_id}
                                 onChange={handleChange}
-                                className={`${inputBaseStyles} ${errors.fuel_type ? 'border-gray-600' : ''}`}
-                                placeholder="Gasoline"
-                            />
+                                className={`${selectBaseStyles} ${errors.fuel_type_id ? 'border-gray-600' : ''}`}
+                            >
+                                <option value="">Select fuel type</option>
+                                {fuelTypes.map(type => (
+                                    <option key={type.id} value={type.id}>
+                                        {type.name}
+                                    </option>
+                                ))}
+                            </select>
                         </FormField>
                     </div>
 

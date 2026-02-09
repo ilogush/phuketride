@@ -36,7 +36,23 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         .orderBy(schema.carModels.name)
         .limit(500)
 
-    return { brands, models }
+    const bodyTypes = await db
+        .select({
+            id: schema.bodyTypes.id,
+            name: schema.bodyTypes.name,
+        })
+        .from(schema.bodyTypes)
+        .orderBy(schema.bodyTypes.name)
+
+    const fuelTypes = await db
+        .select({
+            id: schema.fuelTypes.id,
+            name: schema.fuelTypes.name,
+        })
+        .from(schema.fuelTypes)
+        .orderBy(schema.fuelTypes.name)
+
+    return { brands, models, bodyTypes, fuelTypes }
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -67,10 +83,10 @@ export async function action({ request, context }: Route.ActionArgs) {
         productionYear: data.production_year ? Number(data.production_year) : null,
         transmission: data.transmission as 'automatic' | 'manual' | null,
         engineVolume: data.engine_volume ? Number(data.engine_volume) : null,
-        bodyType: data.body_type as string | null,
+        bodyTypeId: data.body_type ? Number(data.body_type) : null,
         seats: data.seats ? Number(data.seats) : null,
         doors: data.doors ? Number(data.doors) : null,
-        fuelType: data.fuel_type as string | null,
+        fuelTypeId: data.fuel_type ? Number(data.fuel_type) : null,
         description: data.description as string | null,
         photos: data.photos as string | null,
     })
@@ -79,7 +95,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function CreateCarTemplatePage({ loaderData }: Route.ComponentProps) {
-    const { brands, models } = loaderData
+    const { brands, models, bodyTypes, fuelTypes } = loaderData
 
     return (
         <div className="space-y-4">
@@ -93,7 +109,7 @@ export default function CreateCarTemplatePage({ loaderData }: Route.ComponentPro
                 }
             />
 
-            <CarTemplateForm brands={brands} models={models} />
+            <CarTemplateForm brands={brands} models={models} bodyTypes={bodyTypes} fuelTypes={fuelTypes} />
         </div>
     )
 }
