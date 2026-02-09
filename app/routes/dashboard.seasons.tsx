@@ -47,6 +47,12 @@ const DAYS = Array.from({ length: 31 }, (_, i) => ({
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
+    
+    // Only admin can access seasons page
+    if (user.role !== "admin") {
+        throw new Response("Access denied", { status: 403 });
+    }
+    
     const db = drizzle(context.cloudflare.env.DB, { schema });
 
     const companyId = user.companyId || 1;
@@ -62,6 +68,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
+    
+    // Only admin can modify seasons
+    if (user.role !== "admin") {
+        return data({ success: false, message: "Access denied" }, { status: 403 });
+    }
+    
     const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
     const intent = formData.get("intent");

@@ -63,5 +63,8 @@ export default [
         route("search-cars", "routes/dashboard.search-cars.tsx"),
         route("my-bookings", "routes/dashboard.my-bookings.tsx"),
         route("my-contracts", "routes/dashboard.my-contracts.tsx"),
+        route("my-contracts/:id", "routes/dashboard.my-contracts.$id.tsx"),
+        route("my-payments", "routes/dashboard.my-payments.tsx"),
+        route("notifications", "routes/dashboard.notifications.tsx"),
     ]),
 ] satisfies RouteConfig;

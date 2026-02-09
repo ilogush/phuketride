@@ -219,7 +219,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             const [userContractsCount] = await db
                 .select({ count: sql<number>`count(*)` })
                 .from(contracts)
-                .where(eq(contracts.userId, user.id));
+                .where(eq(contracts.clientId, user.id));
 
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
@@ -230,8 +230,19 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 .from(contracts)
                 .where(
                     and(
-                        eq(contracts.userId, user.id),
-                        gte(contracts.createdAt, startOfMonth)
+                        eq(contracts.clientId, user.id),
+                        eq(contracts.status, "active")
+                    )
+                );
+
+            const [upcomingContractsCount] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(contracts)
+                .where(
+                    and(
+                        eq(contracts.clientId, user.id),
+                        eq(contracts.status, "draft"),
+                        gte(contracts.startDate, new Date())
                     )
                 );
 
@@ -241,21 +252,21 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     value: userContractsCount?.count || 0,
                     subtext: "total bookings",
                     icon: "ClipboardDocumentListIcon",
-                    href: "/my-bookings",
+                    href: "/dashboard/my-bookings",
                 },
                 {
                     name: "Active",
                     value: activeContractsCount?.count || 0,
-                    subtext: "this month",
+                    subtext: "active rentals",
                     icon: "CheckCircleIcon",
-                    href: "/my-bookings",
+                    href: "/dashboard/my-contracts",
                 },
                 {
                     name: "Upcoming",
-                    value: 0,
+                    value: upcomingContractsCount?.count || 0,
                     subtext: "scheduled",
                     icon: "CalendarIcon",
-                    href: "/my-bookings",
+                    href: "/dashboard/my-bookings",
                 },
             ];
         }

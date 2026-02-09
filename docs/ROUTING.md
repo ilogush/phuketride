@@ -66,6 +66,25 @@ All dashboard routes use the layout from `routes/dashboard.tsx`:
 - `/dashboard/profile` - User profile
 
 #### User Routes
+- `/dashboard` - User dashboard (stats, upcoming rentals)
+- `/dashboard/search-cars` - Search available cars (client-side)
+- `/dashboard/my-bookings` - User's bookings list
+- `/dashboard/my-contracts` - User's contracts list
+- `/dashboard/my-contracts/:id` - Contract details
+- `/dashboard/my-payments` - Payment history
+- `/dashboard/notifications` - Notifications (reminders, updates)
+- `/dashboard/bookings/create` - Create new booking
+- `/dashboard/chat` - Chat with company
+- `/dashboard/profile` - User profile
+- `/dashboard/settings` - User settings
+- `/dashboard/contracts` - Contracts management
+- `/dashboard/calendar` - Calendar view
+- `/dashboard/chat` - Chat interface
+- `/dashboard/settings` - Settings
+- `/dashboard/bookings` - Bookings management
+- `/dashboard/profile` - User profile
+
+#### User Routes
 - `/dashboard/search-cars` - Search available cars
 - `/dashboard/my-bookings` - User's bookings
 - `/dashboard/my-contracts` - User's contracts

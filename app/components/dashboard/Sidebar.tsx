@@ -20,6 +20,7 @@ import {
     XMarkIcon,
     RectangleStackIcon,
     ClipboardDocumentCheckIcon,
+    BellIcon,
 } from "@heroicons/react/24/outline";
 import type { UserRole } from "~/lib/auth.server";
 
@@ -70,7 +71,6 @@ const getMenuItems = (role: UserRole) => {
             { to: "/contracts", icon: DocumentTextIcon, label: "Contracts" },
             { to: "/locations", icon: MapPinIcon, label: "Delivery" },
             { to: "/cars", icon: TruckIcon, label: "Cars" },
-            { to: "/durations", icon: ClockIcon, label: "Durations" },
             { to: "/payments", icon: BanknotesIcon, label: "Payments" },
             { to: "/users", icon: UsersIcon, label: "Users" },
             { to: "/calendar", icon: CalendarIcon, label: "Calendar" },
@@ -83,12 +83,8 @@ const getMenuItems = (role: UserRole) => {
     if (role === "manager") {
         return [
             ...baseItems,
-            { to: "/bookings", icon: DocumentTextIcon, label: "Bookings" },
-            { to: "/cars", icon: TruckIcon, label: "Cars" },
             { to: "/contracts", icon: DocumentTextIcon, label: "Contracts" },
-            { to: "/durations", icon: ClockIcon, label: "Durations" },
             { to: "/payments", icon: BanknotesIcon, label: "Payments" },
-            { to: "/users", icon: UsersIcon, label: "Users" },
             { to: "/calendar", icon: CalendarIcon, label: "Calendar" },
             { to: "/chat", icon: ChatBubbleLeftRightIcon, label: "Chat" },
             { to: "/profile", icon: UserIcon, label: "Profile" },
@@ -98,9 +94,9 @@ const getMenuItems = (role: UserRole) => {
     // User role
     return [
         ...baseItems,
-        { to: "/search-cars", icon: TruckIcon, label: "Search Cars" },
         { to: "/my-bookings", icon: DocumentTextIcon, label: "My Bookings" },
-        { to: "/my-contracts", icon: DocumentTextIcon, label: "My Contracts" },
+        { to: "/my-payments", icon: BanknotesIcon, label: "Payments" },
+        { to: "/chat", icon: ChatBubbleLeftRightIcon, label: "Chat" },
         { to: "/profile", icon: UserIcon, label: "Profile" },
     ];
 };

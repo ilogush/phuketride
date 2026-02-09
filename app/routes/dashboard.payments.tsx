@@ -58,27 +58,25 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function PaymentsPage() {
     const { payments: paymentsList, statusCounts } = useLoaderData<typeof loader>();
-    const [activeTab, setActiveTab] = useState<string>("pending");
+    const [activeTab, setActiveTab] = useState<string>("completed");
 
     const tabs = [
-        { id: "pending", label: "Pending", count: statusCounts.pending },
         { id: "completed", label: "Completed", count: statusCounts.completed },
+        { id: "pending", label: "Pending", count: statusCounts.pending },
         { id: "cancelled", label: "Cancelled", count: statusCounts.cancelled },
     ];
 
     const filteredPayments = paymentsList.filter(payment => payment.status === activeTab);
 
     const columns: Column<typeof paymentsList[0]>[] = [
-        { key: "id", label: "ID" },
-        {
-            key: "amount",
-            label: "Amount",
-            render: (payment) => `${payment.amount} ${payment.currency || "THB"}`
-        },
-        {
-            key: "paymentMethod",
-            label: "Method",
-            render: (payment) => payment.paymentMethod || "-"
+        { 
+            key: "id", 
+            label: "ID",
+            render: (payment) => (
+                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
+                    {String(payment.id).padStart(4, '0')}
+                </span>
+            )
         },
         {
             key: "createdAt",
@@ -86,22 +84,45 @@ export default function PaymentsPage() {
             render: (payment) => payment.createdAt ? format(new Date(payment.createdAt), "dd MMM yyyy") : "-"
         },
         {
+            key: "contract",
+            label: "Contract",
+            render: (payment) => `#${payment.id}` // TODO: add actual contract ID
+        },
+        {
+            key: "type",
+            label: "Type",
+            render: (payment) => "-" // TODO: add payment type name
+        },
+        {
+            key: "paymentMethod",
+            label: "Method",
+            render: (payment) => {
+                const methodMap: Record<string, string> = {
+                    cash: "Cash",
+                    card: "Card",
+                    bank_transfer: "Bank Transfer",
+                    online: "Online"
+                };
+                return methodMap[payment.paymentMethod || ""] || payment.paymentMethod || "-";
+            }
+        },
+        {
             key: "status",
             label: "Status",
             render: (payment) => <StatusBadge variant={payment.status === "completed" ? "success" : "warning"}>{payment.status}</StatusBadge>
         },
         {
-            key: "actions",
-            label: "Actions",
+            key: "createdBy",
+            label: "Created By",
+            render: (payment) => "-" // TODO: add user name
+        },
+        {
+            key: "amount",
+            label: "Amount",
             render: (payment) => (
-                <div className="flex gap-2">
-                    <Link to={`/payments/${payment.id}`}>
-                        <Button variant="secondary" size="sm">View</Button>
-                    </Link>
-                    <Link to={`/payments/${payment.id}/edit`}>
-                        <Button variant="secondary" size="sm">Edit</Button>
-                    </Link>
-                </div>
+                <span className="font-medium text-gray-900">
+                    {payment.amount} {payment.currency || "THB"}
+                </span>
             )
         },
     ];

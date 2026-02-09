@@ -56,8 +56,22 @@ All test accounts use password: `password123`
 
 - **Admin**: admin@phuketride.com
 - **Partner**: partner@phuketride.com
-- **Manager**: manager@phuketride.com
-- **User**: user@phuketride.com
+- **Manager**: manager@phuketride.com ⭐ NEW
+- **User**: user@phuketride.com ⭐ NEW
+
+### Create Test Users
+
+Run the script to create Manager and User test accounts:
+
+```bash
+./scripts/create-test-users.sh
+```
+
+Or manually:
+
+```bash
+wrangler d1 execute phuketride-bd --local --file=./drizzle/0015_create_test_users.sql
+```
 
 See [TEST_ACCOUNTS.md](./TEST_ACCOUNTS.md) for full details.
 

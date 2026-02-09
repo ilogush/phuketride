@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { useToast } from '~/lib/toast'
 import Modal from '~/components/dashboard/Modal'
 import Button from '~/components/dashboard/Button'
+import { Input } from '~/components/dashboard/Input'
 import { BuildingOfficeIcon, UserIcon } from '@heroicons/react/24/outline'
 
 interface RoleSwitcherProps {
@@ -167,34 +168,24 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
                         Set up your company to start renting out vehicles. You can always update these details later.
                     </p>
 
-                    <div>
-                        <label htmlFor="companyName" className="block text-xs text-gray-600 mb-1">
-                            Company Name *
-                        </label>
-                        <input
-                            id="companyName"
-                            type="text"
-                            required
-                            className="block w-full rounded-xl border-gray-300 shadow-sm focus:border-gray-500 focus:ring-gray-500 sm:text-sm"
-                            placeholder="Your Company Name"
-                            value={companyName}
-                            onChange={(e) => setCompanyName(e.target.value)}
-                        />
-                    </div>
+                    <Input
+                        label="Company Name"
+                        id="companyName"
+                        type="text"
+                        required
+                        placeholder="Your Company Name"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                    />
 
-                    <div>
-                        <label htmlFor="companyPhone" className="block text-xs text-gray-600 mb-1">
-                            Company Phone (Optional)
-                        </label>
-                        <input
-                            id="companyPhone"
-                            type="tel"
-                            className="block w-full rounded-xl border-gray-300 shadow-sm focus:border-gray-500 focus:ring-gray-500 sm:text-sm"
-                            placeholder="+6699123456"
-                            value={companyPhone}
-                            onChange={(e) => setCompanyPhone(e.target.value)}
-                        />
-                    </div>
+                    <Input
+                        label="Company Phone (Optional)"
+                        id="companyPhone"
+                        type="tel"
+                        placeholder="+6699123456"
+                        value={companyPhone}
+                        onChange={(e) => setCompanyPhone(e.target.value)}
+                    />
 
                     <div className="bg-yellow-50 border border-yellow-200 rounded-3xl p-3">
                         <p className="text-sm text-yellow-800">

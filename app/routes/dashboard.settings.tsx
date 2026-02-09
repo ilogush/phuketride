@@ -10,6 +10,7 @@ import Button from "~/components/dashboard/Button";
 import FormSection from "~/components/dashboard/FormSection";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
+import { Textarea } from "~/components/dashboard/Textarea";
 import WeeklySchedule from "~/components/dashboard/WeeklySchedule";
 import HolidaysManager from "~/components/dashboard/HolidaysManager";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -1043,17 +1044,14 @@ export default function SettingsPage() {
                                     <option value="-">- (Expense)</option>
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Description</label>
-                                <textarea
-                                    name="description"
-                                    value={paymentFormData.description}
-                                    onChange={(e) => setPaymentFormData({ ...paymentFormData, description: e.target.value })}
-                                    className="w-full px-4 py-2 text-gray-600 border border-gray-200 rounded-xl"
-                                    rows={3}
-                                    placeholder="Optional description"
-                                />
-                            </div>
+                            <Textarea
+                                label="Description"
+                                name="description"
+                                value={paymentFormData.description}
+                                onChange={(value) => setPaymentFormData({ ...paymentFormData, description: value })}
+                                rows={3}
+                                placeholder="Optional description"
+                            />
                             <div className="flex justify-end gap-3 pt-4">
                                 <Button type="button" variant="secondary" onClick={() => setIsPaymentModalOpen(false)}>Cancel</Button>
                                 <Button type="submit" variant="primary">{editingPayment ? "Update" : "Create"}</Button>
