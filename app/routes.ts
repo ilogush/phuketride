@@ -6,6 +6,9 @@ export default [
     route("register", "routes/register.tsx"),
     route("logout", "routes/logout.tsx"),
 
+    // Company standalone dashboard (Phuket Ride Co.)
+    route("companies/:companyId", "routes/companies.$companyId.tsx"),
+
     // Protected routes with dashboard layout
     layout("routes/dashboard.tsx", [
         route("dashboard", "routes/dashboard._index.tsx"),
