@@ -32,26 +32,65 @@ import {
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB);
+    const db = drizzle(context.cloudflare.env.DB, { schema });
 
-    // Get company cars
-    const cars = await db
-        .select({
-            id: companyCars.id,
-            name: companyCars.licensePlate,
-        })
-        .from(companyCars)
-        .where(eq(companyCars.companyId, user.companyId!));
+    // Get available company cars (not rented)
+    const cars = await db.query.companyCars.findMany({
+        where: (cars, { eq, and, isNull }) => and(
+            eq(cars.companyId, user.companyId!),
+            eq(cars.status, 'available'),
+            isNull(cars.archivedAt)
+        ),
+        with: {
+            template: {
+                with: {
+                    brand: true,
+                    model: true,
+                }
+            },
+            color: true,
+        }
+    });
 
     // Get districts
-    const districtsList = await db
-        .select({
-            id: districts.id,
-            name: districts.name,
-        })
-        .from(districts);
+    const districtsList = await db.query.districts.findMany({
+        where: (d, { eq }) => eq(d.isActive, true),
+    });
 
-    return { cars, districts: districtsList };
+    // Get payment templates for contract creation (show_on_create = 1)
+    const paymentTemplates = await db.query.paymentTypes.findMany({
+        where: (pt, { eq, and, or, isNull }) => and(
+            eq(pt.isActive, true),
+            eq(pt.showOnCreate, true),
+            or(
+                isNull(pt.companyId),
+                eq(pt.companyId, user.companyId!)
+            )
+        ),
+    });
+
+    // Get active currencies for company
+    const currencies = await db.query.currencies.findMany({
+        where: (c, { eq, and, or, isNull }) => and(
+            eq(c.isActive, true),
+            or(
+                isNull(c.companyId),
+                eq(c.companyId, user.companyId!)
+            )
+        ),
+    });
+
+    return { 
+        cars: cars.map(car => ({
+            id: car.id,
+            name: `${car.template?.brand?.name || ''} ${car.template?.model?.name || ''} - ${car.licensePlate}`,
+            pricePerDay: car.pricePerDay,
+            deposit: car.deposit,
+        })),
+        districts: districtsList,
+        paymentTemplates,
+        currencies,
+    };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -59,111 +98,135 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
-    // Parse form data - simplified version for basic contract creation
-    const rawData = {
-        companyCarId: Number(formData.get("companyCarId")),
-        clientId: crypto.randomUUID(), // Generate new client ID for now
-        managerId: user.id,
-        startDate: formData.get("startDate") as string,
-        endDate: formData.get("endDate") as string,
-        totalDays: Number(formData.get("totalDays")) || 1,
-        pricePerDay: Number(formData.get("pricePerDay")),
-        totalPrice: Number(formData.get("totalPrice")),
-        deposit: Number(formData.get("deposit")),
-        currency: (formData.get("currency") as string) || "THB",
-        clientName: formData.get("clientName") as string,
-        clientSurname: formData.get("clientSurname") as string,
-        clientPhone: formData.get("clientPhone") as string,
-        clientEmail: (formData.get("clientEmail") as string) || null,
-        clientPassport: (formData.get("clientPassport") as string) || null,
-        clientCitizenship: (formData.get("clientCitizenship") as string) || null,
-        deliveryLocationId: formData.get("deliveryLocationId") ? Number(formData.get("deliveryLocationId")) : null,
-        deliveryDistrictId: formData.get("deliveryDistrictId") ? Number(formData.get("deliveryDistrictId")) : null,
-        deliveryAddress: (formData.get("deliveryAddress") as string) || null,
-        deliveryTime: (formData.get("deliveryTime") as string) || null,
-        deliveryFee: formData.get("deliveryFee") ? Number(formData.get("deliveryFee")) : 0,
-        returnLocationId: formData.get("returnLocationId") ? Number(formData.get("returnLocationId")) : null,
-        returnDistrictId: formData.get("returnDistrictId") ? Number(formData.get("returnDistrictId")) : null,
-        returnAddress: (formData.get("returnAddress") as string) || null,
-        returnTime: (formData.get("returnTime") as string) || null,
-        returnFee: formData.get("returnFee") ? Number(formData.get("returnFee")) : 0,
-        fuelLevelStart: (formData.get("fuelLevelStart") as string) || "Full",
-        fuelLevelEnd: (formData.get("fuelLevelEnd") as string) || "Full",
-        mileageStart: formData.get("mileageStart") ? Number(formData.get("mileageStart")) : 0,
-        mileageEnd: formData.get("mileageEnd") ? Number(formData.get("mileageEnd")) : 0,
-        cleanliness: (formData.get("cleanliness") as "clean" | "dirty" | "very_dirty") || "clean",
-        fullInsurance: formData.get("fullInsurance") === "true",
-        fullInsurancePrice: formData.get("fullInsurancePrice") ? Number(formData.get("fullInsurancePrice")) : 0,
-        islandTrip: formData.get("islandTrip") === "true",
-        islandTripPrice: formData.get("islandTripPrice") ? Number(formData.get("islandTripPrice")) : 0,
-        krabiTrip: formData.get("krabiTrip") === "true",
-        krabiTripPrice: formData.get("krabiTripPrice") ? Number(formData.get("krabiTripPrice")) : 0,
-        babySeat: formData.get("babySeat") === "true",
-        babySeatPrice: formData.get("babySeatPrice") ? Number(formData.get("babySeatPrice")) : 0,
-        status: "active" as const,
-        notes: (formData.get("notes") as string) || null,
-    };
-
-    // Validate with Zod
-    const validation = contractSchema.safeParse(rawData);
-    if (!validation.success) {
-        const firstError = validation.error.errors[0];
-        return redirect(`/contracts/new?error=${encodeURIComponent(firstError.message)}`);
-    }
-
-    const validData = validation.data;
-
     try {
-        // Create client user first
-        await db.insert(schema.users).values({
-            id: validData.clientId,
-            email: validData.clientEmail || `${validData.clientPhone}@temp.com`,
-            role: "user",
-            name: validData.clientName,
-            surname: validData.clientSurname,
-            phone: validData.clientPhone,
-            passportNumber: validData.clientPassport,
-            citizenship: validData.clientCitizenship,
+        // Parse client data
+        const passportNumber = formData.get("clientPassport") as string;
+        const clientData = {
+            name: formData.get("clientName") as string,
+            surname: formData.get("clientSurname") as string,
+            email: formData.get("clientEmail") as string,
+            phone: formData.get("clientPhone") as string,
+            dateOfBirth: formData.get("dateOfBirth") ? new Date(formData.get("dateOfBirth") as string) : null,
+            citizenship: formData.get("citizenship") as string,
+        };
+
+        // Check if client exists by passport_number
+        let clientId: string;
+        const existingClient = await db.query.users.findFirst({
+            where: (u, { eq }) => eq(u.passportNumber, passportNumber),
         });
+
+        if (existingClient) {
+            // Check if all data matches
+            const dataMatches = 
+                existingClient.name === clientData.name &&
+                existingClient.surname === clientData.surname &&
+                existingClient.email === clientData.email &&
+                existingClient.phone === clientData.phone &&
+                existingClient.citizenship === clientData.citizenship;
+
+            if (dataMatches) {
+                // Use existing client
+                clientId = existingClient.id;
+            } else {
+                // Data changed - create new user
+                clientId = crypto.randomUUID();
+                await db.insert(schema.users).values({
+                    id: clientId,
+                    email: clientData.email || `${clientData.phone}@temp.com`,
+                    role: "user",
+                    name: clientData.name,
+                    surname: clientData.surname,
+                    phone: clientData.phone,
+                    passportNumber: passportNumber,
+                    citizenship: clientData.citizenship,
+                    dateOfBirth: clientData.dateOfBirth,
+                });
+            }
+        } else {
+            // Client not found - create new
+            clientId = crypto.randomUUID();
+            await db.insert(schema.users).values({
+                id: clientId,
+                email: clientData.email || `${clientData.phone}@temp.com`,
+                role: "user",
+                name: clientData.name,
+                surname: clientData.surname,
+                phone: clientData.phone,
+                passportNumber: passportNumber,
+                citizenship: clientData.citizenship,
+                dateOfBirth: clientData.dateOfBirth,
+            });
+        }
+
+        // Parse contract data
+        const companyCarId = Number(formData.get("companyCarId"));
+        const startDate = new Date(formData.get("startDate") as string);
+        const endDate = new Date(formData.get("endDate") as string);
+        const totalAmount = Number(formData.get("totalAmount"));
+        const depositAmount = Number(formData.get("depositAmount"));
+        const totalCurrency = formData.get("totalCurrency") as string || "THB";
 
         // Create contract
         const [newContract] = await db.insert(schema.contracts).values({
-            companyCarId: validData.companyCarId,
-            clientId: validData.clientId,
-            managerId: validData.managerId,
-            startDate: new Date(validData.startDate),
-            endDate: new Date(validData.endDate),
-            totalDays: validData.totalDays,
-            pricePerDay: validData.pricePerDay,
-            totalAmount: validData.totalPrice,
-            deposit: validData.deposit,
-            currency: validData.currency,
-            deliveryLocationId: validData.deliveryLocationId,
-            deliveryDistrictId: validData.deliveryDistrictId,
-            deliveryAddress: validData.deliveryAddress,
-            deliveryTime: validData.deliveryTime,
-            deliveryFee: validData.deliveryFee,
-            returnLocationId: validData.returnLocationId,
-            returnDistrictId: validData.returnDistrictId,
-            returnAddress: validData.returnAddress,
-            returnTime: validData.returnTime,
-            returnFee: validData.returnFee,
-            fuelLevelStart: validData.fuelLevelStart,
-            fuelLevelEnd: validData.fuelLevelEnd,
-            mileageStart: validData.mileageStart,
-            mileageEnd: validData.mileageEnd,
-            cleanliness: validData.cleanliness,
-            fullInsurance: validData.fullInsurance,
-            fullInsurancePrice: validData.fullInsurancePrice,
-            islandTrip: validData.islandTrip,
-            islandTripPrice: validData.islandTripPrice,
-            krabiTrip: validData.krabiTrip,
-            krabiTripPrice: validData.krabiTripPrice,
-            babySeat: validData.babySeat,
-            babySeatPrice: validData.babySeatPrice,
-            status: validData.status,
-            notes: validData.notes,
+            companyCarId,
+            clientId,
+            managerId: user.id,
+            startDate,
+            endDate,
+            totalAmount,
+            totalCurrency,
+            depositAmount,
+            depositCurrency: totalCurrency,
+            depositPaymentMethod: formData.get("depositPaymentMethod") as any,
+            fullInsuranceEnabled: formData.get("fullInsurance") === "true",
+            fullInsurancePrice: Number(formData.get("fullInsurancePrice")) || 0,
+            babySeatEnabled: formData.get("babySeat") === "true",
+            babySeatPrice: Number(formData.get("babySeatPrice")) || 0,
+            islandTripEnabled: formData.get("islandTrip") === "true",
+            islandTripPrice: Number(formData.get("islandTripPrice")) || 0,
+            krabiTripEnabled: formData.get("krabiTrip") === "true",
+            krabiTripPrice: Number(formData.get("krabiTripPrice")) || 0,
+            pickupDistrictId: Number(formData.get("pickupDistrictId")) || null,
+            pickupHotel: formData.get("pickupHotel") as string || null,
+            pickupRoom: formData.get("pickupRoom") as string || null,
+            deliveryCost: Number(formData.get("deliveryCost")) || 0,
+            returnDistrictId: Number(formData.get("returnDistrictId")) || null,
+            returnHotel: formData.get("returnHotel") as string || null,
+            returnRoom: formData.get("returnRoom") as string || null,
+            returnCost: Number(formData.get("returnCost")) || 0,
+            startMileage: Number(formData.get("startMileage")) || 0,
+            fuelLevel: formData.get("fuelLevel") as string || "full",
+            cleanliness: formData.get("cleanliness") as string || "clean",
+            status: "active",
+            notes: formData.get("notes") as string || null,
         }).returning({ id: schema.contracts.id });
+
+        // Create payments from selected templates
+        const paymentCount = Number(formData.get("paymentCount")) || 0;
+        for (let i = 0; i < paymentCount; i++) {
+            const paymentTypeId = Number(formData.get(`payment_${i}_type`));
+            const amount = Number(formData.get(`payment_${i}_amount`));
+            const currencyId = Number(formData.get(`payment_${i}_currency`));
+            const paymentMethod = formData.get(`payment_${i}_method`) as string;
+
+            if (paymentTypeId && amount > 0) {
+                await db.insert(schema.payments).values({
+                    contractId: newContract.id,
+                    paymentTypeId,
+                    amount,
+                    currencyId,
+                    paymentMethod: paymentMethod as any,
+                    status: "completed",
+                    createdBy: user.id,
+                });
+            }
+        }
+
+        // Update car status to 'rented'
+        await db.update(schema.companyCars)
+            .set({ status: 'rented' })
+            .where(eq(schema.companyCars.id, companyCarId));
 
         // Audit log
         const metadata = getRequestMetadata(request);
@@ -175,7 +238,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             entityType: "contract",
             entityId: newContract.id,
             action: "create",
-            afterState: { ...validData, id: newContract.id },
+            afterState: { contractId: newContract.id, clientId, companyCarId },
             ...metadata,
         });
 
@@ -187,7 +250,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function NewContract() {
-    const { cars, districts } = useLoaderData<typeof loader>();
+    const { cars, districts, paymentTemplates, currencies } = useLoaderData<typeof loader>();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const toast = useToast();
@@ -202,6 +265,7 @@ export default function NewContract() {
     const [carPhotos, setCarPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [passportPhotos, setPassportPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [driverLicensePhotos, setDriverLicensePhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
+    const [selectedPayments, setSelectedPayments] = useState<Array<{ templateId: number; amount: number; currencyId: number; method: string }>>([]);
 
     // Toast notifications
     useEffect(() => {
@@ -454,6 +518,66 @@ export default function NewContract() {
                             <span className="text-sm font-medium text-gray-700">Baby Seat</span>
                             <Toggle enabled={babySeat} onChange={setBabySeat} />
                         </div>
+                    </div>
+                </FormSection>
+
+                {/* Payments */}
+                <FormSection
+                    title="Payments"
+                    icon={<BanknotesIcon className="w-6 h-6" />}
+                >
+                    <div className="space-y-4">
+                        {paymentTemplates.map((template, index) => (
+                            <div key={template.id} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                                <div className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id={`payment_${index}`}
+                                        className="w-4 h-4 text-gray-800 border-gray-300 rounded focus:ring-gray-800"
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedPayments([...selectedPayments, { 
+                                                    templateId: template.id, 
+                                                    amount: 0, 
+                                                    currencyId: currencies[0]?.id || 1,
+                                                    method: 'cash'
+                                                }]);
+                                            } else {
+                                                setSelectedPayments(selectedPayments.filter(p => p.templateId !== template.id));
+                                            }
+                                        }}
+                                    />
+                                    <label htmlFor={`payment_${index}`} className="ml-2 text-sm font-medium text-gray-700">
+                                        {template.name} ({template.sign})
+                                    </label>
+                                </div>
+                                <FormInput
+                                    label="Amount"
+                                    name={`payment_${index}_amount`}
+                                    type="number"
+                                    placeholder="0.00"
+                                    disabled={!selectedPayments.find(p => p.templateId === template.id)}
+                                />
+                                <FormSelect
+                                    label="Currency"
+                                    name={`payment_${index}_currency`}
+                                    options={currencies.map(c => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
+                                    disabled={!selectedPayments.find(p => p.templateId === template.id)}
+                                />
+                                <FormSelect
+                                    label="Method"
+                                    name={`payment_${index}_method`}
+                                    options={[
+                                        { id: 'cash', name: 'Cash' },
+                                        { id: 'bank_transfer', name: 'Bank Transfer' },
+                                        { id: 'card', name: 'Card' },
+                                    ]}
+                                    disabled={!selectedPayments.find(p => p.templateId === template.id)}
+                                />
+                                <input type="hidden" name={`payment_${index}_type`} value={template.id} />
+                            </div>
+                        ))}
+                        <input type="hidden" name="paymentCount" value={paymentTemplates.length} />
                     </div>
                 </FormSection>
 
