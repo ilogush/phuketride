@@ -88,12 +88,20 @@ export default function ContractsPage() {
         {
             key: "startDate",
             label: "Start Date",
-            render: (contract) => contract.startDate ? format(new Date(contract.startDate), "dd MMM yyyy") : "-"
+            render: (contract) => {
+                if (!contract.startDate) return "-";
+                const date = new Date(contract.startDate);
+                return isNaN(date.getTime()) ? "-" : format(date, "dd MMM yyyy");
+            }
         },
         {
             key: "endDate",
             label: "End Date",
-            render: (contract) => contract.endDate ? format(new Date(contract.endDate), "dd MMM yyyy") : "-"
+            render: (contract) => {
+                if (!contract.endDate) return "-";
+                const date = new Date(contract.endDate);
+                return isNaN(date.getTime()) ? "-" : format(date, "dd MMM yyyy");
+            }
         },
         {
             key: "totalAmount",

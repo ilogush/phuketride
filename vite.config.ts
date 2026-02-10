@@ -11,4 +11,10 @@ export default defineConfig({
     reactRouter(),
     tsconfigPaths(),
   ],
+  server: {
+    hmr: {
+      protocol: "ws",
+      host: "localhost",
+    },
+  },
 });

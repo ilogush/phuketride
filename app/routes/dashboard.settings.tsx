@@ -2,7 +2,7 @@ import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "reac
 import { useLoaderData, Form, useRevalidator, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, or, isNull } from "drizzle-orm";
+import { eq, and, or, isNull, ne } from "drizzle-orm";
 import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
@@ -20,8 +20,6 @@ import {
     BuildingOfficeIcon,
     BanknotesIcon,
     Cog6ToothIcon,
-    ClockIcon,
-    SunIcon,
     CurrencyDollarIcon,
     PlusIcon,
 } from "@heroicons/react/24/outline";
@@ -29,26 +27,6 @@ import { useToast } from "~/lib/toast";
 import { companySchema } from "~/schemas/company";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { useLatinValidation } from "~/lib/useLatinValidation";
-
-const MONTHS = [
-    { value: "1", label: "Jan" },
-    { value: "2", label: "Feb" },
-    { value: "3", label: "Mar" },
-    { value: "4", label: "Apr" },
-    { value: "5", label: "May" },
-    { value: "6", label: "Jun" },
-    { value: "7", label: "Jul" },
-    { value: "8", label: "Aug" },
-    { value: "9", label: "Sep" },
-    { value: "10", label: "Oct" },
-    { value: "11", label: "Nov" },
-    { value: "12", label: "Dec" },
-];
-
-const DAYS = Array.from({ length: 31 }, (_, i) => ({
-    value: String(i + 1),
-    label: String(i + 1),
-}));
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -58,12 +36,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         throw new Response("Company not found", { status: 404 });
     }
 
-    const [company, locations, districts, seasons, durations, paymentTypes, currencies] = await Promise.all([
+    const [company, locations, districts, paymentTypes, currencies] = await Promise.all([
         db.select().from(schema.companies).where(eq(schema.companies.id, user.companyId)).limit(1),
         db.select().from(schema.locations).limit(100),
         db.select().from(schema.districts).limit(200),
-        db.select().from(schema.seasons).where(eq(schema.seasons.companyId, user.companyId)).limit(100),
-        db.select().from(schema.rentalDurations).where(eq(schema.rentalDurations.companyId, user.companyId)).limit(100),
         // Get system templates (company_id IS NULL) OR company-specific templates
         db.select().from(schema.paymentTypes).where(
             or(
@@ -78,7 +54,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         throw new Response("Company not found", { status: 404 });
     }
 
-    return { user, company: company[0], locations, districts, seasons, durations, paymentTypes, currencies };
+    return { user, company: company[0], locations, districts, paymentTypes, currencies };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -174,141 +150,32 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
     }
 
-    // Seasons actions
-    if (intent === "createSeason") {
-        const seasonName = formData.get("seasonName") as string;
-        const startMonth = Number(formData.get("startMonth"));
-        const startDay = Number(formData.get("startDay"));
-        const endMonth = Number(formData.get("endMonth"));
-        const endDay = Number(formData.get("endDay"));
-        const priceMultiplier = Number(formData.get("priceMultiplier"));
-        const discountLabel = formData.get("discountLabel") as string | null;
+    // Seasons actions - REMOVED (admin only via /seasons route)
 
-        try {
-            await db.insert(schema.seasons).values({
-                companyId: user.companyId,
-                seasonName,
-                startMonth,
-                startDay,
-                endMonth,
-                endDay,
-                priceMultiplier,
-                discountLabel: discountLabel || null,
-            });
+    // Durations actions - REMOVED (admin only via /durations route)
 
-            return redirect("/settings?success=Season created successfully");
-        } catch (error) {
-            console.error("Failed to create season:", error);
-            return redirect("/settings?error=Failed to create season");
-        }
-    }
-
-    if (intent === "updateSeason") {
-        const id = Number(formData.get("id"));
-        const seasonName = formData.get("seasonName") as string;
-        const startMonth = Number(formData.get("startMonth"));
-        const startDay = Number(formData.get("startDay"));
-        const endMonth = Number(formData.get("endMonth"));
-        const endDay = Number(formData.get("endDay"));
-        const priceMultiplier = Number(formData.get("priceMultiplier"));
-        const discountLabel = formData.get("discountLabel") as string | null;
-
-        try {
-            await db.update(schema.seasons)
-                .set({
-                    seasonName,
-                    startMonth,
-                    startDay,
-                    endMonth,
-                    endDay,
-                    priceMultiplier,
-                    discountLabel: discountLabel || null,
-                })
-                .where(and(eq(schema.seasons.id, id), eq(schema.seasons.companyId, user.companyId)));
-
-            return redirect("/settings?success=Season updated successfully");
-        } catch (error) {
-            console.error("Failed to update season:", error);
-            return redirect("/settings?error=Failed to update season");
-        }
-    }
-
-    if (intent === "deleteSeason") {
-        const id = Number(formData.get("id"));
+    // Currency actions
+    if (intent === "setDefaultCurrency") {
+        const currencyId = Number(formData.get("currencyId"));
         
         try {
-            await db.delete(schema.seasons)
-                .where(and(eq(schema.seasons.id, id), eq(schema.seasons.companyId, user.companyId)));
+            // Update currency to set companyId (marks as default for this company)
+            await db.update(schema.currencies)
+                .set({ companyId: user.companyId })
+                .where(eq(schema.currencies.id, currencyId));
 
-            return redirect("/settings?success=Season deleted successfully");
+            // Clear other currencies for this company
+            await db.update(schema.currencies)
+                .set({ companyId: null })
+                .where(and(
+                    eq(schema.currencies.companyId, user.companyId),
+                    ne(schema.currencies.id, currencyId)
+                ));
+
+            return redirect("/settings?tab=currencies&success=Default currency updated");
         } catch (error) {
-            console.error("Failed to delete season:", error);
-            return redirect("/settings?error=Failed to delete season");
-        }
-    }
-
-    // Durations actions
-    if (intent === "createDuration") {
-        const rangeName = formData.get("rangeName") as string;
-        const minDays = Number(formData.get("minDays"));
-        const maxDays = formData.get("maxDays") ? Number(formData.get("maxDays")) : null;
-        const priceMultiplier = Number(formData.get("priceMultiplier"));
-        const discountLabel = formData.get("discountLabel") as string | null;
-
-        try {
-            await db.insert(schema.rentalDurations).values({
-                companyId: user.companyId,
-                rangeName,
-                minDays,
-                maxDays,
-                priceMultiplier,
-                discountLabel: discountLabel || null,
-            });
-
-            return redirect("/settings?success=Duration created successfully");
-        } catch (error) {
-            console.error("Failed to create duration:", error);
-            return redirect("/settings?error=Failed to create duration");
-        }
-    }
-
-    if (intent === "updateDuration") {
-        const id = Number(formData.get("id"));
-        const rangeName = formData.get("rangeName") as string;
-        const minDays = Number(formData.get("minDays"));
-        const maxDays = formData.get("maxDays") ? Number(formData.get("maxDays")) : null;
-        const priceMultiplier = Number(formData.get("priceMultiplier"));
-        const discountLabel = formData.get("discountLabel") as string | null;
-
-        try {
-            await db.update(schema.rentalDurations)
-                .set({
-                    rangeName,
-                    minDays,
-                    maxDays,
-                    priceMultiplier,
-                    discountLabel: discountLabel || null,
-                })
-                .where(and(eq(schema.rentalDurations.id, id), eq(schema.rentalDurations.companyId, user.companyId)));
-
-            return redirect("/settings?success=Duration updated successfully");
-        } catch (error) {
-            console.error("Failed to update duration:", error);
-            return redirect("/settings?error=Failed to update duration");
-        }
-    }
-
-    if (intent === "deleteDuration") {
-        const id = Number(formData.get("id"));
-        
-        try {
-            await db.delete(schema.rentalDurations)
-                .where(and(eq(schema.rentalDurations.id, id), eq(schema.rentalDurations.companyId, user.companyId)));
-
-            return redirect("/settings?success=Duration deleted successfully");
-        } catch (error) {
-            console.error("Failed to delete duration:", error);
-            return redirect("/settings?error=Failed to delete duration");
+            console.error("Failed to set default currency:", error);
+            return redirect("/settings?tab=currencies&error=Failed to update default currency");
         }
     }
 
@@ -408,7 +275,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function SettingsPage() {
-    const { company, locations, districts, seasons, durations, paymentTypes, currencies } = useLoaderData<typeof loader>();
+    const { company, locations, districts, paymentTypes, currencies } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
     const activeTab = searchParams.get("tab") || "general";
     const [selectedLocationId, setSelectedLocationId] = useState(company.locationId);
@@ -416,26 +283,6 @@ export default function SettingsPage() {
     const [holidays, setHolidays] = useState(company.holidays || "");
     const shownToastsRef = useRef<Set<string>>(new Set());
     const { validateLatinInput } = useLatinValidation();
-    const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
-    const [editingSeason, setEditingSeason] = useState<any | null>(null);
-    const [seasonFormData, setSeasonFormData] = useState({
-        seasonName: "",
-        startMonth: "12",
-        startDay: "1",
-        endMonth: "1",
-        endDay: "31",
-        priceMultiplier: "1",
-        discountLabel: "",
-    });
-    const [isDurationModalOpen, setIsDurationModalOpen] = useState(false);
-    const [editingDuration, setEditingDuration] = useState<any | null>(null);
-    const [durationFormData, setDurationFormData] = useState({
-        rangeName: "",
-        minDays: "1",
-        maxDays: "",
-        priceMultiplier: "1",
-        discountLabel: "",
-    });
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [paymentFormData, setPaymentFormData] = useState({
         name: "",
@@ -479,8 +326,6 @@ export default function SettingsPage() {
 
     const tabs = [
         { id: "general", label: "General" },
-        { id: "seasons", label: "Seasons" },
-        { id: "durations", label: "Durations" },
         { id: "payments", label: "Payments" },
         { id: "currencies", label: "Currencies" },
     ];
@@ -490,138 +335,6 @@ export default function SettingsPage() {
     const handleTabChange = (tabId: string | number) => {
         setSearchParams({ tab: String(tabId) });
     };
-
-    const handleSeasonSubmit = () => {
-        setIsSeasonModalOpen(false);
-        setEditingSeason(null);
-        revalidator.revalidate();
-    };
-
-    const handleDurationSubmit = () => {
-        setIsDurationModalOpen(false);
-        setEditingDuration(null);
-        revalidator.revalidate();
-    };
-
-    const seasonColumns: Column<any>[] = [
-        {
-            key: "seasonName",
-            label: "Season Name",
-            render: (item) => <span className="font-medium text-gray-900">{item.seasonName}</span>,
-        },
-        {
-            key: "startDate",
-            label: "Start Date",
-            render: (item) => <span className="text-gray-700">{MONTHS[item.startMonth - 1]?.label} {item.startDay}</span>,
-        },
-        {
-            key: "endDate",
-            label: "End Date",
-            render: (item) => <span className="text-gray-700">{MONTHS[item.endMonth - 1]?.label} {item.endDay}</span>,
-        },
-        {
-            key: "priceMultiplier",
-            label: "Price Multiplier",
-            render: (item) => <span className="text-gray-700">{item.priceMultiplier}</span>,
-        },
-        {
-            key: "discountLabel",
-            label: "Discount Label",
-            render: (item) => <span className="text-gray-600">{item.discountLabel || "-"}</span>,
-        },
-        {
-            key: "actions",
-            label: "Actions",
-            render: (item) => (
-                <div className="flex gap-2">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                            setEditingSeason(item);
-                            setSeasonFormData({
-                                seasonName: item.seasonName,
-                                startMonth: String(item.startMonth),
-                                startDay: String(item.startDay),
-                                endMonth: String(item.endMonth),
-                                endDay: String(item.endDay),
-                                priceMultiplier: String(item.priceMultiplier),
-                                discountLabel: item.discountLabel || "",
-                            });
-                            setIsSeasonModalOpen(true);
-                        }}
-                    >
-                        Edit
-                    </Button>
-                    <Form method="post">
-                        <input type="hidden" name="intent" value="deleteSeason" />
-                        <input type="hidden" name="id" value={item.id} />
-                        <Button type="submit" variant="secondary" size="sm">Delete</Button>
-                    </Form>
-                </div>
-            ),
-        },
-    ];
-
-    const durationColumns: Column<any>[] = [
-        {
-            key: "rangeName",
-            label: "Range Name",
-            render: (item) => <span className="font-medium text-gray-900">{item.rangeName}</span>,
-        },
-        {
-            key: "minDays",
-            label: "Min Days",
-            render: (item) => <span className="text-gray-700">{item.minDays}</span>,
-        },
-        {
-            key: "maxDays",
-            label: "Max Days",
-            render: (item) => <span className="text-gray-700">{item.maxDays || "Unlimited"}</span>,
-        },
-        {
-            key: "priceMultiplier",
-            label: "Price Multiplier",
-            render: (item) => <span className="text-gray-700">{item.priceMultiplier}</span>,
-        },
-        {
-            key: "discountLabel",
-            label: "Discount Label",
-            render: (item) => <span className="text-gray-600">{item.discountLabel || "-"}</span>,
-        },
-        {
-            key: "actions",
-            label: "Actions",
-            render: (item) => (
-                <div className="flex gap-2">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                            setEditingDuration(item);
-                            setDurationFormData({
-                                rangeName: item.rangeName,
-                                minDays: String(item.minDays),
-                                maxDays: item.maxDays ? String(item.maxDays) : "",
-                                priceMultiplier: String(item.priceMultiplier),
-                                discountLabel: item.discountLabel || "",
-                            });
-                            setIsDurationModalOpen(true);
-                        }}
-                    >
-                        Edit
-                    </Button>
-                    <Form method="post">
-                        <input type="hidden" name="intent" value="deleteDuration" />
-                        <input type="hidden" name="id" value={item.id} />
-                        <Button type="submit" variant="secondary" size="sm">Delete</Button>
-                    </Form>
-                </div>
-            ),
-        },
-    ];
 
     const handleTogglePaymentTemplate = async (id: number, field: 'showOnCreate' | 'showOnClose' | 'isActive', currentValue: boolean | null) => {
         const formData = new FormData();
@@ -644,9 +357,23 @@ export default function SettingsPage() {
         }
     };
 
-    const handleToggleCurrency = async (id: number, field: 'isActive') => {
-        // TODO: Implement currency toggle when currencies management is ready
-        toast.info("Currency management coming soon");
+    const handleToggleCurrency = async (id: number, field: 'isActive' | 'isDefault') => {
+        if (field === 'isDefault') {
+            // Set this currency as default for company by updating companyId
+            const formData = new FormData();
+            formData.append("intent", "setDefaultCurrency");
+            formData.append("currencyId", String(id));
+            
+            try {
+                await fetch("/settings", { method: "POST", body: formData });
+                revalidator.revalidate();
+                toast.success("Default currency updated");
+            } catch (error) {
+                toast.error("Failed to update default currency");
+            }
+        } else {
+            toast.info("Currency management coming soon");
+        }
     };
 
     const getHeaderActions = () => {
@@ -654,50 +381,6 @@ export default function SettingsPage() {
             return (
                 <Button type="submit" variant="primary" form="settings-form">
                     Save
-                </Button>
-            );
-        }
-        if (activeTab === "seasons") {
-            return (
-                <Button
-                    variant="primary"
-                    icon={<PlusIcon className="w-5 h-5" />}
-                    onClick={() => {
-                        setEditingSeason(null);
-                        setSeasonFormData({
-                            seasonName: "",
-                            startMonth: "12",
-                            startDay: "1",
-                            endMonth: "1",
-                            endDay: "31",
-                            priceMultiplier: "1",
-                            discountLabel: "",
-                        });
-                        setIsSeasonModalOpen(true);
-                    }}
-                >
-                    Add
-                </Button>
-            );
-        }
-        if (activeTab === "durations") {
-            return (
-                <Button
-                    variant="primary"
-                    icon={<PlusIcon className="w-5 h-5" />}
-                    onClick={() => {
-                        setEditingDuration(null);
-                        setDurationFormData({
-                            rangeName: "",
-                            minDays: "1",
-                            maxDays: "",
-                            priceMultiplier: "1",
-                            discountLabel: "",
-                        });
-                        setIsDurationModalOpen(true);
-                    }}
-                >
-                    Add
                 </Button>
             );
         }
@@ -914,105 +597,6 @@ export default function SettingsPage() {
                 </Form>
             )}
 
-            {activeTab === "seasons" && (
-                <div className="space-y-4">
-                    <DataTable
-                        columns={seasonColumns}
-                        data={seasons}
-                        disablePagination={true}
-                        emptyTitle="No seasons configured"
-                        emptyDescription="Add seasonal pricing periods"
-                    />
-                    <Modal
-                        title={editingSeason ? "Edit Season" : "Add Season"}
-                        isOpen={isSeasonModalOpen}
-                        onClose={() => setIsSeasonModalOpen(false)}
-                        size="md"
-                    >
-                        <Form method="post" className="space-y-4" onSubmit={handleSeasonSubmit}>
-                            <input type="hidden" name="intent" value={editingSeason ? "updateSeason" : "createSeason"} />
-                            {editingSeason && <input type="hidden" name="id" value={editingSeason.id} />}
-                            <Input
-                                label="Season Name"
-                                name="seasonName"
-                                value={seasonFormData.seasonName}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSeasonFormData({ ...seasonFormData, seasonName: e.target.value })}
-                                placeholder="e.g., Peak Season"
-                                required
-                            />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1">Start Month</label>
-                                    <select name="startMonth" value={seasonFormData.startMonth} onChange={(e) => setSeasonFormData({ ...seasonFormData, startMonth: e.target.value })} className="w-full px-4 py-2 text-gray-600 border border-gray-200 rounded-xl" required>
-                                        {MONTHS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1">Start Day</label>
-                                    <select name="startDay" value={seasonFormData.startDay} onChange={(e) => setSeasonFormData({ ...seasonFormData, startDay: e.target.value })} className="w-full px-4 py-2 text-gray-600 border border-gray-200 rounded-xl" required>
-                                        {DAYS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1">End Month</label>
-                                    <select name="endMonth" value={seasonFormData.endMonth} onChange={(e) => setSeasonFormData({ ...seasonFormData, endMonth: e.target.value })} className="w-full px-4 py-2 text-gray-600 border border-gray-200 rounded-xl" required>
-                                        {MONTHS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1">End Day</label>
-                                    <select name="endDay" value={seasonFormData.endDay} onChange={(e) => setSeasonFormData({ ...seasonFormData, endDay: e.target.value })} className="w-full px-4 py-2 text-gray-600 border border-gray-200 rounded-xl" required>
-                                        {DAYS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                            <Input label="Price Multiplier" name="priceMultiplier" type="number" step="0.01" value={seasonFormData.priceMultiplier} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSeasonFormData({ ...seasonFormData, priceMultiplier: e.target.value })} required />
-                            <Input label="Discount Label" name="discountLabel" value={seasonFormData.discountLabel} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSeasonFormData({ ...seasonFormData, discountLabel: e.target.value })} placeholder="e.g., +50%" />
-                            <div className="flex justify-end gap-3 pt-4">
-                                <Button type="button" variant="secondary" onClick={() => setIsSeasonModalOpen(false)}>Cancel</Button>
-                                <Button type="submit" variant="primary">{editingSeason ? "Update" : "Create"}</Button>
-                            </div>
-                        </Form>
-                    </Modal>
-                </div>
-            )}
-
-            {activeTab === "durations" && (
-                <div className="space-y-4">
-                    <DataTable
-                        columns={durationColumns}
-                        data={durations}
-                        disablePagination={true}
-                        emptyTitle="No durations configured"
-                        emptyDescription="Add rental duration pricing"
-                    />
-                    <Modal
-                        title={editingDuration ? "Edit Duration" : "Add Duration"}
-                        isOpen={isDurationModalOpen}
-                        onClose={() => setIsDurationModalOpen(false)}
-                        size="md"
-                    >
-                        <Form method="post" className="space-y-4" onSubmit={handleDurationSubmit}>
-                            <input type="hidden" name="intent" value={editingDuration ? "updateDuration" : "createDuration"} />
-                            {editingDuration && <input type="hidden" name="id" value={editingDuration.id} />}
-                            <Input label="Range Name" name="rangeName" value={durationFormData.rangeName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDurationFormData({ ...durationFormData, rangeName: e.target.value })} placeholder="e.g., Weekly" required />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <Input label="Min Days" name="minDays" type="number" value={durationFormData.minDays} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDurationFormData({ ...durationFormData, minDays: e.target.value })} required />
-                                <Input label="Max Days" name="maxDays" type="number" value={durationFormData.maxDays} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDurationFormData({ ...durationFormData, maxDays: e.target.value })} placeholder="Leave empty for unlimited" />
-                            </div>
-                            <Input label="Price Multiplier" name="priceMultiplier" type="number" step="0.01" value={durationFormData.priceMultiplier} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDurationFormData({ ...durationFormData, priceMultiplier: e.target.value })} required />
-                            <Input label="Discount Label" name="discountLabel" value={durationFormData.discountLabel} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDurationFormData({ ...durationFormData, discountLabel: e.target.value })} placeholder="e.g., 15% off" />
-                            <div className="flex justify-end gap-3 pt-4">
-                                <Button type="button" variant="secondary" onClick={() => setIsDurationModalOpen(false)}>Cancel</Button>
-                                <Button type="submit" variant="primary">{editingDuration ? "Update" : "Create"}</Button>
-                            </div>
-                        </Form>
-                    </Modal>
-                </div>
-            )}
-
             {activeTab === "payments" && (
                 <div className="space-y-4">
                     <div className="overflow-hidden">
@@ -1226,6 +810,9 @@ export default function SettingsPage() {
                                                 <span>Currency</span>
                                             </th>
                                             <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
+                                                <span>Default</span>
+                                            </th>
+                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
                                                 <span>Active</span>
                                             </th>
                                         </tr>
@@ -1245,6 +832,21 @@ export default function SettingsPage() {
                                                         <span className="font-medium text-gray-900">{currency.name}</span>
                                                         <span className="text-xs text-gray-500 uppercase">{currency.code} ({currency.symbol})</span>
                                                     </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => handleToggleCurrency(currency.id, 'isDefault')}
+                                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
+                                                            currency.companyId === company.id 
+                                                                ? 'bg-gray-800 border-transparent' 
+                                                                : 'bg-gray-200 border-transparent'
+                                                        }`}
+                                                    >
+                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                                            currency.companyId === company.id ? 'translate-x-4' : 'translate-x-0'
+                                                        }`}></span>
+                                                    </button>
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
                                                     <button 
