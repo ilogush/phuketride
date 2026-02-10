@@ -24,14 +24,22 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
 
-    const [templatesList, colorsList, seasonsList, durationsList, brandsList, modelsList, bodyTypesList] = await Promise.all([
-        db.select().from(schema.carTemplates).limit(100),
+    // Load templates with related data using relations
+    const templatesList = await db.query.carTemplates.findMany({
+        with: {
+            brand: true,
+            model: true,
+            bodyType: true,
+            fuelType: true,
+        },
+        limit: 100,
+    });
+
+    const [colorsList, seasonsList, durationsList, fuelTypesList] = await Promise.all([
         db.select().from(schema.colors).limit(100),
         db.select().from(schema.seasons).where(eq(schema.seasons.companyId, user.companyId!)).limit(10),
         db.select().from(schema.rentalDurations).where(eq(schema.rentalDurations.companyId, user.companyId!)).limit(10),
-        db.select().from(schema.carBrands).limit(100),
-        db.select().from(schema.carModels).limit(200),
-        db.select().from(schema.bodyTypes).limit(50),
+        db.select().from(schema.fuelTypes).limit(20),
     ]);
 
     return { 
@@ -39,9 +47,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         colors: colorsList, 
         seasons: seasonsList, 
         durations: durationsList,
-        brands: brandsList,
-        models: modelsList,
-        bodyTypes: bodyTypesList,
+        fuelTypes: fuelTypesList,
         user 
     };
 }
@@ -143,7 +149,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function CreateCarPage() {
-    const { templates, colors, seasons, durations, brands, models, bodyTypes } = useLoaderData<typeof loader>();
+    const { templates, colors, seasons, durations, fuelTypes } = useLoaderData<typeof loader>();
     const [searchParams] = useSearchParams();
     const toast = useToast();
     const { validateLatinInput } = useLatinValidation();
@@ -156,6 +162,10 @@ export default function CreateCarPage() {
     const [taxRoadPhotos, setTaxRoadPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [currentMileage, setCurrentMileage] = useState(20321);
     const [nextOilChange, setNextOilChange] = useState(27986);
+    
+    // Template selection state
+    const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+    const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
     // Toast notifications
     useEffect(() => {
@@ -190,10 +200,7 @@ export default function CreateCarPage() {
 
     // Get template display name
     const getTemplateName = (template: any) => {
-        const brand = brands.find(b => b.id === template.brandId);
-        const model = models.find(m => m.id === template.modelId);
-        const bodyType = bodyTypes.find(bt => bt.id === template.bodyTypeId);
-        return `${brand?.name || 'Unknown'} ${model?.name || 'Unknown'} - ${bodyType?.name || 'Unknown'}`;
+        return `${template.brand?.name || 'Unknown'} ${template.model?.name || 'Unknown'} ${template.productionYear ? `(${template.productionYear})` : ''}`;
     };
 
     // Check if oil change is due soon
@@ -217,7 +224,9 @@ export default function CreateCarPage() {
             <Form id="create-car-form" method="post" className="bg-white rounded-3xl shadow-sm p-4">
                 {activeTab === "specifications" && (
                     <div className="space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {/* Template Selection */}
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-900 mb-3">Step 1: Select Car Template</h3>
                             <Select
                                 label="Car Template"
                                 name="templateId"
@@ -227,102 +236,98 @@ export default function CreateCarPage() {
                                     name: getTemplateName(t)
                                 }))}
                                 placeholder="Select a template"
+                                onChange={(e) => setSelectedTemplateId(Number(e.target.value))}
                             />
-                            <Input
-                                label="License Plate"
-                                name="licensePlate"
-                                required
-                                placeholder="ABC-1234"
-                                defaultValue="UY-6787"
-                            />
-                            <Input
-                                label="Production Year"
-                                name="productionYear"
-                                type="number"
-                                min={1900}
-                                max={2027}
-                                required
-                                placeholder="e.g. 2024"
-                                defaultValue="2026"
-                            />
-                            <Select
-                                label="Color"
-                                name="colorId"
-                                required
-                                options={colors}
-                                placeholder="Select color"
-                            />
+                            {selectedTemplate && (
+                                <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                                    <p className="text-xs font-medium text-gray-500 mb-2">Template Details:</p>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                        <div><span className="text-gray-500">Body Type:</span> <span className="font-medium">{selectedTemplate.bodyType?.name || 'N/A'}</span></div>
+                                        <div><span className="text-gray-500">Transmission:</span> <span className="font-medium">{selectedTemplate.transmission || 'N/A'}</span></div>
+                                        <div><span className="text-gray-500">Engine:</span> <span className="font-medium">{selectedTemplate.engineVolume}L</span></div>
+                                        <div><span className="text-gray-500">Seats:</span> <span className="font-medium">{selectedTemplate.seats}</span></div>
+                                        <div><span className="text-gray-500">Doors:</span> <span className="font-medium">{selectedTemplate.doors}</span></div>
+                                        <div><span className="text-gray-500">Fuel:</span> <span className="font-medium">{selectedTemplate.fuelType?.name || 'N/A'}</span></div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <Select
-                                label="Transmission"
-                                name="transmission"
-                                required
-                                options={[
-                                    { id: "Automatic", name: "Automatic" },
-                                    { id: "Manual", name: "Manual" },
-                                    { id: "CVT", name: "CVT" },
-                                ]}
-                                defaultValue="Automatic"
-                            />
-                            <Input
-                                label="Engine Volume (L)"
-                                name="engineVolume"
-                                type="number"
-                                step={0.1}
-                                min={0.5}
-                                max={10}
-                                required
-                                placeholder="e.g. 1.5"
-                                defaultValue="1.5"
-                            />
-                            <Select
-                                label="Fuel Type"
-                                name="fuelType"
-                                required
-                                options={[
-                                    { id: "Gasoline", name: "Gasoline" },
-                                    { id: "Diesel", name: "Diesel" },
-                                    { id: "Hybrid", name: "Hybrid" },
-                                    { id: "Electric", name: "Electric" },
-                                    { id: "LPG", name: "LPG" },
-                                ]}
-                                defaultValue="Gasoline"
-                            />
-                            <Select
-                                label="Status"
-                                name="status"
-                                required
-                                options={[
-                                    { id: "available", name: "Available" },
-                                    { id: "maintenance", name: "Maintenance" },
-                                    { id: "rented", name: "Rented" },
-                                ]}
-                                defaultValue="available"
-                            />
-                        </div>
+                        {/* Unique Car Data */}
+                        {selectedTemplateId && (
+                            <>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Step 2: Add Unique Car Details</h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <Input
+                                            label="License Plate"
+                                            name="licensePlate"
+                                            required
+                                            placeholder="ABC-1234"
+                                            onChange={(e) => {
+                                                e.target.value = e.target.value.toUpperCase();
+                                                validateLatinInput(e, 'License Plate');
+                                            }}
+                                        />
+                                        <Input
+                                            label="Production Year"
+                                            name="productionYear"
+                                            type="number"
+                                            min={1900}
+                                            max={new Date().getFullYear() + 1}
+                                            required
+                                            placeholder="e.g. 2024"
+                                            defaultValue={selectedTemplate?.productionYear || new Date().getFullYear()}
+                                        />
+                                        <Select
+                                            label="Color"
+                                            name="colorId"
+                                            required
+                                            options={colors}
+                                            placeholder="Select color"
+                                        />
+                                        <Input
+                                            label="VIN Number"
+                                            name="vin"
+                                            maxLength={17}
+                                            className="font-mono"
+                                            placeholder="Optional (17 chars)"
+                                            onChange={(e) => {
+                                                e.target.value = e.target.value.toUpperCase();
+                                                validateLatinInput(e, 'VIN');
+                                            }}
+                                        />
+                                    </div>
+                                </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <Input
-                                label="VIN Number"
-                                name="vin"
-                                maxLength={17}
-                                className="font-mono"
-                                placeholder="Optional"
-                                defaultValue="7X7I4EIQ2OMQRU9SW"
-                                onChange={(e) => validateLatinInput(e, 'VIN')}
-                            />
-                        </div>
+                                {/* Hidden fields from template */}
+                                <input type="hidden" name="transmission" value={selectedTemplate?.transmission || 'automatic'} />
+                                <input type="hidden" name="engineVolume" value={selectedTemplate?.engineVolume || 1.5} />
+                                <input type="hidden" name="fuelType" value={selectedTemplate?.fuelType?.name || 'Gasoline'} />
 
-                        <div className="space-y-2">
-                            <h4 className="block text-xs font-medium text-gray-500 mb-1">Car Photos (max 12)</h4>
-                            <CarPhotosUpload
-                                currentPhotos={[]}
-                                onPhotosChange={setPhotos}
-                                maxPhotos={12}
-                            />
-                        </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <Select
+                                        label="Status"
+                                        name="status"
+                                        required
+                                        options={[
+                                            { id: "available", name: "Available" },
+                                            { id: "maintenance", name: "Maintenance" },
+                                        ]}
+                                        defaultValue="available"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <h4 className="block text-xs font-medium text-gray-500 mb-1">Car Photos (max 12) *</h4>
+                                    <CarPhotosUpload
+                                        currentPhotos={[]}
+                                        onPhotosChange={setPhotos}
+                                        maxPhotos={12}
+                                    />
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
 

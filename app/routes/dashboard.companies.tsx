@@ -14,37 +14,37 @@ import { useEffect } from "react";
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB);
+    
+    // Get showArchived from query params
+    const url = new URL(request.url);
+    const showArchived = url.searchParams.get("archived") === "true";
 
     let companiesList: any[] = [];
 
     try {
-        // Fetch companies with additional data
-        const companiesData = await db.select({
-            id: companies.id,
-            name: companies.name,
-            email: companies.email,
-            phone: companies.phone,
-            locationId: companies.locationId,
-            districtId: companies.districtId,
-            ownerId: companies.ownerId,
-        })
-        .from(companies)
-        .limit(50);
+        // Fetch companies with additional data using relations
+        const companiesData = await db.query.companies.findMany({
+            with: {
+                owner: {
+                    columns: {
+                        name: true,
+                        surname: true,
+                        archivedAt: true,
+                    },
+                },
+            },
+            limit: 50,
+        });
 
-        // Filter out company with ID 3
-        const filteredCompaniesData = companiesData.filter(c => c.id !== 3);
+        // Filter companies based on archived status
+        const filteredCompaniesData = companiesData.filter(c => {
+            if (c.id === 3) return false; // Skip company ID 3
+            if (showArchived) return true; // Show all if archived filter is on
+            return !c.archivedAt; // Show only non-archived by default
+        });
 
-        // Fetch partner names and car counts for each company
+        // Fetch district and car count for each company
         for (const company of filteredCompaniesData) {
-            // Get partner/owner info
-            const ownerData = await db.select({
-                name: users.name,
-                surname: users.surname,
-            })
-            .from(users)
-            .where(eq(users.id, company.ownerId))
-            .limit(1);
-
             // Get district info
             const districtData = await db.select({
                 name: districts.name,
@@ -61,22 +61,30 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             .where(eq(companyCars.companyId, company.id));
 
             companiesList.push({
-                ...company,
-                partnerName: ownerData[0] ? `${ownerData[0].name || ''} ${ownerData[0].surname || ''}`.trim() : '-',
+                id: company.id,
+                name: company.name,
+                email: company.email,
+                phone: company.phone,
+                locationId: company.locationId,
+                districtId: company.districtId,
+                ownerId: company.ownerId,
+                archivedAt: company.archivedAt,
+                partnerName: company.owner ? `${company.owner.name || ''} ${company.owner.surname || ''}`.trim() : '-',
+                partnerArchived: !!company.owner?.archivedAt,
                 districtName: districtData[0]?.name || '-',
                 carCount: carCountData[0]?.count || 0,
-                status: 'active', // Default status for companies
+                status: company.archivedAt ? 'archived' : 'active',
             });
         }
     } catch (error) {
         console.error("Error loading companies:", error);
     }
 
-    return { user, companies: companiesList };
+    return { user, companies: companiesList, showArchived };
 }
 
 export default function CompaniesPage() {
-    const { companies: companiesList } = useLoaderData<typeof loader>();
+    const { companies: companiesList, showArchived } = useLoaderData<typeof loader>();
     const [searchParams] = useSearchParams();
     const toast = useToast();
 
@@ -113,9 +121,19 @@ export default function CompaniesPage() {
         },
         {
             key: "partner",
-            label: "Partner",
+            label: "Owner",
             render: (company) => (
-                <span className="text-gray-600">{company.partnerName}</span>
+                <div className="flex flex-col">
+                    <Link 
+                        to={`/users/${company.ownerId}`} 
+                        className="text-gray-900 hover:text-blue-600 font-medium"
+                    >
+                        {company.partnerName}
+                    </Link>
+                    {company.partnerArchived && (
+                        <span className="text-xs text-orange-600">Archived</span>
+                    )}
+                </div>
             ),
         },
         {
@@ -169,6 +187,13 @@ export default function CompaniesPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Companies"
+                rightActions={
+                    <Link to={showArchived ? "/companies" : "/companies?archived=true"}>
+                        <Button variant="secondary">
+                            {showArchived ? "Hide Archived" : "Show Archived"}
+                        </Button>
+                    </Link>
+                }
             />
 
             <DataTable

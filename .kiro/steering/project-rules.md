@@ -99,4 +99,11 @@ const { validateLatinInput } = useLatinValidation()
 ## 6. Документация
 - **КРИТИЧНО**: При изменении кода обновлять docs/*.md
 - Начинать с docs/README.md
-- Ключевые файлы: COMPONENTS.md, DATABASE.md, ROUTING.md, VALIDATION.md
+- Ключевые файлы: BUSINESS_LOGIC.md, COMPONENTS.md, DATABASE.md, ROUTING.md, VALIDATION.md
+- См. docs/BUSINESS_LOGIC.md для полной бизнес-логики проекта
+
+## 7. Чистота проекта
+- **УДАЛЯТЬ** ненужные файлы после использования
+- **УДАЛЯТЬ** тестовые миграции (0010_test_data.sql и подобные)
+- **НЕ ОСТАВЛЯТЬ** закомментированный код
+- **НЕ СОЗДАВАТЬ** дублирующие файлы

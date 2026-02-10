@@ -91,6 +91,11 @@ export async function login(
         return { error: "Invalid email or password" };
     }
 
+    // Check if user is archived
+    if (user.archivedAt) {
+        return { error: "Account has been archived. Please contact support" };
+    }
+
     // Verify password (simplified for demo)
     if (!verifyPassword(password, email)) {
         return { error: "Invalid email or password" };
@@ -102,16 +107,34 @@ export async function login(
     if (user.role === "partner") {
         // Get company owned by this partner
         const companyResult = await db
-            .prepare("SELECT id FROM companies WHERE owner_id = ? LIMIT 1")
+            .prepare("SELECT id, archived_at FROM companies WHERE owner_id = ? LIMIT 1")
             .bind(user.id)
-            .first<{ id: number }>();
+            .first<{ id: number; archived_at: number | null }>();
+        
+        // Check if company is archived
+        if (companyResult?.archived_at) {
+            return { error: "Company has been archived. Please contact support" };
+        }
+        
         companyId = companyResult?.id;
     } else if (user.role === "manager") {
         // Get company where this user is a manager
         const managerResult = await db
-            .prepare("SELECT company_id FROM managers WHERE user_id = ? AND is_active = 1 LIMIT 1")
+            .prepare(`
+                SELECT m.company_id, c.archived_at 
+                FROM managers m 
+                JOIN companies c ON c.id = m.company_id 
+                WHERE m.user_id = ? AND m.is_active = 1 
+                LIMIT 1
+            `)
             .bind(user.id)
-            .first<{ company_id: number }>();
+            .first<{ company_id: number; archived_at: number | null }>();
+        
+        // Check if company is archived
+        if (managerResult?.archived_at) {
+            return { error: "Company has been archived. Please contact support" };
+        }
+        
         companyId = managerResult?.company_id;
     }
 

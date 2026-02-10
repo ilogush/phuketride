@@ -25,11 +25,13 @@ export const users = sqliteTable("users", {
     districtId: integer("district_id"),
     address: text("address"),
     isFirstLogin: integer("is_first_login", { mode: "boolean" }).default(true),
+    archivedAt: integer("archived_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 }, (table) => ({
     emailIdx: sqliteIndex("idx_users_email").on(table.email),
     roleIdx: sqliteIndex("idx_users_role").on(table.role),
+    archivedIdx: sqliteIndex("idx_users_archived_at").on(table.archivedAt),
 }));
 
 // Companies table
@@ -60,11 +62,13 @@ export const companies = sqliteTable("companies", {
     weeklySchedule: text("weekly_schedule"), // JSON: {monday: {open: true, start: "08:00", end: "20:00"}, ...}
     holidays: text("holidays"), // JSON: ["2024-01-01", "2024-12-25", ...]
     settings: text("settings"), // JSON for other settings
+    archivedAt: integer("archived_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 }, (table) => ({
     ownerIdx: sqliteIndex("idx_companies_owner_id").on(table.ownerId),
     locationIdx: sqliteIndex("idx_companies_location_id").on(table.locationId),
+    archivedIdx: sqliteIndex("idx_companies_archived_at").on(table.archivedAt),
 }));
 
 // Managers table
@@ -258,6 +262,21 @@ export const contracts = sqliteTable("contracts", {
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
+// Currencies table
+export const currencies = sqliteTable("currencies", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    code: text("code").notNull().unique(),
+    name: text("name").notNull(),
+    symbol: text("symbol").notNull(),
+    isActive: integer("is_active", { mode: "boolean" }).default(true),
+    companyId: integer("company_id"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+}, (table) => ({
+    companyIdx: sqliteIndex("idx_currencies_company_id").on(table.companyId),
+    isActiveIdx: sqliteIndex("idx_currencies_is_active").on(table.isActive),
+}));
+
 // Payment types table
 export const paymentTypes = sqliteTable("payment_types", {
     id: integer("id").primaryKey({ autoIncrement: true }),
@@ -267,6 +286,8 @@ export const paymentTypes = sqliteTable("payment_types", {
     companyId: integer("company_id"),
     isSystem: integer("is_system", { mode: "boolean" }).default(false),
     isActive: integer("is_active", { mode: "boolean" }).default(true),
+    showOnCreate: integer("show_on_create", { mode: "boolean" }).default(false),
+    showOnClose: integer("show_on_close", { mode: "boolean" }).default(false),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
@@ -277,7 +298,8 @@ export const payments = sqliteTable("payments", {
     contractId: integer("contract_id").notNull(),
     paymentTypeId: integer("payment_type_id").notNull(),
     amount: real("amount").notNull(),
-    currency: text("currency").default("THB"),
+    currencyId: integer("currency_id"),
+    currency: text("currency").default("THB"), // Legacy field
     paymentMethod: text("payment_method", { enum: ["cash", "bank_transfer", "card"] }),
     status: text("status", { enum: ["pending", "completed", "cancelled"] }).default("completed"),
     notes: text("notes"),
@@ -433,3 +455,294 @@ export const auditLogsCompanyIdx = sqliteIndex("idx_audit_logs_company_id").on(a
 export const auditLogsEntityTypeIdx = sqliteIndex("idx_audit_logs_entity_type").on(auditLogs.entityType);
 export const auditLogsCreatedAtIdx = sqliteIndex("idx_audit_logs_created_at").on(auditLogs.createdAt);
 
+
+// ============================================
+// RELATIONS (for Drizzle ORM queries with .with())
+// ============================================
+
+import { relations } from "drizzle-orm";
+
+// Users relations
+export const usersRelations = relations(users, ({ one, many }) => ({
+    // User as company owner
+    ownedCompany: one(companies, {
+        fields: [users.id],
+        references: [companies.ownerId],
+    }),
+    // User as manager
+    managerProfile: one(managers, {
+        fields: [users.id],
+        references: [managers.userId],
+    }),
+    // User as client in contracts
+    clientContracts: many(contracts, {
+        relationName: "clientContracts",
+    }),
+    // User as manager in contracts
+    managedContracts: many(contracts, {
+        relationName: "managedContracts",
+    }),
+    // User as payment creator
+    createdPayments: many(payments),
+}));
+
+// Companies relations
+export const companiesRelations = relations(companies, ({ one, many }) => ({
+    // Company owner
+    owner: one(users, {
+        fields: [companies.ownerId],
+        references: [users.id],
+    }),
+    // Company cars
+    cars: many(companyCars),
+    // Company managers
+    managers: many(managers),
+    // Company payment types
+    paymentTypes: many(paymentTypes),
+    // Company currencies
+    currencies: many(currencies),
+    // Company calendar events
+    calendarEvents: many(calendarEvents),
+    // Company rental durations
+    rentalDurations: many(rentalDurations),
+    // Company seasons
+    seasons: many(seasons),
+}));
+
+// Managers relations
+export const managersRelations = relations(managers, ({ one }) => ({
+    user: one(users, {
+        fields: [managers.userId],
+        references: [users.id],
+    }),
+    company: one(companies, {
+        fields: [managers.companyId],
+        references: [companies.id],
+    }),
+}));
+
+// Car templates relations
+export const carTemplatesRelations = relations(carTemplates, ({ one, many }) => ({
+    brand: one(carBrands, {
+        fields: [carTemplates.brandId],
+        references: [carBrands.id],
+    }),
+    model: one(carModels, {
+        fields: [carTemplates.modelId],
+        references: [carModels.id],
+    }),
+    bodyType: one(bodyTypes, {
+        fields: [carTemplates.bodyTypeId],
+        references: [bodyTypes.id],
+    }),
+    fuelType: one(fuelTypes, {
+        fields: [carTemplates.fuelTypeId],
+        references: [fuelTypes.id],
+    }),
+    // Cars created from this template
+    companyCars: many(companyCars),
+}));
+
+// Company cars relations
+export const companyCarsRelations = relations(companyCars, ({ one, many }) => ({
+    company: one(companies, {
+        fields: [companyCars.companyId],
+        references: [companies.id],
+    }),
+    template: one(carTemplates, {
+        fields: [companyCars.templateId],
+        references: [carTemplates.id],
+    }),
+    color: one(colors, {
+        fields: [companyCars.colorId],
+        references: [colors.id],
+    }),
+    fuelType: one(fuelTypes, {
+        fields: [companyCars.fuelTypeId],
+        references: [fuelTypes.id],
+    }),
+    // Contracts for this car
+    contracts: many(contracts),
+    // Maintenance history
+    maintenanceHistory: many(maintenanceHistory),
+}));
+
+// Contracts relations
+export const contractsRelations = relations(contracts, ({ one, many }) => ({
+    companyCar: one(companyCars, {
+        fields: [contracts.companyCarId],
+        references: [companyCars.id],
+    }),
+    client: one(users, {
+        fields: [contracts.clientId],
+        references: [users.id],
+        relationName: "clientContracts",
+    }),
+    manager: one(users, {
+        fields: [contracts.managerId],
+        references: [users.id],
+        relationName: "managedContracts",
+    }),
+    pickupDistrict: one(districts, {
+        fields: [contracts.pickupDistrictId],
+        references: [districts.id],
+    }),
+    returnDistrict: one(districts, {
+        fields: [contracts.returnDistrictId],
+        references: [districts.id],
+    }),
+    // Payments for this contract
+    payments: many(payments),
+}));
+
+// Payments relations
+export const paymentsRelations = relations(payments, ({ one }) => ({
+    contract: one(contracts, {
+        fields: [payments.contractId],
+        references: [contracts.id],
+    }),
+    paymentType: one(paymentTypes, {
+        fields: [payments.paymentTypeId],
+        references: [paymentTypes.id],
+    }),
+    currency: one(currencies, {
+        fields: [payments.currencyId],
+        references: [currencies.id],
+    }),
+    creator: one(users, {
+        fields: [payments.createdBy],
+        references: [users.id],
+    }),
+}));
+
+// Currencies relations
+export const currenciesRelations = relations(currencies, ({ one, many }) => ({
+    company: one(companies, {
+        fields: [currencies.companyId],
+        references: [companies.id],
+    }),
+    payments: many(payments),
+}));
+
+// Payment types relations
+export const paymentTypesRelations = relations(paymentTypes, ({ one, many }) => ({
+    company: one(companies, {
+        fields: [paymentTypes.companyId],
+        references: [companies.id],
+    }),
+    payments: many(payments),
+}));
+
+// Maintenance history relations
+export const maintenanceHistoryRelations = relations(maintenanceHistory, ({ one }) => ({
+    companyCar: one(companyCars, {
+        fields: [maintenanceHistory.companyCarId],
+        references: [companyCars.id],
+    }),
+    performedBy: one(users, {
+        fields: [maintenanceHistory.performedBy],
+        references: [users.id],
+    }),
+}));
+
+// Car brands relations
+export const carBrandsRelations = relations(carBrands, ({ many }) => ({
+    models: many(carModels),
+    templates: many(carTemplates),
+}));
+
+// Car models relations
+export const carModelsRelations = relations(carModels, ({ one, many }) => ({
+    brand: one(carBrands, {
+        fields: [carModels.brandId],
+        references: [carBrands.id],
+    }),
+    bodyType: one(bodyTypes, {
+        fields: [carModels.bodyTypeId],
+        references: [bodyTypes.id],
+    }),
+    templates: many(carTemplates),
+}));
+
+// Colors relations
+export const colorsRelations = relations(colors, ({ many }) => ({
+    companyCars: many(companyCars),
+}));
+
+// Body types relations
+export const bodyTypesRelations = relations(bodyTypes, ({ many }) => ({
+    models: many(carModels),
+    templates: many(carTemplates),
+}));
+
+// Fuel types relations
+export const fuelTypesRelations = relations(fuelTypes, ({ many }) => ({
+    templates: many(carTemplates),
+    companyCars: many(companyCars),
+}));
+
+// Districts relations
+export const districtsRelations = relations(districts, ({ one, many }) => ({
+    location: one(locations, {
+        fields: [districts.locationId],
+        references: [locations.id],
+    }),
+    hotels: many(hotels),
+    pickupContracts: many(contracts),
+    returnContracts: many(contracts),
+}));
+
+// Locations relations
+export const locationsRelations = relations(locations, ({ one, many }) => ({
+    country: one(countries, {
+        fields: [locations.countryId],
+        references: [countries.id],
+    }),
+    districts: many(districts),
+    hotels: many(hotels),
+}));
+
+// Countries relations
+export const countriesRelations = relations(countries, ({ many }) => ({
+    locations: many(locations),
+}));
+
+// Hotels relations
+export const hotelsRelations = relations(hotels, ({ one }) => ({
+    location: one(locations, {
+        fields: [hotels.locationId],
+        references: [locations.id],
+    }),
+    district: one(districts, {
+        fields: [hotels.districtId],
+        references: [districts.id],
+    }),
+}));
+
+// Calendar events relations
+export const calendarEventsRelations = relations(calendarEvents, ({ one }) => ({
+    company: one(companies, {
+        fields: [calendarEvents.companyId],
+        references: [companies.id],
+    }),
+    creator: one(users, {
+        fields: [calendarEvents.createdBy],
+        references: [users.id],
+    }),
+}));
+
+// Rental durations relations
+export const rentalDurationsRelations = relations(rentalDurations, ({ one }) => ({
+    company: one(companies, {
+        fields: [rentalDurations.companyId],
+        references: [companies.id],
+    }),
+}));
+
+// Seasons relations
+export const seasonsRelations = relations(seasons, ({ one }) => ({
+    company: one(companies, {
+        fields: [seasons.companyId],
+        references: [companies.id],
+    }),
+}));

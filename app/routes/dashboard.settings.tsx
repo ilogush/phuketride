@@ -2,7 +2,7 @@ import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "reac
 import { useLoaderData, Form, useRevalidator, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, isNull } from "drizzle-orm";
 import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
@@ -58,19 +58,27 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         throw new Response("Company not found", { status: 404 });
     }
 
-    const [company, locations, districts, seasons, durations] = await Promise.all([
+    const [company, locations, districts, seasons, durations, paymentTypes, currencies] = await Promise.all([
         db.select().from(schema.companies).where(eq(schema.companies.id, user.companyId)).limit(1),
         db.select().from(schema.locations).limit(100),
         db.select().from(schema.districts).limit(200),
         db.select().from(schema.seasons).where(eq(schema.seasons.companyId, user.companyId)).limit(100),
         db.select().from(schema.rentalDurations).where(eq(schema.rentalDurations.companyId, user.companyId)).limit(100),
+        // Get system templates (company_id IS NULL) OR company-specific templates
+        db.select().from(schema.paymentTypes).where(
+            or(
+                isNull(schema.paymentTypes.companyId),
+                eq(schema.paymentTypes.companyId, user.companyId)
+            )
+        ).limit(100),
+        db.select().from(schema.currencies).where(eq(schema.currencies.isActive, true)).limit(50),
     ]);
 
     if (!company || company.length === 0) {
         throw new Response("Company not found", { status: 404 });
     }
 
-    return { user, company: company[0], locations, districts, seasons, durations };
+    return { user, company: company[0], locations, districts, seasons, durations, paymentTypes, currencies };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -304,11 +312,103 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
     }
 
+    // Payment templates actions
+    if (intent === "updatePaymentTemplate") {
+        const id = Number(formData.get("id"));
+        const showOnCreate = formData.get("showOnCreate") === "true";
+        const showOnClose = formData.get("showOnClose") === "true";
+        const isActive = formData.get("isActive") === "true";
+
+        try {
+            // Check if this is a system template
+            const template = await db.select().from(schema.paymentTypes).where(eq(schema.paymentTypes.id, id)).get();
+            
+            if (!template) {
+                return redirect("/settings?error=Payment template not found");
+            }
+
+            // System templates: only update toggles
+            // Company templates: check ownership
+            if (template.companyId !== null && template.companyId !== user.companyId) {
+                return redirect("/settings?error=Unauthorized");
+            }
+
+            await db.update(schema.paymentTypes)
+                .set({
+                    showOnCreate,
+                    showOnClose,
+                    isActive,
+                    updatedAt: new Date(),
+                })
+                .where(eq(schema.paymentTypes.id, id));
+
+            return redirect("/settings?success=Payment template updated successfully");
+        } catch (error) {
+            console.error("Failed to update payment template:", error);
+            return redirect("/settings?error=Failed to update payment template");
+        }
+    }
+
+    if (intent === "createPaymentTemplate") {
+        const name = formData.get("name") as string;
+        const sign = formData.get("sign") as "+" | "-";
+        const description = (formData.get("description") as string) || null;
+        const showOnCreate = formData.get("showOnCreate") === "true";
+        const showOnClose = formData.get("showOnClose") === "true";
+
+        try {
+            await db.insert(schema.paymentTypes).values({
+                name,
+                sign,
+                description,
+                companyId: user.companyId,
+                isSystem: false,
+                isActive: true,
+                showOnCreate,
+                showOnClose,
+            });
+
+            return redirect("/settings?success=Payment template created successfully");
+        } catch (error) {
+            console.error("Failed to create payment template:", error);
+            return redirect("/settings?error=Failed to create payment template");
+        }
+    }
+
+    if (intent === "deletePaymentTemplate") {
+        const id = Number(formData.get("id"));
+        
+        try {
+            // Check if this is a company template (not system)
+            const template = await db.select().from(schema.paymentTypes).where(eq(schema.paymentTypes.id, id)).get();
+            
+            if (!template) {
+                return redirect("/settings?error=Payment template not found");
+            }
+
+            if (template.isSystem || template.companyId === null) {
+                return redirect("/settings?error=Cannot delete system templates");
+            }
+
+            if (template.companyId !== user.companyId) {
+                return redirect("/settings?error=Unauthorized");
+            }
+
+            await db.delete(schema.paymentTypes)
+                .where(and(eq(schema.paymentTypes.id, id), eq(schema.paymentTypes.companyId, user.companyId)));
+
+            return redirect("/settings?success=Payment template deleted successfully");
+        } catch (error) {
+            console.error("Failed to delete payment template:", error);
+            return redirect("/settings?error=Failed to delete payment template");
+        }
+    }
+
     return redirect("/settings?error=Invalid action");
 }
 
 export default function SettingsPage() {
-    const { company, locations, districts, seasons, durations } = useLoaderData<typeof loader>();
+    const { company, locations, districts, seasons, durations, paymentTypes, currencies } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState<string | number>("general");
     const [selectedLocationId, setSelectedLocationId] = useState(company.locationId);
@@ -337,19 +437,14 @@ export default function SettingsPage() {
         discountLabel: "",
     });
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-    const [editingPayment, setEditingPayment] = useState<any | null>(null);
     const [paymentFormData, setPaymentFormData] = useState({
         name: "",
         sign: "+",
         description: "",
+        showOnCreate: false,
+        showOnClose: false,
     });
     const [isCurrencyModalOpen, setIsCurrencyModalOpen] = useState(false);
-    const [currencies, setCurrencies] = useState([
-        { id: 1, name: "Thai Baht", code: "THB", symbol: "฿", isActive: true, isDefault: true },
-        { id: 2, name: "US Dollar", code: "USD", symbol: "$", isActive: true, isDefault: false },
-        { id: 3, name: "Euro", code: "EUR", symbol: "€", isActive: false, isDefault: false },
-        { id: 7, name: "Russian Ruble", code: "RUB", symbol: "₽", isActive: false, isDefault: false },
-    ]);
     const toast = useToast();
     const revalidator = useRevalidator();
 
@@ -524,20 +619,30 @@ export default function SettingsPage() {
         },
     ];
 
-    const handleToggleCurrency = (id: number, field: 'isActive' | 'isDefault') => {
-        setCurrencies(prev => prev.map(curr => {
-            if (field === 'isDefault' && curr.id === id) {
-                return { ...curr, isDefault: true };
-            }
-            if (field === 'isDefault' && curr.id !== id) {
-                return { ...curr, isDefault: false };
-            }
-            if (field === 'isActive' && curr.id === id) {
-                return { ...curr, isActive: !curr.isActive };
-            }
-            return curr;
-        }));
-        toast.success(field === 'isActive' ? 'Currency status updated' : 'Default currency updated');
+    const handleTogglePaymentTemplate = async (id: number, field: 'showOnCreate' | 'showOnClose' | 'isActive', currentValue: boolean | null) => {
+        const formData = new FormData();
+        formData.append("intent", "updatePaymentTemplate");
+        formData.append("id", String(id));
+        
+        const template = paymentTypes.find(t => t.id === id);
+        if (!template) return;
+        
+        formData.append("showOnCreate", field === 'showOnCreate' ? String(!currentValue) : String(template.showOnCreate ?? false));
+        formData.append("showOnClose", field === 'showOnClose' ? String(!currentValue) : String(template.showOnClose ?? false));
+        formData.append("isActive", field === 'isActive' ? String(!currentValue) : String(template.isActive ?? true));
+        
+        try {
+            await fetch("/settings", { method: "POST", body: formData });
+            revalidator.revalidate();
+            toast.success("Payment template updated");
+        } catch (error) {
+            toast.error("Failed to update payment template");
+        }
+    };
+
+    const handleToggleCurrency = async (id: number, field: 'isActive') => {
+        // TODO: Implement currency toggle when currencies management is ready
+        toast.info("Currency management coming soon");
     };
 
     const getHeaderActions = () => {
@@ -598,11 +703,12 @@ export default function SettingsPage() {
                     variant="primary"
                     icon={<PlusIcon className="w-5 h-5" />}
                     onClick={() => {
-                        setEditingPayment(null);
                         setPaymentFormData({
                             name: "",
                             sign: "+",
                             description: "",
+                            showOnCreate: false,
+                            showOnClose: false,
                         });
                         setIsPaymentModalOpen(true);
                     }}
@@ -920,192 +1026,125 @@ export default function SettingsPage() {
                                             <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight w-24">
                                                 <span>Sign</span>
                                             </th>
+                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
+                                                <span>On Create</span>
+                                            </th>
+                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
+                                                <span>On Close</span>
+                                            </th>
+                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
+                                                <span>Active</span>
+                                            </th>
                                             <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
                                                 <span>Actions</span>
                                             </th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
-                                        {/* Income (+) */}
-                                        <tr className="group hover:bg-white transition-all">
-                                            <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                <button className="cursor-pointer">
-                                                    <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none transition-all hover:bg-gray-900">
-                                                        0001
+                                        {paymentTypes.map((template) => (
+                                            <tr key={template.id} className="group hover:bg-white transition-all">
+                                                <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                                    <button className="cursor-pointer">
+                                                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none transition-all hover:bg-gray-900">
+                                                            {String(template.id).padStart(4, '0')}
+                                                        </span>
+                                                    </button>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-full">
+                                                    <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium text-gray-900">{template.name}</span>
+                                                            {template.isSystem && (
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                                                    SYSTEM
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {template.description && (
+                                                            <span className="text-xs text-gray-500 mt-0.5">
+                                                                {template.description}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-24">
+                                                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg text-sm font-bold border ${
+                                                        template.sign === '+' 
+                                                            ? 'bg-green-50 text-green-700 border-green-100' 
+                                                            : 'bg-red-50 text-red-700 border-red-100'
+                                                    }`}>
+                                                        {template.sign}
                                                     </span>
-                                                </button>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-full">
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium text-gray-900">Rental Payment</span>
-                                                    <span className="text-xs text-gray-500 mt-0.5">
-                                                        Payment received for car rental service
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-24">
-                                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg text-sm font-bold border bg-green-50 text-green-700 border-green-100">
-                                                    +
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                <div className="flex gap-2">
-                                                    <Button 
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
+                                                    <button 
                                                         type="button" 
-                                                        variant="secondary" 
-                                                        size="sm" 
-                                                        onClick={() => {
-                                                            setEditingPayment({ id: 1, name: "Rental Payment", sign: "+", description: "Payment received for car rental service" });
-                                                            setPaymentFormData({ name: "Rental Payment", sign: "+", description: "Payment received for car rental service" });
-                                                            setIsPaymentModalOpen(true);
-                                                        }}
+                                                        onClick={() => handleTogglePaymentTemplate(template.id, 'showOnCreate', template.showOnCreate ?? false)}
+                                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
+                                                            template.showOnCreate 
+                                                                ? 'bg-gray-800 border-transparent' 
+                                                                : 'bg-gray-200 border-transparent'
+                                                        }`}
                                                     >
-                                                        Edit
-                                                    </Button>
-                                                    <Button type="button" variant="secondary" size="sm" onClick={() => toast.info("Coming soon")}>
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        <tr className="group hover:bg-white transition-all">
-                                            <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                <button className="cursor-pointer">
-                                                    <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none transition-all hover:bg-gray-900">
-                                                        0002
-                                                    </span>
-                                                </button>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-full">
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium text-gray-900">Deposit Received</span>
-                                                    <span className="text-xs text-gray-500 mt-0.5">
-                                                        Security deposit amount received from client at the start of rental period
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-24">
-                                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg text-sm font-bold border bg-green-50 text-green-700 border-green-100">
-                                                    +
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                <div className="flex gap-2">
-                                                    <Button 
+                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                                            template.showOnCreate ? 'translate-x-4' : 'translate-x-0'
+                                                        }`}></span>
+                                                    </button>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
+                                                    <button 
                                                         type="button" 
-                                                        variant="secondary" 
-                                                        size="sm" 
-                                                        onClick={() => {
-                                                            setEditingPayment({ id: 2, name: "Deposit Received", sign: "+", description: "Security deposit amount received from client at the start of rental period" });
-                                                            setPaymentFormData({ name: "Deposit Received", sign: "+", description: "Security deposit amount received from client at the start of rental period" });
-                                                            setIsPaymentModalOpen(true);
-                                                        }}
+                                                        onClick={() => handleTogglePaymentTemplate(template.id, 'showOnClose', template.showOnClose ?? false)}
+                                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
+                                                            template.showOnClose 
+                                                                ? 'bg-gray-800 border-transparent' 
+                                                                : 'bg-gray-200 border-transparent'
+                                                        }`}
                                                     >
-                                                        Edit
-                                                    </Button>
-                                                    <Button type="button" variant="secondary" size="sm" onClick={() => toast.info("Coming soon")}>
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        {/* Expenses (-) */}
-                                        <tr className="group hover:bg-white transition-all">
-                                            <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                <button className="cursor-pointer">
-                                                    <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none transition-all hover:bg-gray-900">
-                                                        0003
-                                                    </span>
-                                                </button>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-full">
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium text-gray-900">Deposit Return</span>
-                                                    <span className="text-xs text-gray-500 mt-0.5">
-                                                        Security deposit returned to client at the end of rental period
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-24">
-                                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg text-sm font-bold border bg-red-50 text-red-700 border-red-100">
-                                                    -
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                <div className="flex gap-2">
-                                                    <Button 
+                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                                            template.showOnClose ? 'translate-x-4' : 'translate-x-0'
+                                                        }`}></span>
+                                                    </button>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
+                                                    <button 
                                                         type="button" 
-                                                        variant="secondary" 
-                                                        size="sm" 
-                                                        onClick={() => {
-                                                            setEditingPayment({ id: 3, name: "Deposit Return", sign: "-", description: "Security deposit returned to client at the end of rental period" });
-                                                            setPaymentFormData({ name: "Deposit Return", sign: "-", description: "Security deposit returned to client at the end of rental period" });
-                                                            setIsPaymentModalOpen(true);
-                                                        }}
+                                                        onClick={() => handleTogglePaymentTemplate(template.id, 'isActive', template.isActive ?? true)}
+                                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
+                                                            template.isActive 
+                                                                ? 'bg-gray-800 border-transparent' 
+                                                                : 'bg-gray-200 border-transparent'
+                                                        }`}
                                                     >
-                                                        Edit
-                                                    </Button>
-                                                    <Button type="button" variant="secondary" size="sm" onClick={() => toast.info("Coming soon")}>
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        <tr className="group hover:bg-white transition-all">
-                                            <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                <button className="cursor-pointer">
-                                                    <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none transition-all hover:bg-gray-900">
-                                                        0004
-                                                    </span>
-                                                </button>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-full">
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium text-gray-900">Refund</span>
-                                                    <span className="text-xs text-gray-500 mt-0.5">
-                                                        Payment refunded to client for cancellation or overpayment
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-24">
-                                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg text-sm font-bold border bg-red-50 text-red-700 border-red-100">
-                                                    -
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                <div className="flex gap-2">
-                                                    <Button 
-                                                        type="button" 
-                                                        variant="secondary" 
-                                                        size="sm" 
-                                                        onClick={() => {
-                                                            setEditingPayment({ id: 4, name: "Refund", sign: "-", description: "Payment refunded to client for cancellation or overpayment" });
-                                                            setPaymentFormData({ name: "Refund", sign: "-", description: "Payment refunded to client for cancellation or overpayment" });
-                                                            setIsPaymentModalOpen(true);
-                                                        }}
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                    <Button type="button" variant="secondary" size="sm" onClick={() => toast.info("Coming soon")}>
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                                            template.isActive ? 'translate-x-4' : 'translate-x-0'
+                                                        }`}></span>
+                                                    </button>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                                    {!template.isSystem && (
+                                                        <Form method="post">
+                                                            <input type="hidden" name="intent" value="deletePaymentTemplate" />
+                                                            <input type="hidden" name="id" value={template.id} />
+                                                            <Button type="submit" variant="secondary" size="sm">Delete</Button>
+                                                        </Form>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
                     <Modal
-                        title={editingPayment ? "Edit Payment Type" : "Add Payment Type"}
+                        title="Add Payment Template"
                         isOpen={isPaymentModalOpen}
                         onClose={() => setIsPaymentModalOpen(false)}
                         size="md"
                     >
-                        <Form method="post" className="space-y-4" onSubmit={() => { setIsPaymentModalOpen(false); toast.success(editingPayment ? "Payment type updated" : "Payment type created"); }}>
-                            <input type="hidden" name="intent" value={editingPayment ? "updatePayment" : "createPayment"} />
-                            {editingPayment && <input type="hidden" name="id" value={editingPayment.id} />}
+                        <Form method="post" className="space-y-4" onSubmit={() => setIsPaymentModalOpen(false)}>
+                            <input type="hidden" name="intent" value="createPaymentTemplate" />
                             <Input
                                 label="Payment Type Name"
                                 name="name"
@@ -1135,9 +1174,33 @@ export default function SettingsPage() {
                                 rows={3}
                                 placeholder="Optional description"
                             />
+                            <div className="space-y-3">
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        name="showOnCreate"
+                                        checked={paymentFormData.showOnCreate}
+                                        onChange={(e) => setPaymentFormData({ ...paymentFormData, showOnCreate: e.target.checked })}
+                                        value="true"
+                                        className="w-4 h-4 text-gray-800 border-gray-300 rounded focus:ring-gray-800"
+                                    />
+                                    <span className="text-sm text-gray-700">Show when creating contract</span>
+                                </label>
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        name="showOnClose"
+                                        checked={paymentFormData.showOnClose}
+                                        onChange={(e) => setPaymentFormData({ ...paymentFormData, showOnClose: e.target.checked })}
+                                        value="true"
+                                        className="w-4 h-4 text-gray-800 border-gray-300 rounded focus:ring-gray-800"
+                                    />
+                                    <span className="text-sm text-gray-700">Show when closing contract</span>
+                                </label>
+                            </div>
                             <div className="flex justify-end gap-3 pt-4">
                                 <Button type="button" variant="secondary" onClick={() => setIsPaymentModalOpen(false)}>Cancel</Button>
-                                <Button type="submit" variant="primary">{editingPayment ? "Update" : "Create"}</Button>
+                                <Button type="submit" variant="primary">Create</Button>
                             </div>
                         </Form>
                     </Modal>
@@ -1158,11 +1221,8 @@ export default function SettingsPage() {
                                             <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
                                                 <span>Currency</span>
                                             </th>
-                                            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
+                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
                                                 <span>Active</span>
-                                            </th>
-                                            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight hidden sm:table-cell">
-                                                <span>Default</span>
                                             </th>
                                         </tr>
                                     </thead>
@@ -1182,7 +1242,7 @@ export default function SettingsPage() {
                                                         <span className="text-xs text-gray-500 uppercase">{currency.code} ({currency.symbol})</span>
                                                     </div>
                                                 </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
                                                     <button 
                                                         type="button" 
                                                         onClick={() => handleToggleCurrency(currency.id, 'isActive')}
@@ -1194,22 +1254,6 @@ export default function SettingsPage() {
                                                     >
                                                         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
                                                             currency.isActive ? 'translate-x-4' : 'translate-x-0'
-                                                        }`}></span>
-                                                    </button>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap hidden sm:table-cell">
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => handleToggleCurrency(currency.id, 'isDefault')}
-                                                        disabled={!currency.isActive}
-                                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
-                                                            currency.isDefault 
-                                                                ? 'bg-gray-800 border-transparent' 
-                                                                : 'bg-gray-200 border-transparent'
-                                                        } ${!currency.isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                    >
-                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                                                            currency.isDefault ? 'translate-x-4' : 'translate-x-0'
                                                         }`}></span>
                                                     </button>
                                                 </td>
