@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Link, useSearchParams } from "react-router";
+import { useLoaderData, Link, useSearchParams, Outlet } from "react-router";
 import { useState, useEffect } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
@@ -113,9 +113,16 @@ export default function ContractsPage() {
                     <Link to={`/contracts/${contract.id}`}>
                         <Button variant="secondary" size="sm">View</Button>
                     </Link>
-                    <Link to={`/contracts/${contract.id}/edit`}>
-                        <Button variant="secondary" size="sm">Edit</Button>
-                    </Link>
+                    {contract.status === "active" && (
+                        <Link to={`/contracts/${contract.id}/close`}>
+                            <Button variant="primary" size="sm">Close</Button>
+                        </Link>
+                    )}
+                    {contract.status !== "completed" && (
+                        <Link to={`/contracts/${contract.id}/edit`}>
+                            <Button variant="secondary" size="sm">Edit</Button>
+                        </Link>
+                    )}
                 </div>
             )
         },
@@ -144,6 +151,8 @@ export default function ContractsPage() {
                 emptyDescription={`No contracts with status "${activeTab}"`}
                 emptyIcon={<ClipboardDocumentListIcon className="w-16 h-16" />}
             />
+
+            <Outlet />
         </div>
     );
 }

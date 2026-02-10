@@ -48,7 +48,9 @@ export default [
         route("logs", "routes/dashboard.logs.tsx"),
 
         // Partner/Manager routes
-        route("contracts", "routes/dashboard.contracts.tsx"),
+        route("contracts", "routes/dashboard.contracts.tsx", [
+            route(":id/close", "routes/dashboard.contracts_.$id.close.tsx"),
+        ]),
         route("contracts/new", "routes/dashboard.contracts.new.tsx"),
         route("contracts/:id", "routes/dashboard.contracts.$id.tsx"),
         route("contracts/:id/edit", "routes/dashboard.contracts.$id.edit.tsx"),
