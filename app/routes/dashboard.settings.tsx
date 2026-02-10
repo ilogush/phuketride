@@ -410,7 +410,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 export default function SettingsPage() {
     const { company, locations, districts, seasons, durations, paymentTypes, currencies } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
-    const [activeTab, setActiveTab] = useState<string | number>("general");
+    const activeTab = searchParams.get("tab") || "general";
     const [selectedLocationId, setSelectedLocationId] = useState(company.locationId);
     const [weeklySchedule, setWeeklySchedule] = useState(company.weeklySchedule || "");
     const [holidays, setHolidays] = useState(company.holidays || "");
@@ -486,6 +486,10 @@ export default function SettingsPage() {
     ];
 
     const filteredDistricts = districts.filter(d => d.locationId === selectedLocationId);
+
+    const handleTabChange = (tabId: string | number) => {
+        setSearchParams({ tab: String(tabId) });
+    };
 
     const handleSeasonSubmit = () => {
         setIsSeasonModalOpen(false);
@@ -740,7 +744,7 @@ export default function SettingsPage() {
                 rightActions={getHeaderActions()}
             />
 
-            <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
+            <Tabs tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
 
             {activeTab === "general" && (
                 <Form id="settings-form" method="post" className="space-y-4">
