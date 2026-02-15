@@ -1,8 +1,8 @@
-import { type LoaderFunctionArgs, json } from "react-router";
+import { type LoaderFunctionArgs } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
-import { sql } from "drizzle-orm";
-import { contracts, companies, locations } from "~/db/schema";
+import { and, gte, eq, sql } from "drizzle-orm";
+import { contracts } from "~/db/schema";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     try {
@@ -26,7 +26,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 .where(
                     and(
                         gte(contracts.createdAt, date),
-                        sql`${contracts.createdAt} < ${nextDate.getTime()}`
+                        sql`${contracts.createdAt} < ${nextDate}`
                     )
                 );
 
@@ -55,23 +55,28 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             .from(contracts)
             .where(sql`status = 'active'`);
 
-        const [completedResult] = await db
+        const [closedResult] = await db
             .select({ count: sql<number>`count(*)` })
             .from(contracts)
-            .where(sql`status = 'completed'`);
+            .where(eq(contracts.status, "closed"));
 
-        const [pendingResult] = await db
+        const [closedTodayResult] = await db
             .select({ count: sql<number>`count(*)` })
             .from(contracts)
-            .where(sql`status = 'pending'`);
+            .where(
+                and(
+                    eq(contracts.status, "closed"),
+                    gte(contracts.updatedAt, new Date(new Date().setHours(0, 0, 0, 0)))
+                )
+            );
 
         const contractStats = {
             active: activeResult?.count || 0,
-            completed: completedResult?.count || 0,
-            pending: pendingResult?.count || 0
+            closed: closedResult?.count || 0,
+            closedToday: closedTodayResult?.count || 0
         };
 
-        return json({
+        return Response.json({
             success: true,
             data: {
                 activityByDay,
@@ -84,7 +89,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         });
     } catch (error) {
         console.error("Error loading dashboard charts:", error);
-        return json({
+        return Response.json({
             success: false,
             error: "Failed to load dashboard charts"
         }, { status: 500 });

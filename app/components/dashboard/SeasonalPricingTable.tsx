@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import DataTable, { Column } from '~/components/dashboard/DataTable'
+import DataTable, { type Column } from '~/components/dashboard/DataTable'
 import Loader from '~/components/dashboard/Loader'
 
 interface Season {
@@ -79,6 +79,13 @@ interface SeasonalPricingTableProps {
     adminMode?: boolean
 }
 
+type CompanyResponse = {
+    location_id?: number | null
+    settings?: { duration_ranges?: DurationRange[] }
+}
+
+type SeasonsResponse = { data?: Season[] }
+
 export default function SeasonalPricingTable({
     pricePerDay,
     companyId,
@@ -107,13 +114,13 @@ export default function SeasonalPricingTable({
                     return
                 }
 
-                const companyData = await companyRes.json()
+                const companyData = (await companyRes.json()) as CompanyResponse
                 const locationId = companyData.location_id
 
                 if (locationId) {
                     const seasonsRes = await fetch(`/api/location-seasons?locationId=${locationId}`)
                     if (seasonsRes.ok) {
-                        const seasonsData = await seasonsRes.json()
+                        const seasonsData = (await seasonsRes.json()) as SeasonsResponse
                         if (seasonsData.data && seasonsData.data.length > 0) {
                             const sortedSeasons = sortSeasonsByPriority(seasonsData.data)
                             setSeasons(sortedSeasons.slice(0, 4))
@@ -122,7 +129,7 @@ export default function SeasonalPricingTable({
                 }
 
                 if (companyData.settings?.duration_ranges) {
-                    const ranges = companyData.settings.duration_ranges.slice(0, 6).map((range: DurationRange) => ({
+                    const ranges = companyData.settings.duration_ranges.slice(0, 6).map((range) => ({
                         ...range,
                         price_coefficient: 1.0
                     }))

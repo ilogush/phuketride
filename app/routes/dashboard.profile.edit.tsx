@@ -18,11 +18,15 @@ import { useToast } from "~/lib/toast";
 import { useEffect } from "react";
 import { userSchema } from "~/schemas/user";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { PASSWORD_MIN_LENGTH } from "~/lib/password";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
-    const fullUser = await db.select().from(schema.users).where(eq(schema.users.id, sessionUser.id)).get();
+    const fullUser = await db.query.users.findFirst({
+        where: eq(schema.users.id, sessionUser.id),
+        columns: { passwordHash: false },
+    });
     if (!fullUser) throw new Response("User not found", { status: 404 });
 
     // Load reference data
@@ -49,7 +53,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
 
     // Get current user data
-    const currentUser = await db.select().from(schema.users).where(eq(schema.users.id, user.id)).get();
+    const currentUser = await db.query.users.findFirst({
+        where: eq(schema.users.id, user.id),
+        columns: { passwordHash: false },
+    });
     if (!currentUser) throw new Response("User not found", { status: 404 });
 
     let avatarUrl = currentUser.avatarUrl;
@@ -107,6 +114,24 @@ export async function action({ request, context }: ActionFunctionArgs) {
         address: (formData.get("address") as string) || null,
     };
 
+    const parseDocPhotos = (value: FormDataEntryValue | null): string | null => {
+        if (typeof value !== "string") return null;
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed) && parsed.length === 0) return null;
+            return JSON.stringify(parsed);
+        } catch {
+            return null;
+        }
+    };
+
+    const passportPhotos = parseDocPhotos(formData.get("passportPhotos"));
+    const driverLicensePhotos = parseDocPhotos(formData.get("driverLicensePhotos"));
+    const newPassword = (formData.get("newPassword") as string | null) || "";
+    const confirmPassword = (formData.get("confirmPassword") as string | null) || "";
+
     // Validate with Zod
     const validation = userSchema.safeParse(rawData);
     if (!validation.success) {
@@ -121,8 +146,22 @@ export async function action({ request, context }: ActionFunctionArgs) {
             ...validData,
             dateOfBirth: validData.dateOfBirth ? new Date(validData.dateOfBirth) : null,
             avatarUrl,
+            passportPhotos,
+            driverLicensePhotos,
             updatedAt: new Date(),
         };
+
+        const passwordChanged = !!(newPassword || confirmPassword);
+        if (newPassword || confirmPassword) {
+            if (newPassword.length < PASSWORD_MIN_LENGTH) {
+                return redirect(`/profile/edit?error=${encodeURIComponent(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`)}`);
+            }
+            if (newPassword !== confirmPassword) {
+                return redirect(`/profile/edit?error=${encodeURIComponent("Passwords do not match")}`);
+            }
+            const { hashPassword } = await import("~/lib/password.server");
+            updateData.passwordHash = await hashPassword(newPassword);
+        }
 
         // Only admin can change role
         if (user.role === "admin") {
@@ -147,7 +186,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             entityId: user.id,
             action: "update",
             beforeState: currentUser,
-            afterState: { ...validData, id: user.id },
+            afterState: { ...validData, id: user.id, passwordChanged },
             ...metadata,
         });
 

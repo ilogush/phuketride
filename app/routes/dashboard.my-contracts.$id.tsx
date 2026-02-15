@@ -110,11 +110,10 @@ export default function ContractDetails() {
     const carPhotos = contract.carPhotos ? JSON.parse(contract.carPhotos) : [];
     const contractPhotos = contract.photos ? JSON.parse(contract.photos) : [];
 
-    const getStatusVariant = (status: string) => {
+    const getStatusVariant = (status: string | null) => {
         switch (status) {
             case "active": return "info";
-            case "completed": return "success";
-            case "cancelled": return "error";
+            case "closed": return "success";
             default: return "neutral";
         }
     };
@@ -227,10 +226,10 @@ export default function ContractDetails() {
                             <span className="font-semibold">฿{contract.babySeatPrice}</span>
                         </div>
                     )}
-                    {contract.deliveryCost > 0 && (
+                    {(contract.deliveryCost ?? 0) > 0 && (
                         <div className="flex justify-between">
                             <span className="text-gray-600">Delivery Fee</span>
-                            <span className="font-semibold">฿{contract.deliveryCost}</span>
+                            <span className="font-semibold">฿{contract.deliveryCost ?? 0}</span>
                         </div>
                     )}
                 </div>

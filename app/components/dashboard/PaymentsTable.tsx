@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router'
-import DataTable, { Column, Tab } from '~/components/dashboard/DataTable'
+import DataTable, { type Column, type Tab } from '~/components/dashboard/DataTable'
 import IdBadge from '~/components/dashboard/IdBadge'
 import { format } from 'date-fns'
 import { useToast } from '~/lib/toast'
@@ -34,14 +34,16 @@ interface Payment {
     }
 }
 
+type PaymentsResponse = { data: Payment[]; totalCount: number }
+type FetchParams = Parameters<Tab<Payment>['fetchData']>[0]
+
 export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: string }) {
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
     const toast = useToast()
     const companyId = searchParams.get('company_id')
     const adminMode = searchParams.get('admin_mode')
-    const [user, setUser] = useState<any>(null)
-    const [refreshKey, setRefreshKey] = useState(0)
+    const [user, setUser] = useState<{ role?: string; companyId?: number | null; company_id?: number | null } | null>(null)
 
     useEffect(() => {
         async function fetchUser() {
@@ -49,7 +51,7 @@ export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: stri
                 const response = await fetch('/api/user')
                 if (response.ok) {
                     const userData = await response.json()
-                    setUser(userData)
+                    setUser(userData as { role?: string; companyId?: number | null; company_id?: number | null })
                 }
             } catch (err) {
                 console.error('Error fetching user:', err)
@@ -58,13 +60,7 @@ export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: stri
         fetchUser()
     }, [])
 
-    const fetchPayments = async (params: {
-        page: number
-        pageSize: number
-        sortBy?: string
-        sortOrder?: 'asc' | 'desc'
-        filters?: Record<string, any>
-    }, sign?: string) => {
+    const fetchPayments = async (params: FetchParams, sign?: string): Promise<PaymentsResponse> => {
         try {
             const queryParams = new URLSearchParams({
                 page: params.page.toString(),
@@ -77,8 +73,9 @@ export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: stri
             }
 
             let effectiveCompanyId = companyId
-            if (!effectiveCompanyId && user && (user.role === 'partner' || user.role === 'manager') && user.company_id) {
-                effectiveCompanyId = user.company_id.toString()
+            const userCompanyId = user?.companyId ?? user?.company_id
+            if (!effectiveCompanyId && user && (user.role === 'partner' || user.role === 'manager') && userCompanyId) {
+                effectiveCompanyId = userCompanyId.toString()
             }
 
             if (effectiveCompanyId) {
@@ -102,7 +99,7 @@ export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: stri
                 throw new Error('Failed to fetch payments')
             }
 
-            const result = await response.json()
+            const result = (await response.json()) as PaymentsResponse
             if (result.data.length === 0 && params.page === 1) {
                 await toast.info('No payments found')
             }
@@ -114,9 +111,9 @@ export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: stri
         }
     }
 
-    const fetchAllPayments = (params: any) => fetchPayments(params)
-    const fetchIncomePayments = (params: any) => fetchPayments(params, '+')
-    const fetchExpensePayments = (params: any) => fetchPayments(params, '-')
+    const fetchAllPayments = (params: FetchParams) => fetchPayments(params)
+    const fetchIncomePayments = (params: FetchParams) => fetchPayments(params, '+')
+    const fetchExpensePayments = (params: FetchParams) => fetchPayments(params, '-')
 
     const columns: Column<Payment>[] = [
         {
@@ -128,7 +125,7 @@ export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: stri
                         const params = new URLSearchParams()
                         if (adminMode) params.set('admin_mode', 'true')
                         if (companyId) params.set('company_id', companyId)
-                        navigate(`/dashboard/payments/${item.id}?${params.toString()}`)
+                        navigate(`/payments/${item.id}?${params.toString()}`)
                     }}
                     className="hover:opacity-70 transition-opacity"
                 >
@@ -242,7 +239,6 @@ export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: stri
     return (
         <DataTable
             tabs={paymentTabs}
-            refreshKey={refreshKey}
             defaultTabId="all"
             initialPageSize={20}
             searchQuery={searchQuery}

@@ -21,9 +21,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         throw new Response("Forbidden", { status: 403 });
     }
     const db = drizzle(context.cloudflare.env.DB, { schema });
-    const brandsList = await db.select().from(schema.carBrands).limit(100);
+    const [brandsList, bodyTypesList] = await Promise.all([
+        db.select().from(schema.carBrands).limit(100),
+        db.select().from(schema.bodyTypes).limit(100),
+    ]);
 
-    return { brands: brandsList };
+    return { brands: brandsList, bodyTypes: bodyTypesList };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -49,12 +52,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const validData = validation.data;
 
     try {
-        const bodyType = formData.get("bodyType") as string;
+        const bodyTypeId = formData.get("bodyTypeId") ? Number(formData.get("bodyTypeId")) : null;
 
         const [newModel] = await db.insert(schema.carModels).values({
             name: validData.name,
             brandId: validData.brandId,
-            bodyType: bodyType || null,
+            bodyTypeId,
         }).returning({ id: schema.carModels.id });
 
         // Audit log
@@ -67,7 +70,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             entityType: "model",
             entityId: newModel.id,
             action: "create",
-            afterState: { ...validData, id: newModel.id, bodyType },
+            afterState: { ...validData, id: newModel.id, bodyTypeId },
             ...metadata,
         });
 
@@ -79,7 +82,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function CreateModelPage() {
-    const { brands } = useLoaderData<typeof loader>();
+    const { brands, bodyTypes } = useLoaderData<typeof loader>();
     const [searchParams] = useSearchParams();
     const toast = useToast();
 
@@ -121,16 +124,8 @@ export default function CreateModelPage() {
 
                     <Select
                         label="Body Type"
-                        name="bodyType"
-                        options={[
-                            { id: "sedan", name: "Sedan" },
-                            { id: "suv", name: "SUV" },
-                            { id: "hatchback", name: "Hatchback" },
-                            { id: "convertible", name: "Convertible" },
-                            { id: "pickup", name: "Pickup" },
-                            { id: "van", name: "Van" }
-                        ]}
-                        required
+                        name="bodyTypeId"
+                        options={bodyTypes}
                     />
                 </Form>
             </FormSection>

@@ -11,7 +11,12 @@ import ProfileForm from "~/components/dashboard/ProfileForm";
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
-    const fullUser = await db.select().from(schema.users).where(eq(schema.users.id, sessionUser.id)).get();
+    const fullUser = await db.query.users.findFirst({
+        where: eq(schema.users.id, sessionUser.id),
+        columns: {
+            passwordHash: false,
+        },
+    });
 
     if (!fullUser) throw new Response("User not found", { status: 404 });
 

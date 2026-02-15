@@ -6,10 +6,11 @@ interface LayoutProps {
     children: ReactNode;
     user: {
         id: string;
-        full_name: string;
         email: string;
         role: 'admin' | 'partner' | 'manager' | 'user';
-        company_id?: string;
+        name: string | null;
+        surname: string | null;
+        companyId?: number | null;
     };
 }
 

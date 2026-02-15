@@ -18,6 +18,7 @@ export const users = sqliteTable("users", {
     gender: text("gender", { enum: ["male", "female", "other"] }),
     passportPhotos: text("passport_photos"), // JSON array
     driverLicensePhotos: text("driver_license_photos"), // JSON array
+    passwordHash: text("password_hash"),
     avatarUrl: text("avatar_url"),
     hotelId: integer("hotel_id"),
     roomNumber: text("room_number"),
@@ -255,8 +256,51 @@ export const contracts = sqliteTable("contracts", {
     endMileage: integer("end_mileage"),
     fuelLevel: text("fuel_level").default("full"),
     cleanliness: text("cleanliness").default("clean"),
-    status: text("status", { enum: ["draft", "active", "completed", "cancelled"] }).default("active"),
+    status: text("status", { enum: ["active", "closed"] }).default("active"),
     photos: text("photos"), // JSON array
+    notes: text("notes"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
+// Bookings table
+export const bookings = sqliteTable("bookings", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyCarId: integer("company_car_id").notNull(),
+    clientId: text("client_id").notNull(), // FK to users
+    managerId: text("manager_id"), // FK to users
+    startDate: integer("start_date", { mode: "timestamp" }).notNull(),
+    endDate: integer("end_date", { mode: "timestamp" }).notNull(),
+    estimatedAmount: real("estimated_amount").notNull(),
+    currency: text("currency").default("THB"),
+    depositAmount: real("deposit_amount").default(0),
+    depositPaid: integer("deposit_paid", { mode: "boolean" }).default(false),
+    depositPaymentMethod: text("deposit_payment_method", { enum: ["cash", "bank_transfer", "card"] }),
+    // Client details
+    clientName: text("client_name").notNull(),
+    clientSurname: text("client_surname").notNull(),
+    clientPhone: text("client_phone").notNull(),
+    clientEmail: text("client_email"),
+    clientPassport: text("client_passport"),
+    // Pickup/Return
+    pickupDistrictId: integer("pickup_district_id"),
+    pickupHotel: text("pickup_hotel"),
+    pickupRoom: text("pickup_room"),
+    deliveryCost: real("delivery_cost").default(0),
+    returnDistrictId: integer("return_district_id"),
+    returnHotel: text("return_hotel"),
+    returnRoom: text("return_room"),
+    returnCost: real("return_cost").default(0),
+    // Extras
+    fullInsuranceEnabled: integer("full_insurance_enabled", { mode: "boolean" }).default(false),
+    fullInsurancePrice: real("full_insurance_price").default(0),
+    babySeatEnabled: integer("baby_seat_enabled", { mode: "boolean" }).default(false),
+    babySeatPrice: real("baby_seat_price").default(0),
+    islandTripEnabled: integer("island_trip_enabled", { mode: "boolean" }).default(false),
+    islandTripPrice: real("island_trip_price").default(0),
+    krabiTripEnabled: integer("krabi_trip_enabled", { mode: "boolean" }).default(false),
+    krabiTripPrice: real("krabi_trip_price").default(0),
+    status: text("status", { enum: ["pending", "confirmed", "converted", "cancelled"] }).default("pending"),
     notes: text("notes"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
@@ -313,7 +357,7 @@ export const maintenanceHistory = sqliteTable("maintenance_history", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     companyCarId: integer("company_car_id").notNull(),
     maintenanceType: text("maintenance_type", {
-        enum: ["oil_change", "tire_change", "brake_service", "general_service", "repair", "other"]
+        enum: ["oil_change", "tire_change", "brake_service", "general_service", "repair", "inspection", "other"]
     }).notNull(),
     mileage: integer("mileage"),
     cost: real("cost"),
@@ -373,7 +417,6 @@ export const adminSettings = sqliteTable("admin_settings", {
 // Rental durations table
 export const rentalDurations = sqliteTable("rental_durations", {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    companyId: integer("company_id").notNull(),
     rangeName: text("range_name").notNull(),
     minDays: integer("min_days").notNull(),
     maxDays: integer("max_days"), // null = unlimited
@@ -381,14 +424,11 @@ export const rentalDurations = sqliteTable("rental_durations", {
     discountLabel: text("discount_label"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
-}, (table) => ({
-    companyIdx: sqliteIndex("idx_rental_durations_company_id").on(table.companyId),
-}));
+});
 
 // Seasons table
 export const seasons = sqliteTable("seasons", {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    companyId: integer("company_id").notNull(),
     seasonName: text("season_name").notNull(),
     startMonth: integer("start_month").notNull(), // 1-12
     startDay: integer("start_day").notNull(), // 1-31
@@ -398,9 +438,7 @@ export const seasons = sqliteTable("seasons", {
     discountLabel: text("discount_label"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
-}, (table) => ({
-    companyIdx: sqliteIndex("idx_seasons_company_id").on(table.companyId),
-}));
+});
 
 
 // Indexes for performance optimization
@@ -428,6 +466,12 @@ export const contractsClientIdx = sqliteIndex("idx_contracts_client_id").on(cont
 export const contractsCompanyCarIdx = sqliteIndex("idx_contracts_company_car_id").on(contracts.companyCarId);
 export const contractsStatusIdx = sqliteIndex("idx_contracts_status").on(contracts.status);
 export const contractsCompanyDatesIdx = sqliteIndex("idx_contracts_company_dates").on(contracts.companyCarId, contracts.startDate, contracts.endDate);
+
+// Bookings indexes
+export const bookingsClientIdx = sqliteIndex("idx_bookings_client_id").on(bookings.clientId);
+export const bookingsCompanyCarIdx = sqliteIndex("idx_bookings_company_car_id").on(bookings.companyCarId);
+export const bookingsStatusIdx = sqliteIndex("idx_bookings_status").on(bookings.status);
+export const bookingsCompanyDatesIdx = sqliteIndex("idx_bookings_company_dates").on(bookings.companyCarId, bookings.startDate, bookings.endDate);
 export const contractsStatusCompanyIdx = sqliteIndex("idx_contracts_status_company").on(contracts.status, contracts.companyCarId);
 
 // Payments indexes
@@ -482,6 +526,14 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     managedContracts: many(contracts, {
         relationName: "managedContracts",
     }),
+    // User as client in bookings
+    clientBookings: many(bookings, {
+        relationName: "clientBookings",
+    }),
+    // User as manager in bookings
+    managedBookings: many(bookings, {
+        relationName: "managedBookings",
+    }),
     // User as payment creator
     createdPayments: many(payments),
 }));
@@ -503,10 +555,6 @@ export const companiesRelations = relations(companies, ({ one, many }) => ({
     currencies: many(currencies),
     // Company calendar events
     calendarEvents: many(calendarEvents),
-    // Company rental durations
-    rentalDurations: many(rentalDurations),
-    // Company seasons
-    seasons: many(seasons),
 }));
 
 // Managers relations
@@ -583,6 +631,10 @@ export const contractsRelations = relations(contracts, ({ one, many }) => ({
         references: [users.id],
         relationName: "managedContracts",
     }),
+    booking: one(bookings, {
+        fields: [contracts.bookingId],
+        references: [bookings.id],
+    }),
     pickupDistrict: one(districts, {
         fields: [contracts.pickupDistrictId],
         references: [districts.id],
@@ -593,6 +645,32 @@ export const contractsRelations = relations(contracts, ({ one, many }) => ({
     }),
     // Payments for this contract
     payments: many(payments),
+}));
+
+// Bookings relations
+export const bookingsRelations = relations(bookings, ({ one }) => ({
+    companyCar: one(companyCars, {
+        fields: [bookings.companyCarId],
+        references: [companyCars.id],
+    }),
+    client: one(users, {
+        fields: [bookings.clientId],
+        references: [users.id],
+        relationName: "clientBookings",
+    }),
+    manager: one(users, {
+        fields: [bookings.managerId],
+        references: [users.id],
+        relationName: "managedBookings",
+    }),
+    pickupDistrict: one(districts, {
+        fields: [bookings.pickupDistrictId],
+        references: [districts.id],
+    }),
+    returnDistrict: one(districts, {
+        fields: [bookings.returnDistrictId],
+        references: [districts.id],
+    }),
 }));
 
 // Payments relations
@@ -731,18 +809,8 @@ export const calendarEventsRelations = relations(calendarEvents, ({ one }) => ({
     }),
 }));
 
-// Rental durations relations
-export const rentalDurationsRelations = relations(rentalDurations, ({ one }) => ({
-    company: one(companies, {
-        fields: [rentalDurations.companyId],
-        references: [companies.id],
-    }),
-}));
+// Rental durations relations (global, no company relation)
+export const rentalDurationsRelations = relations(rentalDurations, () => ({}));
 
-// Seasons relations
-export const seasonsRelations = relations(seasons, ({ one }) => ({
-    company: one(companies, {
-        fields: [seasons.companyId],
-        references: [companies.id],
-    }),
-}));
+// Seasons relations (global, no company relation)
+export const seasonsRelations = relations(seasons, () => ({}));

@@ -2,7 +2,7 @@ import { drizzle } from 'drizzle-orm/d1'
 import { eq, desc } from 'drizzle-orm'
 import * as schema from '~/db/schema'
 import type { Route } from './+types/dashboard.car-templates'
-import { Link, redirect, useSearchParams } from 'react-router'
+import { Link, redirect, useNavigate, useSearchParams } from 'react-router'
 import { requireAuth } from '~/lib/auth.server'
 import PageHeader from '~/components/dashboard/PageHeader'
 import Button from '~/components/dashboard/Button'
@@ -142,10 +142,13 @@ export async function action({ request, context }: Route.ActionArgs) {
 export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
     const { brands, models, templates } = loaderData
     const [searchParams] = useSearchParams()
+    const navigate = useNavigate()
     const activeTab = searchParams.get('tab') || 'templates'
     const [showBrandModal, setShowBrandModal] = useState(false)
     const [showModelModal, setShowModelModal] = useState(false)
-    const { addToast } = useToast()
+    const toast = useToast()
+
+    type ActionResult = { success?: boolean; message?: string; error?: string }
 
     const brandFields: FieldConfig[] = [
         {
@@ -193,16 +196,16 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                 method: 'POST',
                 body: formData,
             })
-            const result = await response.json()
+            const result = (await response.json()) as ActionResult
             if (result.success) {
-                await addToast(result.message, 'success')
+                await toast.success(result.message || 'Brand created successfully')
                 setShowBrandModal(false)
                 window.location.reload()
             } else {
-                await addToast(result.error, 'error')
+                await toast.error(result.error || 'Failed to create brand')
             }
         } catch (error) {
-            await addToast('Failed to create brand', 'error')
+            await toast.error('Failed to create brand')
         }
     }
 
@@ -217,16 +220,16 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                 method: 'POST',
                 body: formData,
             })
-            const result = await response.json()
+            const result = (await response.json()) as ActionResult
             if (result.success) {
-                await addToast(result.message, 'success')
+                await toast.success(result.message || 'Model created successfully')
                 setShowModelModal(false)
                 window.location.reload()
             } else {
-                await addToast(result.error, 'error')
+                await toast.error(result.error || 'Failed to create model')
             }
         } catch (error) {
-            await addToast('Failed to create model', 'error')
+            await toast.error('Failed to create model')
         }
     }
 
@@ -271,7 +274,11 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         {
             key: 'id',
             label: 'ID',
-            render: (template: any) => <IdBadge>#{template.id}</IdBadge>,
+            render: (template: any) => (
+                <Link to={`/car-templates/${template.id}`} className="hover:opacity-70 transition-opacity">
+                    <IdBadge>#{template.id}</IdBadge>
+                </Link>
+            ),
         },
         {
             key: 'brand',
@@ -367,15 +374,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                             icon={<TagIcon className="w-12 h-12" />}
                             title="No brands"
                             description="Create your first car brand"
-                            action={
-                                <Button
-                                    variant="primary"
-                                    icon={<PlusIcon className="w-5 h-5" />}
-                                    onClick={() => setShowBrandModal(true)}
-                                >
-                                    Add Brand
-                                </Button>
-                            }
+                            action={{ label: 'Add Brand', onClick: () => setShowBrandModal(true) }}
                         />
                     ) : (
                         <DataTable columns={brandColumns} data={brands} />
@@ -390,15 +389,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                             icon={<CubeIcon className="w-12 h-12" />}
                             title="No models"
                             description="Create your first car model"
-                            action={
-                                <Button
-                                    variant="primary"
-                                    icon={<PlusIcon className="w-5 h-5" />}
-                                    onClick={() => setShowModelModal(true)}
-                                >
-                                    Add Model
-                                </Button>
-                            }
+                            action={{ label: 'Add Model', onClick: () => setShowModelModal(true) }}
                         />
                     ) : (
                         <DataTable columns={modelColumns} data={models} />
@@ -413,21 +404,12 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                             icon={<TruckIcon className="w-12 h-12" />}
                             title="No car templates"
                             description="Create your first car template"
-                            action={
-                                <Link to="/car-templates/create">
-                                    <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                                        Create
-                                    </Button>
-                                </Link>
-                            }
+                            action={{ label: 'Create', onClick: () => navigate('/car-templates/create') }}
                         />
                     ) : (
                         <DataTable
                             columns={templateColumns}
                             data={templates}
-                            onRowClick={(template) => {
-                                window.location.href = `/car-templates/${template.id}`
-                            }}
                         />
                     )}
                 </>

@@ -15,7 +15,6 @@ import {
     ClipboardDocumentListIcon,
     SunIcon,
     CalendarIcon,
-    ChatBubbleLeftRightIcon,
     UserIcon,
     XMarkIcon,
     RectangleStackIcon,
@@ -69,12 +68,11 @@ const getMenuItems = (role: UserRole) => {
         return [
             ...baseItems,
             { to: "/contracts", icon: DocumentTextIcon, label: "Contracts" },
-            { to: "/locations", icon: MapPinIcon, label: "Delivery" },
             { to: "/cars", icon: TruckIcon, label: "Cars" },
+            { to: "/locations", icon: MapPinIcon, label: "Delivery" },
             { to: "/payments", icon: BanknotesIcon, label: "Payments" },
             { to: "/users", icon: UsersIcon, label: "Users" },
             { to: "/calendar", icon: CalendarIcon, label: "Calendar" },
-            { to: "/chat", icon: ChatBubbleLeftRightIcon, label: "Chat" },
             { to: "/logs", icon: ClipboardDocumentCheckIcon, label: "Logs" },
             { to: "/settings", icon: Cog6ToothIcon, label: "Settings" },
         ];
@@ -86,7 +84,6 @@ const getMenuItems = (role: UserRole) => {
             { to: "/contracts", icon: DocumentTextIcon, label: "Contracts" },
             { to: "/payments", icon: BanknotesIcon, label: "Payments" },
             { to: "/calendar", icon: CalendarIcon, label: "Calendar" },
-            { to: "/chat", icon: ChatBubbleLeftRightIcon, label: "Chat" },
             { to: "/profile", icon: UserIcon, label: "Profile" },
         ];
     }
@@ -96,7 +93,6 @@ const getMenuItems = (role: UserRole) => {
         ...baseItems,
         { to: "/my-bookings", icon: DocumentTextIcon, label: "My Bookings" },
         { to: "/my-payments", icon: BanknotesIcon, label: "Payments" },
-        { to: "/chat", icon: ChatBubbleLeftRightIcon, label: "Chat" },
         { to: "/profile", icon: UserIcon, label: "Profile" },
     ];
 };

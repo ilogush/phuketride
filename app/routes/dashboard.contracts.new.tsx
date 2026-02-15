@@ -21,6 +21,7 @@ import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useToast } from "~/lib/toast";
 import { contractSchema } from "~/schemas/contract";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { createContractEvents } from "~/lib/calendar-events.server";
 import {
     TruckIcon,
     CalendarIcon,
@@ -99,16 +100,41 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
 
     try {
-        // Parse client data
-        const passportNumber = formData.get("clientPassport") as string;
-        const clientData = {
-            name: formData.get("clientName") as string,
-            surname: formData.get("clientSurname") as string,
-            email: formData.get("clientEmail") as string,
-            phone: formData.get("clientPhone") as string,
-            dateOfBirth: formData.get("dateOfBirth") ? new Date(formData.get("dateOfBirth") as string) : null,
-            citizenship: formData.get("citizenship") as string,
+        const parseDocPhotos = (value: FormDataEntryValue | null): Array<{ base64: string; fileName: string }> => {
+            if (typeof value !== "string") return [];
+            const trimmed = value.trim();
+            if (!trimmed) return [];
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (!Array.isArray(parsed)) return [];
+                return parsed.filter((p) => p && typeof p.base64 === "string" && typeof p.fileName === "string");
+            } catch {
+                return [];
+            }
         };
+
+        const passportPhotosValue = parseDocPhotos(formData.get("passportPhotos"));
+        const driverLicensePhotosValue = parseDocPhotos(formData.get("driverLicensePhotos"));
+
+        // Parse client data
+        const passportNumber = String(formData.get("client_passport") || "").trim();
+        if (!passportNumber) {
+            throw new Error("Client passport is required");
+        }
+        const clientData = {
+            name: String(formData.get("client_name") || "").trim(),
+            surname: String(formData.get("client_surname") || "").trim(),
+            email: String(formData.get("client_email") || "").trim(),
+            phone: String(formData.get("client_phone") || "").trim(),
+            whatsapp: String(formData.get("client_whatsapp") || "").trim(),
+            telegram: String(formData.get("client_telegram") || "").trim(),
+            gender: String(formData.get("client_gender") || "").trim(),
+            dateOfBirth: formData.get("date_of_birth") ? new Date(String(formData.get("date_of_birth"))) : null,
+            citizenship: String(formData.get("citizenship") || "").trim(),
+        };
+        if (!clientData.name || !clientData.surname || !clientData.phone) {
+            throw new Error("Client name, surname and phone are required");
+        }
 
         // Check if client exists by passport_number
         let clientId: string;
@@ -121,13 +147,22 @@ export async function action({ request, context }: ActionFunctionArgs) {
             const dataMatches = 
                 existingClient.name === clientData.name &&
                 existingClient.surname === clientData.surname &&
-                existingClient.email === clientData.email &&
+                (!clientData.email || existingClient.email === clientData.email) &&
                 existingClient.phone === clientData.phone &&
-                existingClient.citizenship === clientData.citizenship;
+                (!clientData.citizenship || existingClient.citizenship === clientData.citizenship);
 
             if (dataMatches) {
                 // Use existing client
                 clientId = existingClient.id;
+                if (passportPhotosValue.length > 0 || driverLicensePhotosValue.length > 0) {
+                    await db.update(schema.users)
+                        .set({
+                            passportPhotos: passportPhotosValue.length > 0 ? JSON.stringify(passportPhotosValue) : existingClient.passportPhotos,
+                            driverLicensePhotos: driverLicensePhotosValue.length > 0 ? JSON.stringify(driverLicensePhotosValue) : existingClient.driverLicensePhotos,
+                            updatedAt: new Date(),
+                        })
+                        .where(eq(schema.users.id, clientId));
+                }
             } else {
                 // Data changed - create new user
                 clientId = crypto.randomUUID();
@@ -138,9 +173,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
                     name: clientData.name,
                     surname: clientData.surname,
                     phone: clientData.phone,
+                    whatsapp: clientData.whatsapp || null,
+                    telegram: clientData.telegram || null,
+                    gender: (clientData.gender as any) || null,
                     passportNumber: passportNumber,
-                    citizenship: clientData.citizenship,
+                    citizenship: clientData.citizenship || null,
                     dateOfBirth: clientData.dateOfBirth,
+                    passportPhotos: passportPhotosValue.length > 0 ? JSON.stringify(passportPhotosValue) : null,
+                    driverLicensePhotos: driverLicensePhotosValue.length > 0 ? JSON.stringify(driverLicensePhotosValue) : null,
                 });
             }
         } else {
@@ -153,19 +193,62 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 name: clientData.name,
                 surname: clientData.surname,
                 phone: clientData.phone,
+                whatsapp: clientData.whatsapp || null,
+                telegram: clientData.telegram || null,
+                gender: (clientData.gender as any) || null,
                 passportNumber: passportNumber,
-                citizenship: clientData.citizenship,
+                citizenship: clientData.citizenship || null,
                 dateOfBirth: clientData.dateOfBirth,
+                passportPhotos: passportPhotosValue.length > 0 ? JSON.stringify(passportPhotosValue) : null,
+                driverLicensePhotos: driverLicensePhotosValue.length > 0 ? JSON.stringify(driverLicensePhotosValue) : null,
             });
         }
 
         // Parse contract data
-        const companyCarId = Number(formData.get("companyCarId"));
-        const startDate = new Date(formData.get("startDate") as string);
-        const endDate = new Date(formData.get("endDate") as string);
-        const totalAmount = Number(formData.get("totalAmount"));
-        const depositAmount = Number(formData.get("depositAmount"));
-        const totalCurrency = formData.get("totalCurrency") as string || "THB";
+        const companyCarId = Number(formData.get("company_car_id"));
+        const startDate = new Date(String(formData.get("start_date")));
+        const endDate = new Date(String(formData.get("end_date")));
+        const totalAmount = Number(formData.get("total_amount"));
+        const depositAmount = Number(formData.get("deposit_amount")) || 0;
+        const totalCurrency = "THB";
+
+        if (!Number.isFinite(companyCarId) || companyCarId <= 0) {
+            throw new Error("Car is required");
+        }
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            throw new Error("Start and end dates are required");
+        }
+        if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+            throw new Error("Total amount must be greater than 0");
+        }
+
+        const parsePhotoList = (value: FormDataEntryValue | null): string[] => {
+            if (typeof value !== "string") return [];
+            const trimmed = value.trim();
+            if (!trimmed) return [];
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (!Array.isArray(parsed)) return [];
+                return parsed.filter((p) => typeof p === "string" && p.trim().length > 0);
+            } catch {
+                return [];
+            }
+        };
+
+        const contractPhotosValue = parsePhotoList(formData.get("photos"));
+
+        const pickupDistrictIdRaw = formData.get("pickup_district_id");
+        const returnDistrictIdRaw = formData.get("return_district_id");
+
+        const pickupDistrictId = pickupDistrictIdRaw ? Number(pickupDistrictIdRaw) : null;
+        const returnDistrictId = returnDistrictIdRaw ? Number(returnDistrictIdRaw) : null;
+
+        const deliveryCost = Number(formData.get("delivery_cost")) || 0;
+        const returnCost = Number(formData.get("return_cost")) || 0;
+
+        const fuelLevel = String(formData.get("fuel_level") || "Full");
+        const cleanliness = String(formData.get("cleanliness") || "Clean");
+        const startMileage = Number(formData.get("start_mileage")) || 0;
 
         // Create contract
         const [newContract] = await db.insert(schema.contracts).values({
@@ -178,28 +261,29 @@ export async function action({ request, context }: ActionFunctionArgs) {
             totalCurrency,
             depositAmount,
             depositCurrency: totalCurrency,
-            depositPaymentMethod: formData.get("depositPaymentMethod") as any,
+            depositPaymentMethod: (formData.get("deposit_payment_method") as any) || null,
             fullInsuranceEnabled: formData.get("fullInsurance") === "true",
-            fullInsurancePrice: Number(formData.get("fullInsurancePrice")) || 0,
+            fullInsurancePrice: 0,
             babySeatEnabled: formData.get("babySeat") === "true",
-            babySeatPrice: Number(formData.get("babySeatPrice")) || 0,
+            babySeatPrice: 0,
             islandTripEnabled: formData.get("islandTrip") === "true",
-            islandTripPrice: Number(formData.get("islandTripPrice")) || 0,
+            islandTripPrice: 0,
             krabiTripEnabled: formData.get("krabiTrip") === "true",
-            krabiTripPrice: Number(formData.get("krabiTripPrice")) || 0,
-            pickupDistrictId: Number(formData.get("pickupDistrictId")) || null,
-            pickupHotel: formData.get("pickupHotel") as string || null,
-            pickupRoom: formData.get("pickupRoom") as string || null,
-            deliveryCost: Number(formData.get("deliveryCost")) || 0,
-            returnDistrictId: Number(formData.get("returnDistrictId")) || null,
-            returnHotel: formData.get("returnHotel") as string || null,
-            returnRoom: formData.get("returnRoom") as string || null,
-            returnCost: Number(formData.get("returnCost")) || 0,
-            startMileage: Number(formData.get("startMileage")) || 0,
-            fuelLevel: formData.get("fuelLevel") as string || "full",
-            cleanliness: formData.get("cleanliness") as string || "clean",
+            krabiTripPrice: 0,
+            pickupDistrictId,
+            pickupHotel: (formData.get("pickup_hotel") as string) || null,
+            pickupRoom: (formData.get("pickup_room") as string) || null,
+            deliveryCost,
+            returnDistrictId,
+            returnHotel: (formData.get("return_hotel") as string) || null,
+            returnRoom: (formData.get("return_room") as string) || null,
+            returnCost,
+            startMileage,
+            fuelLevel,
+            cleanliness,
             status: "active",
             notes: formData.get("notes") as string || null,
+            photos: contractPhotosValue.length > 0 ? JSON.stringify(contractPhotosValue) : null,
         }).returning({ id: schema.contracts.id });
 
         // Create payments from selected templates
@@ -227,6 +311,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
         await db.update(schema.companyCars)
             .set({ status: 'rented' })
             .where(eq(schema.companyCars.id, companyCarId));
+
+        // Create calendar events for contract
+        await createContractEvents({
+            db,
+            companyId: user.companyId!,
+            contractId: newContract.id,
+            startDate,
+            endDate,
+            createdBy: user.id,
+        });
 
         // Audit log
         const metadata = getRequestMetadata(request);
@@ -305,6 +399,13 @@ export default function NewContract() {
             />
 
             <Form method="post" className="space-y-4">
+                <input type="hidden" name="passportPhotos" value={JSON.stringify(passportPhotos)} />
+                <input type="hidden" name="driverLicensePhotos" value={JSON.stringify(driverLicensePhotos)} />
+                <input type="hidden" name="photos" value={JSON.stringify(carPhotos.map((p) => p.base64))} />
+                <input type="hidden" name="fullInsurance" value={fullInsurance ? "true" : "false"} />
+                <input type="hidden" name="islandTrip" value={islandTrip ? "true" : "false"} />
+                <input type="hidden" name="krabiTrip" value={krabiTrip ? "true" : "false"} />
+                <input type="hidden" name="babySeat" value={babySeat ? "true" : "false"} />
                 {/* Car Details */}
                 <FormSection
                     title="Car Details"
@@ -490,10 +591,20 @@ export default function NewContract() {
 
                 {/* Document Photos */}
                 <div className="bg-white rounded-3xl border border-gray-200 p-4">
-                    <DocumentPhotosUpload
-                        onPassportPhotosChange={setPassportPhotos}
-                        onDriverLicensePhotosChange={setDriverLicensePhotos}
-                    />
+                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
+                        <DocumentPhotosUpload
+                            currentPhotos={passportPhotos.map((p) => p.base64)}
+                            onPhotosChange={setPassportPhotos}
+                            maxPhotos={3}
+                            label="Passport"
+                        />
+                        <DocumentPhotosUpload
+                            currentPhotos={driverLicensePhotos.map((p) => p.base64)}
+                            onPhotosChange={setDriverLicensePhotos}
+                            maxPhotos={3}
+                            label="Driver License"
+                        />
+                    </div>
                 </div>
 
                 {/* Extras */}
@@ -604,6 +715,16 @@ export default function NewContract() {
                             name="deposit_amount"
                             type="number"
                             placeholder="0.00"
+                        />
+                        <FormSelect
+                            label="Deposit Method"
+                            name="deposit_payment_method"
+                            options={[
+                                { id: "cash", name: "Cash" },
+                                { id: "bank_transfer", name: "Bank Transfer" },
+                                { id: "card", name: "Card" },
+                            ]}
+                            placeholder="Select method"
                         />
                         <FormInput
                             label="Total Rental Cost"

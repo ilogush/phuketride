@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, Form } from "react-router";
 import {
+    ArrowRightOnRectangleIcon,
+    Bars3Icon,
+    ChevronDownIcon,
     MagnifyingGlassIcon,
     BellIcon,
     UserCircleIcon,
@@ -54,20 +57,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen, notificat
                         className="w-10 h-10 flex items-center justify-center text-gray-900 hover:bg-gray-100 rounded-xl transition-all flex-shrink-0"
                         title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
                     >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth="1.5"
-                            stroke="currentColor"
-                            className="w-6 h-6"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M3.75 6.75h16.5M3.75 12H12m-8.25 5.25h16.5"
-                            />
-                        </svg>
+                        <Bars3Icon className="w-6 h-6" />
                     </button>
 
                     {/* Search Bar */}
@@ -118,9 +108,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen, notificat
                                     {roleLabel}
                                 </div>
                             </div>
-                            <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showProfileMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
+                            <ChevronDownIcon className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showProfileMenu ? 'rotate-180' : ''}`} />
                         </button>
 
                         {/* Profile Dropdown */}
@@ -140,9 +128,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen, notificat
                                     className="flex items-center gap-4 px-4 py-4 text-sm font-medium text-red-600 hover:bg-gray-50 border-t border-gray-50 transition-colors w-full"
                                     onClick={() => setShowProfileMenu(false)}
                                 >
-                                    <svg className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 11-6 0v-1m6-10V7a3 3 0 00-6 0v1" />
-                                    </svg>
+                                    <ArrowRightOnRectangleIcon className="w-6 h-6 text-gray-500" />
                                     <span>Logout</span>
                                 </Link>
                             </div>

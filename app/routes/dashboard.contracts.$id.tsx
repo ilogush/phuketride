@@ -80,10 +80,8 @@ export default function ContractView() {
 
     const statusVariant = {
         active: "success" as const,
-        completed: "neutral" as const,
-        cancelled: "neutral" as const,
-        draft: "neutral" as const,
-    }[contract.status || "draft"];
+        closed: "neutral" as const,
+    }[contract.status || "active"];
 
     return (
         <div className="space-y-4">

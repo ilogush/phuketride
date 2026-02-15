@@ -73,10 +73,8 @@ export default function MyContractsPage() {
     };
 
     const statusColors = {
-        draft: "bg-gray-100 text-gray-800",
         active: "bg-blue-100 text-blue-800",
-        completed: "bg-green-100 text-green-800",
-        cancelled: "bg-red-100 text-red-800",
+        closed: "bg-green-100 text-green-800",
     };
 
     return (
@@ -113,14 +111,14 @@ export default function MyContractsPage() {
                             Active
                         </button>
                         <button
-                            onClick={() => handleStatusChange("completed")}
+                            onClick={() => handleStatusChange("closed")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                status === "completed"
+                                status === "closed"
                                     ? "bg-gray-800 text-white"
                                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                             }`}
                         >
-                            Completed
+                            Closed
                         </button>
                     </div>
                 </div>

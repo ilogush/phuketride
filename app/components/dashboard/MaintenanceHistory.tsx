@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import useSWR from 'swr'
 import { format } from 'date-fns'
-import DataTable, { Column } from '~/components/dashboard/DataTable'
+import DataTable, { type Column } from '~/components/dashboard/DataTable'
 import Button from '~/components/dashboard/Button'
 import Modal from '~/components/dashboard/Modal'
 import MaintenanceForm from '~/components/dashboard/MaintenanceForm'
@@ -10,6 +9,7 @@ import { PlusIcon, WrenchIcon } from '@heroicons/react/24/outline'
 interface MaintenanceHistoryProps {
     carId: number
     currentMileage?: number
+    data: MaintenanceRecord[]
 }
 
 interface MaintenanceRecord {
@@ -34,22 +34,11 @@ const maintenanceTypeLabels: Record<string, string> = {
     other: 'Other'
 }
 
-export default function MaintenanceHistory({ carId, currentMileage }: MaintenanceHistoryProps) {
+export default function MaintenanceHistory({ carId, currentMileage, data }: MaintenanceHistoryProps) {
     const [isFormOpen, setIsFormOpen] = useState(false)
-
-    const { data, error, isLoading, mutate } = useSWR(
-        `/api/maintenance?car_id=${carId}`,
-        async (url) => {
-            const response = await fetch(url)
-            if (!response.ok) throw new Error('Failed to fetch maintenance history')
-            const result = await response.json()
-            return result.data || []
-        }
-    )
 
     const handleSuccess = () => {
         setIsFormOpen(false)
-        mutate()
     }
 
     const columns: Column<MaintenanceRecord>[] = [
@@ -110,17 +99,6 @@ export default function MaintenanceHistory({ carId, currentMileage }: Maintenanc
         },
     ]
 
-    if (error) {
-        return (
-            <div className="text-center py-8">
-                <p className="text-gray-600">Failed to load maintenance history</p>
-                <Button onClick={() => mutate()} variant="secondary" className="mt-4">
-                    Retry
-                </Button>
-            </div>
-        )
-    }
-
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -136,10 +114,10 @@ export default function MaintenanceHistory({ carId, currentMileage }: Maintenanc
             </div>
 
             <DataTable
-                data={data || []}
+                data={data}
                 columns={columns}
-                totalCount={data?.length || 0}
-                isLoading={isLoading}
+                totalCount={data.length}
+                isLoading={false}
                 disablePagination={true}
                 emptyTitle="No maintenance records yet"
                 emptyDescription="Click 'Add Record' to create the first one"

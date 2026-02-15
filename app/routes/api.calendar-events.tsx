@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs, json } from "react-router";
+import { type LoaderFunctionArgs } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import { and, gte, lte, eq } from "drizzle-orm";
@@ -28,8 +28,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             .from(contracts)
             .where(
                 and(
-                    gte(contracts.endDate, today.getTime()),
-                    lte(contracts.endDate, futureDate.getTime())
+                    gte(contracts.endDate, today),
+                    lte(contracts.endDate, futureDate)
                 )
             )
             .limit(limit);
@@ -52,7 +52,18 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         });
 
         // Get calendar events
-        let eventsQuery = db
+        const eventConditions = [
+            gte(calendarEvents.startDate, today),
+            lte(calendarEvents.startDate, futureDate),
+        ];
+
+        if (companyId) {
+            eventConditions.push(eq(calendarEvents.companyId, parseInt(companyId, 10)));
+        } else if (user.companyId) {
+            eventConditions.push(eq(calendarEvents.companyId, user.companyId));
+        }
+
+        const calendarEventsData = await db
             .select({
                 id: calendarEvents.id,
                 title: calendarEvents.title,
@@ -60,18 +71,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 eventType: calendarEvents.eventType
             })
             .from(calendarEvents)
-            .where(
-                and(
-                    gte(calendarEvents.startDate, today.getTime()),
-                    lte(calendarEvents.startDate, futureDate.getTime())
-                )
-            );
-
-        if (companyId) {
-            eventsQuery = eventsQuery.where(eq(calendarEvents.companyId, parseInt(companyId)));
-        }
-
-        const calendarEventsData = await eventsQuery.limit(limit);
+            .where(and(...eventConditions))
+            .limit(limit);
 
         calendarEventsData.forEach((event) => {
             const eventDate = new Date(event.startDate);
@@ -93,13 +94,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         // Sort by date
         events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-        return json({
+        return Response.json({
             success: true,
             data: events.slice(0, limit)
         });
     } catch (error) {
         console.error("Error loading calendar events:", error);
-        return json({
+        return Response.json({
             success: false,
             error: "Failed to load calendar events",
             data: []

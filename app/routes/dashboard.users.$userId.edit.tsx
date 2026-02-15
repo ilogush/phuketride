@@ -10,12 +10,13 @@ import { Select } from "~/components/dashboard/Select";
 import Button from "~/components/dashboard/Button";
 import BackButton from "~/components/dashboard/BackButton";
 import FormSection from "~/components/dashboard/FormSection";
-import { UserIcon, BuildingOfficeIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { UserIcon, BuildingOfficeIcon, DocumentTextIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { useEffect } from "react";
 import { userSchema } from "~/schemas/user";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { useLatinValidation } from "~/lib/useLatinValidation";
+import { PASSWORD_MIN_LENGTH } from "~/lib/password";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);
@@ -30,7 +31,10 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         throw new Response("User ID is required", { status: 400 });
     }
 
-    const user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).get();
+    const user = await db.query.users.findFirst({
+        where: eq(schema.users.id, userId),
+        columns: { passwordHash: false },
+    });
     if (!user) {
         throw new Response("User not found", { status: 404 });
     }
@@ -61,7 +65,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     }
 
     // Get current user state for audit log
-    const currentUser = await db.select().from(schema.users).where(eq(schema.users.id, userId)).get();
+    const currentUser = await db.query.users.findFirst({
+        where: eq(schema.users.id, userId),
+        columns: { passwordHash: false },
+    });
     if (!currentUser) {
         throw new Response("User not found", { status: 404 });
     }
@@ -88,6 +95,9 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         address: (formData.get("address") as string) || null,
     };
 
+    const newPassword = (formData.get("newPassword") as string | null) || "";
+    const confirmPassword = (formData.get("confirmPassword") as string | null) || "";
+
     // Validate with Zod
     const validation = userSchema.safeParse(rawData);
     if (!validation.success) {
@@ -98,29 +108,41 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const validData = validation.data;
 
     try {
-        await db.update(schema.users)
-            .set({
-                email: validData.email,
-                role: validData.role,
-                name: validData.name,
-                surname: validData.surname,
-                phone: validData.phone,
-                whatsapp: validData.whatsapp,
-                telegram: validData.telegram,
-                passportNumber: validData.passportNumber,
-                citizenship: validData.citizenship,
-                city: validData.city,
-                countryId: validData.countryId,
-                dateOfBirth: validData.dateOfBirth ? new Date(validData.dateOfBirth) : null,
-                gender: validData.gender,
-                hotelId: validData.hotelId,
-                roomNumber: validData.roomNumber,
-                locationId: validData.locationId,
-                districtId: validData.districtId,
-                address: validData.address,
-                updatedAt: new Date(),
-            })
-            .where(eq(schema.users.id, userId));
+        const updateData: any = {
+            email: validData.email,
+            role: validData.role,
+            name: validData.name,
+            surname: validData.surname,
+            phone: validData.phone,
+            whatsapp: validData.whatsapp,
+            telegram: validData.telegram,
+            passportNumber: validData.passportNumber,
+            citizenship: validData.citizenship,
+            city: validData.city,
+            countryId: validData.countryId,
+            dateOfBirth: validData.dateOfBirth ? new Date(validData.dateOfBirth) : null,
+            gender: validData.gender,
+            hotelId: validData.hotelId,
+            roomNumber: validData.roomNumber,
+            locationId: validData.locationId,
+            districtId: validData.districtId,
+            address: validData.address,
+            updatedAt: new Date(),
+        };
+
+        const passwordChanged = !!(newPassword || confirmPassword);
+        if (newPassword || confirmPassword) {
+            if (newPassword.length < PASSWORD_MIN_LENGTH) {
+                return redirect(`/users/${userId}/edit?error=${encodeURIComponent(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`)}`);
+            }
+            if (newPassword !== confirmPassword) {
+                return redirect(`/users/${userId}/edit?error=${encodeURIComponent("Passwords do not match")}`);
+            }
+            const { hashPassword } = await import("~/lib/password.server");
+            updateData.passwordHash = await hashPassword(newPassword);
+        }
+
+        await db.update(schema.users).set(updateData).where(eq(schema.users.id, userId));
 
         // Audit log
         const metadata = getRequestMetadata(request);
@@ -133,7 +155,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             entityId: userId,
             action: "update",
             beforeState: currentUser,
-            afterState: { ...validData, id: userId },
+            afterState: { ...validData, id: userId, passwordChanged },
             ...metadata,
         });
 
@@ -310,6 +332,28 @@ export default function EditUserPage() {
                             options={locations}
                             placeholder="Select Location"
                         />
+                    </div>
+                </FormSection>
+
+                <FormSection title="Change Password" icon={<LockClosedIcon />}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <Input
+                            label="New Password"
+                            name="newPassword"
+                            type="password"
+                            autoComplete="new-password"
+                            placeholder={`Min ${PASSWORD_MIN_LENGTH} characters`}
+                        />
+                        <Input
+                            label="Confirm Password"
+                            name="confirmPassword"
+                            type="password"
+                            autoComplete="new-password"
+                            placeholder="Repeat password"
+                        />
+                        <div className="col-span-full text-xs text-gray-500">
+                            Leave empty to keep current password.
+                        </div>
                     </div>
                 </FormSection>
 

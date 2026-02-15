@@ -30,13 +30,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
 
-    const districts = await db.select().from(schema.districts).where(eq(schema.districts.locationId, 1)).limit(100);
+    const districtsRaw = await db.select().from(schema.districts).where(eq(schema.districts.locationId, 1)).limit(100);
+    const districts = districtsRaw.map((d) => ({ ...d, isActive: d.isActive ?? false }));
 
     return { districts, user };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    await requireAuth(request);
+    const user = await requireAuth(request);
+    if (user.role !== "admin") {
+        return data({ success: false, message: "Forbidden" }, { status: 403 });
+    }
     const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
     const intent = formData.get("intent");
@@ -169,10 +173,7 @@ export default function LocationsPage() {
         );
 
         if (district) {
-            toast.success(
-                `${district.name} ${newStatus ? 'activated' : 'deactivated'}`,
-                { duration: 3000 }
-            );
+            toast.success(`${district.name} ${newStatus ? 'activated' : 'deactivated'}`, 3000);
         }
     };
 
@@ -234,7 +235,7 @@ export default function LocationsPage() {
                         return (
                             <button
                                 type="button"
-                                onClick={() => handleToggleStatus(item.id, district.isActive)}
+                                onClick={() => handleToggleStatus(item.id, district.isActive ?? false)}
                                 className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
                                     district.isActive ? "bg-gray-900 border-transparent" : "bg-gray-200 border-transparent"
                                 }`}

@@ -41,7 +41,7 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
             })
 
             if (!response.ok) {
-                const errorData = await response.json()
+                const errorData = (await response.json()) as { error?: string }
                 throw new Error(errorData.error || 'Failed to Create')
             }
 
@@ -50,9 +50,10 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
             onRoleChange?.('partner')
 
             navigate(0)
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error becoming partner:', error)
-            await toast.error(error.message || 'Failed to become company partner')
+            const message = error instanceof Error ? error.message : 'Failed to become company partner'
+            await toast.error(message)
         } finally {
             setLoading(false)
         }
@@ -77,9 +78,10 @@ export default function RoleSwitcher({ currentRole, userId, onRoleChange }: Role
             onRoleChange?.('user')
 
             navigate(0)
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error becoming user:', error)
-            await toast.error(error.message || 'Failed to switch to user mode')
+            const message = error instanceof Error ? error.message : 'Failed to switch to user mode'
+            await toast.error(message)
         } finally {
             setLoading(false)
         }

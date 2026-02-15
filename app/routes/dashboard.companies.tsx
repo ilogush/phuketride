@@ -2,7 +2,7 @@ import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
-import { companies, users, districts, companyCars } from "~/db/schema";
+import * as schema from "~/db/schema";
 import { eq, count } from "drizzle-orm";
 import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -13,7 +13,7 @@ import { useEffect } from "react";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB);
+    const db = drizzle(context.cloudflare.env.DB, { schema });
     
     // Get showArchived from query params
     const url = new URL(request.url);
@@ -47,18 +47,18 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         for (const company of filteredCompaniesData) {
             // Get district info
             const districtData = await db.select({
-                name: districts.name,
+                name: schema.districts.name,
             })
-            .from(districts)
-            .where(eq(districts.id, company.districtId || 0))
+            .from(schema.districts)
+            .where(eq(schema.districts.id, company.districtId || 0))
             .limit(1);
 
             // Get car count
             const carCountData = await db.select({
-                count: count(companyCars.id),
+                count: count(schema.companyCars.id),
             })
-            .from(companyCars)
-            .where(eq(companyCars.companyId, company.id));
+            .from(schema.companyCars)
+            .where(eq(schema.companyCars.companyId, company.id));
 
             companiesList.push({
                 id: company.id,

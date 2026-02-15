@@ -26,7 +26,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             const companyResult = await context.cloudflare.env.DB
                 .prepare("SELECT id FROM companies WHERE owner_id = ? LIMIT 1")
                 .bind(user.id)
-                .first<{ id: number }>();
+                .first() as { id: number } | null;
 
             if (!companyResult) {
                 return { user, users: [], roleCounts };
@@ -43,7 +43,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     WHERE m.company_id = ? AND m.is_active = 1
                 `)
                 .bind(companyId)
-                .all<any>();
+                .all() as { results?: any[] };
 
             // Get users (clients) - for now, all users
             // TODO: Add company_id to contracts/bookings to filter users by company
@@ -54,7 +54,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     WHERE role = 'user'
                     LIMIT 50
                 `)
-                .all<any>();
+                .all() as { results?: any[] };
 
             usersList = [...(managersResult.results || []), ...(usersResult.results || [])];
         } else {

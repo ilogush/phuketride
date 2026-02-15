@@ -100,8 +100,8 @@ export default function MaintenanceForm({
             })
 
             if (!response.ok) {
-                const error = await response.json()
-                throw new Error(error.error || 'Failed to create maintenance record')
+                const errorData = (await response.json()) as { error?: string }
+                throw new Error(errorData.error || 'Failed to create maintenance record')
             }
 
             await toast.success('Maintenance record created successfully')

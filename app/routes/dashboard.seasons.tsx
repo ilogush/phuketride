@@ -1,21 +1,21 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
-import { useLoaderData, Form } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, data, redirect } from "react-router";
+import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import { eq, and } from "drizzle-orm";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
 import PageHeader from "~/components/dashboard/PageHeader";
-import { PlusIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, SunIcon } from "@heroicons/react/24/outline";
+import { useToast } from "~/lib/toast";
 
 
 interface Season {
     id: number;
-    companyId: number;
     seasonName: string;
     startMonth: number;
     startDay: number;
@@ -55,15 +55,85 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     
     const db = drizzle(context.cloudflare.env.DB, { schema });
 
-    const companyId = user.companyId || 1;
-
+    // Get all seasons (global, not company-specific)
     const seasons = await db
         .select()
         .from(schema.seasons)
-        .where(eq(schema.seasons.companyId, companyId))
         .limit(100);
 
-    return { user, seasons, companyId };
+    return { user, seasons };
+}
+
+// Helper function to get day of year from month/day
+function getDayOfYear(month: number, day: number): number {
+    const daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let dayOfYear = day;
+    for (let i = 0; i < month - 1; i++) {
+        dayOfYear += daysInMonth[i];
+    }
+    return dayOfYear;
+}
+
+// Helper function to validate date exists
+function isValidDate(month: number, day: number): boolean {
+    const daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    return month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth[month - 1];
+}
+
+// Helper function to get all days covered by a season
+function getSeasonDays(startMonth: number, startDay: number, endMonth: number, endDay: number): Set<number> {
+    const days = new Set<number>();
+    const startDayOfYear = getDayOfYear(startMonth, startDay);
+    const endDayOfYear = getDayOfYear(endMonth, endDay);
+    
+    if (startDayOfYear <= endDayOfYear) {
+        // Normal range within same year
+        for (let i = startDayOfYear; i <= endDayOfYear; i++) {
+            days.add(i);
+        }
+    } else {
+        // Wraps around year end (e.g., Dec 20 - Jan 20)
+        for (let i = startDayOfYear; i <= 366; i++) {
+            days.add(i);
+        }
+        for (let i = 1; i <= endDayOfYear; i++) {
+            days.add(i);
+        }
+    }
+    
+    return days;
+}
+
+// Validate seasons coverage
+function validateSeasonsCoverage(seasons: Array<{startMonth: number, startDay: number, endMonth: number, endDay: number}>): { valid: boolean, message?: string } {
+    // Check for overlaps
+    for (let i = 0; i < seasons.length; i++) {
+        const season1Days = getSeasonDays(seasons[i].startMonth, seasons[i].startDay, seasons[i].endMonth, seasons[i].endDay);
+        
+        for (let j = i + 1; j < seasons.length; j++) {
+            const season2Days = getSeasonDays(seasons[j].startMonth, seasons[j].startDay, seasons[j].endMonth, seasons[j].endDay);
+            
+            // Check for overlap
+            for (const day of season1Days) {
+                if (season2Days.has(day)) {
+                    return { valid: false, message: "Seasons overlap detected. Each day must belong to only one season" };
+                }
+            }
+        }
+    }
+    
+    // Check for gaps (all 366 days must be covered)
+    const allCoveredDays = new Set<number>();
+    for (const season of seasons) {
+        const seasonDays = getSeasonDays(season.startMonth, season.startDay, season.endMonth, season.endDay);
+        seasonDays.forEach(day => allCoveredDays.add(day));
+    }
+    
+    if (allCoveredDays.size < 365) {
+        return { valid: false, message: "All days of the year must be covered by seasons. Found gaps in coverage" };
+    }
+    
+    return { valid: true };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -78,21 +148,23 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
     const intent = formData.get("intent");
 
-    const companyId = user.companyId || 1;
-
     if (intent === "delete") {
         const id = Number(formData.get("id"));
-
-        await db
-            .delete(schema.seasons)
-            .where(
-                and(
-                    eq(schema.seasons.id, id),
-                    eq(schema.seasons.companyId, companyId)
-                )
-            );
-
-        return data({ success: true, message: "Season deleted successfully" });
+        
+        // Get all seasons except the one being deleted
+        const allSeasons = await db.select().from(schema.seasons);
+        const remainingSeasons = allSeasons.filter(s => s.id !== id);
+        
+        // Validate coverage after deletion
+        if (remainingSeasons.length > 0) {
+            const validation = validateSeasonsCoverage(remainingSeasons);
+            if (!validation.valid) {
+                return redirect(`/seasons?error=${encodeURIComponent(validation.message!)}`);
+            }
+        }
+        
+        await db.delete(schema.seasons).where(eq(schema.seasons.id, id));
+        return redirect("/seasons?success=Season deleted successfully");
     }
 
     if (intent === "create") {
@@ -104,8 +176,29 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const priceMultiplier = Number(formData.get("priceMultiplier"));
         const discountLabel = formData.get("discountLabel") as string | null;
 
+        // Validate dates exist
+        if (!isValidDate(startMonth, startDay)) {
+            return redirect("/seasons?error=Invalid start date");
+        }
+        if (!isValidDate(endMonth, endDay)) {
+            return redirect("/seasons?error=Invalid end date");
+        }
+
+        // Get existing seasons
+        const existingSeasons = await db.select().from(schema.seasons);
+        
+        // Add new season to validation
+        const allSeasons = [
+            ...existingSeasons,
+            { startMonth, startDay, endMonth, endDay }
+        ];
+        
+        const validation = validateSeasonsCoverage(allSeasons);
+        if (!validation.valid) {
+            return redirect(`/seasons?error=${encodeURIComponent(validation.message!)}`);
+        }
+
         await db.insert(schema.seasons).values({
-            companyId,
             seasonName,
             startMonth,
             startDay,
@@ -113,9 +206,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
             endDay,
             priceMultiplier,
             discountLabel: discountLabel || null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
         });
 
-        return data({ success: true, message: "Season created successfully" });
+        return redirect("/seasons?success=Season created successfully");
     }
 
     if (intent === "update") {
@@ -128,6 +223,29 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const priceMultiplier = Number(formData.get("priceMultiplier"));
         const discountLabel = formData.get("discountLabel") as string | null;
 
+        // Validate dates exist
+        if (!isValidDate(startMonth, startDay)) {
+            return redirect("/seasons?error=Invalid start date");
+        }
+        if (!isValidDate(endMonth, endDay)) {
+            return redirect("/seasons?error=Invalid end date");
+        }
+
+        // Get all seasons except the one being updated
+        const existingSeasons = await db.select().from(schema.seasons);
+        const otherSeasons = existingSeasons.filter(s => s.id !== id);
+        
+        // Add updated season to validation
+        const allSeasons = [
+            ...otherSeasons,
+            { startMonth, startDay, endMonth, endDay }
+        ];
+        
+        const validation = validateSeasonsCoverage(allSeasons);
+        if (!validation.valid) {
+            return redirect(`/seasons?error=${encodeURIComponent(validation.message!)}`);
+        }
+
         await db
             .update(schema.seasons)
             .set({
@@ -138,15 +256,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 endDay,
                 priceMultiplier,
                 discountLabel: discountLabel || null,
+                updatedAt: new Date(),
             })
-            .where(
-                and(
-                    eq(schema.seasons.id, id),
-                    eq(schema.seasons.companyId, companyId)
-                )
-            );
+            .where(eq(schema.seasons.id, id));
 
-        return data({ success: true, message: "Season updated successfully" });
+        return redirect("/seasons?success=Season updated successfully");
     }
 
     if (intent === "seed") {
@@ -159,12 +273,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         for (const season of defaultSeasons) {
             await db.insert(schema.seasons).values({
-                companyId,
                 ...season,
+                createdAt: new Date(),
+                updatedAt: new Date(),
             });
         }
 
-        return data({ success: true, message: "Default seasons created successfully" });
+        return redirect("/seasons?success=Default seasons created successfully");
     }
 
     return data({ success: false, message: "Invalid action" }, { status: 400 });
@@ -172,6 +287,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function SeasonsPage() {
     const { seasons } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const { showToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSeason, setEditingSeason] = useState<Season | null>(null);
     const [formData, setFormData] = useState({
@@ -183,6 +300,18 @@ export default function SeasonsPage() {
         priceMultiplier: "1",
         discountLabel: "",
     });
+
+    useEffect(() => {
+        const success = searchParams.get("success");
+        const error = searchParams.get("error");
+        
+        if (success) {
+            showToast(success, "success");
+        }
+        if (error) {
+            showToast(error, "error");
+        }
+    }, [searchParams, showToast]);
 
     const handleEdit = (season: Season) => {
         setEditingSeason(season);
@@ -462,8 +591,6 @@ export default function SeasonsPage() {
 
 function SeasonIcon() {
     return (
-        <svg className="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
+        <SunIcon className="w-16 h-16 mx-auto text-gray-400" />
     );
 }

@@ -5,7 +5,7 @@ export const paymentSchema = z.object({
     paymentTypeId: z.number().int().positive("Payment type is required"),
     amount: z.number().min(0.01, "Amount must be greater than 0"),
     currency: z.string().length(3, "Currency must be 3 characters").default("THB"),
-    paymentMethod: z.enum(["cash", "bank_transfer", "card", "online"], { 
+    paymentMethod: z.enum(["cash", "bank_transfer", "card"], { 
         errorMap: () => ({ message: "Invalid payment method" }) 
     }),
     status: z.enum(["pending", "completed", "cancelled"], { 

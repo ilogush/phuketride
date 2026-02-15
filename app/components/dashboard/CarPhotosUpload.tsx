@@ -1,5 +1,5 @@
 import { useState, useRef } from "react"
-import { XMarkIcon } from "@heroicons/react/24/outline"
+import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
 
 interface CarPhotosUploadProps {
     currentPhotos?: string[]
@@ -92,20 +92,7 @@ export default function CarPhotosUpload({
                     onClick={() => fileInputRef.current?.click()}
                     className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-lg flex flex-col items-center justify-center cursor-pointer gap-2"
                 >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth="1.5"
-                        stroke="currentColor"
-                        className="w-8 h-8 text-gray-400"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M12 4.5v15m7.5-7.5h-15"
-                        />
-                    </svg>
+                    <PlusIcon className="w-8 h-8 text-gray-400" />
                     <span className="text-xs text-gray-400">
                         {previews.length}/{maxPhotos}
                     </span>

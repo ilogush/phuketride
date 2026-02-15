@@ -19,7 +19,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const db = drizzle(context.cloudflare.env.DB);
 
     let contractsList: any[] = [];
-    let statusCounts = { all: 0, draft: 0, active: 0, completed: 0, cancelled: 0 };
+    let statusCounts = { all: 0, active: 0, closed: 0 };
 
     try {
         if (user.role === "admin") {
@@ -45,13 +45,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         }
 
         statusCounts.all = contractsList.length;
-        statusCounts.draft = contractsList.filter(c => c.status === "draft").length;
         statusCounts.active = contractsList.filter(c => c.status === "active").length;
-        statusCounts.completed = contractsList.filter(c => c.status === "completed").length;
-        statusCounts.cancelled = contractsList.filter(c => c.status === "cancelled").length;
+        statusCounts.closed = contractsList.filter(c => c.status === "closed").length;
     } catch (error) {
         console.error("Error loading contracts:", error);
-        console.error("User:", user);
     }
 
     return { user, contracts: contractsList, statusCounts };
@@ -77,8 +74,7 @@ export default function ContractsPage() {
 
     const tabs = [
         { id: "active", label: "Active", count: statusCounts.active },
-        { id: "completed", label: "Completed", count: statusCounts.completed },
-        { id: "cancelled", label: "Cancelled", count: statusCounts.cancelled },
+        { id: "closed", label: "Closed", count: statusCounts.closed },
     ];
 
     const filteredContracts = contractsList.filter(contract => contract.status === activeTab);
@@ -126,7 +122,7 @@ export default function ContractsPage() {
                             <Button variant="primary" size="sm">Close</Button>
                         </Link>
                     )}
-                    {contract.status !== "completed" && (
+                    {contract.status !== "closed" && (
                         <Link to={`/contracts/${contract.id}/edit`}>
                             <Button variant="secondary" size="sm">Edit</Button>
                         </Link>
@@ -149,7 +145,7 @@ export default function ContractsPage() {
                 }
             />
 
-            <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
+            <Tabs tabs={tabs} activeTab={activeTab} onTabChange={(tabId) => setActiveTab(String(tabId))} />
 
             <DataTable
                 data={filteredContracts}

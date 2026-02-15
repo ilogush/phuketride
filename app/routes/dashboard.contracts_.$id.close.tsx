@@ -91,10 +91,10 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
             return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
         }
 
-        // Update contract status to completed
+        // Update contract status to closed
         await db.update(schema.contracts)
             .set({
-                status: "completed",
+                status: "closed",
                 actualEndDate,
                 endMileage,
                 fuelLevel,
@@ -140,7 +140,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
             entityId: contractId,
             action: "update",
             beforeState: { status: contract.status },
-            afterState: { status: "completed", actualEndDate, endMileage },
+            afterState: { status: "closed", actualEndDate, endMileage },
             ...metadata,
         });
 

@@ -25,14 +25,14 @@ export function useModMode() {
     return useContext(ModModeContext);
 }
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     
     // Count unread notifications for all roles
     let notificationsCount = 0;
     
     try {
-        const db = drizzle(request.context.cloudflare.env.DB, { schema });
+        const db = drizzle(context.cloudflare.env.DB, { schema });
         
         // Count upcoming contract end dates (within 3 days)
         const threeDaysFromNow = addDays(new Date(), 3);

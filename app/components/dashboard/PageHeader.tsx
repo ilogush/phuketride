@@ -4,6 +4,7 @@ import Button from './Button'
 
 interface PageHeaderProps {
     title?: ReactNode
+    subtitle?: ReactNode
     leftActions?: ReactNode
     rightActions?: ReactNode
     actions?: ReactNode
@@ -23,6 +24,7 @@ interface PageHeaderProps {
 
 export default function PageHeader({
     title,
+    subtitle,
     leftActions,
     rightActions,
     actions,
@@ -74,9 +76,16 @@ export default function PageHeader({
                 <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                     {leftActions}
                     {title && (
-                        <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight animate-in fade-in slide-in-from-left-4 duration-500 truncate">
-                            {title}
-                        </h1>
+                        <div className="min-w-0">
+                            <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight animate-in fade-in slide-in-from-left-4 duration-500 truncate">
+                                {title}
+                            </h1>
+                            {subtitle && (
+                                <div className="text-xs sm:text-sm text-gray-500 truncate">
+                                    {subtitle}
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
 

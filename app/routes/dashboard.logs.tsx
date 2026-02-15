@@ -7,6 +7,7 @@ import { desc, eq } from "drizzle-orm";
 import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
+import { ClipboardDocumentListIcon } from "@heroicons/react/24/outline";
 
 interface AuditLog {
     id: number;
@@ -40,7 +41,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
 
-    let logsQuery = db
+    const baseQuery = db
         .select({
             id: schema.auditLogs.id,
             userId: schema.auditLogs.userId,
@@ -59,25 +60,24 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         })
         .from(schema.auditLogs)
         .leftJoin(schema.users, eq(schema.auditLogs.userId, schema.users.id))
-        .orderBy(desc(schema.auditLogs.createdAt))
-        .limit(100);
+        .orderBy(desc(schema.auditLogs.createdAt));
 
     // Partner can only see logs from their company
     if (user.role === "partner") {
-        const companyResult = await context.cloudflare.env.DB
+        const companyResult = (await context.cloudflare.env.DB
             .prepare("SELECT id FROM companies WHERE owner_id = ? LIMIT 1")
             .bind(user.id)
-            .first<{ id: number }>();
+            .first()) as { id: number } | null;
 
         if (!companyResult) {
             return { user, logs: [] };
         }
 
-        logsQuery = logsQuery.where(eq(schema.auditLogs.companyId, companyResult.id));
+        const logs = await baseQuery.where(eq(schema.auditLogs.companyId, companyResult.id)).limit(100);
+        return { user, logs };
     }
 
-    const logs = await logsQuery;
-
+    const logs = await baseQuery.limit(100);
     return { user, logs };
 }
 
@@ -90,10 +90,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (intent === "clear") {
         if (user.role === "partner") {
             // Partner can only clear logs from their company
-            const companyResult = await context.cloudflare.env.DB
+            const companyResult = (await context.cloudflare.env.DB
                 .prepare("SELECT id FROM companies WHERE owner_id = ? LIMIT 1")
                 .bind(user.id)
-                .first<{ id: number }>();
+                .first()) as { id: number } | null;
 
             if (!companyResult) {
                 return data({ success: false, message: "Company not found" }, { status: 404 });
@@ -267,18 +267,6 @@ export default function AuditLogsPage() {
 
 function AuditIcon() {
     return (
-        <svg
-            className="w-16 h-16 mx-auto text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-        >
-            <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-        </svg>
+        <ClipboardDocumentListIcon className="w-16 h-16 mx-auto text-gray-400" />
     );
 }

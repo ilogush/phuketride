@@ -6,7 +6,7 @@ import * as schema from "~/db/schema";
  * Archive a user (partner/manager)
  * Also archives their company if they are the owner
  */
-export async function archiveUser(db: D1Database, userId: string): Promise<{ success: boolean; error?: string }> {
+export async function archiveUser(db: D1Database, userId: string): Promise<{ success: boolean; error?: string; message?: string }> {
     const drizzleDb = drizzle(db, { schema });
     
     try {
@@ -19,7 +19,7 @@ export async function archiveUser(db: D1Database, userId: string): Promise<{ suc
         });
 
         if (!user) {
-            return { success: false, error: "User not found or already archived" };
+            return { success: false, error: "User not found or already archived", message: "User not found or already archived" };
         }
 
         // Archive user
@@ -36,17 +36,17 @@ export async function archiveUser(db: D1Database, userId: string): Promise<{ suc
                 .where(eq(schema.companies.ownerId, userId));
         }
 
-        return { success: true };
+        return { success: true, message: "User archived successfully" };
     } catch (error) {
         console.error("Failed to archive user:", error);
-        return { success: false, error: "Failed to archive user" };
+        return { success: false, error: "Failed to archive user", message: "Failed to archive user" };
     }
 }
 
 /**
  * Archive a company and its owner
  */
-export async function archiveCompany(db: D1Database, companyId: number): Promise<{ success: boolean; error?: string }> {
+export async function archiveCompany(db: D1Database, companyId: number): Promise<{ success: boolean; error?: string; message?: string }> {
     const drizzleDb = drizzle(db, { schema });
     
     try {
@@ -59,7 +59,7 @@ export async function archiveCompany(db: D1Database, companyId: number): Promise
         });
 
         if (!company) {
-            return { success: false, error: "Company not found or already archived" };
+            return { success: false, error: "Company not found or already archived", message: "Company not found or already archived" };
         }
 
         // Archive company
@@ -74,10 +74,10 @@ export async function archiveCompany(db: D1Database, companyId: number): Promise
             .set({ archivedAt: new Date() })
             .where(eq(schema.users.id, company.ownerId));
 
-        return { success: true };
+        return { success: true, message: "Company archived successfully" };
     } catch (error) {
         console.error("Failed to archive company:", error);
-        return { success: false, error: "Failed to archive company" };
+        return { success: false, error: "Failed to archive company", message: "Failed to archive company" };
     }
 }
 
@@ -91,7 +91,7 @@ export async function deleteOrArchiveCar(
     carId: number, 
     companyId: number,
     forceArchive: boolean = false
-): Promise<{ success: boolean; error?: string; action?: "deleted" | "archived" }> {
+): Promise<{ success: boolean; error?: string; action?: "deleted" | "archived"; message?: string }> {
     const drizzleDb = drizzle(db, { schema });
     
     try {
@@ -104,7 +104,7 @@ export async function deleteOrArchiveCar(
         });
 
         if (!car) {
-            return { success: false, error: "Car not found or access denied" };
+            return { success: false, error: "Car not found or access denied", message: "Car not found or access denied" };
         }
 
         // Check if car has any contracts
@@ -122,25 +122,25 @@ export async function deleteOrArchiveCar(
                 .set({ archivedAt: new Date() })
                 .where(eq(schema.companyCars.id, carId));
 
-            return { success: true, action: "archived" };
+            return { success: true, action: "archived", message: "Car archived successfully" };
         } else {
             // Delete car (no contracts)
             await drizzleDb
                 .delete(schema.companyCars)
                 .where(eq(schema.companyCars.id, carId));
 
-            return { success: true, action: "deleted" };
+            return { success: true, action: "deleted", message: "Car deleted successfully" };
         }
     } catch (error) {
         console.error("Failed to delete/archive car:", error);
-        return { success: false, error: "Failed to delete/archive car" };
+        return { success: false, error: "Failed to delete/archive car", message: "Failed to delete/archive car" };
     }
 }
 
 /**
  * Unarchive a user
  */
-export async function unarchiveUser(db: D1Database, userId: string): Promise<{ success: boolean; error?: string }> {
+export async function unarchiveUser(db: D1Database, userId: string): Promise<{ success: boolean; error?: string; message?: string }> {
     const drizzleDb = drizzle(db, { schema });
     
     try {
@@ -149,17 +149,17 @@ export async function unarchiveUser(db: D1Database, userId: string): Promise<{ s
             .set({ archivedAt: null })
             .where(eq(schema.users.id, userId));
 
-        return { success: true };
+        return { success: true, message: "User unarchived successfully" };
     } catch (error) {
         console.error("Failed to unarchive user:", error);
-        return { success: false, error: "Failed to unarchive user" };
+        return { success: false, error: "Failed to unarchive user", message: "Failed to unarchive user" };
     }
 }
 
 /**
  * Unarchive a company
  */
-export async function unarchiveCompany(db: D1Database, companyId: number): Promise<{ success: boolean; error?: string }> {
+export async function unarchiveCompany(db: D1Database, companyId: number): Promise<{ success: boolean; error?: string; message?: string }> {
     const drizzleDb = drizzle(db, { schema });
     
     try {
@@ -168,9 +168,9 @@ export async function unarchiveCompany(db: D1Database, companyId: number): Promi
             .set({ archivedAt: null })
             .where(eq(schema.companies.id, companyId));
 
-        return { success: true };
+        return { success: true, message: "Company unarchived successfully" };
     } catch (error) {
         console.error("Failed to unarchive company:", error);
-        return { success: false, error: "Failed to unarchive company" };
+        return { success: false, error: "Failed to unarchive company", message: "Failed to unarchive company" };
     }
 }

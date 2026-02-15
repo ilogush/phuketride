@@ -20,7 +20,10 @@
 			"bucket_name": "phuketride-cache"
 		}
 	],
-	"dev": {
-		"remote": false
-	}
+	"kv_namespaces": [
+		{
+			"binding": "CACHE",
+			"id": "3745597a2bb34f7d80501d63d847770f"
+		}
+	]
 }

@@ -2,6 +2,7 @@ import { createCookie, redirect } from "react-router";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { users } from "~/db/schema";
+import { hashPassword, verifyPasswordHash } from "~/lib/password.server";
 
 // Session cookie configuration
 export const sessionCookie = createCookie("session", {
@@ -23,8 +24,8 @@ export interface SessionUser {
     companyId?: number;
 }
 
-// Simple password verification (in production, use proper hashing like bcrypt)
-function verifyPassword(password: string, email: string): boolean {
+// Legacy password verification (kept for compatibility; upgraded on successful login).
+function verifyLegacyPassword(password: string, email: string): boolean {
     // Admin has special password
     if (email === "ilogush@icloud.com") {
         return password === "220232";
@@ -96,9 +97,28 @@ export async function login(
         return { error: "Account has been archived. Please contact support" };
     }
 
-    // Verify password (simplified for demo)
-    if (!verifyPassword(password, email)) {
-        return { error: "Invalid email or password" };
+    // Verify password
+    if (user.passwordHash) {
+        const ok = await verifyPasswordHash(password, user.passwordHash);
+        if (!ok) {
+            return { error: "Invalid email or password" };
+        }
+    } else {
+        const ok = verifyLegacyPassword(password, email);
+        if (!ok) {
+            return { error: "Invalid email or password" };
+        }
+
+        // Upgrade legacy users to hashed passwords on successful login.
+        try {
+            const newHash = await hashPassword(password);
+            await drizzleDb
+                .update(users)
+                .set({ passwordHash: newHash, updatedAt: new Date() })
+                .where(eq(users.id, user.id));
+        } catch {
+            // If upgrade fails, still allow login (do not lock user out).
+        }
     }
 
     // Get company ID if user is partner or manager

@@ -110,11 +110,8 @@ export default function CarsPage() {
             label: "Actions",
             render: (car) => (
                 <div className="flex gap-2">
-                    <Link to={`/cars/${car.id}`}>
+                    <Link to={`/dashboard/cars/${car.id}`}>
                         <Button variant="secondary" size="sm">View</Button>
-                    </Link>
-                    <Link to={`/cars/${car.id}/edit`}>
-                        <Button variant="secondary" size="sm">Edit</Button>
                     </Link>
                 </div>
             )
@@ -126,7 +123,7 @@ export default function CarsPage() {
             <PageHeader
                 title="Cars"
                 rightActions={
-                    <Link to="/cars/create">
+                    <Link to="/dashboard/cars/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
                             Add
                         </Button>

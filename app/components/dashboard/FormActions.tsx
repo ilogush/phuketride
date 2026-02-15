@@ -1,8 +1,10 @@
 import Button from './Button'
+import { Link } from 'react-router'
 
 interface FormActionsProps {
     submitLabel?: string
     cancelLabel?: string
+    cancelTo?: string
     onCancel?: () => void
     submitDisabled?: boolean
     submitLoading?: boolean
@@ -14,6 +16,7 @@ interface FormActionsProps {
 export default function FormActions({
     submitLabel = 'Save',
     cancelLabel = 'Cancel',
+    cancelTo,
     onCancel,
     submitDisabled = false,
     submitLoading = false,
@@ -37,9 +40,17 @@ export default function FormActions({
 
     return (
         <div className={`flex ${alignClasses[align]} gap-4 pt-6 ${className}`}>
-            <Button variant="secondary" onClick={handleCancel}>
-                {cancelLabel}
-            </Button>
+            {cancelTo ? (
+                <Link to={cancelTo}>
+                    <Button variant="secondary" type="button">
+                        {cancelLabel}
+                    </Button>
+                </Link>
+            ) : (
+                <Button variant="secondary" onClick={handleCancel} type="button">
+                    {cancelLabel}
+                </Button>
+            )}
             <Button 
                 type="submit" 
                 variant="primary"

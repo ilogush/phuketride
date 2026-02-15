@@ -10,6 +10,9 @@ export default [
     // Company standalone dashboard (Phuket Ride Co.)
     route("companies/:companyId", "routes/companies.$companyId.tsx"),
 
+    // Compatibility redirects for legacy /dashboard/* URLs
+    route("dashboard/*", "routes/dashboard.redirect.tsx"),
+
     // Protected routes with dashboard layout
     layout("routes/dashboard.tsx", [
         route("dashboard", "routes/dashboard._index.tsx"),
@@ -25,6 +28,8 @@ export default [
         route("users/:userId/edit", "routes/dashboard.users.$userId.edit.tsx"),
         route("cars", "routes/dashboard.cars.tsx"),
         route("cars/create", "routes/dashboard.cars.create.tsx"),
+        route("cars/:id", "routes/dashboard.cars.$id.tsx"),
+        route("cars/:id/edit", "routes/dashboard.cars.$id.edit.tsx"),
         route("brands", "routes/dashboard.brands.tsx"),
         route("brands/create", "routes/dashboard.brands.create.tsx"),
         route("models", "routes/dashboard.models.tsx"),
@@ -54,11 +59,13 @@ export default [
         route("contracts/new", "routes/dashboard.contracts.new.tsx"),
         route("contracts/:id", "routes/dashboard.contracts.$id.tsx"),
         route("contracts/:id/edit", "routes/dashboard.contracts.$id.edit.tsx"),
-        route("calendar", "routes/dashboard.calendar.tsx"),
-        route("chat", "routes/dashboard.chat.tsx"),
+        route("calendar", "routes/dashboard.calendar.tsx", [
+            route("new", "routes/dashboard.calendar.new.tsx"),
+        ]),
         route("settings", "routes/dashboard.settings.tsx"),
         route("bookings", "routes/dashboard.bookings.tsx"),
         route("bookings/create", "routes/dashboard.bookings.create.tsx"),
+        route("bookings/:id", "routes/dashboard.bookings.$id.tsx"),
         route("profile", "routes/dashboard.profile.tsx"),
         route("profile/edit", "routes/dashboard.profile.edit.tsx"),
 

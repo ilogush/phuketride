@@ -19,6 +19,8 @@ import { useToast } from "~/lib/toast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { carSchema } from "~/schemas/car";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { calculateSeasonalPrice, getAverageDays } from "~/lib/pricing";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -37,8 +39,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     const [colorsList, seasonsList, durationsList, fuelTypesList] = await Promise.all([
         db.select().from(schema.colors).limit(100),
-        db.select().from(schema.seasons).where(eq(schema.seasons.companyId, user.companyId!)).limit(10),
-        db.select().from(schema.rentalDurations).where(eq(schema.rentalDurations.companyId, user.companyId!)).limit(10),
+        db.select().from(schema.seasons).limit(10),
+        db.select().from(schema.rentalDurations).limit(10),
         db.select().from(schema.fuelTypes).limit(20),
     ]);
 
@@ -61,21 +63,21 @@ export async function action({ request, context }: ActionFunctionArgs) {
     
     // Parse form data
     const rawData = {
-        templateId: Number(formData.get("templateId")),
-        colorId: Number(formData.get("colorId")),
-        licensePlate: (formData.get("licensePlate") as string).toUpperCase(),
-        productionYear: Number(formData.get("productionYear")),
+        templateId: formData.get("templateId") ? Number(formData.get("templateId")) : null,
+        colorId: Number(formData.get("colorId")) || 0,
+        licensePlate: (formData.get("licensePlate") as string)?.toUpperCase() || "",
+        productionYear: Number(formData.get("productionYear")) || 0,
         transmission: formData.get("transmission") as "automatic" | "manual",
-        engineVolume: Number(formData.get("engineVolume")),
+        engineVolume: Number(formData.get("engineVolume")) || 0,
         fuelType: formData.get("fuelType") as "petrol" | "diesel" | "electric" | "hybrid",
-        status: (formData.get("status") as "available" | "rented" | "maintenance" | "inactive") || "available",
+        status: (formData.get("status") as "available" | "rented" | "maintenance" | "booked") || "available",
         vin: (formData.get("vin") as string) || null,
-        currentMileage: Number(formData.get("currentMileage")),
-        nextOilChangeMileage: Number(formData.get("nextOilChangeMileage")),
+        currentMileage: Number(formData.get("currentMileage")) || 0,
+        nextOilChangeMileage: Number(formData.get("nextOilChangeMileage")) || 0,
         oilChangeInterval: Number(formData.get("oilChangeInterval")) || 10000,
         dailyMileageLimit: formData.get("dailyMileageLimit") ? Number(formData.get("dailyMileageLimit")) : null,
-        pricePerDay: Number(formData.get("pricePerDay")),
-        deposit: Number(formData.get("deposit")),
+        pricePerDay: Number(formData.get("pricePerDay")) || 0,
+        deposit: Number(formData.get("deposit")) || 0,
         insuranceType: (formData.get("insuranceType") as string) || null,
         insuranceExpiry: (formData.get("insuranceExpiry") as string) || null,
         registrationExpiry: (formData.get("registrationExpiry") as string) || null,
@@ -97,6 +99,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
     try {
         const marketingHeadline = formData.get("marketingHeadline") as string || null;
         const description = formData.get("description") as string || null;
+        const fuelTypes = await db.select({
+            id: schema.fuelTypes.id,
+            name: schema.fuelTypes.name,
+        }).from(schema.fuelTypes);
+        const fuelType = fuelTypes.find((item) => item.name.toLowerCase() === validData.fuelType.toLowerCase());
 
         const [newCar] = await db.insert(schema.companyCars).values({
             companyId,
@@ -106,7 +113,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             year: validData.productionYear,
             transmission: validData.transmission,
             engineVolume: validData.engineVolume,
-            fuelTypeId: null,
+            fuelTypeId: fuelType?.id ?? null,
             vin: validData.vin,
             status: validData.status,
             mileage: validData.currentMileage,
@@ -183,13 +190,6 @@ export default function CreateCarPage() {
         { id: "details", label: "Details" },
     ];
 
-    // Calculate seasonal pricing
-    const calculateSeasonalPrice = (basePrice: number, multiplier: number, days: number, durationMultiplier: number) => {
-        const dailyPrice = basePrice * multiplier;
-        const totalPrice = dailyPrice * days * durationMultiplier;
-        return { dailyPrice, totalPrice };
-    };
-
     // Format date for input (DD-MM-YYYY)
     const formatDateInput = (date: Date) => {
         const day = String(date.getDate()).padStart(2, '0');
@@ -219,7 +219,7 @@ export default function CreateCarPage() {
                 }
             />
 
-            <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} className="mb-4" />
+            <Tabs tabs={tabs} activeTab={activeTab} onTabChange={(tabId) => setActiveTab(String(tabId))} className="mb-4" />
 
             <Form id="create-car-form" method="post" className="bg-white rounded-3xl shadow-sm p-4">
                 {activeTab === "specifications" && (
@@ -247,7 +247,7 @@ export default function CreateCarPage() {
                                         <div><span className="text-gray-500">Engine:</span> <span className="font-medium">{selectedTemplate.engineVolume}L</span></div>
                                         <div><span className="text-gray-500">Seats:</span> <span className="font-medium">{selectedTemplate.seats}</span></div>
                                         <div><span className="text-gray-500">Doors:</span> <span className="font-medium">{selectedTemplate.doors}</span></div>
-                                        <div><span className="text-gray-500">Fuel:</span> <span className="font-medium">{selectedTemplate.fuelType?.name || 'N/A'}</span></div>
+                                        <div><span className="text-gray-500">Fuel Type:</span> <span className="font-medium">{selectedTemplate.fuelType?.name || 'N/A'}</span></div>
                                     </div>
                                 </div>
                             )}
@@ -303,9 +303,18 @@ export default function CreateCarPage() {
                                 {/* Hidden fields from template */}
                                 <input type="hidden" name="transmission" value={selectedTemplate?.transmission || 'automatic'} />
                                 <input type="hidden" name="engineVolume" value={selectedTemplate?.engineVolume || 1.5} />
-                                <input type="hidden" name="fuelType" value={selectedTemplate?.fuelType?.name || 'Gasoline'} />
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <Select
+                                        label="Fuel Type"
+                                        name="fuelType"
+                                        required
+                                        options={fuelTypes.map(ft => ({
+                                            id: ft.name,
+                                            name: ft.name
+                                        }))}
+                                        defaultValue={selectedTemplate?.fuelType?.name || 'Gasoline'}
+                                    />
                                     <Select
                                         label="Status"
                                         name="status"
@@ -368,9 +377,7 @@ export default function CreateCarPage() {
                                 />
                                 {isOilChangeDueSoon && (
                                     <div className="mt-2 flex items-center gap-2 text-orange-600 animate-pulse">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                                        </svg>
+                                        <ExclamationTriangleIcon className="w-4 h-4" />
                                         <span className="text-xs font-medium">Maintenance Due Soon! ({kmUntilOilChange} km left)</span>
                                     </div>
                                 )}
@@ -455,9 +462,7 @@ export default function CreateCarPage() {
                                                                 </div>
                                                             </td>
                                                             {durations.map((duration) => {
-                                                                const avgDays = duration.maxDays 
-                                                                    ? Math.ceil((duration.minDays + duration.maxDays) / 2)
-                                                                    : duration.minDays + 2;
+                                                                const avgDays = getAverageDays(duration);
                                                                 const { dailyPrice, totalPrice } = calculateSeasonalPrice(
                                                                     pricePerDay,
                                                                     season.priceMultiplier,

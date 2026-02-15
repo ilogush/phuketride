@@ -39,16 +39,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     }
 
     // Build where conditions
-    const conditions = [sql`${schema.contracts.companyCarId} IN (${sql.join(carIds.map(id => sql`${id}`), sql`, `)})`];
+    const conditions = [sql`${schema.bookings.companyCarId} IN (${sql.join(carIds.map(id => sql`${id}`), sql`, `)})`];
 
     if (status !== "all") {
-        conditions.push(sql`${schema.contracts.status} = ${status}`);
+        conditions.push(sql`${schema.bookings.status} = ${status}`);
     }
 
     // Get total count
     const [countResult] = await db
         .select({ count: sql<number>`count(*)` })
-        .from(schema.contracts)
+        .from(schema.bookings)
         .where(and(...conditions));
 
     const totalItems = countResult?.count || 0;
@@ -57,30 +57,31 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     // Get bookings
     const bookings = await db
         .select({
-            id: schema.contracts.id,
-            startDate: schema.contracts.startDate,
-            endDate: schema.contracts.endDate,
-            totalAmount: schema.contracts.totalAmount,
-            totalCurrency: schema.contracts.totalCurrency,
-            status: schema.contracts.status,
-            createdAt: schema.contracts.createdAt,
-            clientId: schema.contracts.clientId,
+            id: schema.bookings.id,
+            startDate: schema.bookings.startDate,
+            endDate: schema.bookings.endDate,
+            estimatedAmount: schema.bookings.estimatedAmount,
+            currency: schema.bookings.currency,
+            depositAmount: schema.bookings.depositAmount,
+            depositPaid: schema.bookings.depositPaid,
+            status: schema.bookings.status,
+            createdAt: schema.bookings.createdAt,
+            clientName: schema.bookings.clientName,
+            clientSurname: schema.bookings.clientSurname,
+            clientPhone: schema.bookings.clientPhone,
+            clientEmail: schema.bookings.clientEmail,
             carLicensePlate: schema.companyCars.licensePlate,
             carYear: schema.companyCars.year,
             brandName: schema.carBrands.name,
             modelName: schema.carModels.name,
-            clientName: schema.users.name,
-            clientSurname: schema.users.surname,
-            clientEmail: schema.users.email,
         })
-        .from(schema.contracts)
-        .innerJoin(schema.companyCars, eq(schema.contracts.companyCarId, schema.companyCars.id))
-        .innerJoin(schema.users, eq(schema.contracts.clientId, schema.users.id))
+        .from(schema.bookings)
+        .innerJoin(schema.companyCars, eq(schema.bookings.companyCarId, schema.companyCars.id))
         .leftJoin(schema.carTemplates, eq(schema.companyCars.templateId, schema.carTemplates.id))
         .leftJoin(schema.carBrands, eq(schema.carTemplates.brandId, schema.carBrands.id))
         .leftJoin(schema.carModels, eq(schema.carTemplates.modelId, schema.carModels.id))
         .where(and(...conditions))
-        .orderBy(desc(schema.contracts.createdAt))
+        .orderBy(desc(schema.bookings.createdAt))
         .limit(ITEMS_PER_PAGE)
         .offset(offset);
 
@@ -96,9 +97,9 @@ export default function BookingsPage() {
     };
 
     const statusColors = {
-        draft: "bg-gray-100 text-gray-800",
-        active: "bg-blue-100 text-blue-800",
-        completed: "bg-green-100 text-green-800",
+        pending: "bg-yellow-100 text-yellow-800",
+        confirmed: "bg-blue-100 text-blue-800",
+        converted: "bg-green-100 text-green-800",
         cancelled: "bg-red-100 text-red-800",
     };
 
@@ -132,34 +133,34 @@ export default function BookingsPage() {
                             All
                         </button>
                         <button
-                            onClick={() => handleStatusChange("draft")}
+                            onClick={() => handleStatusChange("pending")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                status === "draft"
+                                status === "pending"
                                     ? "bg-gray-800 text-white"
                                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                             }`}
                         >
-                            Draft
+                            Pending
                         </button>
                         <button
-                            onClick={() => handleStatusChange("active")}
+                            onClick={() => handleStatusChange("confirmed")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                status === "active"
+                                status === "confirmed"
                                     ? "bg-gray-800 text-white"
                                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                             }`}
                         >
-                            Active
+                            Confirmed
                         </button>
                         <button
-                            onClick={() => handleStatusChange("completed")}
+                            onClick={() => handleStatusChange("converted")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                status === "completed"
+                                status === "converted"
                                     ? "bg-gray-800 text-white"
                                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                             }`}
                         >
-                            Completed
+                            Converted
                         </button>
                     </div>
                 </div>
@@ -172,7 +173,7 @@ export default function BookingsPage() {
                         {bookings.map((booking) => (
                             <Link
                                 key={booking.id}
-                                to={`/dashboard/contracts/${booking.id}`}
+                                to={`/dashboard/bookings/${booking.id}`}
                                 className="block p-6 hover:bg-gray-50 transition-colors"
                             >
                                 <div className="flex items-center justify-between">
@@ -184,10 +185,18 @@ export default function BookingsPage() {
                                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[booking.status as keyof typeof statusColors]}`}>
                                                 {booking.status}
                                             </span>
+                                            {booking.depositPaid && (
+                                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                    Deposit Paid
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="space-y-1">
                                             <p className="text-sm text-gray-600">
-                                                Client: {booking.clientName} {booking.clientSurname} ({booking.clientEmail})
+                                                Client: {booking.clientName} {booking.clientSurname}
+                                            </p>
+                                            <p className="text-sm text-gray-600">
+                                                Phone: {booking.clientPhone} {booking.clientEmail && `• ${booking.clientEmail}`}
                                             </p>
                                             <p className="text-sm text-gray-600">
                                                 Car: {booking.carLicensePlate}
@@ -203,9 +212,14 @@ export default function BookingsPage() {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-2xl font-bold text-gray-900">
-                                            {booking.totalCurrency} {booking.totalAmount}
+                                            {booking.currency} {booking.estimatedAmount.toFixed(2)}
                                         </p>
-                                        <p className="text-sm text-gray-500 mt-1">Total</p>
+                                        <p className="text-sm text-gray-500 mt-1">Estimated</p>
+                                        {(booking.depositAmount ?? 0) > 0 && (
+                                            <p className="text-sm text-gray-600 mt-2">
+                                                Deposit: {booking.currency} {(booking.depositAmount ?? 0).toFixed(2)}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </Link>

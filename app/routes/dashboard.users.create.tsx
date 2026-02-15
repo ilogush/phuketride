@@ -11,6 +11,7 @@ import { useToast } from "~/lib/toast";
 import { useEffect } from "react";
 import { userSchema } from "~/schemas/user";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { PASSWORD_MIN_LENGTH } from "~/lib/password";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -61,6 +62,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
         address: (formData.get("address") as string) || null,
     };
 
+    const newPassword = (formData.get("newPassword") as string | null) || "";
+    const confirmPassword = (formData.get("confirmPassword") as string | null) || "";
+
     // Validate with Zod
     const validation = userSchema.safeParse(rawData);
     if (!validation.success) {
@@ -72,6 +76,18 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     try {
         const id = crypto.randomUUID();
+        let passwordHash: string | null = null;
+
+        if (newPassword || confirmPassword) {
+            if (newPassword.length < PASSWORD_MIN_LENGTH) {
+                return redirect(`/users/create?error=${encodeURIComponent(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`)}`);
+            }
+            if (newPassword !== confirmPassword) {
+                return redirect(`/users/create?error=${encodeURIComponent("Passwords do not match")}`);
+            }
+            const { hashPassword } = await import("~/lib/password.server");
+            passwordHash = await hashPassword(newPassword);
+        }
 
         await db.insert(schema.users).values({
             id,
@@ -96,6 +112,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             avatarUrl: null,
             passportPhotos: null,
             driverLicensePhotos: null,
+            passwordHash,
         });
 
         // Audit log

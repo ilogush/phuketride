@@ -64,6 +64,7 @@ interface ProfileFormProps {
     countries: Country[];
     hotels: Hotel[];
     locations: Location[];
+    districts?: District[];
     country?: Country | null;
     hotel?: Hotel | null;
     location?: Location | null;
@@ -102,6 +103,7 @@ function ProfileForm({
     countries,
     hotels,
     locations,
+    districts = [],
     country,
     hotel,
     location,
@@ -130,6 +132,9 @@ function ProfileForm({
         () => parseJSON<DocumentPhoto[]>(user.driverLicensePhotos),
         [user.driverLicensePhotos]
     );
+
+    const [passportUploads, setPassportUploads] = useState<DocumentPhoto[]>(passportPhotos || []);
+    const [driverLicenseUploads, setDriverLicenseUploads] = useState<DocumentPhoto[]>(driverLicensePhotos || []);
 
     // Мемоизированные обработчики
     const handlePhotoChange = useCallback((base64: string | null, fileName: string | null) => {
@@ -343,16 +348,36 @@ function ProfileForm({
                             value={location?.name || ""}
                         />
                     )}
+                    {isEdit && districts.length > 0 && (
+                        <FormSelect
+                            isEdit={isEdit}
+                            label="District"
+                            name="districtId"
+                            defaultValue={user.districtId?.toString()}
+                            options={districts}
+                            placeholder="Select district"
+                        />
+                    )}
                 </div>
             </FormSection>
 
             {/* Document Photos Section */}
             <FormSection title="Document Photos" icon={<DocumentTextIcon />}>
                 {isEdit ? (
-                    <DocumentPhotosUpload
-                        onPassportPhotosChange={() => {}}
-                        onDriverLicensePhotosChange={() => {}}
-                    />
+                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
+                        <DocumentPhotosUpload
+                            currentPhotos={passportUploads.map((p) => p.base64)}
+                            onPhotosChange={(photos) => setPassportUploads(photos)}
+                            maxPhotos={3}
+                            label="Passport"
+                        />
+                        <DocumentPhotosUpload
+                            currentPhotos={driverLicenseUploads.map((p) => p.base64)}
+                            onPhotosChange={(photos) => setDriverLicenseUploads(photos)}
+                            maxPhotos={3}
+                            label="Driver License"
+                        />
+                    </div>
                 ) : (
                     <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
                         <DocumentPreview photos={passportPhotos} label="Passport" />
@@ -414,8 +439,8 @@ function ProfileForm({
                             <input type="hidden" name="avatarFileName" value={avatarFileName || ""} />
                         </>
                     )}
-                    <input type="hidden" name="passportPhotos" value={user.passportPhotos || ""} />
-                    <input type="hidden" name="driverLicensePhotos" value={user.driverLicensePhotos || ""} />
+                    <input type="hidden" name="passportPhotos" value={JSON.stringify(passportUploads)} />
+                    <input type="hidden" name="driverLicensePhotos" value={JSON.stringify(driverLicenseUploads)} />
                     {formContent}
                 </Form>
             ) : (

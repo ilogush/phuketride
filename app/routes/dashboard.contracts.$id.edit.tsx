@@ -2,9 +2,10 @@ import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "reac
 import { Form, useLoaderData, useNavigate } from "react-router";
 import { useState } from "react";
 import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { requireAuth } from "~/lib/auth.server";
-import { contracts, companyCars, districts, users } from "~/db/schema";
+import { calendarEvents, contracts, companyCars, districts, users } from "~/db/schema";
+import * as schema from "~/db/schema";
 import FormSection from "~/components/dashboard/FormSection";
 import FormInput from "~/components/dashboard/FormInput";
 import FormSelect from "~/components/dashboard/FormSelect";
@@ -16,6 +17,7 @@ import CarPhotosUpload from "~/components/dashboard/CarPhotosUpload";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
+import { createContractEvents } from "~/lib/calendar-events.server";
 import {
     TruckIcon,
     CalendarIcon,
@@ -74,9 +76,175 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const formData = await request.formData();
     const contractId = parseInt(params.id!);
 
-    // TODO: Implement contract update logic
-    // For now, just redirect back
-    return redirect(`/contracts/${contractId}`);
+    const db = drizzle(context.cloudflare.env.DB);
+
+    const [existingContract] = await db
+        .select()
+        .from(contracts)
+        .where(eq(contracts.id, contractId))
+        .limit(1);
+
+    if (!existingContract) {
+        return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
+    }
+
+    const parseDocPhotos = (value: FormDataEntryValue | null): Array<{ base64: string; fileName: string }> => {
+        if (typeof value !== "string") return [];
+        const trimmed = value.trim();
+        if (!trimmed) return [];
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (!Array.isArray(parsed)) return [];
+            return parsed.filter((p) => p && typeof p.base64 === "string" && typeof p.fileName === "string");
+        } catch {
+            return [];
+        }
+    };
+
+    const parsePhotoList = (value: FormDataEntryValue | null): string[] => {
+        if (typeof value !== "string") return [];
+        const trimmed = value.trim();
+        if (!trimmed) return [];
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (!Array.isArray(parsed)) return [];
+            return parsed.filter((p) => typeof p === "string" && p.trim().length > 0);
+        } catch {
+            return [];
+        }
+    };
+
+    // Access check (non-admin must match company)
+    if (user.role !== "admin") {
+        const [carRow] = await db
+            .select({ companyId: companyCars.companyId })
+            .from(companyCars)
+            .where(eq(companyCars.id, existingContract.companyCarId))
+            .limit(1);
+
+        if (!carRow || carRow.companyId !== user.companyId) {
+            return redirect(`/contracts?error=${encodeURIComponent("Access denied")}`);
+        }
+    }
+
+    // Client update (keep existing values if empty)
+    const passportPhotosValue = parseDocPhotos(formData.get("passportPhotos"));
+    const driverLicensePhotosValue = parseDocPhotos(formData.get("driverLicensePhotos"));
+
+    const clientUpdate: Record<string, unknown> = {
+        name: String(formData.get("client_name") || "").trim() || null,
+        surname: String(formData.get("client_surname") || "").trim() || null,
+        phone: String(formData.get("client_phone") || "").trim() || null,
+        whatsapp: String(formData.get("client_whatsapp") || "").trim() || null,
+        telegram: String(formData.get("client_telegram") || "").trim() || null,
+        passportNumber: String(formData.get("client_passport") || "").trim() || null,
+        citizenship: String(formData.get("citizenship") || "").trim() || null,
+        gender: (String(formData.get("client_gender") || "").trim() as any) || null,
+        dateOfBirth: formData.get("date_of_birth") ? new Date(String(formData.get("date_of_birth"))) : null,
+        updatedAt: new Date(),
+    };
+
+    const email = String(formData.get("client_email") || "").trim();
+    if (email) {
+        clientUpdate.email = email;
+    }
+    if (passportPhotosValue.length > 0) {
+        clientUpdate.passportPhotos = JSON.stringify(passportPhotosValue);
+    }
+    if (driverLicensePhotosValue.length > 0) {
+        clientUpdate.driverLicensePhotos = JSON.stringify(driverLicensePhotosValue);
+    }
+
+    await db.update(users).set(clientUpdate as any).where(eq(users.id, existingContract.clientId));
+
+    const getValidDate = (value: FormDataEntryValue | null, fallback: Date) => {
+        if (typeof value !== "string" || !value) return fallback;
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? fallback : d;
+    };
+
+    const newCompanyCarId = Number(formData.get("company_car_id")) || existingContract.companyCarId;
+    const startDate = getValidDate(formData.get("start_date"), new Date(existingContract.startDate));
+    const endDate = getValidDate(formData.get("end_date"), new Date(existingContract.endDate));
+    const photosValue = parsePhotoList(formData.get("photos"));
+
+    const pickupDistrictIdRaw = formData.get("pickup_district_id");
+    const returnDistrictIdRaw = formData.get("return_district_id");
+
+    const pickupDistrictId = pickupDistrictIdRaw ? Number(pickupDistrictIdRaw) : null;
+    const returnDistrictId = returnDistrictIdRaw ? Number(returnDistrictIdRaw) : null;
+
+    const updatePayload: Record<string, unknown> = {
+        companyCarId: newCompanyCarId,
+        startDate,
+        endDate,
+        pickupDistrictId,
+        pickupHotel: (formData.get("pickup_hotel") as string) || null,
+        pickupRoom: (formData.get("pickup_room") as string) || null,
+        deliveryCost: Number(formData.get("delivery_cost")) || 0,
+        returnDistrictId,
+        returnHotel: (formData.get("return_hotel") as string) || null,
+        returnRoom: (formData.get("return_room") as string) || null,
+        returnCost: Number(formData.get("return_cost")) || 0,
+        depositAmount: Number(formData.get("deposit_amount")) || 0,
+        depositPaymentMethod: (formData.get("deposit_payment_method") as any) || null,
+        totalAmount: Number(formData.get("total_amount")) || existingContract.totalAmount,
+        fuelLevel: String(formData.get("fuel_level") || existingContract.fuelLevel || "Full"),
+        cleanliness: String(formData.get("cleanliness") || existingContract.cleanliness || "Clean"),
+        startMileage: Number(formData.get("start_mileage")) || existingContract.startMileage || 0,
+        fullInsuranceEnabled: formData.get("fullInsurance") === "true",
+        babySeatEnabled: formData.get("babySeat") === "true",
+        islandTripEnabled: formData.get("islandTrip") === "true",
+        krabiTripEnabled: formData.get("krabiTrip") === "true",
+        // prices are not editable in this form yet, keep current values
+        fullInsurancePrice: existingContract.fullInsurancePrice ?? 0,
+        babySeatPrice: existingContract.babySeatPrice ?? 0,
+        islandTripPrice: existingContract.islandTripPrice ?? 0,
+        krabiTripPrice: existingContract.krabiTripPrice ?? 0,
+        notes: (formData.get("notes") as string) || null,
+        updatedAt: new Date(),
+    };
+
+    if (photosValue.length > 0) {
+        updatePayload.photos = JSON.stringify(photosValue);
+    }
+
+    await db.update(contracts).set(updatePayload as any).where(eq(contracts.id, contractId));
+
+    if (newCompanyCarId !== existingContract.companyCarId) {
+        await db.update(companyCars)
+            .set({ status: "available" })
+            .where(eq(companyCars.id, existingContract.companyCarId));
+        await db.update(companyCars)
+            .set({ status: "rented" })
+            .where(eq(companyCars.id, newCompanyCarId));
+    }
+
+    // Refresh calendar events (delete old and recreate)
+    const [carRow] = await db
+        .select({ companyId: companyCars.companyId })
+        .from(companyCars)
+        .where(eq(companyCars.id, newCompanyCarId))
+        .limit(1);
+
+    if (carRow?.companyId) {
+        await db.delete(calendarEvents).where(and(
+            eq(calendarEvents.relatedId, contractId),
+            or(eq(calendarEvents.eventType, "pickup"), eq(calendarEvents.eventType, "contract"))
+        ));
+
+        const dbWithSchema = drizzle(context.cloudflare.env.DB, { schema });
+        await createContractEvents({
+            db: dbWithSchema,
+            companyId: carRow.companyId,
+            contractId,
+            startDate,
+            endDate,
+            createdBy: user.id,
+        });
+    }
+
+    return redirect(`/contracts/${contractId}?success=${encodeURIComponent("Contract updated successfully")}`);
 }
 
 export default function EditContract() {
@@ -97,8 +265,29 @@ export default function EditContract() {
     const [krabiTrip, setKrabiTrip] = useState(contract.krabiTripEnabled || false);
     const [babySeat, setBabySeat] = useState(contract.babySeatEnabled || false);
     const [carPhotos, setCarPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
-    const [passportPhotos, setPassportPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
-    const [driverLicensePhotos, setDriverLicensePhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
+    const [passportPhotos, setPassportPhotos] = useState<Array<{ base64: string; fileName: string }>>(() => {
+        try {
+            return client?.passportPhotos ? JSON.parse(client.passportPhotos) : [];
+        } catch {
+            return [];
+        }
+    });
+    const [driverLicensePhotos, setDriverLicensePhotos] = useState<Array<{ base64: string; fileName: string }>>(() => {
+        try {
+            return client?.driverLicensePhotos ? JSON.parse(client.driverLicensePhotos) : [];
+        } catch {
+            return [];
+        }
+    });
+    const [notes, setNotes] = useState(contract.notes || "");
+
+    const existingContractPhotos: string[] = (() => {
+        try {
+            return contract.photos ? JSON.parse(contract.photos) : [];
+        } catch {
+            return [];
+        }
+    })();
 
     const fuelLevels = [
         { id: "Full", name: "Full (8/8)" },
@@ -130,6 +319,17 @@ export default function EditContract() {
             />
 
             <Form method="post" className="space-y-4">
+                <input type="hidden" name="passportPhotos" value={JSON.stringify(passportPhotos)} />
+                <input type="hidden" name="driverLicensePhotos" value={JSON.stringify(driverLicensePhotos)} />
+                <input
+                    type="hidden"
+                    name="photos"
+                    value={JSON.stringify((carPhotos.length > 0 ? carPhotos.map((p) => p.base64) : existingContractPhotos))}
+                />
+                <input type="hidden" name="fullInsurance" value={fullInsurance ? "true" : "false"} />
+                <input type="hidden" name="islandTrip" value={islandTrip ? "true" : "false"} />
+                <input type="hidden" name="krabiTrip" value={krabiTrip ? "true" : "false"} />
+                <input type="hidden" name="babySeat" value={babySeat ? "true" : "false"} />
                 {/* Car Details */}
                 <FormSection
                     title="Car Details"
@@ -175,13 +375,7 @@ export default function EditContract() {
                         Car Photos (max 12)
                     </label>
                     <CarPhotosUpload
-                        currentPhotos={(() => {
-                            try {
-                                return contract.photos ? JSON.parse(contract.photos) : [];
-                            } catch {
-                                return [];
-                            }
-                        })()}
+                        currentPhotos={existingContractPhotos}
                         onPhotosChange={setCarPhotos}
                         maxPhotos={12}
                     />
@@ -337,10 +531,20 @@ export default function EditContract() {
 
                 {/* Document Photos */}
                 <div className="bg-white rounded-3xl border border-gray-200 p-4">
-                    <DocumentPhotosUpload
-                        onPassportPhotosChange={setPassportPhotos}
-                        onDriverLicensePhotosChange={setDriverLicensePhotos}
-                    />
+                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
+                        <DocumentPhotosUpload
+                            currentPhotos={passportPhotos.map((p) => p.base64)}
+                            onPhotosChange={setPassportPhotos}
+                            maxPhotos={3}
+                            label="Passport"
+                        />
+                        <DocumentPhotosUpload
+                            currentPhotos={driverLicensePhotos.map((p) => p.base64)}
+                            onPhotosChange={setDriverLicensePhotos}
+                            maxPhotos={3}
+                            label="Driver License"
+                        />
+                    </div>
                 </div>
 
                 {/* Extras */}
@@ -395,6 +599,17 @@ export default function EditContract() {
                             defaultValue={contract.depositAmount}
                             placeholder="0.00"
                         />
+                        <FormSelect
+                            label="Deposit Method"
+                            name="deposit_payment_method"
+                            options={[
+                                { id: "cash", name: "Cash" },
+                                { id: "bank_transfer", name: "Bank Transfer" },
+                                { id: "card", name: "Card" },
+                            ]}
+                            defaultValue={contract.depositPaymentMethod || ""}
+                            placeholder="Select method"
+                        />
                         <FormInput
                             label="Total Rental Cost"
                             name="total_amount"
@@ -415,7 +630,8 @@ export default function EditContract() {
                         label="Contract Notes"
                         name="notes"
                         rows={4}
-                        value={contract.notes || ""}
+                        value={notes}
+                        onChange={setNotes}
                         placeholder="Add any extra information (flight info, car condition, etc.)"
                     />
                 </FormSection>

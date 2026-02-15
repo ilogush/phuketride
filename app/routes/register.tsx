@@ -4,6 +4,11 @@ import { getUserFromSession } from "~/lib/auth.server";
 import { useState } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useLatinValidation } from "~/lib/useLatinValidation";
+import { drizzle } from "drizzle-orm/d1";
+import { eq } from "drizzle-orm";
+import { users } from "~/db/schema";
+import { PASSWORD_MIN_LENGTH } from "~/lib/password";
+import { sessionCookie } from "~/lib/auth.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     // If already logged in, redirect to dashboard
@@ -18,11 +23,52 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
-    const name = formData.get("name") as string;
+    const firstName = (formData.get("firstName") as string)?.trim();
+    const lastName = (formData.get("lastName") as string)?.trim();
     const phone = formData.get("phone") as string;
 
-    // TODO: Implement registration logic
-    return { error: "Registration is not yet implemented" };
+    if (!email || !password || !firstName || !lastName || !phone) {
+        return { error: "All required fields must be filled" };
+    }
+
+    if (password.length < PASSWORD_MIN_LENGTH) {
+        return { error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters` };
+    }
+
+    const db = drizzle(context.cloudflare.env.DB);
+
+    const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    if (existing.length > 0) {
+        return { error: "Email already registered" };
+    }
+
+    const id = crypto.randomUUID();
+    const { hashPassword } = await import("~/lib/password.server");
+    const passwordHash = await hashPassword(password);
+
+    await db.insert(users).values({
+        id,
+        email,
+        role: "user",
+        name: firstName,
+        surname: lastName,
+        phone,
+        passwordHash,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    });
+
+    const cookie = await sessionCookie.serialize({
+        id,
+        email,
+        role: "user",
+        name: firstName,
+        surname: lastName,
+    });
+
+    return redirect("/dashboard?login=success", {
+        headers: { "Set-Cookie": cookie },
+    });
 }
 
 export default function RegisterPage() {

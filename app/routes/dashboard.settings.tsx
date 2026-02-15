@@ -36,19 +36,26 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         throw new Response("Company not found", { status: 404 });
     }
 
-    const [company, locations, districts, paymentTypes, currencies] = await Promise.all([
-        db.select().from(schema.companies).where(eq(schema.companies.id, user.companyId)).limit(1),
-        db.select().from(schema.locations).limit(100),
-        db.select().from(schema.districts).limit(200),
-        // Get system templates (company_id IS NULL) OR company-specific templates
-        db.select().from(schema.paymentTypes).where(
-            or(
-                isNull(schema.paymentTypes.companyId),
-                eq(schema.paymentTypes.companyId, user.companyId)
-            )
-        ).limit(100),
-        db.select().from(schema.currencies).where(eq(schema.currencies.isActive, true)).limit(50),
-    ]);
+    // NOTE: In remote-preview mode (remote bindings), concurrent D1 requests can intermittently fail.
+    // Keep these queries sequential to reduce flakiness during dev.
+    const company = await db
+        .select()
+        .from(schema.companies)
+        .where(eq(schema.companies.id, user.companyId))
+        .limit(1);
+    const locations = await db.select().from(schema.locations).limit(100);
+    const districts = await db.select().from(schema.districts).limit(200);
+    // Get system templates (company_id IS NULL) OR company-specific templates
+    const paymentTypes = await db
+        .select()
+        .from(schema.paymentTypes)
+        .where(or(isNull(schema.paymentTypes.companyId), eq(schema.paymentTypes.companyId, user.companyId)))
+        .limit(100);
+    const currencies = await db
+        .select()
+        .from(schema.currencies)
+        .where(eq(schema.currencies.isActive, true))
+        .limit(50);
 
     if (!company || company.length === 0) {
         throw new Response("Company not found", { status: 404 });
@@ -127,6 +134,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
                     updatedAt: new Date(),
                 })
                 .where(eq(schema.companies.id, user.companyId));
+
+            // Ensure company district is active and free for delivery.
+            // Partners must not be able to override it from `/locations`.
+            await db
+                .update(schema.districts)
+                .set({ deliveryPrice: 0, isActive: true, updatedAt: new Date() })
+                .where(eq(schema.districts.id, validData.districtId));
 
             // Audit log
             const metadata = getRequestMetadata(request);
@@ -284,6 +298,7 @@ export default function SettingsPage() {
     const shownToastsRef = useRef<Set<string>>(new Set());
     const { validateLatinInput } = useLatinValidation();
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [editingPaymentTemplate, setEditingPaymentTemplate] = useState<any | null>(null);
     const [paymentFormData, setPaymentFormData] = useState({
         name: "",
         sign: "+",
@@ -614,14 +629,11 @@ export default function SettingsPage() {
                                             <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight w-24">
                                                 <span>Sign</span>
                                             </th>
-                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
+                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight whitespace-nowrap">
                                                 <span>On Create</span>
                                             </th>
-                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
+                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight whitespace-nowrap">
                                                 <span>On Close</span>
-                                            </th>
-                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
-                                                <span>Active</span>
                                             </th>
                                             <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
                                                 <span>Actions</span>
@@ -640,14 +652,7 @@ export default function SettingsPage() {
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-full">
                                                     <div className="flex flex-col">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="font-medium text-gray-900">{template.name}</span>
-                                                            {template.isSystem && (
-                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                                                                    SYSTEM
-                                                                </span>
-                                                            )}
-                                                        </div>
+                                                        <span className="font-medium text-gray-900">{template.name}</span>
                                                         {template.description && (
                                                             <span className="text-xs text-gray-500 mt-0.5">
                                                                 {template.description}
@@ -694,29 +699,34 @@ export default function SettingsPage() {
                                                         }`}></span>
                                                     </button>
                                                 </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => handleTogglePaymentTemplate(template.id, 'isActive', template.isActive ?? true)}
-                                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
-                                                            template.isActive 
-                                                                ? 'bg-gray-800 border-transparent' 
-                                                                : 'bg-gray-200 border-transparent'
-                                                        }`}
-                                                    >
-                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                                                            template.isActive ? 'translate-x-4' : 'translate-x-0'
-                                                        }`}></span>
-                                                    </button>
-                                                </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                    {!template.isSystem && (
-                                                        <Form method="post">
-                                                            <input type="hidden" name="intent" value="deletePaymentTemplate" />
-                                                            <input type="hidden" name="id" value={template.id} />
-                                                            <Button type="submit" variant="secondary" size="sm">Delete</Button>
-                                                        </Form>
-                                                    )}
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setPaymentFormData({
+                                                                    name: template.name,
+                                                                    sign: template.sign ?? "+",
+                                                                    description: template.description || "",
+                                                                    showOnCreate: template.showOnCreate ?? false,
+                                                                    showOnClose: template.showOnClose ?? false,
+                                                                });
+                                                                setEditingPaymentTemplate(template);
+                                                                setIsPaymentModalOpen(true);
+                                                            }}
+                                                        >
+                                                            Edit
+                                                        </Button>
+                                                        {!template.isSystem && (
+                                                            <Form method="post">
+                                                                <input type="hidden" name="intent" value="deletePaymentTemplate" />
+                                                                <input type="hidden" name="id" value={template.id} />
+                                                                <Button type="submit" variant="secondary" size="sm">Delete</Button>
+                                                            </Form>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -726,13 +736,20 @@ export default function SettingsPage() {
                         </div>
                     </div>
                     <Modal
-                        title="Add Payment Template"
+                        title={editingPaymentTemplate ? "Edit Payment Template" : "Add Payment Template"}
                         isOpen={isPaymentModalOpen}
-                        onClose={() => setIsPaymentModalOpen(false)}
+                        onClose={() => {
+                            setIsPaymentModalOpen(false);
+                            setEditingPaymentTemplate(null);
+                        }}
                         size="md"
                     >
-                        <Form method="post" className="space-y-4" onSubmit={() => setIsPaymentModalOpen(false)}>
-                            <input type="hidden" name="intent" value="createPaymentTemplate" />
+                        <Form method="post" className="space-y-4" onSubmit={() => {
+                            setIsPaymentModalOpen(false);
+                            setEditingPaymentTemplate(null);
+                        }}>
+                            <input type="hidden" name="intent" value={editingPaymentTemplate ? "updatePaymentTemplate" : "createPaymentTemplate"} />
+                            {editingPaymentTemplate && <input type="hidden" name="id" value={editingPaymentTemplate.id} />}
                             <Input
                                 label="Payment Type Name"
                                 name="name"
@@ -762,33 +779,48 @@ export default function SettingsPage() {
                                 rows={3}
                                 placeholder="Optional description"
                             />
-                            <div className="space-y-3">
-                                <label className="flex items-center gap-3 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        name="showOnCreate"
-                                        checked={paymentFormData.showOnCreate}
-                                        onChange={(e) => setPaymentFormData({ ...paymentFormData, showOnCreate: e.target.checked })}
-                                        value="true"
-                                        className="w-4 h-4 text-gray-800 border-gray-300 rounded focus:ring-gray-800"
-                                    />
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
                                     <span className="text-sm text-gray-700">Show when creating contract</span>
-                                </label>
-                                <label className="flex items-center gap-3 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        name="showOnClose"
-                                        checked={paymentFormData.showOnClose}
-                                        onChange={(e) => setPaymentFormData({ ...paymentFormData, showOnClose: e.target.checked })}
-                                        value="true"
-                                        className="w-4 h-4 text-gray-800 border-gray-300 rounded focus:ring-gray-800"
-                                    />
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setPaymentFormData({ ...paymentFormData, showOnCreate: !paymentFormData.showOnCreate })}
+                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
+                                            paymentFormData.showOnCreate 
+                                                ? 'bg-gray-800 border-transparent' 
+                                                : 'bg-gray-200 border-transparent'
+                                        }`}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                            paymentFormData.showOnCreate ? 'translate-x-4' : 'translate-x-0'
+                                        }`}></span>
+                                    </button>
+                                    <input type="hidden" name="showOnCreate" value={paymentFormData.showOnCreate ? "true" : "false"} />
+                                </div>
+                                <div className="flex items-center justify-between">
                                     <span className="text-sm text-gray-700">Show when closing contract</span>
-                                </label>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setPaymentFormData({ ...paymentFormData, showOnClose: !paymentFormData.showOnClose })}
+                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
+                                            paymentFormData.showOnClose 
+                                                ? 'bg-gray-800 border-transparent' 
+                                                : 'bg-gray-200 border-transparent'
+                                        }`}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                            paymentFormData.showOnClose ? 'translate-x-4' : 'translate-x-0'
+                                        }`}></span>
+                                    </button>
+                                    <input type="hidden" name="showOnClose" value={paymentFormData.showOnClose ? "true" : "false"} />
+                                </div>
                             </div>
                             <div className="flex justify-end gap-3 pt-4">
-                                <Button type="button" variant="secondary" onClick={() => setIsPaymentModalOpen(false)}>Cancel</Button>
-                                <Button type="submit" variant="primary">Create</Button>
+                                <Button type="button" variant="secondary" onClick={() => {
+                                    setIsPaymentModalOpen(false);
+                                    setEditingPaymentTemplate(null);
+                                }}>Cancel</Button>
+                                <Button type="submit" variant="primary">{editingPaymentTemplate ? "Update" : "Create"}</Button>
                             </div>
                         </Form>
                     </Modal>

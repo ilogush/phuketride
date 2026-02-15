@@ -9,6 +9,7 @@ import { Input } from "~/components/dashboard/Input";
 import Button from "~/components/dashboard/Button";
 import BackButton from "~/components/dashboard/BackButton";
 import FormSection from "~/components/dashboard/FormSection";
+import { useLatinValidation } from "~/lib/useLatinValidation";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -98,6 +99,7 @@ export default function CompanyEditPage() {
     const { company } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const errors = actionData?.errors || {};
+    const { validateLatinInput } = useLatinValidation();
 
     if (!company) {
         return (

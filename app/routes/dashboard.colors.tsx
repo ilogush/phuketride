@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
-import { PlusIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, SwatchIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
@@ -241,8 +241,6 @@ export default function ColorsPage() {
 
 function ColorIcon() {
     return (
-        <svg className="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-        </svg>
+        <SwatchIcon className="w-16 h-16 mx-auto text-gray-400" />
     );
 }

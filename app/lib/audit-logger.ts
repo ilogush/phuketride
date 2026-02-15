@@ -2,7 +2,7 @@ import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 
 export type AuditAction = "create" | "update" | "delete" | "view" | "export" | "clear";
-export type EntityType = "user" | "company" | "car" | "contract" | "payment" | "color" | "model" | "brand" | "district" | "hotel" | "season" | "duration" | "booking" | "car_template";
+export type EntityType = "user" | "company" | "car" | "contract" | "payment" | "color" | "model" | "brand" | "district" | "hotel" | "season" | "duration" | "booking" | "car_template" | "calendar-event";
 
 interface AuditLogParams {
     db: ReturnType<typeof drizzle>;

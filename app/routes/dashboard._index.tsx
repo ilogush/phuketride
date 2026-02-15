@@ -266,7 +266,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 .where(
                     and(
                         eq(contracts.clientId, user.id),
-                        eq(contracts.status, "draft"),
+                        eq(contracts.status, "active"),
                         gte(contracts.startDate, new Date())
                     )
                 );

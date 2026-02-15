@@ -50,7 +50,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         paymentTypeId: Number(formData.get("paymentTypeId")),
         amount: Number(formData.get("amount")),
         currency: (formData.get("currency") as string) || "THB",
-        paymentMethod: formData.get("paymentMethod") as "cash" | "bank_transfer" | "card" | "online",
+        paymentMethod: formData.get("paymentMethod") as "cash" | "bank_transfer" | "card",
         status: (formData.get("status") as "pending" | "completed" | "cancelled") || "completed",
         notes: (formData.get("notes") as string) || null,
         createdBy: user.id,
@@ -147,7 +147,6 @@ export default function RecordPaymentPage() {
                                 { id: "cash", name: "Cash" },
                                 { id: "card", name: "Card" },
                                 { id: "bank_transfer", name: "Bank Transfer" },
-                                { id: "online", name: "Online" }
                             ]}
                             defaultValue="cash"
                             required

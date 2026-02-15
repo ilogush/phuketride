@@ -76,10 +76,8 @@ export default function MyBookingsPage() {
     };
 
     const statusColors = {
-        draft: "bg-gray-100 text-gray-800",
         active: "bg-blue-100 text-blue-800",
-        completed: "bg-green-100 text-green-800",
-        cancelled: "bg-red-100 text-red-800",
+        closed: "bg-green-100 text-green-800",
     };
 
     return (
@@ -114,14 +112,14 @@ export default function MyBookingsPage() {
                             All
                         </button>
                         <button
-                            onClick={() => handleStatusChange("draft")}
+                            onClick={() => handleStatusChange("closed")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                status === "draft"
+                                status === "closed"
                                     ? "bg-gray-800 text-white"
                                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                             }`}
                         >
-                            Draft
+                            Closed
                         </button>
                         <button
                             onClick={() => handleStatusChange("active")}
@@ -132,16 +130,6 @@ export default function MyBookingsPage() {
                             }`}
                         >
                             Active
-                        </button>
-                        <button
-                            onClick={() => handleStatusChange("completed")}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                status === "completed"
-                                    ? "bg-gray-800 text-white"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
-                        >
-                            Completed
                         </button>
                     </div>
                 </div>

@@ -1,25 +1,78 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
-import { useLoaderData, Form } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, data, redirect } from "react-router";
+import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
 import { eq, and } from "drizzle-orm";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
 import PageHeader from "~/components/dashboard/PageHeader";
-import { TrashIcon, PlusIcon, PencilIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, PlusIcon, PencilIcon, ClockIcon as HeroClockIcon } from "@heroicons/react/24/outline";
+import { useToast } from "~/lib/toast";
 
 interface RentalDuration {
     id: number;
-    companyId: number;
     rangeName: string;
     minDays: number;
     maxDays: number | null;
     priceMultiplier: number;
     discountLabel: string | null;
+}
+
+// Validate durations coverage - no gaps allowed
+function validateDurationsCoverage(durations: Array<{minDays: number, maxDays: number | null}>): { valid: boolean, message?: string } {
+    if (durations.length === 0) {
+        return { valid: true };
+    }
+
+    // Sort by minDays
+    const sorted = [...durations].sort((a, b) => a.minDays - b.minDays);
+    
+    // First duration must start at 1
+    if (sorted[0].minDays !== 1) {
+        return { valid: false, message: "First duration must start at day 1" };
+    }
+    
+    // Check for gaps and overlaps
+    for (let i = 0; i < sorted.length; i++) {
+        const current = sorted[i];
+        
+        // Validate minDays > 0
+        if (current.minDays < 1) {
+            return { valid: false, message: "Min days must be at least 1" };
+        }
+        
+        // Validate maxDays >= minDays (if maxDays is set)
+        if (current.maxDays !== null && current.maxDays < current.minDays) {
+            return { valid: false, message: "Max days must be greater than or equal to min days" };
+        }
+        
+        // Check next duration
+        if (i < sorted.length - 1) {
+            const next = sorted[i + 1];
+            
+            // Current duration must have maxDays if not last
+            if (current.maxDays === null) {
+                return { valid: false, message: "Only the last duration can have unlimited max days" };
+            }
+            
+            // Check for gap
+            if (next.minDays !== current.maxDays + 1) {
+                return { valid: false, message: `Gap detected: duration ends at day ${current.maxDays} but next starts at day ${next.minDays}` };
+            }
+        }
+    }
+    
+    // Last duration should have maxDays = null (unlimited)
+    const last = sorted[sorted.length - 1];
+    if (last.maxDays !== null) {
+        return { valid: false, message: "Last duration should have unlimited max days (0 or empty)" };
+    }
+    
+    return { valid: true };
 }
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
@@ -32,17 +85,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     
     const db = drizzle(context.cloudflare.env.DB, { schema });
 
-    // Get companyId from user context
-    // Admin can see all companies, partner/manager see their own
-    const companyId = user.companyId || 1; // Fallback to 1 if no company assigned
-
+    // Get all durations (global, not company-specific)
     const durations = await db
         .select()
         .from(schema.rentalDurations)
-        .where(eq(schema.rentalDurations.companyId, companyId))
         .limit(100);
 
-    return { user, durations, companyId };
+    return { user, durations };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -57,21 +106,23 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
     const intent = formData.get("intent");
 
-    const companyId = user.companyId || 1; // Same as loader
-
     if (intent === "delete") {
         const id = Number(formData.get("id"));
-
-        await db
-            .delete(schema.rentalDurations)
-            .where(
-                and(
-                    eq(schema.rentalDurations.id, id),
-                    eq(schema.rentalDurations.companyId, companyId)
-                )
-            );
-
-        return data({ success: true, message: "Duration deleted successfully" });
+        
+        // Get all durations except the one being deleted
+        const allDurations = await db.select().from(schema.rentalDurations);
+        const remainingDurations = allDurations.filter(d => d.id !== id);
+        
+        // Validate coverage after deletion
+        if (remainingDurations.length > 0) {
+            const validation = validateDurationsCoverage(remainingDurations);
+            if (!validation.valid) {
+                return redirect(`/durations?error=${encodeURIComponent(validation.message!)}`);
+            }
+        }
+        
+        await db.delete(schema.rentalDurations).where(eq(schema.rentalDurations.id, id));
+        return redirect("/durations?success=Duration deleted successfully");
     }
 
     if (intent === "create") {
@@ -81,16 +132,34 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const priceMultiplier = Number(formData.get("priceMultiplier"));
         const discountLabel = formData.get("discountLabel") as string | null;
 
+        // Convert 0 to null for unlimited
+        const normalizedMaxDays = maxDays === 0 ? null : maxDays;
+
+        // Get existing durations
+        const existingDurations = await db.select().from(schema.rentalDurations);
+        
+        // Add new duration to validation
+        const allDurations = [
+            ...existingDurations,
+            { minDays, maxDays: normalizedMaxDays }
+        ];
+        
+        const validation = validateDurationsCoverage(allDurations);
+        if (!validation.valid) {
+            return redirect(`/durations?error=${encodeURIComponent(validation.message!)}`);
+        }
+
         await db.insert(schema.rentalDurations).values({
-            companyId,
             rangeName,
             minDays,
-            maxDays,
+            maxDays: normalizedMaxDays,
             priceMultiplier,
             discountLabel: discountLabel || null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
         });
 
-        return data({ success: true, message: "Duration created successfully" });
+        return redirect("/durations?success=Duration created successfully");
     }
 
     if (intent === "update") {
@@ -101,27 +170,41 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const priceMultiplier = Number(formData.get("priceMultiplier"));
         const discountLabel = formData.get("discountLabel") as string | null;
 
+        // Convert 0 to null for unlimited
+        const normalizedMaxDays = maxDays === 0 ? null : maxDays;
+
+        // Get all durations except the one being updated
+        const allDurations = await db.select().from(schema.rentalDurations);
+        const otherDurations = allDurations.filter(d => d.id !== id);
+        
+        // Add updated duration to validation
+        const durationsToValidate = [
+            ...otherDurations,
+            { minDays, maxDays: normalizedMaxDays }
+        ];
+        
+        const validation = validateDurationsCoverage(durationsToValidate);
+        if (!validation.valid) {
+            return redirect(`/durations?error=${encodeURIComponent(validation.message!)}`);
+        }
+
         await db
             .update(schema.rentalDurations)
             .set({
                 rangeName,
                 minDays,
-                maxDays,
+                maxDays: normalizedMaxDays,
                 priceMultiplier,
                 discountLabel: discountLabel || null,
+                updatedAt: new Date(),
             })
-            .where(
-                and(
-                    eq(schema.rentalDurations.id, id),
-                    eq(schema.rentalDurations.companyId, companyId)
-                )
-            );
+            .where(eq(schema.rentalDurations.id, id));
 
-        return data({ success: true, message: "Duration updated successfully" });
+        return redirect("/durations?success=Duration updated successfully");
     }
 
     if (intent === "seed") {
-        // Insert default durations from the screenshot
+        // Insert default durations
         const defaultDurations = [
             { rangeName: "1-3 days", minDays: 1, maxDays: 3, priceMultiplier: 1, discountLabel: "Base" },
             { rangeName: "4-7 days", minDays: 4, maxDays: 7, priceMultiplier: 0.95, discountLabel: "-5%" },
@@ -133,19 +216,22 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         for (const duration of defaultDurations) {
             await db.insert(schema.rentalDurations).values({
-                companyId,
                 ...duration,
+                createdAt: new Date(),
+                updatedAt: new Date(),
             });
         }
 
-        return data({ success: true, message: "Default durations created successfully" });
+        return redirect("/durations?success=Default durations created successfully");
     }
 
     return data({ success: false, message: "Invalid action" }, { status: 400 });
 }
 
 export default function DurationsPage() {
-    const { user, durations, companyId } = useLoaderData<typeof loader>();
+    const { user, durations } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const { showToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDuration, setEditingDuration] = useState<RentalDuration | null>(null);
     const [formData, setFormData] = useState({
@@ -155,6 +241,18 @@ export default function DurationsPage() {
         priceMultiplier: "1",
         discountLabel: "",
     });
+
+    useEffect(() => {
+        const success = searchParams.get("success");
+        const error = searchParams.get("error");
+        
+        if (success) {
+            showToast(success, "success");
+        }
+        if (error) {
+            showToast(error, "error");
+        }
+    }, [searchParams, showToast]);
 
     const handleEdit = (duration: RentalDuration) => {
         setEditingDuration(duration);
@@ -367,8 +465,6 @@ export default function DurationsPage() {
 
 function ClockIcon() {
     return (
-        <svg className="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <HeroClockIcon className="w-16 h-16 mx-auto text-gray-400" />
     );
 }

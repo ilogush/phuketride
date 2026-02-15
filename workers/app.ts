@@ -5,6 +5,8 @@ declare module "react-router" {
     cloudflare: {
       env: Env & {
         DB: D1Database;
+        CACHE: KVNamespace;
+        ASSETS: R2Bucket;
       };
       ctx: ExecutionContext;
     };

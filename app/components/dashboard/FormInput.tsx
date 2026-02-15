@@ -5,6 +5,7 @@ interface FormInputProps {
     label: string;
     name: string;
     type?: string;
+    step?: string | number;
     value?: string | number | null;
     defaultValue?: string | number | null;
     placeholder?: string;
@@ -20,6 +21,7 @@ const FormInput = memo(function FormInput({
     label,
     name,
     type = "text",
+    step,
     value,
     defaultValue,
     placeholder,
@@ -41,6 +43,7 @@ const FormInput = memo(function FormInput({
             label={label}
             name={name}
             type={type}
+            step={step}
             value={isFieldDisabled ? (inputValue as string) : undefined}
             defaultValue={!isFieldDisabled ? (inputDefaultValue as string) : undefined}
             placeholder={placeholder}

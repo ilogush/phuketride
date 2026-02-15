@@ -4,10 +4,11 @@ import { getUserFromSession } from "~/lib/auth.server";
 import { useState, useEffect } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { districts, users } from "~/db/schema";
 import { useToast } from "~/lib/toast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
+import { PASSWORD_MIN_LENGTH } from "~/lib/password";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     // If already logged in, redirect to dashboard
@@ -21,8 +22,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const districtsList = await db
         .select()
         .from(districts)
-        .where(eq(districts.locationId, 1))
-        .where(eq(districts.isActive, true))
+        .where(and(eq(districts.locationId, 1), eq(districts.isActive, true)))
         .orderBy(districts.name);
 
     return { districts: districtsList };
@@ -55,8 +55,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     // Password length validation
-    if (password.length < 6) {
-        return { error: "Password must be at least 6 characters" };
+    if (password.length < PASSWORD_MIN_LENGTH) {
+        return { error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters` };
     }
 
     // Latin characters validation
@@ -96,12 +96,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
     try {
         // Create user and company in transaction
         const userId = crypto.randomUUID();
+        const { hashPassword } = await import("~/lib/password.server");
+        const passwordHash = await hashPassword(password);
         
         await context.cloudflare.env.DB.batch([
             context.cloudflare.env.DB.prepare(
-                `INSERT INTO users (id, email, role, name, surname, phone, telegram, is_first_login, created_at, updated_at)
-                 VALUES (?, ?, 'partner', ?, ?, ?, ?, 1, ?, ?)`
-            ).bind(userId, email, name, surname, phone, telegram, Date.now(), Date.now()),
+                `INSERT INTO users (id, email, role, name, surname, phone, telegram, password_hash, is_first_login, created_at, updated_at)
+                 VALUES (?, ?, 'partner', ?, ?, ?, ?, ?, 1, ?, ?)`
+            ).bind(userId, email, name, surname, phone, telegram, passwordHash, Date.now(), Date.now()),
             
             context.cloudflare.env.DB.prepare(
                 `INSERT INTO companies (name, owner_id, email, phone, telegram, location_id, district_id, street, house_number, created_at, updated_at)
@@ -113,7 +115,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const companyResult = await context.cloudflare.env.DB
             .prepare("SELECT id FROM companies WHERE owner_id = ? LIMIT 1")
             .bind(userId)
-            .first<{ id: number }>();
+            .first() as { id: number } | null;
 
         // Create session
         const sessionUser = {

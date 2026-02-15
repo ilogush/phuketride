@@ -1,5 +1,5 @@
-import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Link } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { useLoaderData, Link, Form } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, desc, sql, and, gte, count } from "drizzle-orm";
@@ -218,6 +218,42 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     };
 }
 
+export async function action({ request, context, params }: ActionFunctionArgs) {
+    const user = await requireAuth(request);
+    
+    if (user.role !== "admin") {
+        return redirect(`/dashboard/companies/${params.companyId}?error=Access denied`);
+    }
+
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+    const companyId = parseInt(params.companyId || "0");
+
+    if (intent === "archive") {
+        const { archiveCompany } = await import("~/lib/archive.server");
+        const result = await archiveCompany(context.cloudflare.env.DB, companyId);
+        
+        if (result.success) {
+            return redirect(`/dashboard/companies?success=${encodeURIComponent(result.message || "Company archived successfully")}`);
+        } else {
+            return redirect(`/dashboard/companies/${companyId}?error=${encodeURIComponent(result.message || result.error || "Failed to archive company")}`);
+        }
+    }
+
+    if (intent === "unarchive") {
+        const { unarchiveCompany } = await import("~/lib/archive.server");
+        const result = await unarchiveCompany(context.cloudflare.env.DB, companyId);
+        
+        if (result.success) {
+            return redirect(`/dashboard/companies/${companyId}?success=${encodeURIComponent(result.message || "Company unarchived successfully")}`);
+        } else {
+            return redirect(`/dashboard/companies/${companyId}?error=${encodeURIComponent(result.message || result.error || "Failed to unarchive company")}`);
+        }
+    }
+
+    return redirect(`/dashboard/companies/${companyId}`);
+}
+
 export default function CompanyDetailPage() {
     const { company, stats, vehicles, teamMembers, recentActivity } = useLoaderData<typeof loader>();
     const [activeTab, setActiveTab] = useState<string>("overview");
@@ -353,7 +389,24 @@ export default function CompanyDetailPage() {
                             <p className="text-gray-500">{company.email}</p>
                         </div>
                     </div>
-                    <Button variant="secondary">Edit Profile</Button>
+                    <div className="flex gap-2">
+                        {company.archivedAt ? (
+                            <Form method="post">
+                                <input type="hidden" name="intent" value="unarchive" />
+                                <Button type="submit" variant="primary">
+                                    Unarchive
+                                </Button>
+                            </Form>
+                        ) : (
+                            <Form method="post">
+                                <input type="hidden" name="intent" value="archive" />
+                                <Button type="submit" variant="secondary">
+                                    Archive
+                                </Button>
+                            </Form>
+                        )}
+                        <Button variant="secondary">Edit Profile</Button>
+                    </div>
                 </div>
 
                 {/* Tabs */}

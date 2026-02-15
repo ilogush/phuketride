@@ -83,7 +83,7 @@ export default function MyPayments() {
         setSearchParams({ status: newStatus, page: "1" });
     };
 
-    const getStatusVariant = (status: string) => {
+    const getStatusVariant = (status: string | null) => {
         switch (status) {
             case "completed": return "success";
             case "pending": return "warning";
