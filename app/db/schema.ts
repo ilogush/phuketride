@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, real, index as sqliteIndex } from "drizzle-orm/sqlite-core";
+import { relations } from "drizzle-orm";
 
 // Users table - extends auth system
 export const users = sqliteTable("users", {
@@ -112,6 +113,20 @@ export const districts = sqliteTable("districts", {
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
+
+// Company delivery settings table
+export const companyDeliverySettings = sqliteTable("company_delivery_settings", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyId: integer("company_id").notNull(),
+    districtId: integer("district_id").notNull(),
+    isActive: integer("is_active", { mode: "boolean" }).default(false),
+    deliveryPrice: real("delivery_price").default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+}, (table) => ({
+    companyIdx: sqliteIndex("idx_company_delivery_settings_company").on(table.companyId),
+    districtIdx: sqliteIndex("idx_company_delivery_settings_district").on(table.districtId),
+}));
 
 // Hotels table
 export const hotels = sqliteTable("hotels", {
@@ -503,8 +518,6 @@ export const auditLogsCreatedAtIdx = sqliteIndex("idx_audit_logs_created_at").on
 // RELATIONS (for Drizzle ORM queries with .with())
 // ============================================
 
-import { relations } from "drizzle-orm";
-
 // Users relations
 export const usersRelations = relations(users, ({ one, many }) => ({
     // User as company owner
@@ -813,3 +826,16 @@ export const rentalDurationsRelations = relations(rentalDurations, () => ({}));
 
 // Seasons relations (global, no company relation)
 export const seasonsRelations = relations(seasons, () => ({}));
+
+
+// Company delivery settings relations
+export const companyDeliverySettingsRelations = relations(companyDeliverySettings, ({ one }) => ({
+    company: one(companies, {
+        fields: [companyDeliverySettings.companyId],
+        references: [companies.id],
+    }),
+    district: one(districts, {
+        fields: [companyDeliverySettings.districtId],
+        references: [districts.id],
+    }),
+}));

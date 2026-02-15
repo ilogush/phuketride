@@ -116,6 +116,20 @@ export async function action({ request, context }: ActionFunctionArgs) {
             holidays,
         }).returning({ id: schema.companies.id });
 
+        // Create delivery settings for all districts in the location
+        const allDistricts = await db.select().from(schema.districts).where(eq(schema.districts.locationId, validData.locationId));
+        
+        await Promise.all(
+            allDistricts.map(district =>
+                db.insert(schema.companyDeliverySettings).values({
+                    companyId: newCompany.id,
+                    districtId: district.id,
+                    isActive: district.id === validData.districtId, // Only company's district is active
+                    deliveryPrice: district.id === validData.districtId ? 0 : (district.deliveryPrice || 0),
+                })
+            )
+        );
+
         // Assign managers
         if (managerIds.length > 0 && newCompany?.id) {
             await Promise.all([

@@ -30,8 +30,57 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
 
-    const districtsRaw = await db.select().from(schema.districts).where(eq(schema.districts.locationId, 1)).limit(100);
-    const districts = districtsRaw.map((d) => ({ ...d, isActive: d.isActive ?? false }));
+    let districts: District[] = [];
+
+    if (user.role === "partner") {
+        // Get company ID - check if user is owner or manager
+        let companyId: number | null = null;
+
+        // Check if user is company owner
+        const ownedCompany = await db.select({ id: schema.companies.id })
+            .from(schema.companies)
+            .where(eq(schema.companies.ownerId, user.id))
+            .limit(1);
+
+        if (ownedCompany.length > 0) {
+            companyId = ownedCompany[0].id;
+        } else {
+            // Check if user is manager
+            const manager = await db.select({ companyId: schema.managers.companyId })
+                .from(schema.managers)
+                .where(eq(schema.managers.userId, user.id))
+                .limit(1);
+
+            if (manager.length > 0) {
+                companyId = manager[0].companyId;
+            }
+        }
+
+        if (companyId) {
+            // Load company-specific delivery settings
+            const settings = await db.select({
+                id: schema.companyDeliverySettings.id,
+                name: schema.districts.name,
+                locationId: schema.districts.locationId,
+                beaches: schema.districts.beaches,
+                streets: schema.districts.streets,
+                isActive: schema.companyDeliverySettings.isActive,
+                deliveryPrice: schema.companyDeliverySettings.deliveryPrice,
+                createdAt: schema.companyDeliverySettings.createdAt,
+                updatedAt: schema.companyDeliverySettings.updatedAt,
+            })
+            .from(schema.companyDeliverySettings)
+            .innerJoin(schema.districts, eq(schema.companyDeliverySettings.districtId, schema.districts.id))
+            .where(eq(schema.companyDeliverySettings.companyId, companyId))
+            .limit(100);
+
+            districts = settings.map(s => ({ ...s, isActive: s.isActive ?? false }));
+        }
+    } else {
+        // Admin sees all districts
+        const districtsRaw = await db.select().from(schema.districts).where(eq(schema.districts.locationId, 1)).limit(100);
+        districts = districtsRaw.map((d) => ({ ...d, isActive: d.isActive ?? false }));
+    }
 
     return { districts, user };
 }
@@ -48,14 +97,51 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (intent === "bulkUpdate") {
         const updates = JSON.parse(formData.get("updates") as string);
         
-        for (const update of updates) {
-            await db.update(schema.districts)
-                .set({ 
-                    isActive: update.isActive,
-                    deliveryPrice: update.deliveryPrice,
-                    updatedAt: new Date() 
-                })
-                .where(eq(schema.districts.id, update.id));
+        if (user.role === "partner") {
+            // Get company ID - check if user is owner or manager
+            let companyId: number | null = null;
+
+            const ownedCompany = await db.select({ id: schema.companies.id })
+                .from(schema.companies)
+                .where(eq(schema.companies.ownerId, user.id))
+                .limit(1);
+
+            if (ownedCompany.length > 0) {
+                companyId = ownedCompany[0].id;
+            } else {
+                const manager = await db.select({ companyId: schema.managers.companyId })
+                    .from(schema.managers)
+                    .where(eq(schema.managers.userId, user.id))
+                    .limit(1);
+
+                if (manager.length > 0) {
+                    companyId = manager[0].companyId;
+                }
+            }
+
+            if (companyId) {
+                // Update company delivery settings
+                for (const update of updates) {
+                    await db.update(schema.companyDeliverySettings)
+                        .set({ 
+                            isActive: update.isActive,
+                            deliveryPrice: update.deliveryPrice,
+                            updatedAt: new Date() 
+                        })
+                        .where(eq(schema.companyDeliverySettings.id, update.id));
+                }
+            }
+        } else {
+            // Admin updates global districts
+            for (const update of updates) {
+                await db.update(schema.districts)
+                    .set({ 
+                        isActive: update.isActive,
+                        deliveryPrice: update.deliveryPrice,
+                        updatedAt: new Date() 
+                    })
+                    .where(eq(schema.districts.id, update.id));
+            }
         }
 
         return data({ success: true, message: "All changes saved successfully" });
