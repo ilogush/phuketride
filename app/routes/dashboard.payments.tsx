@@ -3,8 +3,9 @@ import { useLoaderData, Link, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
+import * as schema from "~/db/schema";
 import { payments, contracts, companyCars } from "~/db/schema";
+import { eq } from "drizzle-orm";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -16,35 +17,63 @@ import { useToast } from "~/lib/toast";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB);
+    const db = drizzle(context.cloudflare.env.DB, { schema });
 
     let paymentsList: any[] = [];
     let statusCounts = { all: 0, pending: 0, completed: 0, cancelled: 0 };
 
     try {
-        const paymentsQuery = user.role === "admin"
-            ? db.select({
-                id: payments.id,
-                amount: payments.amount,
-                currency: payments.currency,
-                paymentMethod: payments.paymentMethod,
-                status: payments.status,
-                createdAt: payments.createdAt,
-            }).from(payments).limit(50)
-            : db.select({
-                id: payments.id,
-                amount: payments.amount,
-                currency: payments.currency,
-                paymentMethod: payments.paymentMethod,
-                status: payments.status,
-                createdAt: payments.createdAt,
-            }).from(payments)
-                .innerJoin(contracts, eq(payments.contractId, contracts.id))
-                .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-                .where(eq(companyCars.companyId, user.companyId!))
-                .limit(50);
+        if (user.role === "admin") {
+            // Admin sees all payments with relations
+            paymentsList = await db.query.payments.findMany({
+                with: {
+                    contract: {
+                        columns: { id: true }
+                    },
+                    paymentType: {
+                        columns: { name: true, sign: true }
+                    },
+                    currency: {
+                        columns: { code: true, symbol: true }
+                    },
+                    creator: {
+                        columns: { name: true, surname: true }
+                    }
+                },
+                limit: 50,
+                orderBy: (p, { desc }) => [desc(p.createdAt)]
+            });
+        } else {
+            // Partner/Manager sees only their company's payments
+            const allContracts = await db.query.contracts.findMany({
+                with: {
+                    companyCar: true,
+                    payments: {
+                        with: {
+                            paymentType: true,
+                            currency: true,
+                            creator: true
+                        }
+                    }
+                },
+                limit: 100
+            });
 
-        paymentsList = await paymentsQuery;
+            // Filter contracts by company and flatten payments
+            const companyContracts = allContracts.filter(
+                c => c.companyCar.companyId === user.companyId
+            );
+
+            paymentsList = companyContracts.flatMap(c => 
+                c.payments.map(p => ({
+                    ...p,
+                    contract: { id: c.id },
+                    paymentType: p.paymentType,
+                    currency: p.currency,
+                    creator: p.creator
+                }))
+            ).slice(0, 50);
+        }
 
         statusCounts.all = paymentsList.length;
         statusCounts.pending = paymentsList.filter(p => p.status === "pending").length;
@@ -101,12 +130,20 @@ export default function PaymentsPage() {
         {
             key: "contract",
             label: "Contract",
-            render: (payment) => `#${payment.id}` // TODO: add actual contract ID
+            render: (payment) => payment.contract ? `#${String(payment.contract.id).padStart(4, '0')}` : "-"
         },
         {
             key: "type",
             label: "Type",
-            render: (payment) => "-" // TODO: add payment type name
+            render: (payment) => {
+                if (!payment.paymentType) return "-";
+                const sign = payment.paymentType.sign === "+" ? "+" : "-";
+                return (
+                    <span className={payment.paymentType.sign === "+" ? "text-green-600" : "text-red-600"}>
+                        {sign} {payment.paymentType.name}
+                    </span>
+                );
+            }
         },
         {
             key: "paymentMethod",
@@ -129,16 +166,23 @@ export default function PaymentsPage() {
         {
             key: "createdBy",
             label: "Created By",
-            render: (payment) => "-" // TODO: add user name
+            render: (payment) => {
+                if (!payment.creator) return "-";
+                return `${payment.creator.name || ""} ${payment.creator.surname || ""}`.trim() || "-";
+            }
         },
         {
             key: "amount",
             label: "Amount",
-            render: (payment) => (
-                <span className="font-medium text-gray-900">
-                    {payment.amount} {payment.currency || "THB"}
-                </span>
-            )
+            render: (payment) => {
+                const currencySymbol = payment.currency?.symbol || "฿";
+                const currencyCode = payment.currency?.code || payment.currency || "THB";
+                return (
+                    <span className="font-medium text-gray-900">
+                        {currencySymbol}{payment.amount} {currencyCode}
+                    </span>
+                );
+            }
         },
     ];
 

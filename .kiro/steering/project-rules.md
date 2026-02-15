@@ -82,11 +82,15 @@ const { validateLatinInput } = useLatinValidation()
 
 ## 5. База Данных (КРИТИЧНО)
 
-### 5.1 Cloudflare D1
-- **ЗАПРЕЩЕНО** локальные БД (PostgreSQL, MySQL, SQLite файлы)
-- **ТОЛЬКО** `context.cloudflare.env.DB` + Drizzle ORM
+### 5.1 Cloudflare D1 - ТОЛЬКО УДАЛЕННАЯ БД
+- **АБСОЛЮТНО ЗАПРЕЩЕНО** использовать локальную БД
+- **АБСОЛЮТНО ЗАПРЕЩЕНО** флаг `--local` в любых командах
+- **АБСОЛЮТНО ЗАПРЕЩЕНО** создавать/использовать `.wrangler/state/v3/d1/*.sqlite`
+- **ОБЯЗАТЕЛЬНО**: `npm run dev` ДОЛЖЕН быть `react-router dev --remote`
+- **ОБЯЗАТЕЛЬНО**: Все миграции ТОЛЬКО `--remote`
+- **ОБЯЗАТЕЛЬНО**: Доступ к БД ТОЛЬКО через `context.cloudflare.env.DB`
+- **ОБЯЗАТЕЛЬНО**: Если видишь локальную БД - НЕМЕДЛЕННО удалить `.wrangler/state/v3/d1`
 - Именование: `snake_case`
-- Миграции: `npm run db:migrate:local` / `npm run db:migrate:remote`
 - См. docs/DATABASE.md
 
 ### 5.2 Запросы

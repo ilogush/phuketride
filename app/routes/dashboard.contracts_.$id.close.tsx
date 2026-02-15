@@ -42,6 +42,11 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
         throw new Response("Contract not found", { status: 404 });
     }
 
+    // SECURITY: Verify contract belongs to user's company
+    if (user.role !== "admin" && contract.companyCar.companyId !== user.companyId) {
+        throw new Response("Forbidden", { status: 403 });
+    }
+
     // Get payment templates for contract closing (show_on_close = 1)
     const paymentTemplates = await db.query.paymentTypes.findMany({
         where: (pt, { eq, and, or, isNull }) => and(
@@ -85,10 +90,20 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
         // Get contract to update car status
         const contract = await db.query.contracts.findFirst({
             where: (c, { eq }) => eq(c.id, contractId),
+            with: {
+                companyCar: {
+                    columns: { companyId: true }
+                }
+            }
         });
 
         if (!contract) {
             return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
+        }
+
+        // SECURITY: Verify contract belongs to user's company
+        if (user.role !== "admin" && contract.companyCar.companyId !== user.companyId) {
+            return redirect(`/contracts?error=${encodeURIComponent("Forbidden")}`);
         }
 
         // Update contract status to closed
@@ -125,9 +140,8 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
         }
 
         // Update car status to available
-        await db.update(schema.companyCars)
-            .set({ status: 'available' })
-            .where(eq(schema.companyCars.id, contract.companyCarId));
+        const { updateCarStatus } = await import("~/lib/contract-helpers.server");
+        await updateCarStatus(db, contract.companyCarId, 'available', 'Contract closed');
 
         // Audit log
         const metadata = getRequestMetadata(request);

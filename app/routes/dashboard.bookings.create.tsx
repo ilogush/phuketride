@@ -181,10 +181,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
             updatedAt: new Date(),
         }).returning();
 
-        // Update car status to booked
-        await db.update(schema.companyCars)
-            .set({ status: "booked", updatedAt: new Date() })
-            .where(eq(schema.companyCars.id, Number(carId)));
+            // Update car status to booked
+            const { updateCarStatus } = await import("~/lib/contract-helpers.server");
+            await updateCarStatus(db, Number(carId), 'booked', 'Booking created');
 
         // Create calendar events for booking
         await createBookingEvents({

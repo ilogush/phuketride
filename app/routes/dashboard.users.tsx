@@ -45,18 +45,20 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 .bind(companyId)
                 .all() as { results?: any[] };
 
-            // Get users (clients) - for now, all users
-            // TODO: Add company_id to contracts/bookings to filter users by company
-            const usersResult = await context.cloudflare.env.DB
+            // Get users (clients) who have contracts with this company
+            const clientsResult = await context.cloudflare.env.DB
                 .prepare(`
-                    SELECT id, email, name, surname, role, phone
-                    FROM users
-                    WHERE role = 'user'
+                    SELECT DISTINCT u.id, u.email, u.name, u.surname, u.role, u.phone
+                    FROM users u
+                    INNER JOIN contracts c ON u.id = c.client_id
+                    INNER JOIN company_cars cc ON c.company_car_id = cc.id
+                    WHERE cc.company_id = ? AND u.role = 'user'
                     LIMIT 50
                 `)
+                .bind(companyId)
                 .all() as { results?: any[] };
 
-            usersList = [...(managersResult.results || []), ...(usersResult.results || [])];
+            usersList = [...(managersResult.results || []), ...(clientsResult.results || [])];
         } else {
             // Admin can see all users
             usersList = await db.select({

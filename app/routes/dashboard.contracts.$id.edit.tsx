@@ -30,45 +30,46 @@ import { format } from "date-fns";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB);
+    const db = drizzle(context.cloudflare.env.DB, { schema });
     const contractId = parseInt(params.id!);
 
-    // Get contract
-    const [contract] = await db
-        .select()
-        .from(contracts)
-        .where(eq(contracts.id, contractId))
-        .limit(1);
+    // Get contract with car details
+    const contract = await db.query.contracts.findFirst({
+        where: (c, { eq }) => eq(c.id, contractId),
+        with: {
+            companyCar: {
+                columns: { id: true, companyId: true, licensePlate: true }
+            },
+            client: true
+        }
+    });
 
     if (!contract) {
         throw new Response("Contract not found", { status: 404 });
     }
 
+    // SECURITY: Verify contract belongs to user's company
+    if (user.role !== "admin" && contract.companyCar.companyId !== user.companyId) {
+        throw new Response("Access denied", { status: 403 });
+    }
+
     // Get company cars
-    const cars = await db
-        .select({
-            id: companyCars.id,
-            name: companyCars.licensePlate,
-        })
-        .from(companyCars)
-        .where(eq(companyCars.companyId, user.companyId!));
+    const cars = await db.query.companyCars.findMany({
+        where: (c, { eq, and, isNull }) => and(
+            eq(c.companyId, user.companyId!),
+            eq(c.status, 'available'),
+            isNull(c.archivedAt)
+        ),
+        columns: { id: true, licensePlate: true }
+    });
 
     // Get districts
-    const districtsList = await db
-        .select({
-            id: districts.id,
-            name: districts.name,
-        })
-        .from(districts);
+    const districtsList = await db.query.districts.findMany({
+        where: (d, { eq }) => eq(d.isActive, true),
+        columns: { id: true, name: true }
+    });
 
-    // Get client
-    const [client] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, contract.clientId))
-        .limit(1);
-
-    return { contract, cars, districts: districtsList, client };
+    return { contract, cars, districts: districtsList, client: contract.client };
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
@@ -114,17 +115,22 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         }
     };
 
-    // Access check (non-admin must match company)
-    if (user.role !== "admin") {
-        const [carRow] = await db
-            .select({ companyId: companyCars.companyId })
-            .from(companyCars)
-            .where(eq(companyCars.id, existingContract.companyCarId))
-            .limit(1);
-
-        if (!carRow || carRow.companyId !== user.companyId) {
-            return redirect(`/contracts?error=${encodeURIComponent("Access denied")}`);
+    // SECURITY: Verify contract belongs to user's company
+    const contract = await db.query.contracts.findFirst({
+        where: (c, { eq }) => eq(c.id, contractId),
+        with: {
+            companyCar: {
+                columns: { companyId: true }
+            }
         }
+    });
+
+    if (!contract) {
+        return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
+    }
+
+    if (user.role !== "admin" && contract.companyCar.companyId !== user.companyId) {
+        return redirect(`/contracts?error=${encodeURIComponent("Access denied")}`);
     }
 
     // Client update (keep existing values if empty)
@@ -212,12 +218,9 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     await db.update(contracts).set(updatePayload as any).where(eq(contracts.id, contractId));
 
     if (newCompanyCarId !== existingContract.companyCarId) {
-        await db.update(companyCars)
-            .set({ status: "available" })
-            .where(eq(companyCars.id, existingContract.companyCarId));
-        await db.update(companyCars)
-            .set({ status: "rented" })
-            .where(eq(companyCars.id, newCompanyCarId));
+        const { updateCarStatus } = await import("~/lib/contract-helpers.server");
+        await updateCarStatus(db, existingContract.companyCarId, 'available', 'Contract car changed');
+        await updateCarStatus(db, newCompanyCarId, 'rented', 'Contract car changed');
     }
 
     // Refresh calendar events (delete old and recreate)

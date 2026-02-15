@@ -46,8 +46,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 .select({ count: sql<number>`count(*)` })
                 .from(users);
 
-            // TODO: Implement online users tracking (requires session management)
-            const onlineUsers = 0;
+            const onlineUsers = 0; // Online tracking not implemented
 
             const [carsCount] = await db
                 .select({ count: sql<number>`count(*)` })
@@ -136,8 +135,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     )
                 );
 
-            // TODO: Implement online users tracking
-            const onlineUsers = 0;
+            const onlineUsers = 0; // Online tracking not implemented
 
             const [carsCount] = await db
                 .select({ count: sql<number>`count(*)` })

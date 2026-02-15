@@ -65,9 +65,8 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 .where(eq(schema.bookings.id, bookingId));
 
             // Update car status back to available
-            await db.update(schema.companyCars)
-                .set({ status: "available", updatedAt: new Date() })
-                .where(eq(schema.companyCars.id, booking.companyCarId));
+            const { updateCarStatus } = await import("~/lib/contract-helpers.server");
+            await updateCarStatus(db, booking.companyCarId, 'available', 'Booking cancelled');
 
             // Audit log
             const metadata = getRequestMetadata(request);
@@ -156,9 +155,8 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 .where(eq(schema.bookings.id, bookingId));
 
             // Update car status to rented
-            await db.update(schema.companyCars)
-                .set({ status: "rented", updatedAt: new Date() })
-                .where(eq(schema.companyCars.id, booking.companyCarId));
+            const { updateCarStatus } = await import("~/lib/contract-helpers.server");
+            await updateCarStatus(db, booking.companyCarId, 'rented', 'Booking converted to contract');
 
             // Audit logs
             const metadata = getRequestMetadata(request);

@@ -218,8 +218,46 @@ export async function action({ request, context }: ActionFunctionArgs) {
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
             throw new Error("Start and end dates are required");
         }
+        if (startDate >= endDate) {
+            throw new Error("End date must be after start date");
+        }
         if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
             throw new Error("Total amount must be greater than 0");
+        }
+
+        // SECURITY: Verify car belongs to user's company
+        const car = await db.query.companyCars.findFirst({
+            where: (c, { eq, and }) => and(
+                eq(c.id, companyCarId),
+                eq(c.companyId, user.companyId!)
+            ),
+            columns: { id: true, status: true }
+        });
+        
+        if (!car) {
+            throw new Error("Car not found or doesn't belong to your company");
+        }
+        
+        if (car.status !== 'available') {
+            throw new Error("Car is not available for rent");
+        }
+
+        // Check for overlapping contracts
+        const overlapping = await db.query.contracts.findFirst({
+            where: (c, { eq, and, or, lte, gte }) => and(
+                eq(c.companyCarId, companyCarId),
+                eq(c.status, 'active'),
+                or(
+                    and(lte(c.startDate, startDate), gte(c.endDate, startDate)),
+                    and(lte(c.startDate, endDate), gte(c.endDate, endDate)),
+                    and(gte(c.startDate, startDate), lte(c.endDate, endDate))
+                )
+            ),
+            columns: { id: true }
+        });
+
+        if (overlapping) {
+            throw new Error("Car is already booked for these dates");
         }
 
         const parsePhotoList = (value: FormDataEntryValue | null): string[] => {
@@ -308,9 +346,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
 
         // Update car status to 'rented'
-        await db.update(schema.companyCars)
-            .set({ status: 'rented' })
-            .where(eq(schema.companyCars.id, companyCarId));
+        const { updateCarStatus } = await import("~/lib/contract-helpers.server");
+        await updateCarStatus(db, companyCarId, 'rented', 'Contract created');
 
         // Create calendar events for contract
         await createContractEvents({

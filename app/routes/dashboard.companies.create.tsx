@@ -95,7 +95,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         // Create company
         const [newCompany] = await db.insert(schema.companies).values({
             name: validData.name,
-            ownerId: user.id,
+            ownerId: user.id, // Admin creates company but doesn't own it
             email: validData.email,
             phone: validData.phone,
             telegram: validData.telegram,
@@ -116,6 +116,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
             holidays,
         }).returning({ id: schema.companies.id });
 
+        if (!newCompany?.id) {
+            throw new Error("Failed to create company - no ID returned");
+        }
+
         // Create delivery settings for all districts in the location
         const allDistricts = await db.select().from(schema.districts).where(eq(schema.districts.locationId, validData.locationId));
         
@@ -130,8 +134,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
             )
         );
 
-        // Assign managers
+        // Assign managers and update their role to partner
         if (managerIds.length > 0 && newCompany?.id) {
+            // First manager becomes the owner
+            const ownerId = managerIds[0];
+            
+            // Update company owner
+            await db.update(schema.companies)
+                .set({ ownerId })
+                .where(eq(schema.companies.id, newCompany.id));
+
+            // Create manager records and update roles
             await Promise.all([
                 ...managerIds.map(userId =>
                     db.insert(schema.managers).values({
@@ -146,6 +159,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
                         .where(eq(schema.users.id, userId))
                 )
             ]);
+        } else if (!managerIds.length) {
+            // No manager selected - admin remains as temporary owner
+            console.warn(`Company ${newCompany.id} created without owner - admin is temporary owner`);
         }
 
         // Audit log

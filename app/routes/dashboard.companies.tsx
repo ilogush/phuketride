@@ -38,7 +38,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
         // Filter companies based on archived status
         const filteredCompaniesData = companiesData.filter(c => {
-            if (c.id === 3) return false; // Skip company ID 3
             if (showArchived) return true; // Show all if archived filter is on
             return !c.archivedAt; // Show only non-archived by default
         });
