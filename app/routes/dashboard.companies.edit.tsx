@@ -88,10 +88,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             })
             .where(eq(companies.id, companyId));
 
-        return redirect(`/companies/${companyId}`);
+        return redirect(`/companies/${companyId}?success=Company updated successfully`);
     } catch (error) {
         console.error("Error updating company:", error);
-        return { errors: { form: "Failed to update company. Please try again." } };
+        return redirect(`/companies/${companyId}/edit?error=Failed to update company`);
     }
 }
 

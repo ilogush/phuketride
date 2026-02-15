@@ -104,9 +104,9 @@ export default function CompaniesPage() {
             key: "id",
             label: "ID",
             render: (company) => (
-                <span className="font-mono text-xs bg-gray-800 text-white px-2 py-1 rounded-full">
+                <Link to={`/companies/${company.id}`} className="font-mono text-xs bg-gray-800 text-white px-2 py-1 rounded-full hover:bg-gray-700">
                     {String(company.id).padStart(4, '0')}
-                </span>
+                </Link>
             ),
         },
         {
@@ -162,22 +162,6 @@ export default function CompaniesPage() {
                 }`}>
                     {company.status}
                 </span>
-            ),
-        },
-        {
-            key: "actions",
-            label: "Actions",
-            render: (company) => (
-                <div className="flex gap-2">
-                    <Link to={`/companies/${company.id}`}>
-                        <Button variant="secondary" size="sm">
-                            View
-                        </Button>
-                    </Link>
-                    <Link to={`/companies/${company.id}/edit`}>
-                        <Button variant="secondary" size="sm">Edit</Button>
-                    </Link>
-                </div>
             ),
         },
     ];

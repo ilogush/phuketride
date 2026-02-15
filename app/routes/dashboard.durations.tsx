@@ -206,12 +206,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (intent === "seed") {
         // Insert default durations
         const defaultDurations = [
-            { rangeName: "1-3 days", minDays: 1, maxDays: 3, priceMultiplier: 1, discountLabel: "Base" },
-            { rangeName: "4-7 days", minDays: 4, maxDays: 7, priceMultiplier: 0.95, discountLabel: "-5%" },
-            { rangeName: "8-14 days", minDays: 8, maxDays: 14, priceMultiplier: 0.9, discountLabel: "-10%" },
-            { rangeName: "15-21 days", minDays: 15, maxDays: 21, priceMultiplier: 0.85, discountLabel: "-15%" },
-            { rangeName: "22-28 days", minDays: 22, maxDays: 28, priceMultiplier: 0.8, discountLabel: "-20%" },
-            { rangeName: "29+ days", minDays: 29, maxDays: null, priceMultiplier: 0.75, discountLabel: "-25%" },
+            { rangeName: "1-2 days", minDays: 1, maxDays: 2, priceMultiplier: 1, discountLabel: null },
+            { rangeName: "3-6 days", minDays: 3, maxDays: 6, priceMultiplier: 0.95, discountLabel: "5% off" },
+            { rangeName: "7-13 days", minDays: 7, maxDays: 13, priceMultiplier: 0.9, discountLabel: "10% off" },
+            { rangeName: "14-20 days", minDays: 14, maxDays: 20, priceMultiplier: 0.85, discountLabel: "15% off" },
+            { rangeName: "21-28 days", minDays: 21, maxDays: 28, priceMultiplier: 0.8, discountLabel: "20% off" },
+            { rangeName: "29+ days", minDays: 29, maxDays: null, priceMultiplier: 0.75, discountLabel: "25% off" },
         ];
 
         for (const duration of defaultDurations) {
@@ -318,27 +318,14 @@ export default function DurationsPage() {
             key: "actions",
             label: "Actions",
             render: (item) => (
-                <div className="flex gap-2">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleEdit(item)}
-                    >
-                        Edit
-                    </Button>
-                    <Form method="post" className="inline">
-                        <input type="hidden" name="intent" value="delete" />
-                        <input type="hidden" name="id" value={item.id} />
-                        <Button
-                            type="submit"
-                            variant="secondary"
-                            size="sm"
-                        >
-                            Delete
-                        </Button>
-                    </Form>
-                </div>
+                <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleEdit(item)}
+                >
+                    Edit
+                </Button>
             ),
         },
     ];
