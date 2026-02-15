@@ -60,7 +60,7 @@ export default function BrandsPage() {
                 totalCount={0}
                 emptyTitle="No brands found"
                 emptyDescription="Add your first car brand to get started"
-                emptyIcon={<SwatchIcon className="w-16 h-16" />}
+                emptyIcon={<SwatchIcon className="w-10 h-10" />}
             />
         </div>
     );

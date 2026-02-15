@@ -465,6 +465,6 @@ export default function DurationsPage() {
 
 function ClockIcon() {
     return (
-        <HeroClockIcon className="w-16 h-16 mx-auto text-gray-400" />
+        <HeroClockIcon className="w-10 h-10 mx-auto text-gray-400" />
     );
 }

@@ -95,6 +95,26 @@ export default function DataTable<T>({
         return initialPageSize
     })
 
+    // Sync state with URL params
+    useEffect(() => {
+        const urlPage = searchParams.get('page')
+        const urlPageSize = searchParams.get('pageSize')
+        
+        if (urlPage) {
+            const parsedPage = parseInt(urlPage)
+            if (!isNaN(parsedPage) && parsedPage !== page) {
+                setPage(parsedPage)
+            }
+        }
+        
+        if (urlPageSize) {
+            const parsedPageSize = parseInt(urlPageSize)
+            if (!isNaN(parsedPageSize) && parsedPageSize !== pageSize) {
+                setPageSize(parsedPageSize)
+            }
+        }
+    }, [searchParams])
+
     const [sortBy, setSortBy] = useState<string | undefined>()
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>()
 
@@ -310,8 +330,6 @@ export default function DataTable<T>({
                         hasNext: page < Math.ceil(totalCount / pageSize),
                         hasPrevious: page > 1
                     }}
-                    onPageChange={setPage}
-                    onPageSizeChange={setPageSize}
                 />
             )}
         </div>

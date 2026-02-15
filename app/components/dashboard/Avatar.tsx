@@ -15,7 +15,7 @@ const Avatar = memo(function Avatar({
 }: AvatarProps) {
     const sizeClasses = {
         sm: "w-10 h-10 text-sm",
-        md: "w-16 h-16 text-xl",
+        md: "w-10 h-10 text-xl",
         lg: "w-20 h-20 text-2xl",
         xl: "w-32 h-32 text-4xl",
     };

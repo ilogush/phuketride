@@ -31,7 +31,6 @@ interface CarTemplate {
     id: number
     brand_id: number
     model_id: number
-    production_year?: number
     transmission?: 'automatic' | 'manual'
     engine_volume?: number
     body_type_id?: number
@@ -54,7 +53,6 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
     const [formData, setFormData] = useState({
         brand_id: '',
         model_id: '',
-        production_year: '',
         transmission: '',
         engine_volume: '',
         body_type_id: '',
@@ -73,7 +71,6 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
             setFormData({
                 brand_id: template.brand_id.toString(),
                 model_id: template.model_id.toString(),
-                production_year: template.production_year?.toString() || '',
                 transmission: template.transmission || '',
                 engine_volume: template.engine_volume?.toString() || '',
                 body_type_id: template.body_type_id?.toString() || '',
@@ -112,155 +109,122 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
     return (
         <Form method="post" id="car-template-form" className="space-y-4">
             <FormSection title="Basic Information" icon={<TruckIcon className="w-5 h-5" />}>
-                <div className="grid grid-cols-4 gap-4">
-                    <div className="col-span-1">
-                        <FormField label="Brand" required error={errors.brand_id}>
-                            <select
-                                name="brand_id"
-                                value={formData.brand_id}
-                                onChange={handleChange}
-                                className={`${selectBaseStyles} ${errors.brand_id ? 'border-gray-600' : ''}`}
-                                required
-                            >
-                                <option value="">Select brand</option>
-                                {brands.map(brand => (
-                                    <option key={brand.id} value={brand.id}>
-                                        {brand.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </FormField>
-                    </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <FormField label="Brand" required error={errors.brand_id}>
+                        <select
+                            name="brand_id"
+                            value={formData.brand_id}
+                            onChange={handleChange}
+                            className={`${selectBaseStyles} ${errors.brand_id ? 'border-gray-600' : ''}`}
+                            required
+                        >
+                            <option value="">Select brand</option>
+                            {brands.map(brand => (
+                                <option key={brand.id} value={brand.id}>
+                                    {brand.name}
+                                </option>
+                            ))}
+                        </select>
+                    </FormField>
 
-                    <div className="col-span-1">
-                        <FormField label="Model" required error={errors.model_id}>
-                            <select
-                                name="model_id"
-                                value={formData.model_id}
-                                onChange={handleChange}
-                                className={`${selectBaseStyles} ${errors.model_id ? 'border-gray-600' : ''}`}
-                                required
-                            >
-                                <option value="">Select model</option>
-                                {filteredModels.map(model => (
-                                    <option key={model.id} value={model.id}>
-                                        {model.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </FormField>
-                    </div>
+                    <FormField label="Model" required error={errors.model_id}>
+                        <select
+                            name="model_id"
+                            value={formData.model_id}
+                            onChange={handleChange}
+                            className={`${selectBaseStyles} ${errors.model_id ? 'border-gray-600' : ''}`}
+                            required
+                        >
+                            <option value="">Select model</option>
+                            {filteredModels.map(model => (
+                                <option key={model.id} value={model.id}>
+                                    {model.name}
+                                </option>
+                            ))}
+                        </select>
+                    </FormField>
 
-                    <div className="col-span-1">
-                        <FormField label="Year" error={errors.production_year}>
-                            <input
-                                type="number"
-                                name="production_year"
-                                value={formData.production_year}
-                                onChange={handleChange}
-                                className={`${inputBaseStyles} ${errors.production_year ? 'border-gray-600' : ''}`}
-                                placeholder="2024"
-                                min="1900"
-                                max={new Date().getFullYear() + 1}
-                            />
-                        </FormField>
-                    </div>
+                    <FormField label="Transmission" error={errors.transmission}>
+                        <select
+                            name="transmission"
+                            value={formData.transmission}
+                            onChange={handleChange}
+                            className={selectBaseStyles}
+                        >
+                            <option value="">Select</option>
+                            <option value="automatic">Automatic</option>
+                            <option value="manual">Manual</option>
+                        </select>
+                    </FormField>
 
-                    <div className="col-span-1">
-                        <FormField label="Transmission" error={errors.transmission}>
-                            <select
-                                name="transmission"
-                                value={formData.transmission}
-                                onChange={handleChange}
-                                className={selectBaseStyles}
-                            >
-                                <option value="">Select</option>
-                                <option value="automatic">Automatic</option>
-                                <option value="manual">Manual</option>
-                            </select>
-                        </FormField>
-                    </div>
+                    <FormField label="Body Type" error={errors.body_type_id}>
+                        <select
+                            name="body_type_id"
+                            value={formData.body_type_id}
+                            onChange={handleChange}
+                            className={`${selectBaseStyles} ${errors.body_type_id ? 'border-gray-600' : ''}`}
+                        >
+                            <option value="">Select body type</option>
+                            {bodyTypes.map(type => (
+                                <option key={type.id} value={type.id}>
+                                    {type.name}
+                                </option>
+                            ))}
+                        </select>
+                    </FormField>
 
-                    <div className="col-span-1">
-                        <FormField label="Body Type" error={errors.body_type_id}>
-                            <select
-                                name="body_type_id"
-                                value={formData.body_type_id}
-                                onChange={handleChange}
-                                className={`${selectBaseStyles} ${errors.body_type_id ? 'border-gray-600' : ''}`}
-                            >
-                                <option value="">Select body type</option>
-                                {bodyTypes.map(type => (
-                                    <option key={type.id} value={type.id}>
-                                        {type.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </FormField>
-                    </div>
+                    <FormField label="Fuel Type" error={errors.fuel_type_id}>
+                        <select
+                            name="fuel_type_id"
+                            value={formData.fuel_type_id}
+                            onChange={handleChange}
+                            className={`${selectBaseStyles} ${errors.fuel_type_id ? 'border-gray-600' : ''}`}
+                        >
+                            <option value="">Select fuel type</option>
+                            {fuelTypes.map(type => (
+                                <option key={type.id} value={type.id}>
+                                    {type.name}
+                                </option>
+                            ))}
+                        </select>
+                    </FormField>
 
-                    <div className="col-span-1">
-                        <FormField label="Fuel Type" error={errors.fuel_type_id}>
-                            <select
-                                name="fuel_type_id"
-                                value={formData.fuel_type_id}
-                                onChange={handleChange}
-                                className={`${selectBaseStyles} ${errors.fuel_type_id ? 'border-gray-600' : ''}`}
-                            >
-                                <option value="">Select fuel type</option>
-                                {fuelTypes.map(type => (
-                                    <option key={type.id} value={type.id}>
-                                        {type.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </FormField>
-                    </div>
+                    <FormField label="Engine Volume (L)" error={errors.engine_volume}>
+                        <input
+                            type="number"
+                            name="engine_volume"
+                            value={formData.engine_volume}
+                            onChange={handleChange}
+                            className={`${inputBaseStyles} ${errors.engine_volume ? 'border-gray-600' : ''}`}
+                            placeholder="2.0"
+                            step="0.1"
+                            min="0"
+                        />
+                    </FormField>
 
-                    <div className="col-span-1">
-                        <FormField label="Engine Volume (L)" error={errors.engine_volume}>
-                            <input
-                                type="number"
-                                name="engine_volume"
-                                value={formData.engine_volume}
-                                onChange={handleChange}
-                                className={`${inputBaseStyles} ${errors.engine_volume ? 'border-gray-600' : ''}`}
-                                placeholder="2.0"
-                                step="0.1"
-                                min="0"
-                            />
-                        </FormField>
-                    </div>
+                    <FormField label="Seats" error={errors.seats}>
+                        <input
+                            type="number"
+                            name="seats"
+                            value={formData.seats}
+                            onChange={handleChange}
+                            className={`${inputBaseStyles} ${errors.seats ? 'border-gray-600' : ''}`}
+                            placeholder="5"
+                            min="1"
+                        />
+                    </FormField>
 
-                    <div className="col-span-1">
-                        <FormField label="Seats" error={errors.seats}>
-                            <input
-                                type="number"
-                                name="seats"
-                                value={formData.seats}
-                                onChange={handleChange}
-                                className={`${inputBaseStyles} ${errors.seats ? 'border-gray-600' : ''}`}
-                                placeholder="5"
-                                min="1"
-                            />
-                        </FormField>
-                    </div>
-
-                    <div className="col-span-1">
-                        <FormField label="Doors" error={errors.doors}>
-                            <input
-                                type="number"
-                                name="doors"
-                                value={formData.doors}
-                                onChange={handleChange}
-                                className={`${inputBaseStyles} ${errors.doors ? 'border-gray-600' : ''}`}
-                                placeholder="4"
-                                min="1"
-                            />
-                        </FormField>
-                    </div>
-
-                    <div className="col-span-1"></div>
+                    <FormField label="Doors" error={errors.doors}>
+                        <input
+                            type="number"
+                            name="doors"
+                            value={formData.doors}
+                            onChange={handleChange}
+                            className={`${inputBaseStyles} ${errors.doors ? 'border-gray-600' : ''}`}
+                            placeholder="4"
+                            min="1"
+                        />
+                    </FormField>
                 </div>
             </FormSection>
 
@@ -274,8 +238,8 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
             </FormSection>
 
             <FormSection title="Description" icon={<DocumentTextIcon className="w-5 h-5" />}>
-                <div className="grid grid-cols-4 gap-4">
-                    <div className="col-span-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="col-span-full">
                         <FormField label="Description" error={errors.description}>
                             <textarea
                                 name="description"

@@ -47,8 +47,8 @@ export async function optimizeImage(
                 ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // Convert to base64
-                const base64 = canvas.toBlob(
+                // Convert to WebP format
+                canvas.toBlob(
                     (blob) => {
                         if (!blob) {
                             reject(new Error('Failed to create blob'));
@@ -59,14 +59,14 @@ export async function optimizeImage(
                         reader.onloadend = () => {
                             resolve({
                                 base64: reader.result as string,
-                                fileName: file.name,
+                                fileName: file.name.replace(/\.(jpg|jpeg|png)$/i, '.webp'),
                                 originalSize: file.size,
                                 compressedSize: blob.size,
                             });
                         };
                         reader.readAsDataURL(blob);
                     },
-                    'image/jpeg',
+                    'image/webp',
                     quality
                 );
             };

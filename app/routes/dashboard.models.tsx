@@ -61,7 +61,7 @@ export default function ModelsPage() {
                 totalCount={0}
                 emptyTitle="No models found"
                 emptyDescription="Add models to the database"
-                emptyIcon={<CubeIcon className="w-16 h-16" />}
+                emptyIcon={<CubeIcon className="w-10 h-10" />}
             />
         </div>
     );

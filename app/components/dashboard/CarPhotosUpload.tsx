@@ -1,5 +1,6 @@
 import { useState, useRef } from "react"
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { optimizeImage } from "~/lib/image-optimizer"
 
 interface CarPhotosUploadProps {
     currentPhotos?: string[]
@@ -15,13 +16,13 @@ export default function CarPhotosUpload({
     const [previews, setPreviews] = useState<Array<{ id: string; base64: string; fileName: string }>>(
         currentPhotos.map((photo, index) => ({
             id: `existing-${index}`,
-            base64: photo,
+            base64: photo.startsWith('data:') ? photo : photo, // Keep URL as is
             fileName: `photo-${index}`,
         }))
     )
     const fileInputRef = useRef<HTMLInputElement>(null)
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || [])
         if (files.length === 0) return
 
@@ -30,29 +31,28 @@ export default function CarPhotosUpload({
         }
 
         const newPhotos: Array<{ id: string; base64: string; fileName: string }> = []
-        let processedCount = 0
 
-        files.forEach((file) => {
+        for (const file of files) {
             if (!file.type.startsWith("image/")) {
-                processedCount++
-                return
+                continue
             }
 
-            const reader = new FileReader()
-            reader.onloadend = () => {
-                const base64 = reader.result as string
+            try {
+                const optimized = await optimizeImage(file, 1200, 800, 0.85)
                 const id = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
-                newPhotos.push({ id, base64, fileName: file.name })
-
-                processedCount++
-                if (processedCount === files.length) {
-                    const updatedPreviews = [...previews, ...newPhotos]
-                    setPreviews(updatedPreviews)
-                    onPhotosChange(updatedPreviews.map((p) => ({ base64: p.base64, fileName: p.fileName })))
-                }
+                newPhotos.push({ 
+                    id, 
+                    base64: optimized.base64, 
+                    fileName: optimized.fileName 
+                })
+            } catch (error) {
+                console.error("Failed to optimize image:", error)
             }
-            reader.readAsDataURL(file)
-        })
+        }
+
+        const updatedPreviews = [...previews, ...newPhotos]
+        setPreviews(updatedPreviews)
+        onPhotosChange(updatedPreviews.map((p) => ({ base64: p.base64, fileName: p.fileName })))
 
         if (fileInputRef.current) {
             fileInputRef.current.value = ""
@@ -92,7 +92,7 @@ export default function CarPhotosUpload({
                     onClick={() => fileInputRef.current?.click()}
                     className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-lg flex flex-col items-center justify-center cursor-pointer gap-2"
                 >
-                    <PlusIcon className="w-8 h-8 text-gray-400" />
+                    <PlusIcon className="w-6 h-6 text-gray-400" />
                     <span className="text-xs text-gray-400">
                         {previews.length}/{maxPhotos}
                     </span>

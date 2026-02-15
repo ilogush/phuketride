@@ -8,9 +8,11 @@ import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
+import Card from "~/components/dashboard/Card";
 import Tabs from "~/components/dashboard/Tabs";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
+import CarPhotosUpload from "~/components/dashboard/CarPhotosUpload";
 import { useToast } from "~/lib/toast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { carSchema } from "~/schemas/car";
@@ -84,11 +86,31 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         return redirect(`/cars/${carId}?error=Access denied`);
     }
 
+    const intent = formData.get("intent");
+
+    if (intent === "archive" || intent === "delete") {
+        const { deleteOrArchiveCar } = await import("~/lib/archive.server");
+        const result = await deleteOrArchiveCar(context.cloudflare.env.DB, carId, car.companyId);
+        
+        if (result.success) {
+            return redirect(`/cars?success=${encodeURIComponent(result.message || "Car updated successfully")}`);
+        } else {
+            return redirect(`/cars/${carId}/edit?error=${encodeURIComponent(result.message || result.error || "Failed to update car")}`);
+        }
+    }
+
+    if (intent === "unarchive") {
+        await db.update(schema.companyCars)
+            .set({ archivedAt: null })
+            .where(eq(schema.companyCars.id, carId));
+        
+        return redirect(`/cars/${carId}/edit?success=Car unarchived successfully`);
+    }
+
     const rawData = {
         templateId: formData.get("templateId") ? Number(formData.get("templateId")) : (car.templateId || null),
         colorId: Number(formData.get("colorId")) || car.colorId || 0,
         licensePlate: (formData.get("licensePlate") as string)?.toUpperCase() || car.licensePlate || "",
-        productionYear: Number(formData.get("productionYear")) || car.year || 0,
         transmission: (formData.get("transmission") as "automatic" | "manual") || car.transmission || "automatic",
         engineVolume: Number(formData.get("engineVolume")) || car.engineVolume || 0,
         fuelType: (formData.get("fuelType") as "petrol" | "diesel" | "electric" | "hybrid") || "petrol",
@@ -124,12 +146,35 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         }).from(schema.fuelTypes);
         const fuelType = fuelTypes.find((item) => item.name.toLowerCase() === validData.fuelType.toLowerCase());
 
+        // Handle photos upload to R2
+        const photosData = formData.get("photos") as string;
+        let photoUrls: string[] = car.photos ? JSON.parse(car.photos as string) : [];
+        
+        if (photosData) {
+            try {
+                const photos = JSON.parse(photosData);
+                if (Array.isArray(photos) && photos.length > 0) {
+                    const { uploadToR2 } = await import("~/lib/r2.server");
+                    const uploadedUrls = await Promise.all(
+                        photos.map(async (photo: { base64: string; fileName: string }) => {
+                            if (photo.base64.startsWith('/assets/') || photo.base64.startsWith('http')) {
+                                return photo.base64; // Already uploaded
+                            }
+                            return await uploadToR2(context.cloudflare.env.ASSETS, photo.base64, `cars/${carId}/${photo.fileName}`);
+                        })
+                    );
+                    photoUrls = uploadedUrls;
+                }
+            } catch (e) {
+                console.error("Failed to upload photos:", e);
+            }
+        }
+
         await db.update(schema.companyCars)
             .set({
                 templateId: validData.templateId,
                 colorId: validData.colorId,
                 licensePlate: validData.licensePlate,
-                year: validData.productionYear,
                 transmission: validData.transmission,
                 engineVolume: validData.engineVolume,
                 fuelTypeId: fuelType?.id ?? null,
@@ -146,6 +191,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 taxRoadExpiryDate: validData.taxRoadExpiry ? new Date(validData.taxRoadExpiry.split('-').reverse().join('-')) : null,
                 minInsurancePrice: validData.minInsurancePrice,
                 maxInsurancePrice: validData.maxInsurancePrice,
+                photos: photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
             })
             .where(eq(schema.companyCars.id, carId));
 
@@ -162,7 +208,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             ...metadata,
         });
 
-        return redirect(`/cars/${carId}?success=${encodeURIComponent("Car updated successfully")}`);
+        return redirect(`/cars?success=${encodeURIComponent("Car updated successfully")}`);
     } catch (error: any) {
         console.error("Failed to update car:", error);
         if (error.message?.includes('UNIQUE constraint failed') && error.message?.includes('license_plate')) {
@@ -183,12 +229,13 @@ export default function EditCarPage() {
     const [nextOilChange, setNextOilChange] = useState(car.nextOilChangeMileage || 0);
     const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(car.templateId);
     const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+    const [photos, setPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
 
     useEffect(() => {
         const error = searchParams.get("error");
         const success = searchParams.get("success");
-        if (error) toast.error(error);
-        if (success) toast.success(success);
+        if (error) toast.error(error, 3000);
+        if (success) toast.success(success, 3000);
     }, [searchParams, toast]);
 
     const tabs = [
@@ -208,7 +255,16 @@ export default function EditCarPage() {
     };
 
     const getTemplateName = (template: any) => {
-        return `${template.brand?.name || 'Unknown'} ${template.model?.name || 'Unknown'} ${template.productionYear ? `(${template.productionYear})` : ''}`;
+        const brand = template.brand?.name || 'Unknown';
+        const model = template.model?.name || 'Unknown';
+        const engine = template.engineVolume ? `${template.engineVolume}L` : '';
+        const fuel = template.fuelType?.name || '';
+        
+        let name = `${brand} ${model}`;
+        if (engine) name += ` ${engine}`;
+        if (fuel) name += ` ${fuel}`;
+        
+        return name;
     };
 
     const kmUntilOilChange = nextOilChange - currentMileage;
@@ -217,51 +273,56 @@ export default function EditCarPage() {
     return (
         <div className="space-y-4">
             <PageHeader
-                leftActions={<BackButton to={`/dashboard/cars/${car.id}`} />}
+                leftActions={<BackButton to={`/cars/${car.id}`} />}
                 title="Edit Car"
                 rightActions={
-                    <Button type="submit" form="edit-car-form" variant="primary">
-                        Save
-                    </Button>
+                    <div className="flex gap-2">
+                        {car.archivedAt ? (
+                            <Form method="post">
+                                <input type="hidden" name="intent" value="unarchive" />
+                                <Button type="submit" variant="primary">
+                                    Unarchive
+                                </Button>
+                            </Form>
+                        ) : (
+                            <>
+                                <Form method="post">
+                                    <input type="hidden" name="intent" value="archive" />
+                                    <Button type="submit" variant="secondary">
+                                        Archive/Delete
+                                    </Button>
+                                </Form>
+                                <Button type="submit" form="edit-car-form" variant="primary">
+                                    Save
+                                </Button>
+                            </>
+                        )}
+                    </div>
                 }
             />
 
             <Tabs tabs={tabs} activeTab={activeTab} onTabChange={(tabId) => setActiveTab(String(tabId))} className="mb-4" />
 
-            <Form id="edit-car-form" method="post" className="bg-white rounded-3xl shadow-sm p-4">
-                {activeTab === "specifications" && (
-                    <div className="space-y-6">
-                        <div>
-                            <h3 className="text-sm font-semibold text-gray-900 mb-3">Car Template</h3>
-                            <Select
-                                label="Car Template"
-                                name="templateId"
-                                required
-                                options={templates.map(t => ({
-                                    id: t.id,
-                                    name: getTemplateName(t)
-                                }))}
-                                defaultValue={car.templateId}
-                                onChange={(e) => setSelectedTemplateId(Number(e.target.value))}
-                            />
-                            {selectedTemplate && (
-                                <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                                    <p className="text-xs font-medium text-gray-500 mb-2">Template Details:</p>
-                                    <div className="grid grid-cols-2 gap-2 text-xs">
-                                        <div><span className="text-gray-500">Body Type:</span> <span className="font-medium">{selectedTemplate.bodyType?.name || 'N/A'}</span></div>
-                                        <div><span className="text-gray-500">Transmission:</span> <span className="font-medium">{selectedTemplate.transmission || 'N/A'}</span></div>
-                                        <div><span className="text-gray-500">Engine:</span> <span className="font-medium">{selectedTemplate.engineVolume}L</span></div>
-                                        <div><span className="text-gray-500">Seats:</span> <span className="font-medium">{selectedTemplate.seats}</span></div>
-                                        <div><span className="text-gray-500">Doors:</span> <span className="font-medium">{selectedTemplate.doors}</span></div>
-                                        <div><span className="text-gray-500">Fuel Type:</span> <span className="font-medium">{selectedTemplate.fuelType?.name || 'N/A'}</span></div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <div>
-                            <h3 className="text-sm font-semibold text-gray-900 mb-3">Car Details</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Main Form - Left Side */}
+                <div className="lg:col-span-2">
+                    <Form id="edit-car-form" method="post" className="bg-white rounded-3xl shadow-sm p-4">
+                        {activeTab === "specifications" && (
+                            <div className="space-y-6">
+                                <div>
+                                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Car Details</h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <Select
+                                            label="Car Template"
+                                            name="templateId"
+                                            required
+                                            options={templates.map(t => ({
+                                        id: t.id,
+                                        name: getTemplateName(t)
+                                    }))}
+                                    defaultValue={car.templateId}
+                                    onChange={(e) => setSelectedTemplateId(Number(e.target.value))}
+                                />
                                 <Input
                                     label="License Plate"
                                     name="licensePlate"
@@ -271,15 +332,6 @@ export default function EditCarPage() {
                                         e.target.value = e.target.value.toUpperCase();
                                         validateLatinInput(e, 'License Plate');
                                     }}
-                                />
-                                <Input
-                                    label="Production Year"
-                                    name="productionYear"
-                                    type="number"
-                                    min={1900}
-                                    max={new Date().getFullYear() + 1}
-                                    required
-                                    defaultValue={car.year}
                                 />
                                 <Select
                                     label="Color"
@@ -298,28 +350,11 @@ export default function EditCarPage() {
                                         validateLatinInput(e, 'VIN');
                                     }}
                                 />
-                            </div>
-                        </div>
-
-                        <input type="hidden" name="transmission" value={selectedTemplate?.transmission || car.transmission || 'automatic'} />
-                        <input type="hidden" name="engineVolume" value={selectedTemplate?.engineVolume || car.engineVolume || 1.5} />
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <Select
-                                label="Fuel Type"
-                                name="fuelType"
-                                required
-                                options={fuelTypes.map(ft => ({
-                                    id: ft.name,
-                                    name: ft.name
-                                }))}
-                                defaultValue={car.fuelType?.name || selectedTemplate?.fuelType?.name || 'Gasoline'}
-                            />
-                            <Select
-                                label="Status"
-                                name="status"
-                                required
-                                options={[
+                                <Select
+                                    label="Status"
+                                    name="status"
+                                    required
+                                    options={[
                                     { id: "available", name: "Available" },
                                     { id: "rented", name: "Rented" },
                                     { id: "maintenance", name: "Maintenance" },
@@ -327,7 +362,12 @@ export default function EditCarPage() {
                                 ]}
                                 defaultValue={car.status || "available"}
                             />
+                            </div>
                         </div>
+
+                        <input type="hidden" name="transmission" value={selectedTemplate?.transmission || car.transmission || 'automatic'} />
+                        <input type="hidden" name="engineVolume" value={selectedTemplate?.engineVolume || car.engineVolume || 1.5} />
+                        <input type="hidden" name="fuelType" value={(selectedTemplate?.fuelType?.name || car.fuelType?.name || 'Petrol').toLowerCase()} />
                     </div>
                 )}
 
@@ -538,7 +578,55 @@ export default function EditCarPage() {
                         </div>
                     </div>
                 )}
-            </Form>
+                        
+                        <input type="hidden" name="photos" value={JSON.stringify(photos)} />
+                    </Form>
+                </div>
+
+                {/* Sidebar - Right Side */}
+                <div className="space-y-6">
+                    {selectedTemplate && (
+                        <Card>
+                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Template Details</h2>
+                            <div className="space-y-3">
+                                <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Body Type</span>
+                                    <span className="text-sm font-medium text-gray-900">{selectedTemplate.bodyType?.name || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Transmission</span>
+                                    <span className="text-sm font-medium text-gray-900 capitalize">{selectedTemplate.transmission || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Engine</span>
+                                    <span className="text-sm font-medium text-gray-900">{selectedTemplate.engineVolume}L</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Seats</span>
+                                    <span className="text-sm font-medium text-gray-900">{selectedTemplate.seats}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Doors</span>
+                                    <span className="text-sm font-medium text-gray-900">{selectedTemplate.doors}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Fuel Type</span>
+                                    <span className="text-sm font-medium text-gray-900">{selectedTemplate.fuelType?.name || 'N/A'}</span>
+                                </div>
+                            </div>
+                        </Card>
+                    )}
+
+                    <Card>
+                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Photos</h2>
+                        <CarPhotosUpload
+                            currentPhotos={car.photos ? JSON.parse(car.photos as string) : []}
+                            onPhotosChange={setPhotos}
+                            maxPhotos={6}
+                        />
+                    </Card>
+                </div>
+            </div>
         </div>
     );
 }

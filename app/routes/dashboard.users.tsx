@@ -95,10 +95,10 @@ export default function UsersPage() {
         const success = searchParams.get("success");
         const error = searchParams.get("error");
         if (success) {
-            toast.success(success);
+            toast.success(success, 3000);
         }
         if (error) {
-            toast.error(error);
+            toast.error(error, 3000);
         }
     }, [searchParams, toast]);
 
@@ -190,7 +190,7 @@ export default function UsersPage() {
                 totalCount={filteredUsers.length}
                 emptyTitle="No users found"
                 emptyDescription={`No users with role "${activeTab}"`}
-                emptyIcon={<UserGroupIcon className="w-16 h-16" />}
+                emptyIcon={<UserGroupIcon className="w-10 h-10" />}
             />
         </div>
     );

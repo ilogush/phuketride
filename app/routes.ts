@@ -6,6 +6,9 @@ export default [
     route("register", "routes/register.tsx"),
     route("register-partner", "routes/register-partner.tsx"),
     route("logout", "routes/logout.tsx"),
+    
+    // R2 assets route
+    route("assets/*", "routes/assets.$.tsx"),
 
     // Company standalone dashboard (Phuket Ride Co.)
     route("companies/:companyId", "routes/companies.$companyId.tsx"),
@@ -36,6 +39,8 @@ export default [
         route("models/create", "routes/dashboard.models.create.tsx"),
         route("car-templates", "routes/dashboard.car-templates.tsx"),
         route("car-templates/create", "routes/dashboard.car-templates.create.tsx"),
+        route("car-templates/:id", "routes/dashboard.car-templates.$id.tsx"),
+        route("car-templates/:id/edit", "routes/dashboard.car-templates.$id.edit.tsx"),
         route("payments", "routes/dashboard.payments.tsx"),
         route("payments/create", "routes/dashboard.payments.create.tsx"),
         route("payment-statuses", "routes/dashboard.payment-statuses.tsx"),

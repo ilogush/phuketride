@@ -153,7 +153,7 @@ export default function ContractsPage() {
                 totalCount={filteredContracts.length}
                 emptyTitle="No contracts found"
                 emptyDescription={`No contracts with status "${activeTab}"`}
-                emptyIcon={<ClipboardDocumentListIcon className="w-16 h-16" />}
+                emptyIcon={<ClipboardDocumentListIcon className="w-10 h-10" />}
             />
 
             <Outlet />

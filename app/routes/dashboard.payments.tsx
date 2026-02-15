@@ -163,7 +163,7 @@ export default function PaymentsPage() {
                 totalCount={filteredPayments.length}
                 emptyTitle="No payments found"
                 emptyDescription={`No payments with status "${activeTab}"`}
-                emptyIcon={<BanknotesIcon className="w-16 h-16" />}
+                emptyIcon={<BanknotesIcon className="w-10 h-10" />}
             />
         </div>
     );

@@ -67,7 +67,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
-    const intent = formData.get("intent");
     const carId = Number(params.id);
 
     // Get car to check company_id
@@ -82,25 +81,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     // Check access
     if (user.role !== "admin" && car.companyId !== user.companyId) {
         return redirect(`/dashboard/cars/${carId}?error=Access denied`);
-    }
-
-    if (intent === "archive" || intent === "delete") {
-        const { deleteOrArchiveCar } = await import("~/lib/archive.server");
-        const result = await deleteOrArchiveCar(context.cloudflare.env.DB, carId, car.companyId);
-        
-        if (result.success) {
-            return redirect(`/dashboard/cars?success=${encodeURIComponent(result.message || "Car updated successfully")}`);
-        } else {
-            return redirect(`/dashboard/cars/${carId}?error=${encodeURIComponent(result.message || result.error || "Failed to update car")}`);
-        }
-    }
-
-    if (intent === "unarchive") {
-        await db.update(schema.companyCars)
-            .set({ archivedAt: null })
-            .where(eq(schema.companyCars.id, carId));
-        
-        return redirect(`/dashboard/cars/${carId}?success=Car unarchived successfully`);
     }
 
     return redirect(`/dashboard/cars/${carId}`);
@@ -141,30 +121,11 @@ export default function CarDetailsPage() {
                 title={`${car.template?.brand?.name || ''} ${car.template?.model?.name || ''} ${car.year}`}
                 leftActions={<BackButton to="/dashboard/cars" />}
                 rightActions={
-                    <div className="flex gap-2">
-                        {car.archivedAt ? (
-                            <Form method="post">
-                                <input type="hidden" name="intent" value="unarchive" />
-                                <Button type="submit" variant="primary">
-                                    Unarchive
-                                </Button>
-                            </Form>
-                        ) : (
-                            <>
-                                <Link to={`/dashboard/cars/${car.id}/edit`}>
-                                    <Button variant="secondary">
-                                        Edit
-                                    </Button>
-                                </Link>
-                                <Form method="post">
-                                    <input type="hidden" name="intent" value="archive" />
-                                    <Button type="submit" variant="secondary">
-                                        Archive/Delete
-                                    </Button>
-                                </Form>
-                            </>
-                        )}
-                    </div>
+                    <Link to={`/dashboard/cars/${car.id}/edit`}>
+                        <Button variant="secondary">
+                            Edit
+                        </Button>
+                    </Link>
                 }
             />
 

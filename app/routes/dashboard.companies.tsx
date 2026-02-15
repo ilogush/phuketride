@@ -202,7 +202,7 @@ export default function CompaniesPage() {
                 totalCount={companiesList.length}
                 emptyTitle="No companies found"
                 emptyDescription="Start by adding your first company"
-                emptyIcon={<BuildingOfficeIcon className="w-16 h-16" />}
+                emptyIcon={<BuildingOfficeIcon className="w-10 h-10" />}
             />
         </div>
     );

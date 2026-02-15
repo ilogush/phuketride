@@ -117,7 +117,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="inline-flex items-center px-3 rounded-r-3xl border border-l-0 border-gray-200 bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors"
+                        className="inline-flex items-center px-3 rounded-r-xl border border-l-0 border-gray-200 bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors"
                     >
                         {showPassword ? (
                             <EyeSlashIcon className="w-5 h-5" />

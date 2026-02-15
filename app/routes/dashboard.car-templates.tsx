@@ -58,7 +58,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
             id: schema.carTemplates.id,
             brand_id: schema.carTemplates.brandId,
             model_id: schema.carTemplates.modelId,
-            production_year: schema.carTemplates.productionYear,
             transmission: schema.carTemplates.transmission,
             engine_volume: schema.carTemplates.engineVolume,
             body_type_id: schema.carTemplates.bodyTypeId,
@@ -69,10 +68,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
             created_at: schema.carTemplates.createdAt,
             brand_name: schema.carBrands.name,
             model_name: schema.carModels.name,
+            fuel_type_name: schema.fuelTypes.name,
         })
         .from(schema.carTemplates)
         .leftJoin(schema.carBrands, eq(schema.carTemplates.brandId, schema.carBrands.id))
         .leftJoin(schema.carModels, eq(schema.carTemplates.modelId, schema.carModels.id))
+        .leftJoin(schema.fuelTypes, eq(schema.carTemplates.fuelTypeId, schema.fuelTypes.id))
         .orderBy(desc(schema.carTemplates.createdAt))
         .limit(100)
 
@@ -295,10 +296,12 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
             ),
         },
         {
-            key: 'year',
-            label: 'Year',
+            key: 'fuel',
+            label: 'Fuel',
             render: (template: any) => (
-                <span className="text-sm text-gray-600">{template.production_year || '-'}</span>
+                <span className="text-sm text-gray-600">
+                    {template.fuel_type_name || '-'}
+                </span>
             ),
         },
         {

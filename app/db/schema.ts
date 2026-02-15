@@ -168,7 +168,6 @@ export const carTemplates = sqliteTable("car_templates", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     brandId: integer("brand_id").notNull(),
     modelId: integer("model_id").notNull(),
-    productionYear: integer("production_year"),
     transmission: text("transmission", { enum: ["automatic", "manual"] }),
     engineVolume: real("engine_volume"),
     bodyTypeId: integer("body_type_id"),

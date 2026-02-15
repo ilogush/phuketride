@@ -4,54 +4,63 @@ import {
     ChevronLeftIcon,
     ChevronRightIcon
 } from '@heroicons/react/24/outline'
+import { useSearchParams } from 'react-router'
 import Button from './Button'
 import type { PaginationMetadata } from '~/types/pagination'
 
 interface PaginationProps {
     pagination: PaginationMetadata
-    onPageChange: (page: number) => void
-    onPageSizeChange: (pageSize: number) => void
     pageSizeOptions?: number[]
     disabled?: boolean
 }
 
 export function Pagination({
     pagination,
-    onPageChange,
-    onPageSizeChange,
     pageSizeOptions = [10, 25, 50, 100],
     disabled = false
 }: PaginationProps) {
     const { currentPage, totalPages, pageSize, totalItems, hasNext, hasPrevious } = pagination
+    const [searchParams, setSearchParams] = useSearchParams()
+
+    const handlePageChange = (page: number) => {
+        if (!disabled) {
+            const newParams = new URLSearchParams(searchParams)
+            newParams.set('page', page.toString())
+            setSearchParams(newParams)
+        }
+    }
 
     const handleFirstPage = () => {
         if (hasPrevious && !disabled) {
-            onPageChange(1)
+            handlePageChange(1)
         }
     }
 
     const handlePreviousPage = () => {
         if (hasPrevious && !disabled) {
-            onPageChange(currentPage - 1)
+            handlePageChange(currentPage - 1)
         }
     }
 
     const handleNextPage = () => {
         if (hasNext && !disabled) {
-            onPageChange(currentPage + 1)
+            handlePageChange(currentPage + 1)
         }
     }
 
     const handleLastPage = () => {
         if (hasNext && !disabled) {
-            onPageChange(totalPages)
+            handlePageChange(totalPages)
         }
     }
 
     const handlePageSizeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const newPageSize = parseInt(event.target.value, 10)
         if (!disabled) {
-            onPageSizeChange(newPageSize)
+            const newParams = new URLSearchParams(searchParams)
+            newParams.set('pageSize', newPageSize.toString())
+            newParams.set('page', '1')
+            setSearchParams(newParams)
         }
     }
 

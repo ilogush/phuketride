@@ -30,7 +30,7 @@ const DocumentPreview = memo(function DocumentPreview({
                     {photos.map((photo, index) => (
                         <div
                             key={index}
-                            className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden bg-gray-50"
+                            className="relative w-10 h-10 sm:w-20 sm:h-20 rounded-lg overflow-hidden bg-gray-50"
                         >
                             <img
                                 src={photo.base64}

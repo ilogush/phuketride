@@ -591,6 +591,6 @@ export default function SeasonsPage() {
 
 function SeasonIcon() {
     return (
-        <SunIcon className="w-16 h-16 mx-auto text-gray-400" />
+        <SunIcon className="w-10 h-10 mx-auto text-gray-400" />
     );
 }

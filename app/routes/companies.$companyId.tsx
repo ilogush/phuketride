@@ -379,7 +379,7 @@ export default function CompanyDetailPage() {
                         <div className="bg-white rounded-3xl border border-gray-200 p-6">
                             <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-16 h-16 bg-gray-900 rounded-full flex items-center justify-center">
+                                    <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center">
                                         <span className="text-white text-2xl font-bold">
                                             {company.name?.charAt(0) || "C"}
                                         </span>

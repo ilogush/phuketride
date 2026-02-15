@@ -15,31 +15,40 @@ import { useToast } from "~/lib/toast";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB);
+    const db = drizzle(context.cloudflare.env.DB, { schema: await import("~/db/schema") });
 
     let cars: any[] = [];
     let statusCounts = { all: 0, available: 0, rented: 0, maintenance: 0, booked: 0 };
 
     try {
         const carsQuery = user.role === "admin"
-            ? db.select({
-                id: companyCars.id,
-                licensePlate: companyCars.licensePlate,
-                year: companyCars.year,
-                pricePerDay: companyCars.pricePerDay,
-                status: companyCars.status,
-                mileage: companyCars.mileage,
-            }).from(companyCars).limit(50)
-            : db.select({
-                id: companyCars.id,
-                licensePlate: companyCars.licensePlate,
-                year: companyCars.year,
-                pricePerDay: companyCars.pricePerDay,
-                status: companyCars.status,
-                mileage: companyCars.mileage,
-            }).from(companyCars)
-                .where(eq(companyCars.companyId, user.companyId!))
-                .limit(50);
+            ? db.query.companyCars.findMany({
+                with: {
+                    template: {
+                        with: {
+                            brand: true,
+                            model: true,
+                            bodyType: true,
+                        }
+                    },
+                    color: true,
+                },
+                limit: 50,
+            })
+            : db.query.companyCars.findMany({
+                where: (companyCars, { eq }) => eq(companyCars.companyId, user.companyId!),
+                with: {
+                    template: {
+                        with: {
+                            brand: true,
+                            model: true,
+                            bodyType: true,
+                        }
+                    },
+                    color: true,
+                },
+                limit: 50,
+            });
 
         cars = await carsQuery;
 
@@ -66,10 +75,12 @@ export default function CarsPage() {
         const success = searchParams.get("success");
         const error = searchParams.get("error");
         if (success) {
-            toast.success(success);
+            toast.success(success, 3000);
+            window.history.replaceState({}, '', '/cars');
         }
         if (error) {
-            toast.error(error);
+            toast.error(error, 3000);
+            window.history.replaceState({}, '', '/cars');
         }
     }, [searchParams, toast]);
 
@@ -83,38 +94,65 @@ export default function CarsPage() {
     const filteredCars = cars.filter(car => car.status === activeTab);
 
     const columns: Column<typeof cars[0]>[] = [
-        { key: "id", label: "ID" },
+        { 
+            key: "photo", 
+            label: "Photo",
+            render: (car) => {
+                const photos = car.photos ? JSON.parse(car.photos as string) : [];
+                const firstPhoto = photos[0];
+                
+                return (
+                    <Link to={`/dashboard/cars/${car.id}`} className="block hover:opacity-70 transition-opacity">
+                        {firstPhoto ? (
+                            <img 
+                                src={firstPhoto} 
+                                alt={`${car.template?.brand?.name} ${car.template?.model?.name}`}
+                                className="w-10 h-10 object-cover rounded-lg"
+                            />
+                        ) : (
+                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <TruckIcon className="w-6 h-6 text-gray-400" />
+                            </div>
+                        )}
+                    </Link>
+                );
+            }
+        },
         { key: "licensePlate", label: "License Plate" },
         {
-            key: "year",
-            label: "Year",
-            render: (car) => car.year || "-"
+            key: "car",
+            label: "Car",
+            render: (car) => (
+                <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-900">{car.template?.brand?.name || "-"}</span>
+                    <span className="text-xs text-gray-500">{car.template?.model?.name || "-"}</span>
+                </div>
+            )
         },
         {
-            key: "pricePerDay",
-            label: "Price/Day",
-            render: (car) => car.pricePerDay ? `${car.pricePerDay} THB` : "-"
+            key: "engine",
+            label: "Engine",
+            render: (car) => car.template?.engineVolume ? `${car.template.engineVolume}L` : "-"
+        },
+        {
+            key: "bodyType",
+            label: "Body Type",
+            render: (car) => car.template?.bodyType?.name || "-"
+        },
+        {
+            key: "color",
+            label: "Color",
+            render: (car) => car.color?.name || "-"
         },
         {
             key: "mileage",
             label: "Mileage",
-            render: (car) => car.mileage ? `${car.mileage.toLocaleString()} km` : "-"
+            render: (car) => car.mileage ? `${car.mileage.toLocaleString('en-US')} km` : "-"
         },
         {
             key: "status",
             label: "Status",
             render: (car) => <StatusBadge variant={car.status === "available" ? "success" : "neutral"}>{car.status}</StatusBadge>
-        },
-        {
-            key: "actions",
-            label: "Actions",
-            render: (car) => (
-                <div className="flex gap-2">
-                    <Link to={`/dashboard/cars/${car.id}`}>
-                        <Button variant="secondary" size="sm">View</Button>
-                    </Link>
-                </div>
-            )
         },
     ];
 
@@ -139,7 +177,7 @@ export default function CarsPage() {
                 totalCount={filteredCars.length}
                 emptyTitle="No cars found"
                 emptyDescription={`No cars with status "${activeTab}"`}
-                emptyIcon={<TruckIcon className="w-16 h-16" />}
+                emptyIcon={<TruckIcon className="w-10 h-10" />}
             />
         </div>
     );

@@ -27,7 +27,7 @@ export default function LogoutPage() {
         <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
             <div className="max-w-md w-full px-6">
                 <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 p-10 text-center">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gray-900 mb-6 shadow-lg">
+                    <div className="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-gray-900 mb-6 shadow-lg">
                         <img src="/android-chrome-192x192.png" alt="Logo" className="w-10 h-10" />
                     </div>
                     <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">

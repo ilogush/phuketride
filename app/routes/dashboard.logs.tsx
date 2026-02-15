@@ -267,6 +267,6 @@ export default function AuditLogsPage() {
 
 function AuditIcon() {
     return (
-        <ClipboardDocumentListIcon className="w-16 h-16 mx-auto text-gray-400" />
+        <ClipboardDocumentListIcon className="w-10 h-10 mx-auto text-gray-400" />
     );
 }

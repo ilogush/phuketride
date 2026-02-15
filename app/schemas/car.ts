@@ -4,7 +4,6 @@ export const carSchema = z.object({
     templateId: z.number().int().positive("Template is required").optional().nullable(),
     colorId: z.number().int().positive("Color is required"),
     licensePlate: z.string().min(1, "License plate is required").max(20, "License plate is too long"),
-    productionYear: z.number().int().min(1900, "Invalid production year").max(new Date().getFullYear() + 1, "Invalid production year"),
     transmission: z.enum(["automatic", "manual"], { errorMap: () => ({ message: "Invalid transmission type" }) }),
     engineVolume: z.number().min(0.1, "Engine volume must be positive").max(10, "Engine volume is too large"),
     fuelType: z.enum(["petrol", "diesel", "electric", "hybrid"], { errorMap: () => ({ message: "Invalid fuel type" }) }),

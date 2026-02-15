@@ -41,7 +41,7 @@ export default function PaymentStatusesPage() {
                 totalCount={0}
                 emptyTitle="No payment statuses found"
                 emptyDescription="Define payment statuses for the system"
-                emptyIcon={<BanknotesIcon className="w-16 h-16" />}
+                emptyIcon={<BanknotesIcon className="w-10 h-10" />}
             />
         </div>
     );
