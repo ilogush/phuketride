@@ -136,6 +136,93 @@ export async function action({ request, context }: Route.ActionArgs) {
         return { success: true, message: 'Template deleted successfully' }
     }
 
+    // Clear all data and seed Toyota templates
+    if (intent === 'clear_and_seed_toyota') {
+        try {
+            // Delete in correct order (child tables first)
+            await db.delete(schema.companyCars)
+            await db.delete(schema.carTemplates)
+            await db.delete(schema.carModels)
+            await db.delete(schema.carBrands)
+
+            // Insert Toyota brand
+            const [toyotaBrand] = await db.insert(schema.carBrands).values({
+                name: 'Toyota',
+            }).returning()
+
+            // Insert Toyota models with body types
+            const toyotaModels = [
+                { name: 'Yaris ATIV (AC100)', bodyTypeId: 1 }, // Sedan
+                { name: 'Yaris ATIV HEV', bodyTypeId: 1 },
+                { name: 'Yaris (Hatchback)', bodyTypeId: 2 }, // Hatchback
+                { name: 'Corolla Altis', bodyTypeId: 1 },
+                { name: 'Corolla Cross', bodyTypeId: 6 }, // Crossover
+                { name: 'Camry HEV', bodyTypeId: 1 },
+                { name: 'Hilux Revo Standard Cab', bodyTypeId: 4 }, // Pickup
+                { name: 'Hilux Revo Smart Cab', bodyTypeId: 4 },
+                { name: 'Hilux Revo Double Cab', bodyTypeId: 4 },
+                { name: 'Hilux Champ (Single Cab)', bodyTypeId: 4 },
+                { name: 'Fortuner', bodyTypeId: 3 }, // SUV
+                { name: 'Veloz', bodyTypeId: 5 }, // Van
+                { name: 'Innova Zenix', bodyTypeId: 5 },
+                { name: 'Hiace Commuter', bodyTypeId: 5 },
+            ]
+
+            const insertedModels = []
+            for (const model of toyotaModels) {
+                const [inserted] = await db.insert(schema.carModels).values({
+                    brandId: toyotaBrand.id,
+                    name: model.name,
+                    bodyTypeId: model.bodyTypeId,
+                }).returning()
+                insertedModels.push(inserted)
+            }
+
+            // Insert car templates
+            const templates = [
+                { modelIdx: 0, engine: 1.2, fuelTypeId: 1, seats: 5, doors: 4, transmission: 'automatic' as const },
+                { modelIdx: 1, engine: 1.5, fuelTypeId: 3, seats: 5, doors: 4, transmission: 'automatic' as const },
+                { modelIdx: 2, engine: 1.2, fuelTypeId: 1, seats: 5, doors: 5, transmission: 'automatic' as const },
+                { modelIdx: 3, engine: 1.6, fuelTypeId: 1, seats: 5, doors: 4, transmission: 'automatic' as const },
+                { modelIdx: 3, engine: 1.8, fuelTypeId: 1, seats: 5, doors: 4, transmission: 'automatic' as const },
+                { modelIdx: 3, engine: 1.8, fuelTypeId: 3, seats: 5, doors: 4, transmission: 'automatic' as const },
+                { modelIdx: 4, engine: 1.8, fuelTypeId: 1, seats: 5, doors: 5, transmission: 'automatic' as const },
+                { modelIdx: 4, engine: 1.8, fuelTypeId: 3, seats: 5, doors: 5, transmission: 'automatic' as const },
+                { modelIdx: 5, engine: 2.5, fuelTypeId: 3, seats: 5, doors: 4, transmission: 'automatic' as const },
+                { modelIdx: 6, engine: 2.4, fuelTypeId: 2, seats: 2, doors: 2, transmission: 'manual' as const },
+                { modelIdx: 7, engine: 2.4, fuelTypeId: 2, seats: 2, doors: 2, transmission: 'automatic' as const },
+                { modelIdx: 8, engine: 2.4, fuelTypeId: 2, seats: 5, doors: 4, transmission: 'automatic' as const },
+                { modelIdx: 8, engine: 2.8, fuelTypeId: 2, seats: 5, doors: 4, transmission: 'automatic' as const },
+                { modelIdx: 9, engine: 2.4, fuelTypeId: 2, seats: 2, doors: 2, transmission: 'manual' as const },
+                { modelIdx: 10, engine: 2.4, fuelTypeId: 2, seats: 7, doors: 5, transmission: 'automatic' as const },
+                { modelIdx: 10, engine: 2.8, fuelTypeId: 2, seats: 7, doors: 5, transmission: 'automatic' as const },
+                { modelIdx: 11, engine: 1.5, fuelTypeId: 1, seats: 7, doors: 5, transmission: 'automatic' as const },
+                { modelIdx: 12, engine: 2.0, fuelTypeId: 1, seats: 7, doors: 5, transmission: 'automatic' as const },
+                { modelIdx: 12, engine: 2.0, fuelTypeId: 3, seats: 7, doors: 5, transmission: 'automatic' as const },
+                { modelIdx: 13, engine: 2.8, fuelTypeId: 2, seats: 12, doors: 4, transmission: 'automatic' as const },
+            ]
+
+            for (const template of templates) {
+                const model = insertedModels[template.modelIdx]
+                await db.insert(schema.carTemplates).values({
+                    brandId: toyotaBrand.id,
+                    modelId: model.id,
+                    engineVolume: template.engine,
+                    fuelTypeId: template.fuelTypeId,
+                    seats: template.seats,
+                    doors: template.doors,
+                    transmission: template.transmission,
+                    bodyTypeId: model.bodyTypeId,
+                })
+            }
+
+            return { success: true, message: 'All data cleared and Toyota templates loaded successfully' }
+        } catch (error: any) {
+            console.error('Failed to clear and seed:', error)
+            return { error: `Failed to clear and seed data: ${error.message}` }
+        }
+    }
+
     return { error: 'Invalid intent' }
 }
 
@@ -335,29 +422,43 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
             <PageHeader
                 title="Car Management"
                 rightActions={
-                    activeTab === 'brands' ? (
-                        <Button
-                            variant="primary"
-                            icon={<PlusIcon className="w-5 h-5" />}
-                            onClick={() => setShowBrandModal(true)}
-                        >
-                            Add Brand
-                        </Button>
-                    ) : activeTab === 'models' ? (
-                        <Button
-                            variant="primary"
-                            icon={<PlusIcon className="w-5 h-5" />}
-                            onClick={() => setShowModelModal(true)}
-                        >
-                            Add Model
-                        </Button>
-                    ) : (
-                        <Link to="/car-templates/create">
-                            <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
-                                Create
+                    <div className="flex gap-3">
+                        {activeTab === 'templates' && (
+                            <form method="post" onSubmit={(e) => {
+                                if (!confirm('This will DELETE ALL cars, templates, models, and brands. Continue?')) {
+                                    e.preventDefault()
+                                }
+                            }}>
+                                <input type="hidden" name="intent" value="clear_and_seed_toyota" />
+                                <Button type="submit" variant="secondary">
+                                    Clear & Load Toyota
+                                </Button>
+                            </form>
+                        )}
+                        {activeTab === 'brands' ? (
+                            <Button
+                                variant="primary"
+                                icon={<PlusIcon className="w-5 h-5" />}
+                                onClick={() => setShowBrandModal(true)}
+                            >
+                                Add Brand
                             </Button>
-                        </Link>
-                    )
+                        ) : activeTab === 'models' ? (
+                            <Button
+                                variant="primary"
+                                icon={<PlusIcon className="w-5 h-5" />}
+                                onClick={() => setShowModelModal(true)}
+                            >
+                                Add Model
+                            </Button>
+                        ) : (
+                            <Link to="/car-templates/create">
+                                <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                                    Create
+                                </Button>
+                            </Link>
+                        )}
+                    </div>
                 }
             />
 
