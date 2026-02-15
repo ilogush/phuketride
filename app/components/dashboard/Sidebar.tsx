@@ -52,7 +52,6 @@ const getMenuItems = (role: UserRole) => {
             ...baseItems,
             { to: "/companies", icon: BuildingOfficeIcon, label: "Companies" },
             { to: "/users", icon: UsersIcon, label: "Users" },
-            { to: "/cars", icon: TruckIcon, label: "Cars" },
             { to: "/car-templates", icon: RectangleStackIcon, label: "Car Management" },
             { to: "/payments", icon: BanknotesIcon, label: "Payments" },
             { to: "/locations", icon: MapPinIcon, label: "Locations" },
