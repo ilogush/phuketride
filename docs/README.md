@@ -11,7 +11,6 @@ PhuketRide - система управления арендой автомоби
 - **Database**: Cloudflare D1 (SQLite)
 - **ORM**: Drizzle ORM
 - **Storage**: Cloudflare R2
-- **Cache**: Cloudflare KV
 - **Styling**: Tailwind CSS 4
 - **Validation**: Zod
 - **Icons**: Heroicons

@@ -33,41 +33,20 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     let districts: District[] = [];
 
     if (user.role === "partner") {
-        // Get company ID - check if user is owner or manager
-        let companyId: number | null = null;
-
-        // Check if user is company owner
-        const ownedCompany = await db.select({ id: schema.companies.id })
-            .from(schema.companies)
-            .where(eq(schema.companies.ownerId, user.id))
-            .limit(1);
-
-        if (ownedCompany.length > 0) {
-            companyId = ownedCompany[0].id;
-        } else {
-            // Check if user is manager
-            const manager = await db.select({ companyId: schema.managers.companyId })
-                .from(schema.managers)
-                .where(eq(schema.managers.userId, user.id))
-                .limit(1);
-
-            if (manager.length > 0) {
-                companyId = manager[0].companyId;
-            }
-        }
+        const companyId = user.companyId;
 
         if (companyId) {
             // Load company-specific delivery settings
             const settings = await db.select({
-                id: schema.companyDeliverySettings.id,
+                id: schema.districts.id,
                 name: schema.districts.name,
                 locationId: schema.districts.locationId,
                 beaches: schema.districts.beaches,
                 streets: schema.districts.streets,
                 isActive: schema.companyDeliverySettings.isActive,
                 deliveryPrice: schema.companyDeliverySettings.deliveryPrice,
-                createdAt: schema.companyDeliverySettings.createdAt,
-                updatedAt: schema.companyDeliverySettings.updatedAt,
+                createdAt: schema.districts.createdAt,
+                updatedAt: schema.districts.updatedAt,
             })
             .from(schema.companyDeliverySettings)
             .innerJoin(schema.districts, eq(schema.companyDeliverySettings.districtId, schema.districts.id))
@@ -311,65 +290,62 @@ export default function LocationsPage() {
             },
             wrap: true,
         },
-        ...(isPartner
-            ? [
-                {
-                    key: "status",
-                    label: "Status",
-                    render: (item: District) => {
-                        const district = localDistricts.find(d => d.id === item.id) || item;
-                        return (
-                            <button
-                                type="button"
-                                onClick={() => handleToggleStatus(item.id, district.isActive ?? false)}
-                                className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
-                                    district.isActive ? "bg-gray-900 border-transparent" : "bg-gray-200 border-transparent"
-                                }`}
-                            >
-                                <span
-                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                                        district.isActive ? "translate-x-4" : "translate-x-0"
-                                    }`}
-                                />
-                            </button>
-                        );
-                    },
-                },
-                {
-                    key: "deliveryPrice",
-                    label: "Cost (฿)",
-                    render: (item: District) => {
-                        const district = localDistricts.find(d => d.id === item.id) || item;
-                        return (
-                            <div className="relative max-w-[120px]">
-                                <input
-                                    type="number"
-                                    value={district.deliveryPrice || 0}
-                                    onChange={(e) => handlePriceChange(item.id, e.target.value)}
-                                    disabled={!district.isActive}
-                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-gray-500 read-only:bg-gray-100 read-only:text-gray-500 read-only:cursor-not-allowed read-only:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed disabled:border-gray-200"
-                                />
-                                <span className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">
-                                    ฿
-                                </span>
-                            </div>
-                        );
-                    },
-                    className: "hidden sm:table-cell",
-                },
-            ]
-            : []),
+        {
+            key: "streets",
+            label: "Streets / Roads",
+            render: (item) => {
+                const streets = parseStreets(item.streets);
+                return <span className="text-sm">{streets.join(", ")}</span>;
+            },
+            wrap: true,
+            className: "hidden lg:table-cell",
+        },
+        {
+            key: "status",
+            label: "Status",
+            render: (item) => {
+                const district = localDistricts.find(d => d.id === item.id) || item;
+                return (
+                    <button
+                        type="button"
+                        onClick={() => handleToggleStatus(item.id, district.isActive ?? false)}
+                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
+                            district.isActive ? "bg-gray-900 border-transparent" : "bg-gray-200 border-transparent"
+                        }`}
+                    >
+                        <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                district.isActive ? "translate-x-4" : "translate-x-0"
+                            }`}
+                        />
+                    </button>
+                );
+            },
+        },
+        {
+            key: "deliveryPrice",
+            label: "Cost (฿)",
+            render: (item) => {
+                const district = localDistricts.find(d => d.id === item.id) || item;
+                return (
+                    <div className="relative max-w-[120px]">
+                        <input
+                            type="number"
+                            value={district.deliveryPrice || 0}
+                            onChange={(e) => handlePriceChange(item.id, e.target.value)}
+                            disabled={!district.isActive}
+                            className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed disabled:border-gray-200"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">
+                            ฿
+                        </span>
+                    </div>
+                );
+            },
+            className: "hidden sm:table-cell",
+        },
         ...(isAdmin
             ? [
-                {
-                    key: "streets",
-                    label: "Streets / Roads",
-                    render: (item: District) => {
-                        const streets = parseStreets(item.streets);
-                        return <span className="text-sm">{streets.join(", ")}</span>;
-                    },
-                    wrap: true,
-                },
                 {
                     key: "actions",
                     label: "Actions",
@@ -402,30 +378,29 @@ export default function LocationsPage() {
             <PageHeader
                 title="Delivery"
                 rightActions={
-                    isAdmin ? (
-                        <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />} onClick={() => setIsModalOpen(true)}>
-                            Add
-                        </Button>
-                    ) : isPartner ? (
+                    <div className="flex gap-2">
                         <Button variant="primary" onClick={handleSaveAll}>
                             Save
                         </Button>
-                    ) : undefined
+                        {isAdmin && (
+                            <Button variant="secondary" icon={<PlusIcon className="w-5 h-5" />} onClick={() => setIsModalOpen(true)}>
+                                Add
+                            </Button>
+                        )}
+                    </div>
                 }
             />
 
-            {isPartner && (
-                <Form id="bulk-update-form" method="post" className="hidden">
-                    <input type="hidden" name="intent" value="bulkUpdate" />
-                    <input type="hidden" name="updates" value={JSON.stringify(
-                        localDistricts.map(d => ({
-                            id: d.id,
-                            isActive: d.isActive,
-                            deliveryPrice: d.deliveryPrice
-                        }))
-                    )} />
-                </Form>
-            )}
+            <Form id="bulk-update-form" method="post" className="hidden">
+                <input type="hidden" name="intent" value="bulkUpdate" />
+                <input type="hidden" name="updates" value={JSON.stringify(
+                    localDistricts.map(d => ({
+                        id: d.id,
+                        isActive: d.isActive,
+                        deliveryPrice: d.deliveryPrice
+                    }))
+                )} />
+            </Form>
 
             <DataTable
                 data={localDistricts}

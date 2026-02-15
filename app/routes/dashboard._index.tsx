@@ -1,5 +1,5 @@
-import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, sql, gte, desc } from "drizzle-orm";
@@ -16,6 +16,34 @@ import {
 } from "@heroicons/react/24/outline";
 import StatCard from "~/components/dashboard/StatCard";
 import TasksWidget from "~/components/dashboard/TasksWidget";
+import { useToast } from "~/lib/toast";
+import { useEffect } from "react";
+
+export async function action({ request, context }: ActionFunctionArgs) {
+    const user = await requireAuth(request);
+    const formData = await request.formData();
+    const taskId = formData.get("taskId") as string;
+    const intent = formData.get("intent") as string;
+
+    if (intent === "delete" && taskId) {
+        try {
+            const db = drizzle(context.cloudflare.env.DB);
+            
+            // Delete calendar event (task)
+            await context.cloudflare.env.DB
+                .prepare("DELETE FROM calendar_events WHERE id = ?")
+                .bind(parseInt(taskId))
+                .run();
+
+            return redirect("/dashboard?success=Task deleted successfully");
+        } catch (error) {
+            console.error("Error deleting task:", error);
+            return redirect("/dashboard?error=Failed to delete task");
+        }
+    }
+
+    return redirect("/dashboard");
+}
 
 const ICON_MAP: Record<string, any> = {
     BuildingOfficeIcon,
@@ -305,6 +333,20 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function Index() {
     const { user, statCards, tasks } = useLoaderData<typeof loader>();
+    const [searchParams] = useSearchParams();
+    const toast = useToast();
+
+    // Toast notifications
+    useEffect(() => {
+        const success = searchParams.get("success");
+        const error = searchParams.get("error");
+        if (success) {
+            toast.success(success, 3000);
+        }
+        if (error) {
+            toast.error(error, 3000);
+        }
+    }, [searchParams, toast]);
 
     return (
         <div className="space-y-4">

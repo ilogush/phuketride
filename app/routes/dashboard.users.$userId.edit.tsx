@@ -190,7 +190,7 @@ export default function EditUserPage() {
                     <PageHeader title="Edit User" />
                 </div>
                 <Button type="submit" variant="primary" form="user-form">
-                    Save Changes
+                    Save
                 </Button>
             </div>
 

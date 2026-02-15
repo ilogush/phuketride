@@ -94,16 +94,3 @@ export function selectColumns<T extends Record<string, any>>(
         return acc;
     }, {} as Record<string, any>);
 }
-
-// Cache key generator for consistent caching
-export function generateCacheKey(
-    prefix: string,
-    params: Record<string, any>
-): string {
-    const sortedParams = Object.keys(params)
-        .sort()
-        .map(key => `${key}:${params[key]}`)
-        .join('|');
-    
-    return `${prefix}:${sortedParams}`;
-}

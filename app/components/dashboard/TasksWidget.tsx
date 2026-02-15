@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, Form } from 'react-router'
 import Modal from './Modal'
 import Button from './Button'
 
@@ -18,7 +18,6 @@ interface Task {
 
 interface TasksWidgetProps {
     tasks: Task[]
-    onDelete?: (taskId: string) => void
 }
 
 const STATUS_STYLES = {
@@ -33,18 +32,11 @@ const PRIORITY_STYLES = {
     low: 'text-gray-700 bg-gray-50 border-gray-100',
 }
 
-export default function TasksWidget({ tasks, onDelete }: TasksWidgetProps) {
+export default function TasksWidget({ tasks }: TasksWidgetProps) {
     const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
     if (!tasks || tasks.length === 0) {
         return null
-    }
-
-    const handleDelete = (taskId: string) => {
-        if (onDelete) {
-            onDelete(taskId)
-        }
-        setSelectedTask(null)
     }
 
     const getEntityUrl = (entity: Task['relatedEntity']) => {
@@ -133,13 +125,19 @@ export default function TasksWidget({ tasks, onDelete }: TasksWidgetProps) {
                                         >
                                             View
                                         </Button>
-                                        <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onClick={() => handleDelete(task.id)}
-                                        >
-                                            Delete
-                                        </Button>
+                                        {task.id !== "company-setup" && (
+                                            <Form method="post">
+                                                <input type="hidden" name="intent" value="delete" />
+                                                <input type="hidden" name="taskId" value={task.id} />
+                                                <Button
+                                                    type="submit"
+                                                    variant="secondary"
+                                                    size="sm"
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </Form>
+                                        )}
                                     </div>
                                 </td>
                             </tr>
@@ -156,12 +154,18 @@ export default function TasksWidget({ tasks, onDelete }: TasksWidgetProps) {
                     maxWidth="lg"
                     actions={
                         <>
-                            <Button
-                                variant="secondary"
-                                onClick={() => handleDelete(selectedTask.id)}
-                            >
-                                Delete Task
-                            </Button>
+                            {selectedTask.id !== "company-setup" && (
+                                <Form method="post" onSubmit={() => setSelectedTask(null)}>
+                                    <input type="hidden" name="intent" value="delete" />
+                                    <input type="hidden" name="taskId" value={selectedTask.id} />
+                                    <Button
+                                        type="submit"
+                                        variant="secondary"
+                                    >
+                                        Delete Task
+                                    </Button>
+                                </Form>
+                            )}
                             <Button
                                 variant="primary"
                                 onClick={() => setSelectedTask(null)}

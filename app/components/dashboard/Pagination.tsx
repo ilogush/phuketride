@@ -16,7 +16,7 @@ interface PaginationProps {
 
 export function Pagination({
     pagination,
-    pageSizeOptions = [10, 25, 50, 100],
+    pageSizeOptions = [20, 50, 100],
     disabled = false
 }: PaginationProps) {
     const { currentPage, totalPages, pageSize, totalItems, hasNext, hasPrevious } = pagination

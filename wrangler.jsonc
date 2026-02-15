@@ -11,24 +11,14 @@
 			"binding": "DB",
 			"database_name": "phuketride-bd",
 			"database_id": "a6ed0bbe-76ff-40f8-b23b-b9779af5d02d",
-			"migrations_dir": "drizzle",
-			"remote": true
+			"migrations_dir": "drizzle"
 		}
 	],
 	"r2_buckets": [
 		{
 			"binding": "ASSETS",
 			"bucket_name": "phuketride-cache",
-			"preview_bucket_name": "phuketride-cache-preview",
-			"remote": true
-		}
-	],
-	"kv_namespaces": [
-		{
-			"binding": "CACHE",
-			"id": "3745597a2bb34f7d80501d63d847770f",
-			"preview_id": "44f2fe7ddefa496db3bda88b06712a71",
-			"remote": true
+			"preview_bucket_name": "phuketride-cache-preview"
 		}
 	]
 }

@@ -113,9 +113,9 @@ export default function CompaniesPage() {
             key: "name",
             label: "Name",
             render: (company) => (
-                <Link to={`/companies/${company.id}`} className="font-medium text-gray-900 hover:text-blue-600">
+                <span className="font-medium text-gray-900">
                     {company.name}
-                </Link>
+                </span>
             ),
         },
         {

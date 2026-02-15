@@ -273,7 +273,7 @@ export default function CompanyEditPage() {
                             </Button>
                         </Link>
                         <Button variant="primary" type="submit">
-                            Save Changes
+                            Save
                         </Button>
                     </div>
                 </div>

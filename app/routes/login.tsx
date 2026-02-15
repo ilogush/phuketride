@@ -4,6 +4,7 @@ import { getUserFromSession, login } from "~/lib/auth.server";
 import { useState, useEffect } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
+import Button from "~/components/dashboard/Button";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     // If already logged in, redirect to dashboard
@@ -50,14 +51,14 @@ export default function LoginPage() {
         if (actionData?.error) {
             toast.error(actionData.error);
         }
-    }, [actionData?.error]);
+    }, [actionData?.error, toast]);
 
     // Show logout success toast
     useEffect(() => {
         if (searchParams.get('logout') === 'success') {
             toast.success('Logged out successfully');
         }
-    }, [searchParams.get('logout')]);
+    }, [searchParams, toast]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
@@ -119,13 +120,14 @@ export default function LoginPage() {
                             </div>
                         )}
 
-                        <button
+                        <Button
                             type="submit"
-                            disabled={isSubmitting}
-                            className="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            variant="primary"
+                            fullWidth
+                            size="lg"
                         >
-                            {isSubmitting ? "Signing in..." : "Sign in"}
-                        </button>
+                            Sign in
+                        </Button>
                     </Form>
 
                     <div className="mt-6 text-center">

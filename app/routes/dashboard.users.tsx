@@ -128,15 +128,15 @@ export default function UsersPage() {
                 const surname = user.surname || "";
 
                 return (
-                    <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                    <Link to={`/users/${user.id}/edit`} className="flex items-start gap-3 hover:opacity-80 transition-opacity">
+                        <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0 cursor-pointer">
                             {initials || "?"}
                         </div>
                         <div className="flex flex-col">
                             <span className="font-medium">{fullName}</span>
                             {surname && <span className="text-sm text-gray-500">{surname}</span>}
                         </div>
-                    </div>
+                    </Link>
                 );
             }
         },
@@ -150,24 +150,6 @@ export default function UsersPage() {
             key: "role",
             label: "Role",
             render: (user) => <StatusBadge variant="info">{user.role}</StatusBadge>
-        },
-        {
-            key: "actions",
-            label: "Actions",
-            render: (user) => (
-                <div className="flex gap-2">
-                    <Link to={`/users/${user.id}`}>
-                        <Button type="button" variant="secondary" size="sm">
-                            View
-                        </Button>
-                    </Link>
-                    <Link to={`/users/${user.id}/edit`}>
-                        <Button type="button" variant="secondary" size="sm">
-                            Edit
-                        </Button>
-                    </Link>
-                </div>
-            ),
         },
     ];
 

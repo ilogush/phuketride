@@ -10,22 +10,6 @@
 ### 2.1 Роутинг и данные
 - Роутинг через файловую систему `app/routes/`
 - Доступ к D1: `context.cloudflare.env.DB` в loader/action
-- См. docs/ROUTING.md
-
-### 2.2 State Management (КРИТИЧНО)
-- **Модалки**: Nested routes `/colors/new`, НЕ useState. Закрытие через `navigate("/colors")`
-- **Табы**: Query params `/settings?tab=profile`, НЕ useState
-- **useState**: ТОЛЬКО для dropdown, tooltip, sidebar, form inputs
-- Пример модалки:
-```tsx
-// routes.ts
-route("colors", "routes/dashboard.colors.tsx", [
-  route("new", "routes/dashboard.colors.new.tsx")
-])
-// dashboard.colors.tsx
-<Link to="/colors/new"><Button>Add</Button></Link>
-<Outlet />
-```
 
 ### 2.3 Компоненты
 - **НЕ создавать новые папки** - использовать `app/components/dashboard/` и `app/components/public/`
@@ -77,25 +61,17 @@ const { validateLatinInput } = useLatinValidation()
 
 ### 4.7 Стиль
 - Иконки: ТОЛЬКО @heroicons/react/24/outline
-- Фон форм: bg-gray-200 ТОЛЬКО для disabled, активные bg-white
-- Модалки: фон `bg-gray-100 backdrop-blur-xl`, окно `bg-white border border-gray-200`
 
 ## 5. База Данных (КРИТИЧНО)
 
 ### 5.1 Cloudflare D1 - Удаленная БД через wrangler dev
-- **Режим работы**: `wrangler dev` - сервер локально (localhost:8787), БД/KV/R2 удаленно в облаке
 - **АБСОЛЮТНО ЗАПРЕЩЕНО** флаг `--local` в любых командах
 - **АБСОЛЮТНО ЗАПРЕЩЕНО** создавать/использовать `.wrangler/state/v3/d1/*.sqlite`
-- **ОБЯЗАТЕЛЬНО**: `npm run dev` использует `wrangler dev` (БЕЗ --local)
-- **ОБЯЗАТЕЛЬНО**: Все миграции ТОЛЬКО `--remote`
-- **ОБЯЗАТЕЛЬНО**: Доступ к БД ТОЛЬКО через `context.cloudflare.env.DB`
-- **Преимущества**: нет конфликта headers, логин работает, данные из удаленной БД
-- Именование: `snake_case`
-- См. docs/DATABASE.md
 
-### 5.2 Запросы
-- Тесты: `LIMIT 10`, проверка существования: `LIMIT 1`
-- Указывать колонки: `SELECT id, name` вместо `SELECT *`
+### 5.2 Защищенные таблицы (КРИТИЧНО)
+- **АБСОЛЮТНО ЗАПРЕЩЕНО** изменять таблицу `locations` (districts, countries)
+- **ЗАПРЕЩЕНО** добавлять/удалять/изменять записи в `locations`
+- Только чтение данных из `locations`
 
 ### 5.3 Audit Logging
 - КАЖДОЕ изменение: Toast + `quickAudit` из @/lib/audit-logger (параллельно)
@@ -108,6 +84,6 @@ const { validateLatinInput } = useLatinValidation()
 
 ## 7. Чистота проекта
 - **УДАЛЯТЬ** ненужные файлы после использования
-- **УДАЛЯТЬ** тестовые миграции (0010_test_data.sql и подобные)
+- **УДАЛЯТЬ** тестовые миграции 
 - **НЕ ОСТАВЛЯТЬ** закомментированный код
 - **НЕ СОЗДАВАТЬ** дублирующие файлы

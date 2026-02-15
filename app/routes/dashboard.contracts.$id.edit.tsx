@@ -649,7 +649,7 @@ export default function EditContract() {
                         Cancel
                     </Button>
                     <Button type="submit" variant="primary">
-                        Save Changes
+                        Save
                     </Button>
                 </div>
             </Form>

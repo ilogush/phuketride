@@ -5,6 +5,7 @@ import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { companyCars } from "~/db/schema";
+import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -15,7 +16,7 @@ import { useToast } from "~/lib/toast";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema: await import("~/db/schema") });
+    const db = drizzle(context.cloudflare.env.DB, { schema });
 
     let cars: any[] = [];
     let statusCounts = { all: 0, available: 0, rented: 0, maintenance: 0, booked: 0 };

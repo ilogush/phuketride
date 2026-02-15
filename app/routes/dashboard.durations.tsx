@@ -282,9 +282,17 @@ export default function DurationsPage() {
         {
             key: "rangeName",
             label: "Range Name",
-            render: (item) => (
-                <span className="font-medium text-gray-900">{item.rangeName}</span>
-            ),
+            render: (item) => {
+                const daysCount = item.maxDays 
+                    ? item.maxDays - item.minDays + 1 
+                    : null;
+                const daysText = daysCount ? ` (${daysCount} days)` : ' (unlimited)';
+                return (
+                    <span className="font-medium text-gray-900">
+                        {item.rangeName}{daysText}
+                    </span>
+                );
+            },
         },
         {
             key: "minDays",

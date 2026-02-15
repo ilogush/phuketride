@@ -4,6 +4,7 @@ import { getUserFromSession } from "~/lib/auth.server";
 import { useState } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useLatinValidation } from "~/lib/useLatinValidation";
+import Button from "~/components/dashboard/Button";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { users } from "~/db/schema";
@@ -190,13 +191,14 @@ export default function RegisterPage() {
                             </div>
                         )}
 
-                        <button
+                        <Button
                             type="submit"
-                            disabled={isSubmitting}
-                            className="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            variant="primary"
+                            fullWidth
+                            size="lg"
                         >
-                            {isSubmitting ? "Creating account..." : "Create Account"}
-                        </button>
+                            Create Account
+                        </Button>
                     </Form>
 
                     <div className="mt-6 text-center">

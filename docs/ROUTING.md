@@ -162,9 +162,6 @@ const db = drizzle(context.cloudflare.env.DB);
 
 // R2
 const bucket = context.cloudflare.env.ASSETS;
-
-// KV
-const cache = context.cloudflare.env.CACHE;
 ```
 
 **Файл**: [worker-configuration.d.ts](../worker-configuration.d.ts)

@@ -222,6 +222,8 @@ export default function DataTable<T>({
         return filteredData.slice(start, start + pageSize)
     }, [filteredData, page, pageSize, currentFetchData, disablePagination])
 
+    const actualTotalCount = currentFetchData ? totalCount : filteredData.length
+
     return (
         <div className="overflow-hidden">
             {tabs && tabs.length > 0 && (
@@ -324,10 +326,10 @@ export default function DataTable<T>({
                 <Pagination
                     pagination={{
                         currentPage: page,
-                        totalPages: Math.ceil(totalCount / pageSize),
+                        totalPages: Math.ceil(actualTotalCount / pageSize),
                         pageSize,
-                        totalItems: totalCount,
-                        hasNext: page < Math.ceil(totalCount / pageSize),
+                        totalItems: actualTotalCount,
+                        hasNext: page < Math.ceil(actualTotalCount / pageSize),
                         hasPrevious: page > 1
                     }}
                 />

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
+import { useNavigation } from 'react-router'
 
 interface ButtonProps {
     children?: ReactNode
@@ -34,7 +35,9 @@ export default function Button({
     title,
     loading = false
 }: ButtonProps) {
+    const navigation = useNavigation()
     const [isProcessing, setIsProcessing] = useState(false)
+    const [isClicked, setIsClicked] = useState(false)
 
     const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
         if (isProcessing || disabled || loading) return
@@ -48,7 +51,24 @@ export default function Button({
         }
     }
 
-    const isDisabled = disabled || loading || isProcessing
+    // Для submit кнопок отслеживаем клик
+    const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
+        if (type === 'submit') {
+            setIsClicked(true)
+        }
+    }
+
+    // Автоматическое определение загрузки для submit кнопок
+    // Проверяем состояние навигации (submitting или loading)
+    const isNavigating = navigation.state === 'submitting' || navigation.state === 'loading'
+    const isSubmitting = type === 'submit' && isClicked && isNavigating
+    
+    // Сбрасываем флаг клика когда навигация завершена
+    if (isClicked && navigation.state === 'idle') {
+        setIsClicked(false)
+    }
+    
+    const isDisabled = disabled || loading || isProcessing || isSubmitting
 
     const baseClasses = 'flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
 
@@ -84,14 +104,17 @@ export default function Button({
     return (
         <button
             type={type}
-            onClick={type === 'button' ? handleClick : undefined}
+            onClick={type === 'button' ? handleClick : handleSubmit}
             disabled={isDisabled}
             form={form}
             title={title}
             className={buttonClasses}
         >
-            {isDisabled && (loading || isProcessing) ? (
-                <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            {isDisabled && (loading || isProcessing || isSubmitting) ? (
+                <>
+                    <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    {children && <span className="ml-2 opacity-70">{children}</span>}
+                </>
             ) : (
                 <>
                     {icon && iconPosition === 'left' && <span>{icon}</span>}
