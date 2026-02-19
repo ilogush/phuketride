@@ -66,19 +66,23 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const toast = useToast();
 
-    // Show toast on error
+    // Show toast on error (only once per action)
     useEffect(() => {
         if (actionData?.error) {
-            toast.error(actionData.error);
+            toast.error(actionData.error, 5000);
         }
     }, [actionData?.error, toast]);
 
-    // Show logout success toast
+    // Show logout success toast (only on fresh login page load, not on failed login)
     useEffect(() => {
-        if (searchParams.get('logout') === 'success') {
-            toast.success('Logged out successfully');
+        const logoutSuccess = searchParams.get('logout') === 'success';
+        const loginSuccess = searchParams.get('login') === 'success';
+        
+        // Show logout success only if user just logged out (not after failed login attempt)
+        if (logoutSuccess && !actionData?.error && !loginSuccess) {
+            toast.success('Logged out successfully', 5000);
         }
-    }, [searchParams, toast]);
+    }, [searchParams, actionData, toast]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
@@ -133,12 +137,6 @@ export default function LoginPage() {
                                 </button>
                             </div>
                         </div>
-
-                        {actionData?.error && (
-                            <div className="p-4 rounded-xl bg-red-50 border border-red-200">
-                                <p className="text-sm font-medium text-red-600">{actionData.error}</p>
-                            </div>
-                        )}
 
                         <Button
                             type="submit"

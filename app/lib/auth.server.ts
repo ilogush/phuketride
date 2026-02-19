@@ -5,9 +5,10 @@ import { users } from "~/db/schema";
 import { verifyPasswordHash } from "~/lib/password.server";
 
 // Session cookie configuration
+// Note: secure flag is handled dynamically in serialize/parse calls
 export const sessionCookie = createCookie("session", {
     httpOnly: true,
-    secure: true,
+    secure: false, // Handled dynamically based on request protocol
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: "/",
@@ -90,7 +91,7 @@ export async function login(
     }
 
     if (!user) {
-        return { error: "Invalid email or password" };
+        return { error: "User with this email does not exist" };
     }
 
     // Check if user is archived
@@ -101,12 +102,12 @@ export async function login(
     // Verify password
     try {
         if (!user.passwordHash) {
-            return { error: "Invalid email or password" };
+            return { error: "Invalid password" };
         }
 
         const ok = await verifyPasswordHash(password, user.passwordHash);
         if (!ok) {
-            return { error: "Invalid email or password" };
+            return { error: "Invalid password" };
         }
     } catch {
         return { error: "Login failed at: password verification" };
