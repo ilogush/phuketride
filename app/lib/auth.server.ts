@@ -1,6 +1,4 @@
 import { createCookie, redirect } from "react-router";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
 import { users } from "~/db/schema";
 import { verifyPasswordHash } from "~/lib/password.server";
 
@@ -75,18 +73,48 @@ export async function login(
     password: string,
     request: Request
 ): Promise<{ user: SessionUser; cookie: string } | { error: string }> {
-    const drizzleDb = drizzle(db);
     const isSecureRequest = request.url.startsWith("https://");
 
     let user: typeof users.$inferSelect | undefined;
     try {
-        // Find user by email
-        [user] = await drizzleDb
-            .select()
-            .from(users)
-            .where(eq(users.email, email))
-            .limit(1);
-    } catch {
+        // Use raw SQL query to avoid drizzle mapping issues
+        const rawUser = await db
+            .prepare("SELECT * FROM users WHERE email = ? LIMIT 1")
+            .bind(email)
+            .first();
+        
+        if (rawUser) {
+            user = {
+                id: rawUser.id,
+                email: rawUser.email,
+                role: rawUser.role,
+                name: rawUser.name,
+                surname: rawUser.surname,
+                phone: rawUser.phone,
+                whatsapp: rawUser.whatsapp,
+                telegram: rawUser.telegram,
+                passportNumber: rawUser.passport_number,
+                citizenship: rawUser.citizenship,
+                city: rawUser.city,
+                countryId: rawUser.country_id,
+                dateOfBirth: rawUser.date_of_birth,
+                gender: rawUser.gender,
+                passportPhotos: rawUser.passport_photos,
+                driverLicensePhotos: rawUser.driver_license_photos,
+                passwordHash: rawUser.password_hash,
+                avatarUrl: rawUser.avatar_url,
+                hotelId: rawUser.hotel_id,
+                roomNumber: rawUser.room_number,
+                locationId: rawUser.location_id,
+                districtId: rawUser.district_id,
+                address: rawUser.address,
+                isFirstLogin: rawUser.is_first_login,
+                archivedAt: rawUser.archived_at,
+                createdAt: rawUser.created_at,
+                updatedAt: rawUser.updated_at,
+            } as typeof users.$inferSelect;
+        }
+    } catch (e) {
         return { error: "Database connection error. Please try again." };
     }
 

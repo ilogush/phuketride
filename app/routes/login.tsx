@@ -14,14 +14,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             return redirect("/dashboard");
         }
         return null;
-    } catch (error) {
-        console.error("[LOGIN_LOADER_ERROR]", {
-            at: new Date().toISOString(),
-            method: request.method,
-            url: request.url,
-            message: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
-        });
+    } catch {
         return null;
     }
 }

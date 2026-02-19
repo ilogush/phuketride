@@ -1,6 +1,6 @@
 const PASSWORD_ALGO = "pbkdf2" as const;
 const PASSWORD_HASH = "sha256" as const;
-const PBKDF2_ITERATIONS = 210_000;
+const PBKDF2_ITERATIONS = 100_000;
 const DK_LEN_BYTES = 32;
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -86,7 +86,8 @@ export async function verifyPasswordHash(password: string, stored: string): Prom
 
         const actual = await deriveKey(password, salt, iterations);
         return timingSafeEqual(actual, expected);
-    } catch {
+    } catch (e) {
+        console.error("[PASSWORD] Verification error:", e);
         return false;
     }
 }
