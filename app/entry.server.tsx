@@ -3,6 +3,41 @@ import { ServerRouter } from "react-router";
 import { isbot } from "isbot";
 import { renderToReadableStream } from "react-dom/server";
 
+function toErrorDetails(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      cause: error.cause,
+    };
+  }
+  return {
+    name: "NonErrorThrown",
+    message: String(error),
+    stack: undefined,
+    cause: undefined,
+  };
+}
+
+export function handleError(
+  error: unknown,
+  { request }: { request: Request; context: AppLoadContext; params: Record<string, string | undefined> }
+) {
+  const pathname = new URL(request.url).pathname;
+  if (pathname.startsWith("/.well-known/")) {
+    return;
+  }
+
+  const details = toErrorDetails(error);
+  console.error("[RR_SERVER_ERROR]", {
+    at: new Date().toISOString(),
+    method: request.method,
+    url: request.url,
+    ...details,
+  });
+}
+
 export default async function handleRequest(
   request: Request,
   responseStatusCode: number,

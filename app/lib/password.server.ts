@@ -70,19 +70,23 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 export async function verifyPasswordHash(password: string, stored: string): Promise<boolean> {
-    const parts = stored.split("$");
-    if (parts.length !== 5) return false;
+    try {
+        const parts = stored.split("$");
+        if (parts.length !== 5) return false;
 
-    const [algo, hash, iterStr, saltB64, dkB64] = parts;
-    if (algo !== PASSWORD_ALGO) return false;
-    if (hash !== PASSWORD_HASH) return false;
+        const [algo, hash, iterStr, saltB64, dkB64] = parts;
+        if (algo !== PASSWORD_ALGO) return false;
+        if (hash !== PASSWORD_HASH) return false;
 
-    const iterations = Number(iterStr);
-    if (!Number.isFinite(iterations) || iterations < 10_000) return false;
+        const iterations = Number(iterStr);
+        if (!Number.isFinite(iterations) || iterations < 10_000) return false;
 
-    const salt = base64ToBytes(saltB64);
-    const expected = base64ToBytes(dkB64);
+        const salt = base64ToBytes(saltB64);
+        const expected = base64ToBytes(dkB64);
 
-    const actual = await deriveKey(password, salt, iterations);
-    return timingSafeEqual(actual, expected);
+        const actual = await deriveKey(password, salt, iterations);
+        return timingSafeEqual(actual, expected);
+    } catch {
+        return false;
+    }
 }

@@ -6,7 +6,7 @@
     "build": "react-router build",
     "cf-typegen": "wrangler types",
     "deploy": "npm run build && wrangler deploy",
-    "dev": "wrangler dev --remote",
+    "dev": "wrangler dev",
     "db:generate": "drizzle-kit generate",
     "db:migrate:remote": "wrangler d1 migrations apply phuketride-bd --remote",
     "db:studio": "drizzle-kit studio",

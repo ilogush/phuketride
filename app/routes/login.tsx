@@ -7,35 +7,55 @@ import { useToast } from "~/lib/toast";
 import Button from "~/components/dashboard/Button";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    // If already logged in, redirect to dashboard
-    const user = await getUserFromSession(request);
-    if (user) {
-        return redirect("/dashboard");
+    try {
+        // If already logged in, redirect to dashboard
+        const user = await getUserFromSession(request);
+        if (user) {
+            return redirect("/dashboard");
+        }
+        return null;
+    } catch (error) {
+        console.error("[LOGIN_LOADER_ERROR]", {
+            at: new Date().toISOString(),
+            method: request.method,
+            url: request.url,
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+        });
+        return null;
     }
-    return null;
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const formData = await request.formData();
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
+    try {
+        const formData = await request.formData();
+        const email = formData.get("email") as string;
+        const password = formData.get("password") as string;
 
-    if (!email || !password) {
-        return { error: "Email and password are required" };
+        if (!email || !password) {
+            return { error: "Email and password are required" };
+        }
+
+        if (!context.cloudflare.env.DB) {
+            return { error: "Database is not configured" };
+        }
+
+        const result = await login(context.cloudflare.env.DB, email, password, request);
+
+        if ("error" in result) {
+            return { error: result.error };
+        }
+
+        // Set cookie and redirect to dashboard
+        return redirect("/dashboard?login=success", {
+            headers: {
+                "Set-Cookie": result.cookie,
+            },
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        return { error: `Login action crash: ${message}` };
     }
-
-    const result = await login(context.cloudflare.env.DB, email, password);
-
-    if ("error" in result) {
-        return { error: result.error };
-    }
-
-    // Set cookie and redirect to dashboard
-    return redirect("/dashboard?login=success", {
-        headers: {
-            "Set-Cookie": result.cookie,
-        },
-    });
 }
 
 export default function LoginPage() {

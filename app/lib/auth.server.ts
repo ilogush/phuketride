@@ -2,12 +2,12 @@ import { createCookie, redirect } from "react-router";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { users } from "~/db/schema";
-import { hashPassword, verifyPasswordHash } from "~/lib/password.server";
+import { verifyPasswordHash } from "~/lib/password.server";
 
 // Session cookie configuration
 export const sessionCookie = createCookie("session", {
     httpOnly: true,
-    secure: true, // Always use secure cookies in Cloudflare Workers
+    secure: true,
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: "/",
@@ -24,28 +24,22 @@ export interface SessionUser {
     companyId?: number;
 }
 
-// Legacy password verification (kept for compatibility; upgraded on successful login).
-function verifyLegacyPassword(password: string, email: string): boolean {
-    // Admin has special password
-    if (email === "ilogush@icloud.com") {
-        return password === "220232";
-    }
-    // For demo purposes, all other test users have password "password123"
-    return password === "password123";
-}
-
 // Get user from session
 export async function getUserFromSession(
     request: Request
 ): Promise<SessionUser | null> {
-    const cookieHeader = request.headers.get("Cookie");
-    const session = await sessionCookie.parse(cookieHeader);
+    try {
+        const cookieHeader = request.headers.get("Cookie");
+        const session = await sessionCookie.parse(cookieHeader);
 
-    if (!session?.id) {
+        if (!session?.id) {
+            return null;
+        }
+
+        return session as SessionUser;
+    } catch {
         return null;
     }
-
-    return session as SessionUser;
 }
 
 // Require authentication
@@ -77,16 +71,23 @@ export async function requireRole(
 export async function login(
     db: D1Database,
     email: string,
-    password: string
+    password: string,
+    request: Request
 ): Promise<{ user: SessionUser; cookie: string } | { error: string }> {
     const drizzleDb = drizzle(db);
+    const isSecureRequest = request.url.startsWith("https://");
 
-    // Find user by email
-    const [user] = await drizzleDb
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-        .limit(1);
+    let user: typeof users.$inferSelect | undefined;
+    try {
+        // Find user by email
+        [user] = await drizzleDb
+            .select()
+            .from(users)
+            .where(eq(users.email, email))
+            .limit(1);
+    } catch {
+        return { error: "Database connection error. Please try again." };
+    }
 
     if (!user) {
         return { error: "Invalid email or password" };
@@ -98,64 +99,58 @@ export async function login(
     }
 
     // Verify password
-    if (user.passwordHash) {
+    try {
+        if (!user.passwordHash) {
+            return { error: "Invalid email or password" };
+        }
+
         const ok = await verifyPasswordHash(password, user.passwordHash);
         if (!ok) {
             return { error: "Invalid email or password" };
         }
-    } else {
-        const ok = verifyLegacyPassword(password, email);
-        if (!ok) {
-            return { error: "Invalid email or password" };
-        }
-
-        // Upgrade legacy users to hashed passwords on successful login.
-        try {
-            const newHash = await hashPassword(password);
-            await drizzleDb
-                .update(users)
-                .set({ passwordHash: newHash, updatedAt: new Date() })
-                .where(eq(users.id, user.id));
-        } catch {
-            // If upgrade fails, still allow login (do not lock user out).
-        }
+    } catch {
+        return { error: "Login failed at: password verification" };
     }
 
     // Get company ID if user is partner or manager
     let companyId: number | undefined;
 
-    if (user.role === "partner") {
-        // Get company owned by this partner
-        const companyResult = await db
-            .prepare("SELECT id, archived_at FROM companies WHERE owner_id = ? LIMIT 1")
-            .bind(user.id)
-            .first<{ id: number; archived_at: number | null }>();
-        
-        // Check if company is archived
-        if (companyResult?.archived_at) {
-            return { error: "Company has been archived. Please contact support" };
+    try {
+        if (user.role === "partner") {
+            // Get company owned by this partner
+            const companyResult = await db
+                .prepare("SELECT id, archived_at FROM companies WHERE owner_id = ? LIMIT 1")
+                .bind(user.id)
+                .first<{ id: number; archived_at: number | null }>();
+
+            // Check if company is archived
+            if (companyResult?.archived_at) {
+                return { error: "Company has been archived. Please contact support" };
+            }
+
+            companyId = companyResult?.id;
+        } else if (user.role === "manager") {
+            // Get company where this user is a manager
+            const managerResult = await db
+                .prepare(`
+                    SELECT m.company_id, c.archived_at
+                    FROM managers m
+                    JOIN companies c ON c.id = m.company_id
+                    WHERE m.user_id = ? AND m.is_active = 1
+                    LIMIT 1
+                `)
+                .bind(user.id)
+                .first<{ company_id: number; archived_at: number | null }>();
+
+            // Check if company is archived
+            if (managerResult?.archived_at) {
+                return { error: "Company has been archived. Please contact support" };
+            }
+
+            companyId = managerResult?.company_id;
         }
-        
-        companyId = companyResult?.id;
-    } else if (user.role === "manager") {
-        // Get company where this user is a manager
-        const managerResult = await db
-            .prepare(`
-                SELECT m.company_id, c.archived_at 
-                FROM managers m 
-                JOIN companies c ON c.id = m.company_id 
-                WHERE m.user_id = ? AND m.is_active = 1 
-                LIMIT 1
-            `)
-            .bind(user.id)
-            .first<{ company_id: number; archived_at: number | null }>();
-        
-        // Check if company is archived
-        if (managerResult?.archived_at) {
-            return { error: "Company has been archived. Please contact support" };
-        }
-        
-        companyId = managerResult?.company_id;
+    } catch {
+        return { error: "Login failed at: company lookup" };
     }
 
     const sessionUser: SessionUser = {
@@ -167,14 +162,25 @@ export async function login(
         companyId,
     };
 
-    const cookie = await sessionCookie.serialize(sessionUser);
+    let cookie: string;
+    try {
+        cookie = await sessionCookie.serialize(sessionUser, {
+            secure: isSecureRequest,
+        });
+    } catch {
+        return { error: "Login failed at: session cookie serialize" };
+    }
 
     return { user: sessionUser, cookie };
 }
 
 // Logout user
 export async function logout(request: Request): Promise<string> {
-    return await sessionCookie.serialize(null, { maxAge: 0 });
+    const isSecureRequest = request.url.startsWith("https://");
+    return await sessionCookie.serialize(null, {
+        maxAge: 0,
+        secure: isSecureRequest,
+    });
 }
 
 // Get company ID for current user (for multi-tenancy)
