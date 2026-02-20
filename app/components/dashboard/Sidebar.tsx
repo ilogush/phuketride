@@ -20,6 +20,7 @@ import {
     RectangleStackIcon,
     ClipboardDocumentCheckIcon,
     BellIcon,
+    ShieldExclamationIcon,
 } from "@heroicons/react/24/outline";
 import type { UserRole } from "~/lib/auth.server";
 
@@ -103,6 +104,15 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
     // В режиме модерации используем меню партнёра
     const effectiveRole = isModMode ? "partner" : user.role;
     const menuItems = getMenuItems(effectiveRole);
+    const isAdminModMode = isModMode && user.role === "admin" && modCompanyId !== null;
+
+    const getItemHref = (to: string) => {
+        if (!isAdminModMode) {
+            return to;
+        }
+        const separator = to.includes("?") ? "&" : "?";
+        return `${to}${separator}modCompanyId=${modCompanyId}`;
+    };
 
     return (
         <>
@@ -154,7 +164,7 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
                         return (
                             <NavLink
                                 key={item.to}
-                                to={item.to}
+                                to={getItemHref(item.to)}
                                 end={item.end}
                                 onClick={() => {
                                     if (window.innerWidth < 768 && onClose) {
@@ -199,6 +209,20 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
                         );
                     })}
                 </nav>
+
+                {isAdminModMode && (
+                    <div className={`${isOpen ? "mx-4 mb-4 p-3" : "mx-auto mb-4 p-2"} border border-amber-200 bg-amber-50 rounded-xl`}>
+                        <div className={`flex items-center ${isOpen ? "gap-2" : "justify-center"}`}>
+                            <ShieldExclamationIcon className="w-4 h-4 text-amber-700 shrink-0" />
+                            {isOpen && (
+                                <div className="min-w-0">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">MOD MODE</p>
+                                    <p className="text-xs text-amber-700 truncate">Admin as partner • company #{modCompanyId}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
             </aside>
 

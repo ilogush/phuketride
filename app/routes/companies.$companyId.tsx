@@ -51,7 +51,11 @@ interface TeamMember {
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB);
-    const companyId = parseInt(params.companyId || "0");
+    const companyId = Number.parseInt(params.companyId || "0", 10);
+
+    if (!Number.isFinite(companyId) || companyId <= 0) {
+        throw new Response("Invalid company id", { status: 400 });
+    }
 
     let company: any = null;
     let stats = {
@@ -228,8 +232,8 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 
         recentActivity = activityData;
 
-    } catch (error) {
-        console.error("Error loading company data:", error);
+    } catch {
+        // Keep page resilient and show empty states if partial loading fails
     }
 
     return { 
@@ -246,6 +250,7 @@ export default function CompanyDetailPage() {
     const { user, company, stats, vehicles, teamMembers, recentActivity } = useLoaderData<typeof loader>();
     const [activeTab, setActiveTab] = useState<string>("overview");
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const isAdminModMode = user.role === "admin" && company?.id;
 
     if (!company) {
         return (
@@ -361,7 +366,13 @@ export default function CompanyDetailPage() {
 
     return (
         <div className="min-h-screen bg-gray-100">
-            <Sidebar user={user} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+            <Sidebar
+                user={user}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+                isModMode={Boolean(isAdminModMode)}
+                modCompanyId={isAdminModMode ? company.id : null}
+            />
             <div className="flex-1 overflow-y-auto">
                 <Topbar user={user} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
                 <main className="p-4">

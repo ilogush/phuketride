@@ -67,8 +67,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             .limit(5);
         
         notificationsCount = upcomingCount + recentContracts.length;
-    } catch (error) {
-        console.error("Error loading notifications count:", error);
+    } catch {
+        notificationsCount = 0;
     }
     
     return { user, notificationsCount };
@@ -83,17 +83,29 @@ export default function Layout() {
     const toast = useToast();
 
     // Show welcome toast on login
+    const loginState = searchParams.get("login");
+
     useEffect(() => {
-        if (searchParams.get('login') === 'success') {
+        if (loginState === "success") {
             toast.success(`Welcome back, ${user.name || user.email}!`);
         }
-    }, [searchParams.get('login'), user.name, user.email]);
+    }, [loginState, user.name, user.email, toast]);
 
-    // Detect mod mode from URL
-    const isModMode = !!(location.pathname.startsWith("/companies/") && 
-        params.companyId && 
-        user.role === "admin");
-    const modCompanyId = isModMode ? parseInt(params.companyId || "0") : null;
+    // Detect mod mode from URL (direct /companies/:id or persisted query param)
+    const pathCompanyId = location.pathname.startsWith("/companies/") && params.companyId
+        ? Number.parseInt(params.companyId, 10)
+        : null;
+    const queryCompanyIdRaw = searchParams.get("modCompanyId");
+    const queryCompanyId = queryCompanyIdRaw ? Number.parseInt(queryCompanyIdRaw, 10) : null;
+
+    const resolvedModCompanyId = pathCompanyId && Number.isFinite(pathCompanyId) && pathCompanyId > 0
+        ? pathCompanyId
+        : queryCompanyId && Number.isFinite(queryCompanyId) && queryCompanyId > 0
+            ? queryCompanyId
+            : null;
+
+    const isModMode = user.role === "admin" && resolvedModCompanyId !== null;
+    const modCompanyId = isModMode ? resolvedModCompanyId : null;
 
     // Detect mobile and close sidebar by default
     useEffect(() => {
