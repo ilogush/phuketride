@@ -8,7 +8,6 @@ import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
-import Tabs from "~/components/dashboard/Tabs";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
 import { Textarea } from "~/components/dashboard/Textarea";
@@ -74,7 +73,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
         currentMileage: Number(formData.get("currentMileage")) || 0,
         nextOilChangeMileage: Number(formData.get("nextOilChangeMileage")) || 0,
         oilChangeInterval: Number(formData.get("oilChangeInterval")) || 10000,
-        dailyMileageLimit: formData.get("dailyMileageLimit") ? Number(formData.get("dailyMileageLimit")) : null,
         pricePerDay: Number(formData.get("pricePerDay")) || 0,
         deposit: Number(formData.get("deposit")) || 0,
         insuranceType: (formData.get("insuranceType") as string) || null,
@@ -82,8 +80,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
         registrationExpiry: (formData.get("registrationExpiry") as string) || null,
         taxRoadExpiry: (formData.get("taxRoadExpiry") as string) || null,
         fullInsuranceMinDays: formData.get("fullInsuranceMinDays") ? Number(formData.get("fullInsuranceMinDays")) : null,
-        minInsurancePrice: formData.get("minInsurancePrice") ? Number(formData.get("minInsurancePrice")) : null,
-        maxInsurancePrice: formData.get("maxInsurancePrice") ? Number(formData.get("maxInsurancePrice")) : null,
+        minInsurancePrice: formData.get("fullInsuranceEnabled") === "true"
+            ? (formData.get("minInsurancePrice") ? Number(formData.get("minInsurancePrice")) : null)
+            : null,
+        maxInsurancePrice: formData.get("fullInsuranceEnabled") === "true"
+            ? (formData.get("maxInsurancePrice") ? Number(formData.get("maxInsurancePrice")) : null)
+            : null,
     };
 
     // Validate with Zod
@@ -181,7 +183,6 @@ export default function CreateCarPage() {
     const [searchParams] = useSearchParams();
     const toast = useToast();
     const { validateLatinInput } = useLatinValidation();
-    const [activeTab, setActiveTab] = useState("specifications");
     const [photos, setPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [pricePerDay, setPricePerDay] = useState(2343);
     const [fullInsuranceEnabled, setFullInsuranceEnabled] = useState(false);
@@ -202,14 +203,6 @@ export default function CreateCarPage() {
             toast.error(error, 3000);
         }
     }, [searchParams, toast]);
-
-    const tabs = [
-        { id: "specifications", label: "Specifications" },
-        { id: "maintenance", label: "Maintenance" },
-        { id: "pricing", label: "Pricing" },
-        { id: "insurance", label: "Insurance" },
-        { id: "details", label: "Details" },
-    ];
 
     // Format date for input (DD-MM-YYYY)
     const formatDateInput = (date: Date) => {
@@ -249,107 +242,94 @@ export default function CreateCarPage() {
                 }
             />
 
-            <Tabs tabs={tabs} activeTab={activeTab} onTabChange={(tabId) => setActiveTab(String(tabId))} className="mb-4" />
-
             <Form id="create-car-form" method="post" className="bg-white rounded-3xl shadow-sm p-4">
-                {activeTab === "specifications" && (
-                    <div className="space-y-6">
-                        <div>
-                            <h3 className="text-sm font-semibold text-gray-900 mb-3">Car Details</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <Select
-                                    label="Car Template"
-                                    name="templateId"
-                                    required
-                                    options={templates.map(t => ({
-                                        id: t.id,
-                                        name: getTemplateName(t)
-                                    }))}
-                                    placeholder="Select a template"
-                                    onChange={(e) => setSelectedTemplateId(Number(e.target.value))}
-                                />
-                                <Input
-                                    label="License Plate"
-                                    name="licensePlate"
-                                    required
-                                    placeholder="ABC-1234"
-                                    onChange={(e) => {
-                                        e.target.value = e.target.value.toUpperCase();
-                                        validateLatinInput(e, 'License Plate');
-                                    }}
-                                />
-                                <Select
-                                    label="Color"
-                                    name="colorId"
-                                    required
-                                    options={colors}
-                                    placeholder="Select color"
-                                />
-                                <Input
-                                    label="VIN Number"
-                                    name="vin"
-                                    maxLength={17}
-                                    className="font-mono"
-                                    placeholder="Optional (17 chars)"
-                                    onChange={(e) => {
-                                        e.target.value = e.target.value.toUpperCase();
-                                        validateLatinInput(e, 'VIN');
-                                    }}
-                                />
-                                <Select
-                                    label="Status"
-                                    name="status"
-                                    required
-                                    options={[
-                                        { id: "available", name: "Available" },
-                                        { id: "maintenance", name: "Maintenance" },
-                                    ]}
-                                    defaultValue="available"
-                                />
-                            </div>
-                        </div>
-
-                        {selectedTemplate && (
-                            <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                                <p className="text-xs font-medium text-gray-500 mb-2">Template Details:</p>
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div><span className="text-gray-500">Body Type:</span> <span className="font-medium">{selectedTemplate.bodyType?.name || 'N/A'}</span></div>
-                                    <div><span className="text-gray-500">Transmission:</span> <span className="font-medium capitalize">{selectedTemplate.transmission || 'N/A'}</span></div>
-                                    <div><span className="text-gray-500">Engine:</span> <span className="font-medium">{selectedTemplate.engineVolume}L</span></div>
-                                    <div><span className="text-gray-500">Seats:</span> <span className="font-medium">{selectedTemplate.seats}</span></div>
-                                    <div><span className="text-gray-500">Doors:</span> <span className="font-medium">{selectedTemplate.doors}</span></div>
-                                    <div><span className="text-gray-500">Fuel Type:</span> <span className="font-medium">{selectedTemplate.fuelType?.name || 'N/A'}</span></div>
-                                </div>
-                            </div>
-                        )}
-
-                        <input type="hidden" name="transmission" value={selectedTemplate?.transmission || 'automatic'} />
-                        <input type="hidden" name="engineVolume" value={selectedTemplate?.engineVolume || 1.5} />
-                        <input type="hidden" name="fuelType" value={(selectedTemplate?.fuelType?.name || 'Petrol').toLowerCase()} />
-                        <input type="hidden" name="photos" value={JSON.stringify(photos)} />
-
-                        <div className="space-y-2">
-                            <h4 className="block text-xs font-medium text-gray-500 mb-1">Car Photos (max 12)</h4>
-                            <CarPhotosUpload
-                                currentPhotos={[]}
-                                onPhotosChange={setPhotos}
-                                maxPhotos={12}
+                <div className="space-y-4">
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-3">Specifications</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <Select
+                                label="Car Template"
+                                name="templateId"
+                                required
+                                options={templates.map(t => ({
+                                    id: t.id,
+                                    name: getTemplateName(t)
+                                }))}
+                                placeholder="Select a template"
+                                onChange={(e) => setSelectedTemplateId(Number(e.target.value))}
+                            />
+                            <Input
+                                label="License Plate"
+                                name="licensePlate"
+                                required
+                                placeholder="ABC-1234"
+                                onChange={(e) => {
+                                    e.target.value = e.target.value.toUpperCase();
+                                    validateLatinInput(e, 'License Plate');
+                                }}
+                            />
+                            <Select
+                                label="Color"
+                                name="colorId"
+                                required
+                                options={colors}
+                                placeholder="Select color"
+                            />
+                            <Input
+                                label="VIN Number"
+                                name="vin"
+                                maxLength={17}
+                                className="font-mono"
+                                placeholder="Optional (17 chars)"
+                                onChange={(e) => {
+                                    e.target.value = e.target.value.toUpperCase();
+                                    validateLatinInput(e, 'VIN');
+                                }}
+                            />
+                            <Select
+                                label="Status"
+                                name="status"
+                                required
+                                options={[
+                                    { id: "available", name: "Available" },
+                                    { id: "maintenance", name: "Maintenance" },
+                                ]}
+                                defaultValue="available"
                             />
                         </div>
                     </div>
-                )}
 
-                {activeTab === "maintenance" && (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <Input
-                                label="Daily Mileage Limit"
-                                name="dailyMileageLimit"
-                                type="number"
-                                min={0}
-                                placeholder="Optional"
-                                addonRight="km/day"
-                            />
+                    {selectedTemplate && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                            <p className="text-xs font-medium text-gray-500 mb-2">Template Details:</p>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div><span className="text-gray-500">Body Type:</span> <span className="font-medium">{selectedTemplate.bodyType?.name || 'N/A'}</span></div>
+                                <div><span className="text-gray-500">Transmission:</span> <span className="font-medium capitalize">{selectedTemplate.transmission || 'N/A'}</span></div>
+                                <div><span className="text-gray-500">Engine:</span> <span className="font-medium">{selectedTemplate.engineVolume}L</span></div>
+                                <div><span className="text-gray-500">Seats:</span> <span className="font-medium">{selectedTemplate.seats}</span></div>
+                                <div><span className="text-gray-500">Doors:</span> <span className="font-medium">{selectedTemplate.doors}</span></div>
+                                <div><span className="text-gray-500">Fuel Type:</span> <span className="font-medium">{selectedTemplate.fuelType?.name || 'N/A'}</span></div>
+                            </div>
+                        </div>
+                    )}
+
+                    <input type="hidden" name="transmission" value={selectedTemplate?.transmission || 'automatic'} />
+                    <input type="hidden" name="engineVolume" value={selectedTemplate?.engineVolume || 1.5} />
+                    <input type="hidden" name="fuelType" value={(selectedTemplate?.fuelType?.name || 'Petrol').toLowerCase()} />
+                    <input type="hidden" name="photos" value={JSON.stringify(photos)} />
+
+                    <div className="space-y-2">
+                        <h4 className="block text-xs font-medium text-gray-500 mb-1">Car Photos (max 12)</h4>
+                        <CarPhotosUpload
+                            currentPhotos={[]}
+                            onPhotosChange={setPhotos}
+                            maxPhotos={12}
+                        />
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-100 space-y-4">
+                        <h3 className="text-sm font-semibold text-gray-900">Maintenance</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input
                                 label="Current Mileage"
                                 name="currentMileage"
@@ -393,11 +373,10 @@ export default function CreateCarPage() {
                             />
                         </div>
                     </div>
-                )}
 
-                {activeTab === "pricing" && (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="pt-4 border-t border-gray-100 space-y-4">
+                        <h3 className="text-sm font-semibold text-gray-900">Pricing</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input
                                 label="Price per Day"
                                 name="pricePerDay"
@@ -423,7 +402,7 @@ export default function CreateCarPage() {
                             />
                         </div>
 
-                        <div className="mt-6">
+                        <div className="mt-4">
                             <div>
                                 <h4 className="block text-xs font-medium text-gray-500 mb-1">Seasonal Pricing Matrix</h4>
                                 <div className="overflow-hidden">
@@ -495,11 +474,10 @@ export default function CreateCarPage() {
                             </div>
                         </div>
                     </div>
-                )}
 
-                {activeTab === "insurance" && (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="pt-4 border-t border-gray-100 space-y-4">
+                        <h3 className="text-sm font-semibold text-gray-900">Insurance</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Select
                                 label="Insurance Type"
                                 name="insuranceType"
@@ -532,17 +510,15 @@ export default function CreateCarPage() {
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div>
                                 <label className="block text-xs font-medium text-gray-500 mb-1">Full Insurance</label>
                                 <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
-                                    <span className="text-sm text-gray-900">Enabled</span>
-                                    <Toggle
-                                        enabled={fullInsuranceEnabled}
-                                        onChange={setFullInsuranceEnabled}
-                                    />
+                                    <span className="text-sm text-gray-900">{fullInsuranceEnabled ? "Enabled" : "Disabled"}</span>
+                                    <Toggle enabled={fullInsuranceEnabled} onChange={setFullInsuranceEnabled} />
                                 </div>
                             </div>
+                            <input type="hidden" name="fullInsuranceEnabled" value={fullInsuranceEnabled ? "true" : "false"} />
                             {fullInsuranceEnabled && (
                                 <>
                                     <Input
@@ -578,7 +554,7 @@ export default function CreateCarPage() {
                             )}
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <h4 className="block text-xs font-medium text-gray-500 mb-1">Green Book / Blue Book Photos (max 3)</h4>
                                 <DocumentPhotosUpload
@@ -605,10 +581,9 @@ export default function CreateCarPage() {
                             </div>
                         </div>
                     </div>
-                )}
 
-                {activeTab === "details" && (
-                    <div className="space-y-6">
+                    <div className="pt-4 border-t border-gray-100 space-y-4">
+                        <h3 className="text-sm font-semibold text-gray-900">Details</h3>
                         <Input
                             label="Marketing Headline"
                             name="marketingHeadline"
@@ -623,7 +598,7 @@ export default function CreateCarPage() {
                             value="Spacious trunk and comfortable seating"
                         />
                     </div>
-                )}
+                </div>
             </Form>
         </div>
     );

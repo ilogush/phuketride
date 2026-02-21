@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
+import Button from "~/components/dashboard/Button";
 import {
     Squares2X2Icon,
     TruckIcon,
@@ -20,7 +21,6 @@ import {
     RectangleStackIcon,
     ClipboardDocumentCheckIcon,
     BellIcon,
-    ShieldExclamationIcon,
 } from "@heroicons/react/24/outline";
 import type { UserRole } from "~/lib/auth.server";
 
@@ -99,6 +99,7 @@ const getMenuItems = (role: UserRole) => {
 
 export default function Sidebar({ user, isOpen, onClose, isModMode = false, modCompanyId = null }: SidebarProps) {
     const location = useLocation();
+    const navigate = useNavigate();
     const [hoveredItem, setHoveredItem] = useState<{ label: string; top: number } | null>(null);
     
     // В режиме модерации используем меню партнёра
@@ -109,6 +110,9 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
     const getItemHref = (to: string) => {
         if (!isAdminModMode) {
             return to;
+        }
+        if (to === "/dashboard") {
+            return `/companies/${modCompanyId}`;
         }
         const separator = to.includes("?") ? "&" : "?";
         return `${to}${separator}modCompanyId=${modCompanyId}`;
@@ -147,13 +151,15 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
                     </NavLink>
 
                     {isOpen && (
-                        <button
+                        <Button
+                            type="button"
+                            variant="unstyled"
                             onClick={onClose}
                             className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
                             aria-label="Close menu"
                         >
                             <XMarkIcon className="w-6 h-6 text-gray-600" />
-                        </button>
+                        </Button>
                     )}
                 </div>
 
@@ -211,16 +217,16 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
                 </nav>
 
                 {isAdminModMode && (
-                    <div className={`${isOpen ? "mx-4 mb-4 p-3" : "mx-auto mb-4 p-2"} border border-amber-200 bg-amber-50 rounded-xl`}>
-                        <div className={`flex items-center ${isOpen ? "gap-2" : "justify-center"}`}>
-                            <ShieldExclamationIcon className="w-4 h-4 text-amber-700 shrink-0" />
-                            {isOpen && (
-                                <div className="min-w-0">
-                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">MOD MODE</p>
-                                    <p className="text-xs text-amber-700 truncate">Admin as partner • company #{modCompanyId}</p>
-                                </div>
-                            )}
-                        </div>
+                    <div className={`${isOpen ? "mx-4 mb-4" : "mx-auto mb-4"}`}>
+                        <Button
+                            type="button"
+                            variant="primary"
+                            title="Exit mod mode"
+                            onClick={() => navigate("/companies")}
+                            className={`w-full ${isOpen ? "text-sm py-2" : "h-10 w-10 text-xs px-0"}`}
+                        >
+                            MODE
+                        </Button>
                     </div>
                 )}
 

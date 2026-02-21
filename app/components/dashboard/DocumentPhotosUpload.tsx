@@ -1,5 +1,6 @@
 import { useState, useRef } from "react"
 import { PhotoIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import Button from "~/components/dashboard/Button"
 
 interface DocumentPhotosUploadProps {
     currentPhotos?: string[]
@@ -80,13 +81,14 @@ export default function DocumentPhotosUpload({
                             alt={photo.fileName}
                             className="w-full h-full object-cover"
                         />
-                        <button
+                        <Button
                             type="button"
+                            variant="unstyled"
                             onClick={() => handleRemove(photo.id)}
-                            className="absolute top-1 right-1 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center text-gray-600 hover:text-red-500 hover:bg-white transition-colors"
+                            className="absolute top-1 right-1 w-6 h-6 !p-0 rounded-full bg-red-500 text-white hover:bg-red-600"
                         >
                             <XMarkIcon className="w-4 h-4" />
-                        </button>
+                        </Button>
                     </div>
                 ))}
                 {previews.length < maxPhotos && (

@@ -11,28 +11,23 @@ import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
 import { UserGroupIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
+import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB);
+    const effectiveCompanyId = getEffectiveCompanyId(request, user);
+    const isModMode = user.role === "admin" && effectiveCompanyId !== null;
 
     let usersList: any[] = [];
     let roleCounts = { all: 0, admin: 0, partner: 0, manager: 0, user: 0 };
 
     try {
-        if (user.role === "partner") {
+        if (user.role === "partner" || isModMode) {
             // Partner can only see managers and users from their company
-            // First, get partner's company
-            const companyResult = await context.cloudflare.env.DB
-                .prepare("SELECT id FROM companies WHERE owner_id = ? LIMIT 1")
-                .bind(user.id)
-                .first() as { id: number } | null;
-
-            if (!companyResult) {
-                return { user, users: [], roleCounts };
+            if (!effectiveCompanyId) {
+                return { user, users: [], roleCounts, isModMode };
             }
-
-            const companyId = companyResult.id;
 
             // Get managers from this company
             const managersResult = await context.cloudflare.env.DB
@@ -42,7 +37,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     INNER JOIN managers m ON u.id = m.user_id
                     WHERE m.company_id = ? AND m.is_active = 1
                 `)
-                .bind(companyId)
+                .bind(effectiveCompanyId)
                 .all() as { results?: any[] };
 
             // Get users (clients) who have contracts with this company
@@ -55,7 +50,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     WHERE cc.company_id = ? AND u.role = 'user'
                     LIMIT 50
                 `)
-                .bind(companyId)
+                .bind(effectiveCompanyId)
                 .all() as { results?: any[] };
 
             usersList = [...(managersResult.results || []), ...(clientsResult.results || [])];
@@ -76,19 +71,18 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         roleCounts.partner = usersList.filter(u => u.role === "partner").length;
         roleCounts.manager = usersList.filter(u => u.role === "manager").length;
         roleCounts.user = usersList.filter(u => u.role === "user").length;
-    } catch (error) {
-        console.error("Error loading users:", error);
-        return { user, users: [], roleCounts };
+    } catch {
+        return { user, users: [], roleCounts, isModMode };
     }
 
-    return { user, users: usersList, roleCounts };
+    return { user, users: usersList, roleCounts, isModMode };
 }
 
 export default function UsersPage() {
-    const { user, users: usersList, roleCounts } = useLoaderData<typeof loader>();
+    const { user, users: usersList, roleCounts, isModMode } = useLoaderData<typeof loader>();
     const [searchParams] = useSearchParams();
     const toast = useToast();
-    const isPartner = user.role === "partner";
+    const isPartner = user.role === "partner" || isModMode;
     
     const [activeTab, setActiveTab] = useState<string | number>(isPartner ? "manager" : "admin");
 

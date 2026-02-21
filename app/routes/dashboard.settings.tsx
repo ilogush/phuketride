@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { useLoaderData, Form, useRevalidator, useSearchParams } from "react-router";
+import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, or, isNull, ne } from "drizzle-orm";
@@ -15,6 +15,7 @@ import WeeklySchedule from "~/components/dashboard/WeeklySchedule";
 import HolidaysManager from "~/components/dashboard/HolidaysManager";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Modal from "~/components/dashboard/Modal";
+import Toggle from "~/components/dashboard/Toggle";
 import { useState, useEffect, useRef } from "react";
 import {
     BuildingOfficeIcon,
@@ -27,12 +28,14 @@ import { useToast } from "~/lib/toast";
 import { companySchema } from "~/schemas/company";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { useLatinValidation } from "~/lib/useLatinValidation";
+import { getAdminModCompanyId, getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
+    const companyId = getEffectiveCompanyId(request, user);
 
-    if (!user.companyId) {
+    if (!companyId) {
         throw new Response("Company not found", { status: 404 });
     }
 
@@ -41,7 +44,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const company = await db
         .select()
         .from(schema.companies)
-        .where(eq(schema.companies.id, user.companyId))
+        .where(eq(schema.companies.id, companyId))
         .limit(1);
     const locations = await db.select().from(schema.locations).limit(100);
     const districts = await db.select().from(schema.districts).limit(200);
@@ -49,12 +52,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const paymentTypes = await db
         .select()
         .from(schema.paymentTypes)
-        .where(or(isNull(schema.paymentTypes.companyId), eq(schema.paymentTypes.companyId, user.companyId)))
+        .where(or(isNull(schema.paymentTypes.companyId), eq(schema.paymentTypes.companyId, companyId)))
         .limit(100);
     const currencies = await db
         .select()
         .from(schema.currencies)
-        .where(eq(schema.currencies.isActive, true))
+        .orderBy(schema.currencies.name)
         .limit(50);
 
     if (!company || company.length === 0) {
@@ -69,15 +72,42 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
     const intent = formData.get("intent");
+    const companyId = getEffectiveCompanyId(request, user);
+    const adminModCompanyId = getAdminModCompanyId(request, user);
+    const withMode = (path: string) => {
+        if (!adminModCompanyId) {
+            return path;
+        }
+        const separator = path.includes("?") ? "&" : "?";
+        return `${path}${separator}modCompanyId=${adminModCompanyId}`;
+    };
 
-    if (!user.companyId) {
-        return redirect("/settings?error=Company not found");
+    if (!companyId) {
+        return redirect(withMode("/settings?error=Company not found"));
     }
 
     // Get current company for audit log
-    const currentCompany = await db.select().from(schema.companies).where(eq(schema.companies.id, user.companyId)).get();
+    const currentCompany = await db.select().from(schema.companies).where(eq(schema.companies.id, companyId)).get();
 
     if (intent === "updateGeneral") {
+        const parseMoneyValue = (value: FormDataEntryValue | null): number | null => {
+            if (typeof value !== "string") return null;
+            const normalized = value.replace(",", ".").trim();
+            if (!normalized) return null;
+            const parsed = Number(normalized);
+            if (!Number.isFinite(parsed)) return null;
+            return Math.round(Math.abs(parsed) * 100) / 100;
+        };
+
+        const parseIntegerValue = (value: FormDataEntryValue | null, fallback: number): number => {
+            if (typeof value !== "string") return fallback;
+            const normalized = value.replace(",", ".").trim();
+            if (!normalized) return fallback;
+            const parsed = Number(normalized);
+            if (!Number.isFinite(parsed)) return fallback;
+            return Math.max(0, Math.round(Math.abs(parsed)));
+        };
+
         const rawData = {
             name: formData.get("name") as string,
             email: formData.get("email") as string,
@@ -91,18 +121,18 @@ export async function action({ request, context }: ActionFunctionArgs) {
             accountNumber: (formData.get("accountNumber") as string) || null,
             accountName: (formData.get("accountName") as string) || null,
             swiftCode: (formData.get("swiftCode") as string) || null,
-            preparationTime: formData.get("preparationTime") ? Number(formData.get("preparationTime")) : 30,
-            deliveryFeeAfterHours: formData.get("deliveryFeeAfterHours") ? Number(formData.get("deliveryFeeAfterHours")) : 0,
-            islandTripPrice: formData.get("islandTripPrice") ? Number(formData.get("islandTripPrice")) : null,
-            krabiTripPrice: formData.get("krabiTripPrice") ? Number(formData.get("krabiTripPrice")) : null,
-            babySeatPricePerDay: formData.get("babySeatPricePerDay") ? Number(formData.get("babySeatPricePerDay")) : null,
+            preparationTime: parseIntegerValue(formData.get("preparationTime"), 30),
+            deliveryFeeAfterHours: parseMoneyValue(formData.get("deliveryFeeAfterHours")) ?? 0,
+            islandTripPrice: parseMoneyValue(formData.get("islandTripPrice")),
+            krabiTripPrice: parseMoneyValue(formData.get("krabiTripPrice")),
+            babySeatPricePerDay: parseIntegerValue(formData.get("babySeatPricePerDay"), 0),
         };
 
         // Validate with Zod
         const validation = companySchema.safeParse(rawData);
         if (!validation.success) {
             const firstError = validation.error.errors[0];
-            return redirect(`/settings?error=${encodeURIComponent(firstError.message)}`);
+            return redirect(withMode(`/settings?error=${encodeURIComponent(firstError.message)}`));
         }
 
         const validData = validation.data;
@@ -133,14 +163,54 @@ export async function action({ request, context }: ActionFunctionArgs) {
                     holidays,
                     updatedAt: new Date(),
                 })
-                .where(eq(schema.companies.id, user.companyId));
+                .where(eq(schema.companies.id, companyId));
 
-            // Ensure company district is active and free for delivery.
-            // Partners must not be able to override it from `/locations`.
-            await db
-                .update(schema.districts)
-                .set({ deliveryPrice: 0, isActive: true, updatedAt: new Date() })
-                .where(eq(schema.districts.id, validData.districtId));
+            // Keep company delivery settings in sync with selected location/district:
+            // selected district is active with zero delivery cost, all others are inactive.
+            const locationDistricts = await db
+                .select({
+                    id: schema.districts.id,
+                    deliveryPrice: schema.districts.deliveryPrice,
+                })
+                .from(schema.districts)
+                .where(eq(schema.districts.locationId, validData.locationId));
+
+            const existingCompanySettings = await db
+                .select({
+                    id: schema.companyDeliverySettings.id,
+                    districtId: schema.companyDeliverySettings.districtId,
+                    deliveryPrice: schema.companyDeliverySettings.deliveryPrice,
+                })
+                .from(schema.companyDeliverySettings)
+                .where(eq(schema.companyDeliverySettings.companyId, companyId));
+
+            const settingsByDistrictId = new Map(existingCompanySettings.map((row) => [row.districtId, row]));
+
+            for (const district of locationDistricts) {
+                const existing = settingsByDistrictId.get(district.id);
+                const isCompanyDistrict = district.id === validData.districtId;
+                const nextPrice = isCompanyDistrict ? 0 : (existing?.deliveryPrice ?? district.deliveryPrice ?? 0);
+
+                if (existing) {
+                    await db
+                        .update(schema.companyDeliverySettings)
+                        .set({
+                            isActive: isCompanyDistrict,
+                            deliveryPrice: nextPrice,
+                            updatedAt: new Date(),
+                        })
+                        .where(eq(schema.companyDeliverySettings.id, existing.id));
+                } else {
+                    await db
+                        .insert(schema.companyDeliverySettings)
+                        .values({
+                            companyId,
+                            districtId: district.id,
+                            isActive: isCompanyDistrict,
+                            deliveryPrice: nextPrice,
+                        });
+                }
+            }
 
             // Audit log
             const metadata = getRequestMetadata(request);
@@ -148,19 +218,18 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 db,
                 userId: user.id,
                 role: user.role,
-                companyId: user.companyId,
+                companyId,
                 entityType: "company",
-                entityId: user.companyId,
+                entityId: companyId,
                 action: "update",
                 beforeState: currentCompany,
-                afterState: { ...validData, id: user.companyId },
+                afterState: { ...validData, id: companyId },
                 ...metadata,
             });
 
-            return redirect("/settings?success=Settings updated successfully");
-        } catch (error) {
-            console.error("Failed to update settings:", error);
-            return redirect("/settings?error=Failed to update settings");
+            return redirect(withMode("/settings?success=Settings updated successfully"));
+        } catch {
+            return redirect(withMode("/settings?error=Failed to update settings"));
         }
     }
 
@@ -173,23 +242,65 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const currencyId = Number(formData.get("currencyId"));
         
         try {
-            // Update currency to set companyId (marks as default for this company)
+            // Default currency must be active.
             await db.update(schema.currencies)
-                .set({ companyId: user.companyId })
+                .set({ companyId, isActive: true, updatedAt: new Date() })
                 .where(eq(schema.currencies.id, currencyId));
 
             // Clear other currencies for this company
             await db.update(schema.currencies)
                 .set({ companyId: null })
                 .where(and(
-                    eq(schema.currencies.companyId, user.companyId),
+                    eq(schema.currencies.companyId, companyId),
                     ne(schema.currencies.id, currencyId)
                 ));
 
-            return redirect("/settings?tab=currencies&success=Default currency updated");
-        } catch (error) {
-            console.error("Failed to set default currency:", error);
-            return redirect("/settings?tab=currencies&error=Failed to update default currency");
+            return redirect(withMode("/settings?tab=currencies&success=Default currency updated"));
+        } catch {
+            return redirect(withMode("/settings?tab=currencies&error=Failed to update default currency"));
+        }
+    }
+
+    if (intent === "toggleCurrencyActive") {
+        const currencyId = Number(formData.get("currencyId"));
+        const isActive = formData.get("isActive") === "true";
+
+        try {
+            await db.update(schema.currencies)
+                .set({
+                    isActive,
+                    companyId: isActive ? undefined : null,
+                    updatedAt: new Date(),
+                })
+                .where(eq(schema.currencies.id, currencyId));
+
+            return redirect(withMode("/settings?tab=currencies&success=Currency status updated"));
+        } catch {
+            return redirect(withMode("/settings?tab=currencies&error=Failed to update currency status"));
+        }
+    }
+
+    if (intent === "createCurrency") {
+        const name = (formData.get("name") as string)?.trim();
+        const code = (formData.get("code") as string)?.trim().toUpperCase();
+        const symbol = (formData.get("symbol") as string)?.trim();
+
+        if (!name || !code || !symbol) {
+            return redirect(withMode("/settings?tab=currencies&error=All currency fields are required"));
+        }
+
+        try {
+            await db.insert(schema.currencies).values({
+                name,
+                code,
+                symbol,
+                isActive: true,
+                companyId: null,
+            });
+
+            return redirect(withMode("/settings?tab=currencies&success=Currency created successfully"));
+        } catch {
+            return redirect(withMode("/settings?tab=currencies&error=Failed to create currency"));
         }
     }
 
@@ -205,13 +316,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
             const template = await db.select().from(schema.paymentTypes).where(eq(schema.paymentTypes.id, id)).get();
             
             if (!template) {
-                return redirect("/settings?error=Payment template not found");
+                return redirect(withMode("/settings?error=Payment template not found"));
             }
 
             // System templates: only update toggles
             // Company templates: check ownership
-            if (template.companyId !== null && template.companyId !== user.companyId) {
-                return redirect("/settings?error=Unauthorized");
+            if (template.companyId !== null && template.companyId !== companyId) {
+                return redirect(withMode("/settings?error=Unauthorized"));
             }
 
             await db.update(schema.paymentTypes)
@@ -223,10 +334,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 })
                 .where(eq(schema.paymentTypes.id, id));
 
-            return redirect("/settings?success=Payment template updated successfully");
-        } catch (error) {
-            console.error("Failed to update payment template:", error);
-            return redirect("/settings?error=Failed to update payment template");
+            return redirect(withMode("/settings?success=Payment template updated successfully"));
+        } catch {
+            return redirect(withMode("/settings?error=Failed to update payment template"));
         }
     }
 
@@ -242,17 +352,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 name,
                 sign,
                 description,
-                companyId: user.companyId,
+                companyId,
                 isSystem: false,
                 isActive: true,
                 showOnCreate,
                 showOnClose,
             });
 
-            return redirect("/settings?success=Payment template created successfully");
-        } catch (error) {
-            console.error("Failed to create payment template:", error);
-            return redirect("/settings?error=Failed to create payment template");
+            return redirect(withMode("/settings?success=Payment template created successfully"));
+        } catch {
+            return redirect(withMode("/settings?error=Failed to create payment template"));
         }
     }
 
@@ -264,34 +373,35 @@ export async function action({ request, context }: ActionFunctionArgs) {
             const template = await db.select().from(schema.paymentTypes).where(eq(schema.paymentTypes.id, id)).get();
             
             if (!template) {
-                return redirect("/settings?error=Payment template not found");
+                return redirect(withMode("/settings?error=Payment template not found"));
             }
 
             if (template.isSystem || template.companyId === null) {
-                return redirect("/settings?error=Cannot delete system templates");
+                return redirect(withMode("/settings?error=Cannot delete system templates"));
             }
 
-            if (template.companyId !== user.companyId) {
-                return redirect("/settings?error=Unauthorized");
+            if (template.companyId !== companyId) {
+                return redirect(withMode("/settings?error=Unauthorized"));
             }
 
             await db.delete(schema.paymentTypes)
-                .where(and(eq(schema.paymentTypes.id, id), eq(schema.paymentTypes.companyId, user.companyId)));
+                .where(and(eq(schema.paymentTypes.id, id), eq(schema.paymentTypes.companyId, companyId)));
 
-            return redirect("/settings?success=Payment template deleted successfully");
-        } catch (error) {
-            console.error("Failed to delete payment template:", error);
-            return redirect("/settings?error=Failed to delete payment template");
+            return redirect(withMode("/settings?success=Payment template deleted successfully"));
+        } catch {
+            return redirect(withMode("/settings?error=Failed to delete payment template"));
         }
     }
 
-    return redirect("/settings?error=Invalid action");
+    return redirect(withMode("/settings?error=Invalid action"));
 }
 
 export default function SettingsPage() {
     const { company, locations, districts, paymentTypes, currencies } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
     const activeTab = searchParams.get("tab") || "general";
+    const modCompanyId = searchParams.get("modCompanyId");
+    const settingsActionUrl = modCompanyId ? `/settings?modCompanyId=${modCompanyId}` : "/settings";
     const [selectedLocationId, setSelectedLocationId] = useState(company.locationId);
     const [weeklySchedule, setWeeklySchedule] = useState(company.weeklySchedule || "");
     const [holidays, setHolidays] = useState(company.holidays || "");
@@ -308,7 +418,6 @@ export default function SettingsPage() {
     });
     const [isCurrencyModalOpen, setIsCurrencyModalOpen] = useState(false);
     const toast = useToast();
-    const revalidator = useRevalidator();
 
     // Toast notifications
     useEffect(() => {
@@ -348,46 +457,56 @@ export default function SettingsPage() {
     const filteredDistricts = districts.filter(d => d.locationId === selectedLocationId);
 
     const handleTabChange = (tabId: string | number) => {
-        setSearchParams({ tab: String(tabId) });
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set("tab", String(tabId));
+        setSearchParams(nextParams);
     };
 
-    const handleTogglePaymentTemplate = async (id: number, field: 'showOnCreate' | 'showOnClose' | 'isActive', currentValue: boolean | null) => {
-        const formData = new FormData();
-        formData.append("intent", "updatePaymentTemplate");
-        formData.append("id", String(id));
-        
+    const postWithReload = (entries: Record<string, string>) => {
+        if (typeof document === "undefined") return;
+        const form = document.createElement("form");
+        form.method = "post";
+        form.action = settingsActionUrl;
+        form.style.display = "none";
+        Object.entries(entries).forEach(([name, value]) => {
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = name;
+            input.value = value;
+            form.appendChild(input);
+        });
+        document.body.appendChild(form);
+        form.submit();
+    };
+
+    const handleTogglePaymentTemplate = (id: number, field: 'showOnCreate' | 'showOnClose' | 'isActive', currentValue: boolean | null) => {
         const template = paymentTypes.find(t => t.id === id);
         if (!template) return;
-        
-        formData.append("showOnCreate", field === 'showOnCreate' ? String(!currentValue) : String(template.showOnCreate ?? false));
-        formData.append("showOnClose", field === 'showOnClose' ? String(!currentValue) : String(template.showOnClose ?? false));
-        formData.append("isActive", field === 'isActive' ? String(!currentValue) : String(template.isActive ?? true));
-        
-        try {
-            await fetch("/settings", { method: "POST", body: formData });
-            revalidator.revalidate();
-            toast.success("Payment template updated");
-        } catch (error) {
-            toast.error("Failed to update payment template");
-        }
+
+        postWithReload({
+            intent: "updatePaymentTemplate",
+            id: String(id),
+            showOnCreate: field === "showOnCreate" ? String(!currentValue) : String(template.showOnCreate ?? false),
+            showOnClose: field === "showOnClose" ? String(!currentValue) : String(template.showOnClose ?? false),
+            isActive: field === "isActive" ? String(!currentValue) : String(template.isActive ?? true),
+        });
     };
 
-    const handleToggleCurrency = async (id: number, field: 'isActive' | 'isDefault') => {
+    const handleToggleCurrency = (id: number, field: 'isActive' | 'isDefault') => {
         if (field === 'isDefault') {
-            // Set this currency as default for company by updating companyId
-            const formData = new FormData();
-            formData.append("intent", "setDefaultCurrency");
-            formData.append("currencyId", String(id));
-            
-            try {
-                await fetch("/settings", { method: "POST", body: formData });
-                revalidator.revalidate();
-                toast.success("Default currency updated");
-            } catch (error) {
-                toast.error("Failed to update default currency");
-            }
+            postWithReload({
+                intent: "setDefaultCurrency",
+                currencyId: String(id),
+            });
         } else {
-            toast.info("Currency management coming soon");
+            const target = currencies.find(c => c.id === id);
+            if (!target) return;
+
+            postWithReload({
+                intent: "toggleCurrencyActive",
+                currencyId: String(id),
+                isActive: String(!target.isActive),
+            });
         }
     };
 
@@ -445,7 +564,7 @@ export default function SettingsPage() {
             <Tabs tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
 
             {activeTab === "general" && (
-                <Form id="settings-form" method="post" className="space-y-4">
+                <Form id="settings-form" method="post" action={settingsActionUrl} className="space-y-4" reloadDocument>
                     <input type="hidden" name="intent" value="updateGeneral" />
 
                     {/* Company Information */}
@@ -594,8 +713,9 @@ export default function SettingsPage() {
                                 label="Baby Seat Cost (per day)"
                                 name="babySeatPricePerDay"
                                 type="number"
-                                step="0.01"
-                                defaultValue={company.babySeatPricePerDay?.toString() || "0"}
+                                step="1"
+                                min={0}
+                                defaultValue={Math.max(0, Math.round(company.babySeatPricePerDay ?? 0)).toString()}
                                 placeholder="0"
                                 addonLeft="฿"
                             />
@@ -644,11 +764,9 @@ export default function SettingsPage() {
                                         {paymentTypes.map((template) => (
                                             <tr key={template.id} className="group hover:bg-white transition-all">
                                                 <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                    <button className="cursor-pointer">
-                                                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none transition-all hover:bg-gray-900">
-                                                            {String(template.id).padStart(4, '0')}
-                                                        </span>
-                                                    </button>
+                                                    <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
+                                                        {String(template.id).padStart(4, '0')}
+                                                    </span>
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-full">
                                                     <div className="flex flex-col">
@@ -670,34 +788,18 @@ export default function SettingsPage() {
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => handleTogglePaymentTemplate(template.id, 'showOnCreate', template.showOnCreate ?? false)}
-                                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
-                                                            template.showOnCreate 
-                                                                ? 'bg-gray-800 border-transparent' 
-                                                                : 'bg-gray-200 border-transparent'
-                                                        }`}
-                                                    >
-                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                                                            template.showOnCreate ? 'translate-x-4' : 'translate-x-0'
-                                                        }`}></span>
-                                                    </button>
+                                                    <Toggle
+                                                        size="sm"
+                                                        enabled={Boolean(template.showOnCreate)}
+                                                        onChange={() => handleTogglePaymentTemplate(template.id, 'showOnCreate', template.showOnCreate ?? false)}
+                                                    />
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => handleTogglePaymentTemplate(template.id, 'showOnClose', template.showOnClose ?? false)}
-                                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
-                                                            template.showOnClose 
-                                                                ? 'bg-gray-800 border-transparent' 
-                                                                : 'bg-gray-200 border-transparent'
-                                                        }`}
-                                                    >
-                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                                                            template.showOnClose ? 'translate-x-4' : 'translate-x-0'
-                                                        }`}></span>
-                                                    </button>
+                                                    <Toggle
+                                                        size="sm"
+                                                        enabled={Boolean(template.showOnClose)}
+                                                        onChange={() => handleTogglePaymentTemplate(template.id, 'showOnClose', template.showOnClose ?? false)}
+                                                    />
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                                                     <div className="flex gap-2">
@@ -720,7 +822,7 @@ export default function SettingsPage() {
                                                             Edit
                                                         </Button>
                                                         {!template.isSystem && (
-                                                            <Form method="post">
+                                                            <Form method="post" action={settingsActionUrl} reloadDocument>
                                                                 <input type="hidden" name="intent" value="deletePaymentTemplate" />
                                                                 <input type="hidden" name="id" value={template.id} />
                                                                 <Button type="submit" variant="secondary" size="sm">Delete</Button>
@@ -744,7 +846,7 @@ export default function SettingsPage() {
                         }}
                         size="md"
                     >
-                        <Form method="post" className="space-y-4" onSubmit={() => {
+                        <Form method="post" action={settingsActionUrl} className="space-y-4" reloadDocument onSubmit={() => {
                             setIsPaymentModalOpen(false);
                             setEditingPaymentTemplate(null);
                         }}>
@@ -782,36 +884,20 @@ export default function SettingsPage() {
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-gray-700">Show when creating contract</span>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setPaymentFormData({ ...paymentFormData, showOnCreate: !paymentFormData.showOnCreate })}
-                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
-                                            paymentFormData.showOnCreate 
-                                                ? 'bg-gray-800 border-transparent' 
-                                                : 'bg-gray-200 border-transparent'
-                                        }`}
-                                    >
-                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                                            paymentFormData.showOnCreate ? 'translate-x-4' : 'translate-x-0'
-                                        }`}></span>
-                                    </button>
+                                    <Toggle
+                                        size="sm"
+                                        enabled={paymentFormData.showOnCreate}
+                                        onChange={() => setPaymentFormData({ ...paymentFormData, showOnCreate: !paymentFormData.showOnCreate })}
+                                    />
                                     <input type="hidden" name="showOnCreate" value={paymentFormData.showOnCreate ? "true" : "false"} />
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-gray-700">Show when closing contract</span>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setPaymentFormData({ ...paymentFormData, showOnClose: !paymentFormData.showOnClose })}
-                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
-                                            paymentFormData.showOnClose 
-                                                ? 'bg-gray-800 border-transparent' 
-                                                : 'bg-gray-200 border-transparent'
-                                        }`}
-                                    >
-                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                                            paymentFormData.showOnClose ? 'translate-x-4' : 'translate-x-0'
-                                        }`}></span>
-                                    </button>
+                                    <Toggle
+                                        size="sm"
+                                        enabled={paymentFormData.showOnClose}
+                                        onChange={() => setPaymentFormData({ ...paymentFormData, showOnClose: !paymentFormData.showOnClose })}
+                                    />
                                     <input type="hidden" name="showOnClose" value={paymentFormData.showOnClose ? "true" : "false"} />
                                 </div>
                             </div>
@@ -853,11 +939,9 @@ export default function SettingsPage() {
                                         {currencies.map((currency) => (
                                             <tr key={currency.id} className="group hover:bg-white transition-all">
                                                 <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                    <button className="hover:opacity-80 transition-opacity">
-                                                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none transition-all hover:bg-gray-900">
-                                                            {String(currency.id).padStart(4, '0')}
-                                                        </span>
-                                                    </button>
+                                                    <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
+                                                        {String(currency.id).padStart(4, '0')}
+                                                    </span>
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                                                     <div className="flex flex-col">
@@ -866,34 +950,18 @@ export default function SettingsPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => handleToggleCurrency(currency.id, 'isDefault')}
-                                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
-                                                            currency.companyId === company.id 
-                                                                ? 'bg-gray-800 border-transparent' 
-                                                                : 'bg-gray-200 border-transparent'
-                                                        }`}
-                                                    >
-                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                                                            currency.companyId === company.id ? 'translate-x-4' : 'translate-x-0'
-                                                        }`}></span>
-                                                    </button>
+                                                    <Toggle
+                                                        size="sm"
+                                                        enabled={currency.companyId === company.id}
+                                                        onChange={() => handleToggleCurrency(currency.id, 'isDefault')}
+                                                    />
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => handleToggleCurrency(currency.id, 'isActive')}
-                                                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
-                                                            currency.isActive 
-                                                                ? 'bg-gray-800 border-transparent' 
-                                                                : 'bg-gray-200 border-transparent'
-                                                        }`}
-                                                    >
-                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                                                            currency.isActive ? 'translate-x-4' : 'translate-x-0'
-                                                        }`}></span>
-                                                    </button>
+                                                    <Toggle
+                                                        size="sm"
+                                                        enabled={Boolean(currency.isActive)}
+                                                        onChange={() => handleToggleCurrency(currency.id, 'isActive')}
+                                                    />
                                                 </td>
                                             </tr>
                                         ))}
@@ -908,7 +976,7 @@ export default function SettingsPage() {
                         onClose={() => setIsCurrencyModalOpen(false)}
                         size="md"
                     >
-                        <Form method="post" className="space-y-4" onSubmit={() => { setIsCurrencyModalOpen(false); toast.success("Currency added"); }}>
+                        <Form method="post" action={settingsActionUrl} className="space-y-4" reloadDocument onSubmit={() => { setIsCurrencyModalOpen(false); toast.success("Currency added"); }}>
                             <input type="hidden" name="intent" value="createCurrency" />
                             <Input
                                 label="Currency Name"

@@ -36,8 +36,7 @@ npm run dev  # http://localhost:5173
 
 ```bash
 npm run db:migrate:remote  # Применить миграции
-npm run db:studio          # Drizzle Studio
-npm run db:generate        # Генерация миграций
+wrangler d1 execute phuketride-bd --remote --file=./drizzle/<migration>.sql
 ```
 
 ## Деплой
@@ -62,7 +61,7 @@ npm run deploy
 
 ### База данных
 - [app/db/schema.ts](../app/db/schema.ts)
-- [drizzle.config.ts](../drizzle.config.ts)
+- [drizzle/](../drizzle/)
 
 ### Роутинг
 - [app/routes.ts](../app/routes.ts)

@@ -14,16 +14,18 @@ import Button from "~/components/dashboard/Button";
 import { BanknotesIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import { useToast } from "~/lib/toast";
+import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
+    const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
     let paymentsList: any[] = [];
     let statusCounts = { all: 0, pending: 0, completed: 0, cancelled: 0 };
 
     try {
-        if (user.role === "admin") {
+        if (!effectiveCompanyId) {
             // Admin sees all payments with relations
             paymentsList = await db.query.payments.findMany({
                 with: {
@@ -61,7 +63,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
             // Filter contracts by company and flatten payments
             const companyContracts = allContracts.filter(
-                c => c.companyCar.companyId === user.companyId
+                c => c.companyCar.companyId === effectiveCompanyId
             );
 
             paymentsList = companyContracts.flatMap(c => 
@@ -79,8 +81,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         statusCounts.pending = paymentsList.filter(p => p.status === "pending").length;
         statusCounts.completed = paymentsList.filter(p => p.status === "completed").length;
         statusCounts.cancelled = paymentsList.filter(p => p.status === "cancelled").length;
-    } catch (error) {
-        console.error("Error loading payments:", error);
+    } catch {
+        paymentsList = [];
     }
 
     return { user, payments: paymentsList, statusCounts };

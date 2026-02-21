@@ -137,7 +137,7 @@ export default function CompanyEditPage() {
                     <input type="hidden" name="companyId" value={company.id} />
 
                     <FormSection title="Basic Information">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input
                                 label="Company Name"
                                 name="name"
@@ -180,7 +180,7 @@ export default function CompanyEditPage() {
                     </FormSection>
 
                     <FormSection title="Address">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input
                                 label="Street"
                                 name="street"
@@ -210,7 +210,7 @@ export default function CompanyEditPage() {
                     </FormSection>
 
                     <FormSection title="Bank Details">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input
                                 label="Bank Name"
                                 name="bankName"
@@ -246,7 +246,7 @@ export default function CompanyEditPage() {
                     </FormSection>
 
                     <FormSection title="Settings">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input
                                 label="Preparation Time (minutes)"
                                 name="preparationTime"

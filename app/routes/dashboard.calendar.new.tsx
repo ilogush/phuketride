@@ -99,7 +99,7 @@ export default function NewCalendarEvent() {
                     title="Event Details"
                     icon={<CalendarIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="col-span-2">
                             <FormInput
                                 label="Title"

@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { ArrowUpTrayIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import Button from "~/components/dashboard/Button";
 
 interface PhotoUploadProps {
     currentPhotoUrl?: string | null;
@@ -65,22 +66,24 @@ export default function PhotoUpload({
                         className="w-20 h-20 rounded-full object-cover"
                     />
                 ) : (
-                    <button
+                    <Button
                         type="button"
+                        variant="unstyled"
                         onClick={handleClick}
                         className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-full flex items-center justify-center cursor-pointer"
                     >
                         <ArrowUpTrayIcon className="w-6 h-6 text-gray-400" />
-                    </button>
+                    </Button>
                 )}
                 {preview && (
-                    <button
+                    <Button
                         type="button"
+                        variant="unstyled"
                         onClick={handleRemove}
                         className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors"
                     >
                         <XMarkIcon className="w-3 h-3" />
-                    </button>
+                    </Button>
                 )}
             </div>
             <div>

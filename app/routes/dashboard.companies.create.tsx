@@ -56,6 +56,24 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
+    const parseMoneyValue = (value: FormDataEntryValue | null): number | null => {
+        if (typeof value !== "string") return null;
+        const normalized = value.replace(",", ".").trim();
+        if (!normalized) return null;
+        const parsed = Number(normalized);
+        if (!Number.isFinite(parsed)) return null;
+        return Math.round(Math.abs(parsed) * 100) / 100;
+    };
+
+    const parseIntegerValue = (value: FormDataEntryValue | null, fallback: number): number => {
+        if (typeof value !== "string") return fallback;
+        const normalized = value.replace(",", ".").trim();
+        if (!normalized) return fallback;
+        const parsed = Number(normalized);
+        if (!Number.isFinite(parsed)) return fallback;
+        return Math.max(0, Math.round(Math.abs(parsed)));
+    };
+
     // Parse form data
     const rawData = {
         name: formData.get("name") as string,
@@ -70,11 +88,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
         accountNumber: (formData.get("accountNumber") as string) || null,
         accountName: (formData.get("accountName") as string) || null,
         swiftCode: (formData.get("swiftCode") as string) || null,
-        preparationTime: Number(formData.get("preparationTime")) || 30,
-        deliveryFeeAfterHours: Number(formData.get("deliveryFeeAfterHours")) || 0,
-        islandTripPrice: Number(formData.get("islandTripPrice")) || null,
-        krabiTripPrice: Number(formData.get("krabiTripPrice")) || null,
-        babySeatPricePerDay: Number(formData.get("babySeatPricePerDay")) || null,
+        preparationTime: parseIntegerValue(formData.get("preparationTime"), 30),
+        deliveryFeeAfterHours: parseMoneyValue(formData.get("deliveryFeeAfterHours")) ?? 0,
+        islandTripPrice: parseMoneyValue(formData.get("islandTripPrice")),
+        krabiTripPrice: parseMoneyValue(formData.get("krabiTripPrice")),
+        babySeatPricePerDay: parseIntegerValue(formData.get("babySeatPricePerDay"), 0),
     };
 
     // Validate with Zod
@@ -161,7 +179,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
             ]);
         } else if (!managerIds.length) {
             // No manager selected - admin remains as temporary owner
-            console.warn(`Company ${newCompany.id} created without owner - admin is temporary owner`);
         }
 
         // Audit log
@@ -179,8 +196,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         });
 
         return redirect(`/companies?success=${encodeURIComponent("Company created successfully")}`);
-    } catch (error) {
-        console.error("Failed to create company:", error);
+    } catch {
         return redirect(`/companies/create?error=${encodeURIComponent("Failed to create company")}`);
     }
 }
@@ -368,14 +384,15 @@ export default function CreateCompanyPage() {
                         />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-                        <Input
-                            label="Baby Seat Cost (per day)"
-                            name="babySeatPricePerDay"
-                            type="number"
-                            step="0.01"
-                            placeholder="0"
-                            addonLeft="฿"
-                        />
+                            <Input
+                                label="Baby Seat Cost (per day)"
+                                name="babySeatPricePerDay"
+                                type="number"
+                                step="1"
+                                min={0}
+                                placeholder="0"
+                                addonLeft="฿"
+                            />
                     </div>
                 </FormSection>
 
@@ -401,9 +418,10 @@ export default function CreateCompanyPage() {
                                     {showSuggestions && searchQuery && filteredUsers.length > 0 && (
                                         <div className="absolute z-10 w-full mt-1 bg-white rounded-xl shadow-lg max-h-60 overflow-y-auto">
                                             {filteredUsers.slice(0, 10).map((user) => (
-                                                <button
+                                                <Button
                                                     key={user.id}
                                                     type="button"
+                                                    variant="unstyled"
                                                     onClick={() => handleSelectManager(user)}
                                                     className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                                                 >
@@ -415,7 +433,7 @@ export default function CreateCompanyPage() {
                                                     <div className="text-xs text-gray-500">
                                                         {user.email} • {user.role}
                                                     </div>
-                                                </button>
+                                                </Button>
                                             ))}
                                         </div>
                                     )}

@@ -13,24 +13,22 @@ import Button from "~/components/dashboard/Button";
 import { ClipboardDocumentListIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import { useToast } from "~/lib/toast";
+import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB);
+    const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
     let contractsList: any[] = [];
     let statusCounts = { all: 0, active: 0, closed: 0 };
 
     try {
-        if (user.role === "admin") {
-            // Admin sees all contracts
-            contractsList = await db.select().from(contracts).limit(50);
-        } else if (user.companyId) {
-            // Partner/Manager sees only their company's contracts
+        if (effectiveCompanyId) {
             const companyCarsForCompany = await db
                 .select({ id: companyCars.id })
                 .from(companyCars)
-                .where(eq(companyCars.companyId, user.companyId));
+                .where(eq(companyCars.companyId, effectiveCompanyId));
 
             const carIds = companyCarsForCompany.map(car => car.id);
 
@@ -40,15 +38,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 contractsList = allContracts.filter(c => carIds.includes(c.companyCarId));
             }
         } else {
-            // Fallback - show all contracts (for testing)
             contractsList = await db.select().from(contracts).limit(50);
         }
 
         statusCounts.all = contractsList.length;
         statusCounts.active = contractsList.filter(c => c.status === "active").length;
         statusCounts.closed = contractsList.filter(c => c.status === "closed").length;
-    } catch (error) {
-        console.error("Error loading contracts:", error);
+    } catch {
+        contractsList = [];
     }
 
     return { user, contracts: contractsList, statusCounts };

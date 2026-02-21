@@ -13,16 +13,18 @@ import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
 import { TruckIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
+import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
+    const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
     let cars: any[] = [];
     let statusCounts = { all: 0, available: 0, rented: 0, maintenance: 0, booked: 0 };
 
     try {
-        const carsQuery = user.role === "admin"
+        const carsQuery = !effectiveCompanyId
             ? db.query.companyCars.findMany({
                 with: {
                     template: {
@@ -37,7 +39,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 limit: 50,
             })
             : db.query.companyCars.findMany({
-                where: (companyCars, { eq }) => eq(companyCars.companyId, user.companyId!),
+                where: (companyCars, { eq }) => eq(companyCars.companyId, effectiveCompanyId),
                 with: {
                     template: {
                         with: {
@@ -58,8 +60,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         statusCounts.rented = cars.filter(c => c.status === "rented").length;
         statusCounts.maintenance = cars.filter(c => c.status === "maintenance").length;
         statusCounts.booked = cars.filter(c => c.status === "booked").length;
-    } catch (error) {
-        console.error("Error loading cars:", error);
+    } catch {
+        cars = [];
     }
 
     return { user, cars, statusCounts };
@@ -77,11 +79,9 @@ export default function CarsPage() {
         const error = searchParams.get("error");
         if (success) {
             toast.success(success, 3000);
-            window.history.replaceState({}, '', '/cars');
         }
         if (error) {
             toast.error(error, 3000);
-            window.history.replaceState({}, '', '/cars');
         }
     }, [searchParams, toast]);
 
@@ -149,6 +149,21 @@ export default function CarsPage() {
             key: "mileage",
             label: "Mileage",
             render: (car) => car.mileage ? `${car.mileage.toLocaleString('en-US')} km` : "-"
+        },
+        {
+            key: "insuranceType",
+            label: "Insurance Type",
+            render: (car) => car.insuranceType || "-"
+        },
+        {
+            key: "pricePerDay",
+            label: "Price per Day",
+            render: (car) => `${Number(car.pricePerDay || 0).toLocaleString("en-US")} THB`
+        },
+        {
+            key: "deposit",
+            label: "Deposit",
+            render: (car) => `${Number(car.deposit || 0).toLocaleString("en-US")} THB`
         },
         {
             key: "status",

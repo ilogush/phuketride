@@ -3,7 +3,7 @@ import { useLoaderData, Form } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "~/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -13,6 +13,8 @@ import { Input } from "~/components/dashboard/Input";
 import { Textarea } from "~/components/dashboard/Textarea";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
+import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
+import Toggle from "~/components/dashboard/Toggle";
 
 interface District {
     id: number;
@@ -29,13 +31,13 @@ interface District {
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
+    const effectiveCompanyId = getEffectiveCompanyId(request, user);
+    const isModMode = user.role === "admin" && effectiveCompanyId !== null;
 
     let districts: District[] = [];
 
-    if (user.role === "partner") {
-        const companyId = user.companyId;
-
-        if (companyId) {
+    if (user.role === "partner" || isModMode) {
+        if (effectiveCompanyId) {
             // Load company-specific delivery settings
             const settings = await db.select({
                 id: schema.districts.id,
@@ -50,7 +52,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             })
             .from(schema.companyDeliverySettings)
             .innerJoin(schema.districts, eq(schema.companyDeliverySettings.districtId, schema.districts.id))
-            .where(eq(schema.companyDeliverySettings.companyId, companyId))
+            .where(eq(schema.companyDeliverySettings.companyId, effectiveCompanyId))
             .limit(100);
 
             districts = settings.map(s => ({ ...s, isActive: s.isActive ?? false }));
@@ -61,12 +63,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         districts = districtsRaw.map((d) => ({ ...d, isActive: d.isActive ?? false }));
     }
 
-    return { districts, user };
+    return { districts, user, isModMode };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
-    if (user.role !== "admin") {
+    const effectiveCompanyId = getEffectiveCompanyId(request, user);
+    const isModMode = user.role === "admin" && effectiveCompanyId !== null;
+    const canManageCompanyDelivery = user.role === "partner" || isModMode;
+
+    if (user.role !== "admin" && !canManageCompanyDelivery) {
         return data({ success: false, message: "Forbidden" }, { status: 403 });
     }
     const db = drizzle(context.cloudflare.env.DB, { schema });
@@ -76,39 +82,19 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (intent === "bulkUpdate") {
         const updates = JSON.parse(formData.get("updates") as string);
         
-        if (user.role === "partner") {
-            // Get company ID - check if user is owner or manager
-            let companyId: number | null = null;
-
-            const ownedCompany = await db.select({ id: schema.companies.id })
-                .from(schema.companies)
-                .where(eq(schema.companies.ownerId, user.id))
-                .limit(1);
-
-            if (ownedCompany.length > 0) {
-                companyId = ownedCompany[0].id;
-            } else {
-                const manager = await db.select({ companyId: schema.managers.companyId })
-                    .from(schema.managers)
-                    .where(eq(schema.managers.userId, user.id))
-                    .limit(1);
-
-                if (manager.length > 0) {
-                    companyId = manager[0].companyId;
-                }
-            }
-
-            if (companyId) {
-                // Update company delivery settings
-                for (const update of updates) {
-                    await db.update(schema.companyDeliverySettings)
-                        .set({ 
-                            isActive: update.isActive,
-                            deliveryPrice: update.deliveryPrice,
-                            updatedAt: new Date() 
-                        })
-                        .where(eq(schema.companyDeliverySettings.id, update.id));
-                }
+        if (canManageCompanyDelivery && effectiveCompanyId) {
+            // Partner/mod mode updates company-specific delivery settings by district id.
+            for (const update of updates) {
+                await db.update(schema.companyDeliverySettings)
+                    .set({
+                        isActive: update.isActive,
+                        deliveryPrice: update.deliveryPrice,
+                        updatedAt: new Date()
+                    })
+                    .where(and(
+                        eq(schema.companyDeliverySettings.companyId, effectiveCompanyId),
+                        eq(schema.companyDeliverySettings.districtId, update.id)
+                    ));
             }
         } else {
             // Admin updates global districts
@@ -129,10 +115,19 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (intent === "toggleStatus") {
         const id = Number(formData.get("id"));
         const isActive = formData.get("isActive") === "true";
-        
-        await db.update(schema.districts)
-            .set({ isActive, updatedAt: new Date() })
-            .where(eq(schema.districts.id, id));
+
+        if (canManageCompanyDelivery && effectiveCompanyId) {
+            await db.update(schema.companyDeliverySettings)
+                .set({ isActive, updatedAt: new Date() })
+                .where(and(
+                    eq(schema.companyDeliverySettings.companyId, effectiveCompanyId),
+                    eq(schema.companyDeliverySettings.districtId, id)
+                ));
+        } else {
+            await db.update(schema.districts)
+                .set({ isActive, updatedAt: new Date() })
+                .where(eq(schema.districts.id, id));
+        }
 
         return data({ success: true, message: "Status updated successfully" });
     }
@@ -140,10 +135,19 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (intent === "updatePrice") {
         const id = Number(formData.get("id"));
         const deliveryPrice = Number(formData.get("deliveryPrice"));
-        
-        await db.update(schema.districts)
-            .set({ deliveryPrice, updatedAt: new Date() })
-            .where(eq(schema.districts.id, id));
+
+        if (canManageCompanyDelivery && effectiveCompanyId) {
+            await db.update(schema.companyDeliverySettings)
+                .set({ deliveryPrice, updatedAt: new Date() })
+                .where(and(
+                    eq(schema.companyDeliverySettings.companyId, effectiveCompanyId),
+                    eq(schema.companyDeliverySettings.districtId, id)
+                ));
+        } else {
+            await db.update(schema.districts)
+                .set({ deliveryPrice, updatedAt: new Date() })
+                .where(eq(schema.districts.id, id));
+        }
 
         return data({ success: true, message: "Price updated successfully" });
     }
@@ -201,15 +205,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function LocationsPage() {
-    const { districts, user } = useLoaderData<typeof loader>();
+    const { districts, user, isModMode } = useLoaderData<typeof loader>();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDistrict, setEditingDistrict] = useState<District | null>(null);
     const [formData, setFormData] = useState({ name: "", beaches: "", streets: "", deliveryPrice: "0" });
     const [localDistricts, setLocalDistricts] = useState(districts);
     const toast = useToast();
 
-    const isAdmin = user.role === "admin";
-    const isPartner = user.role === "partner";
+    const isAdmin = user.role === "admin" && !isModMode;
+    const isPartner = user.role === "partner" || isModMode;
 
     const parseBeaches = (beaches: string | null): string[] => {
         if (!beaches) return [];
@@ -306,19 +310,11 @@ export default function LocationsPage() {
             render: (item) => {
                 const district = localDistricts.find(d => d.id === item.id) || item;
                 return (
-                    <button
-                        type="button"
-                        onClick={() => handleToggleStatus(item.id, district.isActive ?? false)}
-                        className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${
-                            district.isActive ? "bg-gray-900 border-transparent" : "bg-gray-200 border-transparent"
-                        }`}
-                    >
-                        <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                                district.isActive ? "translate-x-4" : "translate-x-0"
-                            }`}
-                        />
-                    </button>
+                    <Toggle
+                        size="sm"
+                        enabled={Boolean(district.isActive)}
+                        onChange={() => handleToggleStatus(item.id, district.isActive ?? false)}
+                    />
                 );
             },
         },

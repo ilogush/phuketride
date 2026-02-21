@@ -235,6 +235,85 @@ export const companyCars = sqliteTable("company_cars", {
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
+// Public car page - rating metrics
+export const carRatingMetrics = sqliteTable("car_rating_metrics", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyCarId: integer("company_car_id").notNull(),
+    totalRating: real("total_rating").default(0),
+    totalRatings: integer("total_ratings").default(0),
+    cleanliness: real("cleanliness").default(0),
+    maintenance: real("maintenance").default(0),
+    communication: real("communication").default(0),
+    convenience: real("convenience").default(0),
+    accuracy: real("accuracy").default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+}, (table) => ({
+    companyCarIdx: sqliteIndex("idx_car_rating_metrics_car").on(table.companyCarId),
+}));
+
+// Public car page - reviews
+export const carReviews = sqliteTable("car_reviews", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyCarId: integer("company_car_id").notNull(),
+    reviewerName: text("reviewer_name").notNull(),
+    reviewerAvatarUrl: text("reviewer_avatar_url"),
+    rating: integer("rating").default(5),
+    reviewText: text("review_text").notNull(),
+    reviewDate: integer("review_date", { mode: "timestamp" }),
+    sortOrder: integer("sort_order").default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+}, (table) => ({
+    companyCarIdx: sqliteIndex("idx_car_reviews_car").on(table.companyCarId),
+    sortIdx: sqliteIndex("idx_car_reviews_sort").on(table.companyCarId, table.sortOrder),
+}));
+
+// Public car page - "Included in the price" blocks
+export const carIncludedItems = sqliteTable("car_included_items", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyCarId: integer("company_car_id").notNull(),
+    category: text("category").default("Convenience"),
+    title: text("title").notNull(),
+    description: text("description"),
+    iconKey: text("icon_key").notNull(),
+    sortOrder: integer("sort_order").default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+}, (table) => ({
+    companyCarIdx: sqliteIndex("idx_car_included_items_car").on(table.companyCarId),
+    sortIdx: sqliteIndex("idx_car_included_items_sort").on(table.companyCarId, table.sortOrder),
+}));
+
+// Public car page - rules
+export const carRules = sqliteTable("car_rules", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyCarId: integer("company_car_id").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    iconKey: text("icon_key").notNull(),
+    sortOrder: integer("sort_order").default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+}, (table) => ({
+    companyCarIdx: sqliteIndex("idx_car_rules_car").on(table.companyCarId),
+    sortIdx: sqliteIndex("idx_car_rules_sort").on(table.companyCarId, table.sortOrder),
+}));
+
+// Public car page - features
+export const carFeatures = sqliteTable("car_features", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyCarId: integer("company_car_id").notNull(),
+    category: text("category").notNull(),
+    name: text("name").notNull(),
+    sortOrder: integer("sort_order").default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+}, (table) => ({
+    companyCarIdx: sqliteIndex("idx_car_features_car").on(table.companyCarId),
+    sortIdx: sqliteIndex("idx_car_features_sort").on(table.companyCarId, table.sortOrder),
+}));
+
 // Contracts table
 export const contracts = sqliteTable("contracts", {
     id: integer("id").primaryKey({ autoIncrement: true }),
@@ -625,6 +704,47 @@ export const companyCarsRelations = relations(companyCars, ({ one, many }) => ({
     contracts: many(contracts),
     // Maintenance history
     maintenanceHistory: many(maintenanceHistory),
+    // Public car page data
+    ratingMetrics: many(carRatingMetrics),
+    reviews: many(carReviews),
+    includedItems: many(carIncludedItems),
+    rules: many(carRules),
+    features: many(carFeatures),
+}));
+
+export const carRatingMetricsRelations = relations(carRatingMetrics, ({ one }) => ({
+    companyCar: one(companyCars, {
+        fields: [carRatingMetrics.companyCarId],
+        references: [companyCars.id],
+    }),
+}));
+
+export const carReviewsRelations = relations(carReviews, ({ one }) => ({
+    companyCar: one(companyCars, {
+        fields: [carReviews.companyCarId],
+        references: [companyCars.id],
+    }),
+}));
+
+export const carIncludedItemsRelations = relations(carIncludedItems, ({ one }) => ({
+    companyCar: one(companyCars, {
+        fields: [carIncludedItems.companyCarId],
+        references: [companyCars.id],
+    }),
+}));
+
+export const carRulesRelations = relations(carRules, ({ one }) => ({
+    companyCar: one(companyCars, {
+        fields: [carRules.companyCarId],
+        references: [companyCars.id],
+    }),
+}));
+
+export const carFeaturesRelations = relations(carFeatures, ({ one }) => ({
+    companyCar: one(companyCars, {
+        fields: [carFeatures.companyCarId],
+        references: [companyCars.id],
+    }),
 }));
 
 // Contracts relations

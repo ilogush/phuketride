@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router'
 import DataTable, { type Column, type Tab } from '~/components/dashboard/DataTable'
 import IdBadge from '~/components/dashboard/IdBadge'
+import Button from '~/components/dashboard/Button'
 import { format } from 'date-fns'
 import { useToast } from '~/lib/toast'
 
@@ -53,8 +54,8 @@ export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: stri
                     const userData = await response.json()
                     setUser(userData as { role?: string; companyId?: number | null; company_id?: number | null })
                 }
-            } catch (err) {
-                console.error('Error fetching user:', err)
+            } catch {
+                setUser(null)
             }
         }
         fetchUser()
@@ -105,7 +106,6 @@ export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: stri
             }
             return result
         } catch (error) {
-            console.error('Failed to fetch payments:', error)
             await toast.error('Failed to load payments')
             throw error
         }
@@ -120,7 +120,9 @@ export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: stri
             key: 'id',
             label: 'id',
             render: (item) => (
-                <button
+                <Button
+                    type="button"
+                    variant="unstyled"
                     onClick={() => {
                         const params = new URLSearchParams()
                         if (adminMode) params.set('admin_mode', 'true')
@@ -130,7 +132,7 @@ export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: stri
                     className="hover:opacity-70 transition-opacity"
                 >
                     <IdBadge>{item.id.toString().padStart(4, '0')}</IdBadge>
-                </button>
+                </Button>
             )
         },
         {

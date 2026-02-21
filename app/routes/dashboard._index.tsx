@@ -18,6 +18,7 @@ import StatCard from "~/components/dashboard/StatCard";
 import TasksWidget from "~/components/dashboard/TasksWidget";
 import { useToast } from "~/lib/toast";
 import { useEffect } from "react";
+import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
@@ -36,8 +37,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 .run();
 
             return redirect("/dashboard?success=Task deleted successfully");
-        } catch (error) {
-            console.error("Error deleting task:", error);
+        } catch {
             return redirect("/dashboard?error=Failed to delete task");
         }
     }
@@ -59,12 +59,132 @@ const ICON_MAP: Record<string, any> = {
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB);
+    const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
     let statCards: any[] = [];
     let tasks: any[] = [];
 
     try {
-        if (user.role === "admin") {
+        if (effectiveCompanyId) {
+            // Partner/Manager/Admin(mod mode) stats for selected company
+
+            const [company] = await db
+                .select()
+                .from(companies)
+                .where(eq(companies.id, effectiveCompanyId))
+                .limit(1);
+
+            const [managersCount] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(users)
+                .innerJoin(sql`managers`, sql`managers.user_id = users.id`)
+                .where(
+                    and(
+                        sql`managers.company_id = ${effectiveCompanyId}`,
+                        sql`managers.is_active = 1`
+                    )
+                );
+
+            const onlineUsers = 0; // Online tracking not implemented
+
+            const [carsCount] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(companyCars)
+                .where(eq(companyCars.companyId, effectiveCompanyId));
+
+            const [contractsCount] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(contracts)
+                .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
+                .where(eq(companyCars.companyId, effectiveCompanyId));
+
+            const startOfMonth = new Date();
+            startOfMonth.setDate(1);
+            startOfMonth.setHours(0, 0, 0, 0);
+
+            const [activeContractsCount] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(contracts)
+                .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
+                .where(
+                    and(
+                        eq(companyCars.companyId, effectiveCompanyId),
+                        gte(contracts.createdAt, startOfMonth)
+                    )
+                );
+
+            statCards = [
+                {
+                    name: "Users",
+                    value: `${managersCount?.count || 0}/${onlineUsers}`,
+                    subtext: "total / online",
+                    icon: "UserGroupIcon",
+                    href: "/users",
+                },
+                {
+                    name: "Cars",
+                    value: `${carsCount?.count || 0}/0`,
+                    subtext: "total / in workshop",
+                    icon: "TruckIcon",
+                    href: "/cars",
+                },
+                {
+                    name: "Contracts",
+                    value: `${contractsCount?.count || 0}/${activeContractsCount?.count || 0}`,
+                    subtext: "total / active this month",
+                    icon: "ClipboardDocumentListIcon",
+                    href: "/contracts",
+                },
+                {
+                    name: "Revenue",
+                    value: "฿0",
+                    subtext: "this month",
+                    icon: "BanknotesIcon",
+                    href: "/payments",
+                },
+            ];
+
+            const isCompanyIncomplete = company && (
+                !company.bankName ||
+                !company.accountNumber ||
+                !company.accountName
+            );
+
+            const upcomingTasks = await db
+                .select({
+                    id: calendarEvents.id,
+                    title: calendarEvents.title,
+                    description: calendarEvents.description,
+                    status: calendarEvents.status,
+                })
+                .from(calendarEvents)
+                .where(
+                    and(
+                        eq(calendarEvents.companyId, effectiveCompanyId),
+                        eq(calendarEvents.status, "pending")
+                    )
+                )
+                .orderBy(desc(calendarEvents.startDate))
+                .limit(5);
+
+            tasks = upcomingTasks.map(task => ({
+                id: task.id.toString(),
+                title: task.title,
+                description: task.description || "",
+                status: task.status as "pending" | "in_progress" | "completed",
+                priority: "medium" as const,
+            }));
+
+            if (isCompanyIncomplete) {
+                tasks.unshift({
+                    id: "company-setup",
+                    title: "Complete Company Profile",
+                    description: "Please fill in your company bank details in settings to start receiving payments",
+                    status: "pending" as const,
+                    priority: "high" as const,
+                });
+            }
+        } else if (user.role === "admin") {
             // Admin stats
             const [companiesCount] = await db
                 .select({ count: sql<number>`count(*)` })
@@ -141,130 +261,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 status: task.status as "pending" | "in_progress" | "completed",
                 priority: "medium" as const,
             }));
-        } else if (user.companyId) {
-            // Partner/Manager stats
-            
-            // Get company data to check if profile is complete
-            const [company] = await db
-                .select()
-                .from(companies)
-                .where(eq(companies.id, user.companyId))
-                .limit(1);
-
-            // Get company users count (managers + users who have contracts with this company)
-            const [managersCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(users)
-                .innerJoin(sql`managers`, sql`managers.user_id = users.id`)
-                .where(
-                    and(
-                        sql`managers.company_id = ${user.companyId}`,
-                        sql`managers.is_active = 1`
-                    )
-                );
-
-            const onlineUsers = 0; // Online tracking not implemented
-
-            const [carsCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(companyCars)
-                .where(eq(companyCars.companyId, user.companyId));
-
-            const [contractsCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(contracts)
-                .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-                .where(eq(companyCars.companyId, user.companyId));
-
-            const startOfMonth = new Date();
-            startOfMonth.setDate(1);
-            startOfMonth.setHours(0, 0, 0, 0);
-
-            const [activeContractsCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(contracts)
-                .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-                .where(
-                    and(
-                        eq(companyCars.companyId, user.companyId),
-                        gte(contracts.createdAt, startOfMonth)
-                    )
-                );
-
-            statCards = [
-                {
-                    name: "Users",
-                    value: `${managersCount?.count || 0}/${onlineUsers}`,
-                    subtext: "total / online",
-                    icon: "UserGroupIcon",
-                    href: "/users",
-                },
-                {
-                    name: "Cars",
-                    value: `${carsCount?.count || 0}/0`,
-                    subtext: "total / in workshop",
-                    icon: "TruckIcon",
-                    href: "/cars",
-                },
-                {
-                    name: "Contracts",
-                    value: `${contractsCount?.count || 0}/${activeContractsCount?.count || 0}`,
-                    subtext: "total / active this month",
-                    icon: "ClipboardDocumentListIcon",
-                    href: "/contracts",
-                },
-                {
-                    name: "Revenue",
-                    value: "฿0",
-                    subtext: "this month",
-                    icon: "BanknotesIcon",
-                    href: "/payments",
-                },
-            ];
-
-            // Check if company profile is incomplete
-            const isCompanyIncomplete = company && (
-                !company.bankName ||
-                !company.accountNumber ||
-                !company.accountName
-            );
-
-            // Load tasks from calendar events for partner/manager
-            const upcomingTasks = await db
-                .select({
-                    id: calendarEvents.id,
-                    title: calendarEvents.title,
-                    description: calendarEvents.description,
-                    status: calendarEvents.status,
-                })
-                .from(calendarEvents)
-                .where(
-                    and(
-                        eq(calendarEvents.companyId, user.companyId),
-                        eq(calendarEvents.status, "pending")
-                    )
-                )
-                .orderBy(desc(calendarEvents.startDate))
-                .limit(5);
-
-            tasks = upcomingTasks.map(task => ({
-                id: task.id.toString(),
-                title: task.title,
-                description: task.description || "",
-                status: task.status as "pending" | "in_progress" | "completed",
-                priority: "medium" as const,
-            }));
-
-            // Add company profile completion notification if needed
-            if (isCompanyIncomplete) {
-                tasks.unshift({
-                    id: "company-setup",
-                    title: "Complete Company Profile",
-                    description: "Please fill in your company bank details in settings to start receiving payments",
-                    status: "pending" as const,
-                    priority: "high" as const,
-                });
-            }
         } else {
             // User role - show personal stats
             const [userContractsCount] = await db
@@ -321,8 +317,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 },
             ];
         }
-    } catch (error) {
-        console.error("Error loading dashboard stats:", error);
+    } catch {
         // Return empty stats on error
         statCards = [];
         tasks = [];

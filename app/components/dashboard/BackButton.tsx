@@ -1,5 +1,6 @@
 import { useNavigate, Link } from 'react-router'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
+import Button from '~/components/dashboard/Button'
 
 interface BackButtonProps {
     href?: string
@@ -12,12 +13,14 @@ export function BackButton({ href, to, useHistory = true }: BackButtonProps) {
     
     if (useHistory) {
         return (
-            <button
+            <Button
+                type="button"
+                variant="unstyled"
                 onClick={() => navigate(-1)}
                 className="inline-flex items-center justify-center p-2 rounded-full bg-white hover:bg-gray-200 transition-all duration-200 shadow-sm border border-gray-200"
             >
                 <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
-            </button>
+            </Button>
         )
     }
     

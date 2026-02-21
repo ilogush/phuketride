@@ -83,13 +83,14 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
                                         day: "numeric",
                                     })}
                                 </span>
-                                <button
+                                <Button
                                     type="button"
+                                    variant="unstyled"
                                     onClick={() => handleRemoveHoliday(date)}
                                     className="text-gray-400 hover:text-red-600"
                                 >
                                     <XMarkIcon className="w-5 h-5" />
-                                </button>
+                                </Button>
                             </div>
                         ))}
                     </div>

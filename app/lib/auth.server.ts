@@ -49,6 +49,20 @@ export async function requireAuth(request: Request): Promise<SessionUser> {
         throw redirect("/login");
     }
 
+    if (user.role === "admin") {
+        const url = new URL(request.url);
+        const rawModCompanyId = url.searchParams.get("modCompanyId");
+        if (rawModCompanyId) {
+            const parsedModCompanyId = Number.parseInt(rawModCompanyId, 10);
+            if (Number.isFinite(parsedModCompanyId) && parsedModCompanyId > 0) {
+                return {
+                    ...user,
+                    companyId: parsedModCompanyId,
+                };
+            }
+        }
+    }
+
     return user;
 }
 

@@ -1,6 +1,7 @@
 import { useState, useRef } from "react"
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { optimizeImage } from "~/lib/image-optimizer"
+import Button from "~/components/dashboard/Button"
 
 interface CarPhotosUploadProps {
     currentPhotos?: string[]
@@ -45,8 +46,8 @@ export default function CarPhotosUpload({
                     base64: optimized.base64, 
                     fileName: optimized.fileName 
                 })
-            } catch (error) {
-                console.error("Failed to optimize image:", error)
+            } catch {
+                // Ignore single-file optimization errors to keep upload flow resilient.
             }
         }
 
@@ -77,18 +78,20 @@ export default function CarPhotosUpload({
                         alt={photo.fileName}
                         className="w-full h-full object-cover"
                     />
-                    <button
+                    <Button
                         type="button"
+                        variant="unstyled"
                         onClick={() => handleRemove(photo.id)}
-                        className="absolute top-1 right-1 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center text-white hover:text-red-500 hover:bg-white transition-colors"
+                        className="absolute top-1 right-1 w-6 h-6 !p-0 rounded-full bg-red-500 text-white hover:bg-red-600"
                     >
                         <XMarkIcon className="w-4 h-4" />
-                    </button>
+                    </Button>
                 </div>
             ))}
             {previews.length < maxPhotos && (
-                <button
+                <Button
                     type="button"
+                    variant="unstyled"
                     onClick={() => fileInputRef.current?.click()}
                     className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-lg flex flex-col items-center justify-center cursor-pointer gap-2"
                 >
@@ -96,7 +99,7 @@ export default function CarPhotosUpload({
                     <span className="text-xs text-gray-400">
                         {previews.length}/{maxPhotos}
                     </span>
-                </button>
+                </Button>
             )}
             <input
                 ref={fileInputRef}

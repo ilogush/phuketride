@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const carSchema = z.object({
     templateId: z.number().int().positive("Template is required").optional().nullable(),
+    year: z.number().int().min(1900, "Year must be valid").max(new Date().getFullYear() + 1, "Year must be valid").optional().nullable(),
     colorId: z.number().int().positive("Color is required"),
     licensePlate: z.string().min(1, "License plate is required").max(20, "License plate is too long"),
     transmission: z.enum(["automatic", "manual"], { errorMap: () => ({ message: "Invalid transmission type" }) }),
@@ -13,7 +14,6 @@ export const carSchema = z.object({
     currentMileage: z.number().int().min(0, "Mileage must be positive"),
     nextOilChangeMileage: z.number().int().min(0, "Next oil change mileage must be positive"),
     oilChangeInterval: z.number().int().min(1000, "Oil change interval must be at least 1000 km").max(50000, "Oil change interval is too large").optional(),
-    dailyMileageLimit: z.number().int().min(0, "Daily mileage limit must be positive").optional().nullable(),
     // Pricing
     pricePerDay: z.number().min(0, "Price per day must be positive"),
     deposit: z.number().min(0, "Deposit must be positive"),

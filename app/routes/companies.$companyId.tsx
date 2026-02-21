@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs } from "react-router";
+import { type LoaderFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Link } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { drizzle } from "drizzle-orm/d1";
@@ -55,6 +55,11 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 
     if (!Number.isFinite(companyId) || companyId <= 0) {
         throw new Response("Invalid company id", { status: 400 });
+    }
+
+    // Admin opens company page in mod mode as partner dashboard.
+    if (user.role === "admin") {
+        return redirect(`/dashboard?modCompanyId=${companyId}`);
     }
 
     let company: any = null;

@@ -1,21 +1,19 @@
-import type { ReactNode } from 'react'
-import { useState } from 'react'
+import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigation } from 'react-router'
 
-interface ButtonProps {
+interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'onClick'> {
     children?: ReactNode
     onClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void | Promise<void>
     disabled?: boolean
     type?: 'button' | 'submit' | 'reset'
     className?: string
-    variant?: 'primary' | 'secondary'
+    variant?: 'primary' | 'secondary' | 'ghost' | 'unstyled'
     size?: 'sm' | 'md' | 'lg'
     icon?: ReactNode
     iconPosition?: 'left' | 'right'
     fullWidth?: boolean
     rounded?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
-    form?: string
-    title?: string
     loading?: boolean
 }
 
@@ -31,17 +29,37 @@ export default function Button({
     iconPosition = 'left',
     fullWidth = false,
     rounded = 'xl',
-    form,
-    title,
-    loading = false
+    loading = false,
+    ...rest
 }: ButtonProps) {
     const navigation = useNavigation()
     const [isProcessing, setIsProcessing] = useState(false)
-    const [isClicked, setIsClicked] = useState(false)
+    const [isSubmitClicked, setIsSubmitClicked] = useState(false)
 
     const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
-        if (isProcessing || disabled || loading) return
-        if (!onClick) return
+        if (isProcessing || disabled || loading) {
+            e.preventDefault()
+            return
+        }
+
+        if (type === 'submit' && isSubmitClicked) {
+            e.preventDefault()
+            return
+        }
+
+        if (type === 'submit') {
+            // Show spinner immediately and block double click without forcing manual submit.
+            setIsSubmitClicked(true)
+            onClick?.(e)
+            if (e.defaultPrevented) {
+                setIsSubmitClicked(false)
+            }
+            return
+        }
+
+        if (!onClick) {
+            return
+        }
 
         setIsProcessing(true)
         try {
@@ -51,24 +69,16 @@ export default function Button({
         }
     }
 
-    // Для submit кнопок отслеживаем клик
-    const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
-        if (type === 'submit') {
-            setIsClicked(true)
-        }
-    }
-
-    // Автоматическое определение загрузки для submit кнопок
-    // Проверяем состояние навигации (submitting или loading)
     const isNavigating = navigation.state === 'submitting' || navigation.state === 'loading'
-    const isSubmitting = type === 'submit' && isClicked && isNavigating
-    
-    // Сбрасываем флаг клика когда навигация завершена
-    if (isClicked && navigation.state === 'idle') {
-        setIsClicked(false)
-    }
-    
-    const isDisabled = disabled || loading || isProcessing || isSubmitting
+    const isSubmitting = type === 'submit' && (isSubmitClicked || isNavigating)
+
+    useEffect(() => {
+        if (navigation.state === 'idle') {
+            setIsSubmitClicked(false)
+        }
+    }, [navigation.state])
+
+    const isDisabled = disabled || loading || isProcessing || (type === 'submit' && isNavigating)
 
     const baseClasses = 'flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
 
@@ -88,7 +98,9 @@ export default function Button({
 
     const variantClasses = {
         primary: 'bg-gray-800 text-white border border-transparent hover:bg-gray-700 font-medium',
-        secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-transparent font-medium'
+        secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-transparent font-medium',
+        ghost: 'bg-transparent text-gray-700 hover:bg-gray-100 border border-transparent font-medium',
+        unstyled: ''
     }
 
     const buttonClasses = [
@@ -98,19 +110,19 @@ export default function Button({
         roundedClasses[rounded],
         fullWidth && 'w-full',
         icon && children && 'space-x-1.5',
+        type === 'submit' && isSubmitClicked && 'pointer-events-none',
         className
     ].filter(Boolean).join(' ')
 
     return (
         <button
             type={type}
-            onClick={type === 'button' ? handleClick : handleSubmit}
+            onClick={handleClick}
             disabled={isDisabled}
-            form={form}
-            title={title}
             className={buttonClasses}
+            {...rest}
         >
-            {isDisabled && (loading || isProcessing || isSubmitting) ? (
+            {(loading || isProcessing || isSubmitting) ? (
                 <>
                     <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                     {children && <span className="ml-2 opacity-70">{children}</span>}

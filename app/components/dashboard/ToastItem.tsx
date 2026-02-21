@@ -6,6 +6,7 @@ import {
     InformationCircleIcon,
     XMarkIcon,
 } from '@heroicons/react/24/outline'
+import Button from '~/components/dashboard/Button'
 
 interface ToastItemProps {
     toast: Toast
@@ -50,13 +51,15 @@ export default function ToastItem({ toast, onRemove }: ToastItemProps) {
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white">{toast.message}</p>
             </div>
-            <button
+            <Button
+                type="button"
+                variant="unstyled"
                 onClick={() => onRemove(toast.id)}
                 className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-all"
                 aria-label="Close"
             >
                 <XMarkIcon className="h-4 w-4" />
-            </button>
+            </Button>
         </div>
     )
 }

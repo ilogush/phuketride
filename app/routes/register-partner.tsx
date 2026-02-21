@@ -1,5 +1,5 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
-import { Form, Link, useActionData, useNavigation, useLoaderData } from "react-router";
+import { Form, Link, useActionData, useLoaderData } from "react-router";
 import { getUserFromSession } from "~/lib/auth.server";
 import { useState, useEffect } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
@@ -9,6 +9,7 @@ import { districts, users } from "~/db/schema";
 import { useToast } from "~/lib/toast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
+import Button from "~/components/dashboard/Button";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     // If already logged in, redirect to dashboard
@@ -135,8 +136,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 "Set-Cookie": cookie,
             },
         });
-    } catch (error) {
-        console.error("Registration error:", error);
+    } catch {
         return { error: "Registration failed. Please try again" };
     }
 }
@@ -144,8 +144,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 export default function RegisterPartnerPage() {
     const { districts: districtsList } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
-    const navigation = useNavigation();
-    const isSubmitting = navigation.state === "submitting";
     const [showPassword, setShowPassword] = useState(false);
     const toast = useToast();
     const { validateLatinInput } = useLatinValidation();
@@ -266,17 +264,18 @@ export default function RegisterPartnerPage() {
                                         className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                                         placeholder="Min 6 characters"
                                     />
-                                    <button
+                                    <Button
                                         type="button"
+                                        variant="unstyled"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-2"
                                     >
                                         {showPassword ? (
                                             <EyeSlashIcon className="w-5 h-5" />
                                         ) : (
                                             <EyeIcon className="w-5 h-5" />
                                         )}
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         </div>
@@ -353,13 +352,14 @@ export default function RegisterPartnerPage() {
                             </div>
                         )}
 
-                        <button
+                        <Button
                             type="submit"
-                            disabled={isSubmitting}
-                            className="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            variant="primary"
+                            fullWidth
+                            size="lg"
                         >
-                            {isSubmitting ? "Creating account..." : "Create Partner Account"}
-                        </button>
+                            Create Partner Account
+                        </Button>
                     </Form>
 
                     <div className="mt-6 text-center">

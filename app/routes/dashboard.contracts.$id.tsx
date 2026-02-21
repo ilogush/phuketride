@@ -105,7 +105,7 @@ export default function ContractView() {
                     title="Car Details"
                     icon={<TruckIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <ReadOnlyField
                             label="Car"
                             value={car?.licensePlate || "-"}
@@ -160,7 +160,7 @@ export default function ContractView() {
                     title="Rental Details"
                     icon={<CalendarIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <ReadOnlyField
                             label="Start Date & Time"
                             value={formatDate(contract.startDate)}
@@ -201,7 +201,7 @@ export default function ContractView() {
                     title="User Details"
                     icon={<UserIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <ReadOnlyField
                             label="First Name"
                             value={client?.name || "-"}
@@ -317,7 +317,7 @@ export default function ContractView() {
                     title="Extras"
                     icon={<CubeIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
                             <span className="text-sm font-medium text-gray-700">Full Insurance</span>
                             <span className="text-sm text-gray-600">
@@ -350,7 +350,7 @@ export default function ContractView() {
                     title="Financial Summary"
                     icon={<BanknotesIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <ReadOnlyField
                             label="Delivery Price"
                             value={contract.deliveryCost ? `${contract.deliveryCost} ฿` : "0 ฿"}

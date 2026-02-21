@@ -1,5 +1,5 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
-import { Form, Link, useActionData, useNavigation } from "react-router";
+import { Form, Link, useActionData } from "react-router";
 import { getUserFromSession } from "~/lib/auth.server";
 import { useState } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
@@ -74,8 +74,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function RegisterPage() {
     const actionData = useActionData<typeof action>();
-    const navigation = useNavigation();
-    const isSubmitting = navigation.state === "submitting";
     const [showPassword, setShowPassword] = useState(false);
     const { validateLatinInput } = useLatinValidation();
 
@@ -171,17 +169,18 @@ export default function RegisterPage() {
                                     className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                                     placeholder="Min 6 characters"
                                 />
-                                <button
+                                <Button
                                     type="button"
+                                    variant="unstyled"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-2"
                                 >
                                     {showPassword ? (
                                         <EyeSlashIcon className="w-5 h-5" />
                                     ) : (
                                         <EyeIcon className="w-5 h-5" />
                                     )}
-                                </button>
+                                </Button>
                             </div>
                         </div>
 

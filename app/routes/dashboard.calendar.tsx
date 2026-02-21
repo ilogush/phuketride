@@ -10,10 +10,16 @@ import Button from "~/components/dashboard/Button";
 import Card from "~/components/dashboard/Card";
 import { useToast } from "~/lib/toast";
 import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
+    const effectiveCompanyId = getEffectiveCompanyId(request, user);
+
+    if (!effectiveCompanyId) {
+        throw new Response("Company not found", { status: 404 });
+    }
 
     const url = new URL(request.url);
     const monthParam = url.searchParams.get("month");
@@ -30,7 +36,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     // Get events for current month
     const events = await db.query.calendarEvents.findMany({
         where: (events, { and, gte, lte, eq }) => and(
-            eq(events.companyId, user.companyId!),
+            eq(events.companyId, effectiveCompanyId),
             gte(events.startDate, firstDay),
             lte(events.startDate, lastDay)
         ),
@@ -39,7 +45,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     });
 
     // Get contracts ending this month
-    const contracts = await db.query.contracts.findMany({
+    const contractsRaw = await db.query.contracts.findMany({
         where: (contracts, { and, gte, lte, eq, inArray }) => and(
             gte(contracts.endDate, firstDay),
             lte(contracts.endDate, lastDay),
@@ -60,9 +66,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         },
         limit: 50,
     });
+    const contracts = contractsRaw.filter(contract => contract.companyCar.companyId === effectiveCompanyId);
 
     // Get bookings this month
-    const bookings = await db.query.bookings.findMany({
+    const bookingsRaw = await db.query.bookings.findMany({
         where: (bookings, { and, gte, lte, inArray }) => and(
             gte(bookings.startDate, firstDay),
             lte(bookings.startDate, lastDay),
@@ -82,6 +89,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         },
         limit: 50,
     });
+    const bookings = bookingsRaw.filter(booking => booking.companyCar.companyId === effectiveCompanyId);
 
     return { 
         user, 
@@ -97,6 +105,8 @@ export default function CalendarPage() {
     const { user, events, contracts, bookings, currentMonth, currentYear } = useLoaderData<typeof loader>();
     const [searchParams] = useSearchParams();
     const toast = useToast();
+    const modCompanyId = searchParams.get("modCompanyId");
+    const modModeSuffix = modCompanyId ? `&modCompanyId=${modCompanyId}` : "";
 
     useEffect(() => {
         const success = searchParams.get("success");
@@ -123,13 +133,13 @@ export default function CalendarPage() {
     const prevMonth = () => {
         const newMonth = currentMonth === 0 ? 11 : currentMonth - 1;
         const newYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-        return `/dashboard/calendar?month=${newMonth}&year=${newYear}`;
+        return `/dashboard/calendar?month=${newMonth}&year=${newYear}${modModeSuffix}`;
     };
 
     const nextMonth = () => {
         const newMonth = currentMonth === 11 ? 0 : currentMonth + 1;
         const newYear = currentMonth === 11 ? currentYear + 1 : currentYear;
-        return `/dashboard/calendar?month=${newMonth}&year=${newYear}`;
+        return `/dashboard/calendar?month=${newMonth}&year=${newYear}${modModeSuffix}`;
     };
 
     const getEventsForDay = (day: number) => {
@@ -167,7 +177,7 @@ export default function CalendarPage() {
             <PageHeader
                 title="Calendar"
                 rightActions={
-                    <Link to="/dashboard/calendar/new">
+                    <Link to={modCompanyId ? `/dashboard/calendar/new?modCompanyId=${modCompanyId}` : "/dashboard/calendar/new"}>
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
                             Add Event
                         </Button>

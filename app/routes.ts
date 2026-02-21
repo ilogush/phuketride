@@ -12,6 +12,7 @@ export default [
 
     // Company standalone dashboard (Phuket Ride Co.)
     route("companies/:companyId", "routes/companies.$companyId.tsx"),
+    route("cars/:id", "routes/cars.$id.tsx"),
 
     // Compatibility redirects for legacy /dashboard/* URLs
     route("dashboard/*", "routes/dashboard.redirect.tsx"),

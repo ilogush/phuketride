@@ -2,6 +2,7 @@ import React, { forwardRef, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { inputBaseStyles, inputErrorStyles } from '~/lib/styles/input'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import Button from '~/components/dashboard/Button'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string
@@ -114,8 +115,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     {...props}
                 />
                 {isPassword && (
-                    <button
+                    <Button
                         type="button"
+                        variant="unstyled"
                         onClick={() => setShowPassword(!showPassword)}
                         className="inline-flex items-center px-3 rounded-r-xl border border-l-0 border-gray-200 bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors"
                     >
@@ -124,7 +126,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                         ) : (
                             <EyeIcon className="w-5 h-5" />
                         )}
-                    </button>
+                    </Button>
                 )}
                 {!isPassword && addonRight && (
                     <span className="inline-flex items-center px-4 rounded-r-xl border border-l-0 border-gray-200 bg-gray-50 text-gray-500 sm:text-sm">

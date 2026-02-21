@@ -8,6 +8,7 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { ClipboardDocumentListIcon } from "@heroicons/react/24/outline";
+import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
 interface AuditLog {
     id: number;
@@ -40,6 +41,7 @@ const ACTION_COLORS: Record<string, string> = {
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const db = drizzle(context.cloudflare.env.DB, { schema });
+    const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
     const baseQuery = db
         .select({
@@ -62,18 +64,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         .leftJoin(schema.users, eq(schema.auditLogs.userId, schema.users.id))
         .orderBy(desc(schema.auditLogs.createdAt));
 
-    // Partner can only see logs from their company
-    if (user.role === "partner") {
-        const companyResult = (await context.cloudflare.env.DB
-            .prepare("SELECT id FROM companies WHERE owner_id = ? LIMIT 1")
-            .bind(user.id)
-            .first()) as { id: number } | null;
-
-        if (!companyResult) {
-            return { user, logs: [] };
-        }
-
-        const logs = await baseQuery.where(eq(schema.auditLogs.companyId, companyResult.id)).limit(100);
+    // Partner and manager can only see logs from their company.
+    // Admin should always see all logs, including in mod mode.
+    if (user.role !== "admin" && effectiveCompanyId) {
+        const logs = await baseQuery.where(eq(schema.auditLogs.companyId, effectiveCompanyId)).limit(100);
         return { user, logs };
     }
 
@@ -86,20 +80,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
     const intent = formData.get("intent");
+    const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
     if (intent === "clear") {
-        if (user.role === "partner") {
-            // Partner can only clear logs from their company
-            const companyResult = (await context.cloudflare.env.DB
-                .prepare("SELECT id FROM companies WHERE owner_id = ? LIMIT 1")
-                .bind(user.id)
-                .first()) as { id: number } | null;
-
-            if (!companyResult) {
-                return data({ success: false, message: "Company not found" }, { status: 404 });
-            }
-
-            await db.delete(schema.auditLogs).where(eq(schema.auditLogs.companyId, companyResult.id));
+        if (user.role !== "admin" && effectiveCompanyId) {
+            await db.delete(schema.auditLogs).where(eq(schema.auditLogs.companyId, effectiveCompanyId));
         } else {
             // Admin can clear all logs
             await db.delete(schema.auditLogs);

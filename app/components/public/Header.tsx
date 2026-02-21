@@ -55,16 +55,16 @@ export default function Header() {
                     to="/dashboard" 
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-300 transition-colors"
                   >
-                    <UserIcon className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-900">Dashboard</span>
+                    <UserIcon className="h-5 w-5 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-800">Dashboard</span>
                   </Link>
                   <Form method="post" action="/logout">
                     <button 
                       type="submit"
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-300 transition-colors text-left"
                     >
-                      <ArrowRightOnRectangleIcon className="h-5 w-5 text-gray-600" />
-                      <span className="text-sm font-medium text-gray-900">Log out</span>
+                      <ArrowRightOnRectangleIcon className="h-5 w-5 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-800">Log out</span>
                     </button>
                   </Form>
                   
@@ -74,57 +74,57 @@ export default function Header() {
                     to="#" 
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-300 transition-colors"
                   >
-                    <TruckIcon className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-900">Become a host</span>
+                    <TruckIcon className="h-5 w-5 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-800">Become a host</span>
                   </Link>
                   <Link 
                     to="#" 
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-300 transition-colors"
                   >
-                    <KeyIcon className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-900">Why choose CARs</span>
+                    <KeyIcon className="h-5 w-5 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-800">Why choose CARs</span>
                   </Link>
                   <Link 
                     to="#" 
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-300 transition-colors"
                   >
-                    <GiftIcon className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-900">Gift cards</span>
+                    <GiftIcon className="h-5 w-5 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-800">Gift cards</span>
                   </Link>
                   <Link 
                     to="#" 
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-300 transition-colors"
                   >
-                    <PhoneIcon className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-900">Contact support</span>
+                    <PhoneIcon className="h-5 w-5 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-800">Contact support</span>
                   </Link>
                   <Link 
                     to="#" 
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-300 transition-colors"
                   >
-                    <DocumentTextIcon className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-900">Legal</span>
+                    <DocumentTextIcon className="h-5 w-5 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-800">Legal</span>
                   </Link>
                   <Link 
                     to="#" 
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-300 transition-colors"
                   >
-                    <ShieldCheckIcon className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-900">Insurance & protection</span>
+                    <ShieldCheckIcon className="h-5 w-5 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-800">Insurance & protection</span>
                   </Link>
                   <Link 
                     to="#" 
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-300 transition-colors"
                   >
-                    <WrenchScrewdriverIcon className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-900">Host tools</span>
+                    <WrenchScrewdriverIcon className="h-5 w-5 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-800">Host tools</span>
                   </Link>
                   <Link 
                     to="#" 
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-300 transition-colors"
                   >
-                    <CalculatorIcon className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-900">Carculator</span>
+                    <CalculatorIcon className="h-5 w-5 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-800">Carculator</span>
                   </Link>
                 </div>
               )}

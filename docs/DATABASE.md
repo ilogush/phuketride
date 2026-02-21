@@ -4,15 +4,14 @@
 
 - **СУБД**: Cloudflare D1 (SQLite)
 - **ORM**: Drizzle ORM
-- **Миграции**: Drizzle Kit
+- **Миграции**: SQL-файлы + Wrangler D1
 - **Именование**: snake_case
 
 ## Команды
 
 ```bash
 npm run db:migrate:remote  # Применить миграции (ТОЛЬКО remote!)
-npm run db:generate        # Генерация миграций
-npm run db:studio          # Drizzle Studio UI
+wrangler d1 execute phuketride-bd --remote --file=./drizzle/<migration>.sql
 ```
 
 **ВАЖНО**: Работаем ТОЛЬКО с удаленной БД (--remote). Локальной БД НЕТ.
@@ -316,15 +315,10 @@ await db.transaction(async (tx) => {
 
 ```bash
 # 1. Изменить schema.ts
-# 2. Сгенерировать миграцию
-npm run db:generate
-
-# 3. Проверить SQL в drizzle/*.sql
-# 4. Применить на remote
+# 2. Добавить SQL миграцию в drizzle/*.sql
+# 3. Применить на remote
 npm run db:migrate:remote
 ```
-
-**Файл**: [drizzle.config.ts](../drizzle.config.ts)
 
 ## Индексы производительности
 

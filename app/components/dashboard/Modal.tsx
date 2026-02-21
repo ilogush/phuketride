@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { XMarkIcon } from '@heroicons/react/24/outline'
+import Button from '~/components/dashboard/Button'
 
 interface ModalProps {
     title: string
@@ -39,12 +40,14 @@ export default function Modal({ title, children, onClose, maxWidth, size, isOpen
                     <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
                         {title}
                     </h2>
-                    <button
+                    <Button
+                        type="button"
+                        variant="unstyled"
                         onClick={onClose}
                         className="text-gray-400 hover:text-gray-600 rounded-lg p-1 hover:bg-gray-300 transition-colors"
                     >
                         <XMarkIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-                    </button>
+                    </Button>
                 </div>
 
                 <div className="overflow-y-auto flex-1 p-4 sm:p-6">

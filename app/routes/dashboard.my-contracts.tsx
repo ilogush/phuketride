@@ -90,36 +90,30 @@ export default function MyContractsPage() {
                 <div className="flex items-center gap-4">
                     <FunnelIcon className="h-5 w-5 text-gray-400" />
                     <div className="flex gap-2">
-                        <button
+                        <Button
+                            type="button"
+                            variant="unstyled"
                             onClick={() => handleStatusChange("all")}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                status === "all"
-                                    ? "bg-gray-800 text-white"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
+                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "all" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                         >
                             All
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="unstyled"
                             onClick={() => handleStatusChange("active")}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                status === "active"
-                                    ? "bg-gray-800 text-white"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
+                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "active" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                         >
                             Active
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="unstyled"
                             onClick={() => handleStatusChange("closed")}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                status === "closed"
-                                    ? "bg-gray-800 text-white"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
+                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "closed" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                         >
                             Closed
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>

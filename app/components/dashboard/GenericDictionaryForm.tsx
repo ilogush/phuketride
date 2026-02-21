@@ -4,6 +4,7 @@ import Button from '~/components/dashboard/Button'
 import Modal from '~/components/dashboard/Modal'
 import FormField from '~/components/dashboard/FormField'
 import DeleteButton from '~/components/dashboard/DeleteButton'
+import Toggle from '~/components/dashboard/Toggle'
 import { inputBaseStyles, textareaBaseStyles } from '~/lib/styles/input'
 
 export type FieldType = 'text' | 'number' | 'select' | 'textarea' | 'checkbox' | 'color' | 'toggle'
@@ -214,27 +215,16 @@ export function GenericDictionaryForm({
                         <label htmlFor={field.name} className="block text-sm font-medium text-gray-500">
                             {field.label} {field.helpText && <span className="text-xs">({field.helpText})</span>}
                         </label>
-                        <button
-                            type="button"
-                            onClick={() => {
+                        <Toggle
+                            size="sm"
+                            enabled={Boolean(value)}
+                            disabled={field.disabled}
+                            onChange={() => {
                                 if (!field.disabled) {
                                     setFormData(prev => ({ ...prev, [field.name]: !prev[field.name] }))
                                 }
                             }}
-                            disabled={field.disabled}
-                            className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 ${
-                                value ? 'bg-gray-800' : 'bg-gray-200'
-                            } ${field.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            role="switch"
-                            aria-checked={!!value}
-                        >
-                            <span
-                                aria-hidden="true"
-                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                    value ? 'translate-x-4' : 'translate-x-0'
-                                }`}
-                            />
-                        </button>
+                        />
                     </div>
                 )
 

@@ -448,7 +448,7 @@ export default function NewContract() {
                     title="Car Details"
                     icon={<TruckIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <FormSelect
                             label="Car"
                             name="company_car_id"
@@ -496,7 +496,7 @@ export default function NewContract() {
                     title="Rental Details"
                     icon={<CalendarIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Input
                             label="Start Date & Time"
                             type="datetime-local"
@@ -555,7 +555,7 @@ export default function NewContract() {
                     title="User Details"
                     icon={<UserIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <FormInput
                             label="Passport Number"
                             name="client_passport"
@@ -649,7 +649,7 @@ export default function NewContract() {
                     title="Extras"
                     icon={<CubeIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
                             <span className="text-sm font-medium text-gray-700">Full Insurance</span>
                             <Toggle enabled={fullInsurance} onChange={setFullInsurance} />
@@ -734,7 +734,7 @@ export default function NewContract() {
                     title="Financial Summary"
                     icon={<BanknotesIcon className="w-6 h-6" />}
                 >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <FormInput
                             label="Delivery Price"
                             name="delivery_cost"
