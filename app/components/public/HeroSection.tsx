@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { CheckIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { useMemo, useState } from "react";
 import DateRangePicker from "~/components/public/DateRangePicker";
 
@@ -10,6 +10,7 @@ interface HeroSectionProps {
 export default function HeroSection({ districts }: HeroSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showLocations, setShowLocations] = useState(false);
+  const [selectedDistrict, setSelectedDistrict] = useState("");
 
   const filteredDistricts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -20,18 +21,19 @@ export default function HeroSection({ districts }: HeroSectionProps) {
   }, [districts, searchQuery]);
 
   const handleLocationSelect = (location: string) => {
+    setSelectedDistrict(location);
     setSearchQuery(location);
     setShowLocations(false);
   };
 
   return (
-    <section className="pb-8">
-      <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white min-h-[300px] flex items-center justify-center">
+    <section className="relative z-30 pb-8">
+      <div className="relative overflow-visible rounded-2xl border border-gray-200 bg-white min-h-[300px] flex items-center justify-center">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-10"
           style={{ backgroundImage: "url('/logo.webp')" }}
         />
-        <div className="relative z-10 w-full max-w-5xl text-center px-4 py-6">
+        <div className="relative z-50 w-full max-w-5xl text-center px-4 py-6">
           <h1 className="text-3xl md:text-4xl font-semibold text-gray-800">
             Skip the rental car counter
           </h1>
@@ -52,22 +54,25 @@ export default function HeroSection({ districts }: HeroSectionProps) {
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
+                    setSelectedDistrict("");
                     setShowLocations(true);
                   }}
                   onFocus={() => setShowLocations(true)}
                 />
 
                 {showLocations && (
-                  <div className="absolute left-[-0.5rem] top-full mt-2 w-[calc(100%+0.5rem)] min-w-[320px] max-w-[520px] bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50 max-h-[420px] overflow-y-auto">
+                  <div className="absolute left-[-0.5rem] top-full mt-2 w-[calc(100%+0.5rem)] min-w-[320px] max-w-[520px] bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-[60] max-h-[420px] overflow-y-scroll overscroll-contain scroll-smooth">
                     {filteredDistricts.length > 0 ? (
                       filteredDistricts.map((district) => (
                         <button
                           key={district}
                           type="button"
                           onClick={() => handleLocationSelect(district)}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors text-base text-gray-800"
+                          aria-selected={selectedDistrict === district}
+                          className={`w-full px-4 py-3 text-left transition-colors text-base flex items-center justify-between ${selectedDistrict === district ? "bg-indigo-50 text-indigo-700" : "text-gray-800 hover:bg-gray-50"}`}
                         >
-                          {district}
+                          <span>{district}</span>
+                          {selectedDistrict === district && <CheckIcon className="h-4 w-4" />}
                         </button>
                       ))
                     ) : (
