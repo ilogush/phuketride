@@ -1,8 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import FormSection from "~/components/dashboard/FormSection";
 import FormInput from "~/components/dashboard/FormInput";
@@ -14,19 +12,13 @@ import { BanknotesIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { useEffect } from "react";
 import { paymentSchema } from "~/schemas/payment";
-import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-
-    const [contractsList, paymentTypesList, carsList, currenciesList] = await Promise.all([
-        db.select().from(schema.contracts).limit(100),
-        db.select().from(schema.paymentTypes).limit(100),
-        db.select({
-            id: schema.companyCars.id,
-            licensePlate: schema.companyCars.licensePlate,
-        }).from(schema.companyCars).limit(100),
+    await requireAuth(request);
+    const [contractsResult, paymentTypesResult, carsResult, currenciesList] = await Promise.all([
+        context.cloudflare.env.DB.prepare("SELECT * FROM contracts LIMIT 100").all(),
+        context.cloudflare.env.DB.prepare("SELECT * FROM payment_types LIMIT 100").all(),
+        context.cloudflare.env.DB.prepare("SELECT id, license_plate AS licensePlate FROM company_cars LIMIT 100").all(),
         // Mock currencies data
         Promise.resolve([
             { id: 1, code: "THB", symbol: "฿" },
@@ -35,13 +27,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             { id: 7, code: "RUB", symbol: "₽" },
         ])
     ]);
-
+    const contractsList = (contractsResult.results ?? []) as Array<{ id: number }>;
+    const paymentTypesList = (paymentTypesResult.results ?? []) as Array<{ id: number; name: string }>;
+    const carsList = (carsResult.results ?? []) as Array<{ id: number; licensePlate: string }>;
     return { contracts: contractsList, paymentTypes: paymentTypesList, cars: carsList, currencies: currenciesList };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
     // Parse form data
@@ -66,34 +59,29 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const validData = validation.data;
 
     try {
-        const [newPayment] = await db.insert(schema.payments).values({
-            contractId: validData.contractId,
-            paymentTypeId: validData.paymentTypeId,
-            amount: validData.amount,
-            currency: validData.currency,
-            paymentMethod: validData.paymentMethod,
-            status: validData.status,
-            notes: validData.notes,
-            createdBy: user.id,
-        }).returning({ id: schema.payments.id });
-
-        // Audit log
-        const metadata = getRequestMetadata(request);
-        quickAudit({
-            db,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId,
-            entityType: "payment",
-            entityId: newPayment.id,
-            action: "create",
-            afterState: { ...validData, id: newPayment.id },
-            ...metadata,
-        });
+        await context.cloudflare.env.DB
+            .prepare(
+                `
+                INSERT INTO payments (
+                    contract_id, payment_type_id, amount, currency,
+                    payment_method, status, notes, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                `
+            )
+            .bind(
+                validData.contractId,
+                validData.paymentTypeId,
+                validData.amount,
+                validData.currency,
+                validData.paymentMethod,
+                validData.status,
+                validData.notes,
+                user.id
+            )
+            .run();
 
         return redirect(`/payments?success=${encodeURIComponent("Payment created successfully")}`);
-    } catch (error) {
-        console.error("Failed to create payment:", error);
+    } catch {
         return redirect(`/payments/create?error=${encodeURIComponent("Failed to create payment")}`);
     }
 }

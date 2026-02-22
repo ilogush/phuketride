@@ -38,8 +38,8 @@ export default function CarGallery({ title, photos }: CarGalleryProps) {
     <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="md:col-span-2 relative rounded-2xl overflow-hidden bg-gray-100 border border-gray-200">
-          <button type="button" onClick={() => openModal(0)} className="w-full text-left">
-            <img src={mainPhoto} alt={title} className="w-full h-[420px] object-cover" />
+          <button type="button" onClick={() => openModal(0)} className="block w-full h-full text-left leading-none">
+            <img src={mainPhoto} alt={title} className="block w-full h-[420px] object-cover" />
           </button>
           <Button
             type="button"
@@ -51,14 +51,14 @@ export default function CarGallery({ title, photos }: CarGalleryProps) {
 
         <div className="space-y-3">
           <div className="rounded-2xl overflow-hidden bg-gray-100 border border-gray-200">
-            <button type="button" onClick={() => openModal(1)} className="w-full text-left">
-              <img src={secondPhoto} alt={`${title} 2`} className="w-full h-[203px] object-cover" />
+            <button type="button" onClick={() => openModal(1)} className="block w-full h-full text-left leading-none">
+              <img src={secondPhoto} alt={`${title} 2`} className="block w-full h-[204px] object-cover" />
             </button>
           </div>
 
           <div className="relative rounded-2xl overflow-hidden bg-gray-100 border border-gray-200">
-            <button type="button" onClick={() => openModal(2)} className="w-full text-left">
-              <img src={thirdPhoto} alt={`${title} 3`} className="w-full h-[203px] object-cover" />
+            <button type="button" onClick={() => openModal(2)} className="block w-full h-full text-left leading-none">
+              <img src={thirdPhoto} alt={`${title} 3`} className="block w-full h-[204px] object-cover" />
             </button>
             <Button
               type="button"

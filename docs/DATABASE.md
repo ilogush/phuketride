@@ -250,11 +250,9 @@ const contract = await db.query.contracts.findFirst({
 ### Подключение
 
 ```typescript
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const db = drizzle(context.cloudflare.env.DB, { schema });
+  const db = context.cloudflare.env.DB;
   // ...
 }
 ```

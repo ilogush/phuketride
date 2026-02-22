@@ -119,7 +119,7 @@ const activeTab = searchParams.get("tab") || "profile";
 ```typescript
 export async function loader({ request, context }: Route.LoaderArgs) {
   const user = await requireAuth(request);
-  const db = drizzle(context.cloudflare.env.DB);
+  const db = context.cloudflare.env.DB;
   
   const cars = await db.select()
     .from(companyCars)
@@ -133,7 +133,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 ```typescript
 export async function action({ request, context }: Route.ActionArgs) {
   const user = await requireAuth(request);
-  const db = drizzle(context.cloudflare.env.DB);
+  const db = context.cloudflare.env.DB;
   const formData = await request.formData();
   
   const data = carSchema.parse(Object.fromEntries(formData));
@@ -158,7 +158,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 ```typescript
 // D1
-const db = drizzle(context.cloudflare.env.DB);
+const db = context.cloudflare.env.DB;
 
 // R2
 const bucket = context.cloudflare.env.ASSETS;
@@ -217,7 +217,7 @@ if (user.role !== "admin" && user.companyId !== companyId) {
 ```typescript
 export async function loader({ request, context }: Route.LoaderArgs) {
   const user = await requireAuth(request);
-  const db = drizzle(context.cloudflare.env.DB);
+  const db = context.cloudflare.env.DB;
   
   const events = await db.select()
     .from(calendarEvents)

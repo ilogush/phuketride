@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and, or, isNull, ne } from "drizzle-orm";
-import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import Button from "~/components/dashboard/Button";
@@ -32,7 +29,6 @@ import { getAdminModCompanyId, getEffectiveCompanyId } from "~/lib/mod-mode.serv
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const companyId = getEffectiveCompanyId(request, user);
 
     if (!companyId) {
@@ -41,35 +37,27 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     // NOTE: In remote-preview mode (remote bindings), concurrent D1 requests can intermittently fail.
     // Keep these queries sequential to reduce flakiness during dev.
-    const company = await db
-        .select()
-        .from(schema.companies)
-        .where(eq(schema.companies.id, companyId))
-        .limit(1);
-    const locations = await db.select().from(schema.locations).limit(100);
-    const districts = await db.select().from(schema.districts).limit(200);
-    // Get system templates (company_id IS NULL) OR company-specific templates
-    const paymentTypes = await db
-        .select()
-        .from(schema.paymentTypes)
-        .where(or(isNull(schema.paymentTypes.companyId), eq(schema.paymentTypes.companyId, companyId)))
-        .limit(100);
-    const currencies = await db
-        .select()
-        .from(schema.currencies)
-        .orderBy(schema.currencies.name)
-        .limit(50);
+    const [company, locations, districts, paymentTypes, currencies] = await Promise.all([
+        context.cloudflare.env.DB.prepare("SELECT * FROM companies WHERE id = ? LIMIT 1").bind(companyId).first<any>(),
+        context.cloudflare.env.DB.prepare("SELECT * FROM locations LIMIT 100").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM districts LIMIT 200").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB
+            .prepare("SELECT * FROM payment_types WHERE company_id IS NULL OR company_id = ? LIMIT 100")
+            .bind(companyId)
+            .all()
+            .then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM currencies ORDER BY name ASC LIMIT 50").all().then((r: any) => r.results || []),
+    ]);
 
-    if (!company || company.length === 0) {
+    if (!company) {
         throw new Response("Company not found", { status: 404 });
     }
 
-    return { user, company: company[0], locations, districts, paymentTypes, currencies };
+    return { user, company, locations, districts, paymentTypes, currencies };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
     const intent = formData.get("intent");
     const companyId = getEffectiveCompanyId(request, user);
@@ -87,7 +75,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     // Get current company for audit log
-    const currentCompany = await db.select().from(schema.companies).where(eq(schema.companies.id, companyId)).get();
+    const currentCompany = await context.cloudflare.env.DB
+        .prepare("SELECT * FROM companies WHERE id = ? LIMIT 1")
+        .bind(companyId)
+        .first<any>();
 
     if (intent === "updateGeneral") {
         const parseMoneyValue = (value: FormDataEntryValue | null): number | null => {
@@ -140,49 +131,58 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const holidays = formData.get("holidays") as string;
 
         try {
-            await db.update(schema.companies)
-                .set({
-                    name: validData.name,
-                    email: validData.email,
-                    phone: validData.phone,
-                    telegram: validData.telegram,
-                    locationId: validData.locationId,
-                    districtId: validData.districtId,
-                    street: validData.street,
-                    houseNumber: validData.houseNumber,
-                    bankName: validData.bankName,
-                    accountNumber: validData.accountNumber,
-                    accountName: validData.accountName,
-                    swiftCode: validData.swiftCode,
-                    preparationTime: validData.preparationTime,
-                    deliveryFeeAfterHours: validData.deliveryFeeAfterHours,
-                    islandTripPrice: validData.islandTripPrice,
-                    krabiTripPrice: validData.krabiTripPrice,
-                    babySeatPricePerDay: validData.babySeatPricePerDay,
+            await context.cloudflare.env.DB
+                .prepare(`
+                    UPDATE companies
+                    SET name = ?, email = ?, phone = ?, telegram = ?, location_id = ?, district_id = ?,
+                        street = ?, house_number = ?, bank_name = ?, account_number = ?, account_name = ?,
+                        swift_code = ?, preparation_time = ?, delivery_fee_after_hours = ?, island_trip_price = ?,
+                        krabi_trip_price = ?, baby_seat_price_per_day = ?, weekly_schedule = ?, holidays = ?,
+                        updated_at = ?
+                    WHERE id = ?
+                `)
+                .bind(
+                    validData.name,
+                    validData.email,
+                    validData.phone,
+                    validData.telegram,
+                    validData.locationId,
+                    validData.districtId,
+                    validData.street,
+                    validData.houseNumber,
+                    validData.bankName,
+                    validData.accountNumber,
+                    validData.accountName,
+                    validData.swiftCode,
+                    validData.preparationTime,
+                    validData.deliveryFeeAfterHours,
+                    validData.islandTripPrice,
+                    validData.krabiTripPrice,
+                    validData.babySeatPricePerDay,
                     weeklySchedule,
                     holidays,
-                    updatedAt: new Date(),
-                })
-                .where(eq(schema.companies.id, companyId));
+                    new Date().toISOString(),
+                    companyId
+                )
+                .run();
 
             // Keep company delivery settings in sync with selected location/district:
             // selected district is active with zero delivery cost, all others are inactive.
-            const locationDistricts = await db
-                .select({
-                    id: schema.districts.id,
-                    deliveryPrice: schema.districts.deliveryPrice,
-                })
-                .from(schema.districts)
-                .where(eq(schema.districts.locationId, validData.locationId));
+            const locationDistrictsResult = await context.cloudflare.env.DB
+                .prepare("SELECT id, delivery_price AS deliveryPrice FROM districts WHERE location_id = ?")
+                .bind(validData.locationId)
+                .all() as { results?: any[] };
+            const locationDistricts = locationDistrictsResult.results || [];
 
-            const existingCompanySettings = await db
-                .select({
-                    id: schema.companyDeliverySettings.id,
-                    districtId: schema.companyDeliverySettings.districtId,
-                    deliveryPrice: schema.companyDeliverySettings.deliveryPrice,
-                })
-                .from(schema.companyDeliverySettings)
-                .where(eq(schema.companyDeliverySettings.companyId, companyId));
+            const existingCompanySettingsResult = await context.cloudflare.env.DB
+                .prepare(`
+                    SELECT id, district_id AS districtId, delivery_price AS deliveryPrice
+                    FROM company_delivery_settings
+                    WHERE company_id = ?
+                `)
+                .bind(companyId)
+                .all() as { results?: any[] };
+            const existingCompanySettings = existingCompanySettingsResult.results || [];
 
             const settingsByDistrictId = new Map(existingCompanySettings.map((row) => [row.districtId, row]));
 
@@ -192,30 +192,37 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 const nextPrice = isCompanyDistrict ? 0 : (existing?.deliveryPrice ?? district.deliveryPrice ?? 0);
 
                 if (existing) {
-                    await db
-                        .update(schema.companyDeliverySettings)
-                        .set({
-                            isActive: isCompanyDistrict,
-                            deliveryPrice: nextPrice,
-                            updatedAt: new Date(),
-                        })
-                        .where(eq(schema.companyDeliverySettings.id, existing.id));
+                    await context.cloudflare.env.DB
+                        .prepare(`
+                            UPDATE company_delivery_settings
+                            SET is_active = ?, delivery_price = ?, updated_at = ?
+                            WHERE id = ?
+                        `)
+                        .bind(isCompanyDistrict ? 1 : 0, nextPrice, new Date().toISOString(), existing.id)
+                        .run();
                 } else {
-                    await db
-                        .insert(schema.companyDeliverySettings)
-                        .values({
+                    await context.cloudflare.env.DB
+                        .prepare(`
+                            INSERT INTO company_delivery_settings (
+                                company_id, district_id, is_active, delivery_price, created_at, updated_at
+                            ) VALUES (?, ?, ?, ?, ?, ?)
+                        `)
+                        .bind(
                             companyId,
-                            districtId: district.id,
-                            isActive: isCompanyDistrict,
-                            deliveryPrice: nextPrice,
-                        });
+                            district.id,
+                            isCompanyDistrict ? 1 : 0,
+                            nextPrice,
+                            new Date().toISOString(),
+                            new Date().toISOString()
+                        )
+                        .run();
                 }
             }
 
             // Audit log
             const metadata = getRequestMetadata(request);
             quickAudit({
-                db,
+                db: context.cloudflare.env.DB,
                 userId: user.id,
                 role: user.role,
                 companyId,
@@ -243,17 +250,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
         
         try {
             // Default currency must be active.
-            await db.update(schema.currencies)
-                .set({ companyId, isActive: true, updatedAt: new Date() })
-                .where(eq(schema.currencies.id, currencyId));
+            await context.cloudflare.env.DB
+                .prepare("UPDATE currencies SET company_id = ?, is_active = 1, updated_at = ? WHERE id = ?")
+                .bind(companyId, new Date().toISOString(), currencyId)
+                .run();
 
             // Clear other currencies for this company
-            await db.update(schema.currencies)
-                .set({ companyId: null })
-                .where(and(
-                    eq(schema.currencies.companyId, companyId),
-                    ne(schema.currencies.id, currencyId)
-                ));
+            await context.cloudflare.env.DB
+                .prepare("UPDATE currencies SET company_id = NULL WHERE company_id = ? AND id != ?")
+                .bind(companyId, currencyId)
+                .run();
 
             return redirect(withMode("/settings?tab=currencies&success=Default currency updated"));
         } catch {
@@ -266,13 +272,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const isActive = formData.get("isActive") === "true";
 
         try {
-            await db.update(schema.currencies)
-                .set({
-                    isActive,
-                    companyId: isActive ? undefined : null,
-                    updatedAt: new Date(),
-                })
-                .where(eq(schema.currencies.id, currencyId));
+            await context.cloudflare.env.DB
+                .prepare(`
+                    UPDATE currencies
+                    SET is_active = ?, company_id = ?, updated_at = ?
+                    WHERE id = ?
+                `)
+                .bind(isActive ? 1 : 0, isActive ? companyId : null, new Date().toISOString(), currencyId)
+                .run();
 
             return redirect(withMode("/settings?tab=currencies&success=Currency status updated"));
         } catch {
@@ -290,13 +297,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
 
         try {
-            await db.insert(schema.currencies).values({
-                name,
-                code,
-                symbol,
-                isActive: true,
-                companyId: null,
-            });
+            await context.cloudflare.env.DB
+                .prepare(`
+                    INSERT INTO currencies (name, code, symbol, is_active, company_id, created_at, updated_at)
+                    VALUES (?, ?, ?, 1, NULL, ?, ?)
+                `)
+                .bind(name, code, symbol, new Date().toISOString(), new Date().toISOString())
+                .run();
 
             return redirect(withMode("/settings?tab=currencies&success=Currency created successfully"));
         } catch {
@@ -313,7 +320,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         try {
             // Check if this is a system template
-            const template = await db.select().from(schema.paymentTypes).where(eq(schema.paymentTypes.id, id)).get();
+            const template = await context.cloudflare.env.DB
+                .prepare("SELECT * FROM payment_types WHERE id = ? LIMIT 1")
+                .bind(id)
+                .first<any>();
             
             if (!template) {
                 return redirect(withMode("/settings?error=Payment template not found"));
@@ -325,14 +335,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 return redirect(withMode("/settings?error=Unauthorized"));
             }
 
-            await db.update(schema.paymentTypes)
-                .set({
-                    showOnCreate,
-                    showOnClose,
-                    isActive,
-                    updatedAt: new Date(),
-                })
-                .where(eq(schema.paymentTypes.id, id));
+            await context.cloudflare.env.DB
+                .prepare(`
+                    UPDATE payment_types
+                    SET show_on_create = ?, show_on_close = ?, is_active = ?, updated_at = ?
+                    WHERE id = ?
+                `)
+                .bind(showOnCreate ? 1 : 0, showOnClose ? 1 : 0, isActive ? 1 : 0, new Date().toISOString(), id)
+                .run();
 
             return redirect(withMode("/settings?success=Payment template updated successfully"));
         } catch {
@@ -348,16 +358,24 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const showOnClose = formData.get("showOnClose") === "true";
 
         try {
-            await db.insert(schema.paymentTypes).values({
-                name,
-                sign,
-                description,
-                companyId,
-                isSystem: false,
-                isActive: true,
-                showOnCreate,
-                showOnClose,
-            });
+            await context.cloudflare.env.DB
+                .prepare(`
+                    INSERT INTO payment_types (
+                        name, sign, description, company_id, is_system, is_active,
+                        show_on_create, show_on_close, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, 0, 1, ?, ?, ?, ?)
+                `)
+                .bind(
+                    name,
+                    sign,
+                    description,
+                    companyId,
+                    showOnCreate ? 1 : 0,
+                    showOnClose ? 1 : 0,
+                    new Date().toISOString(),
+                    new Date().toISOString()
+                )
+                .run();
 
             return redirect(withMode("/settings?success=Payment template created successfully"));
         } catch {
@@ -370,7 +388,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
         
         try {
             // Check if this is a company template (not system)
-            const template = await db.select().from(schema.paymentTypes).where(eq(schema.paymentTypes.id, id)).get();
+            const template = await context.cloudflare.env.DB
+                .prepare("SELECT * FROM payment_types WHERE id = ? LIMIT 1")
+                .bind(id)
+                .first<any>();
             
             if (!template) {
                 return redirect(withMode("/settings?error=Payment template not found"));
@@ -384,8 +405,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 return redirect(withMode("/settings?error=Unauthorized"));
             }
 
-            await db.delete(schema.paymentTypes)
-                .where(and(eq(schema.paymentTypes.id, id), eq(schema.paymentTypes.companyId, companyId)));
+            await context.cloudflare.env.DB
+                .prepare("DELETE FROM payment_types WHERE id = ? AND company_id = ?")
+                .bind(id, companyId)
+                .run();
 
             return redirect(withMode("/settings?success=Payment template deleted successfully"));
         } catch {

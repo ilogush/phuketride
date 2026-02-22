@@ -1,11 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useNavigate, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
 import { requireAuth } from "~/lib/auth.server";
-import { companyCars, districts, users } from "~/db/schema";
-import * as schema from "~/db/schema";
 import FormSection from "~/components/dashboard/FormSection";
 import FormInput from "~/components/dashboard/FormInput";
 import FormSelect from "~/components/dashboard/FormSelect";
@@ -33,58 +29,42 @@ import {
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-
-    // Get available company cars (not rented)
-    const cars = await db.query.companyCars.findMany({
-        where: (cars, { eq, and, isNull }) => and(
-            eq(cars.companyId, user.companyId!),
-            eq(cars.status, 'available'),
-            isNull(cars.archivedAt)
-        ),
-        with: {
-            template: {
-                with: {
-                    brand: true,
-                    model: true,
-                }
-            },
-            color: true,
-        }
-    });
-
-    // Get districts
-    const districtsList = await db.query.districts.findMany({
-        where: (d, { eq }) => eq(d.isActive, true),
-    });
-
-    // Get payment templates for contract creation (show_on_create = 1)
-    const paymentTemplates = await db.query.paymentTypes.findMany({
-        where: (pt, { eq, and, or, isNull }) => and(
-            eq(pt.isActive, true),
-            eq(pt.showOnCreate, true),
-            or(
-                isNull(pt.companyId),
-                eq(pt.companyId, user.companyId!)
-            )
-        ),
-    });
-
-    // Get active currencies for company
-    const currencies = await db.query.currencies.findMany({
-        where: (c, { eq, and, or, isNull }) => and(
-            eq(c.isActive, true),
-            or(
-                isNull(c.companyId),
-                eq(c.companyId, user.companyId!)
-            )
-        ),
-    });
+    const [cars, districtsList, paymentTemplates, currencies] = await Promise.all([
+        context.cloudflare.env.DB
+            .prepare(`
+                SELECT
+                    cc.id,
+                    cc.price_per_day AS pricePerDay,
+                    cc.deposit,
+                    cc.license_plate AS licensePlate,
+                    cb.name AS brandName,
+                    cm.name AS modelName
+                FROM company_cars cc
+                LEFT JOIN car_templates ct ON ct.id = cc.template_id
+                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+                LEFT JOIN car_models cm ON cm.id = ct.model_id
+                WHERE cc.company_id = ? AND cc.status = 'available' AND cc.archived_at IS NULL
+            `)
+            .bind(user.companyId)
+            .all()
+            .then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM districts WHERE is_active = 1").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB
+            .prepare("SELECT * FROM payment_types WHERE is_active = 1 AND show_on_create = 1 AND (company_id IS NULL OR company_id = ?)")
+            .bind(user.companyId ?? null)
+            .all()
+            .then((r: any) => r.results || []),
+        context.cloudflare.env.DB
+            .prepare("SELECT * FROM currencies WHERE is_active = 1 AND (company_id IS NULL OR company_id = ?)")
+            .bind(user.companyId ?? null)
+            .all()
+            .then((r: any) => r.results || []),
+    ]);
 
     return { 
-        cars: cars.map(car => ({
+        cars: cars.map((car: any) => ({
             id: car.id,
-            name: `${car.template?.brand?.name || ''} ${car.template?.model?.name || ''} - ${car.licensePlate}`,
+            name: `${car.brandName || ""} ${car.modelName || ""} - ${car.licensePlate}`,
             pricePerDay: car.pricePerDay,
             deposit: car.deposit,
         })),
@@ -96,7 +76,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
     try {
@@ -138,9 +117,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         // Check if client exists by passport_number
         let clientId: string;
-        const existingClient = await db.query.users.findFirst({
-            where: (u, { eq }) => eq(u.passportNumber, passportNumber),
-        });
+        const existingClient = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT id, email, name, surname, phone, citizenship, passport_photos AS passportPhotos,
+                       driver_license_photos AS driverLicensePhotos
+                FROM users
+                WHERE passport_number = ?
+                LIMIT 1
+            `)
+            .bind(passportNumber)
+            .first<any>();
 
         if (existingClient) {
             // Check if all data matches
@@ -155,53 +141,77 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 // Use existing client
                 clientId = existingClient.id;
                 if (passportPhotosValue.length > 0 || driverLicensePhotosValue.length > 0) {
-                    await db.update(schema.users)
-                        .set({
-                            passportPhotos: passportPhotosValue.length > 0 ? JSON.stringify(passportPhotosValue) : existingClient.passportPhotos,
-                            driverLicensePhotos: driverLicensePhotosValue.length > 0 ? JSON.stringify(driverLicensePhotosValue) : existingClient.driverLicensePhotos,
-                            updatedAt: new Date(),
-                        })
-                        .where(eq(schema.users.id, clientId));
+                    await context.cloudflare.env.DB
+                        .prepare(`
+                            UPDATE users
+                            SET passport_photos = ?, driver_license_photos = ?, updated_at = ?
+                            WHERE id = ?
+                        `)
+                        .bind(
+                            passportPhotosValue.length > 0 ? JSON.stringify(passportPhotosValue) : existingClient.passportPhotos,
+                            driverLicensePhotosValue.length > 0 ? JSON.stringify(driverLicensePhotosValue) : existingClient.driverLicensePhotos,
+                            new Date().toISOString(),
+                            clientId
+                        )
+                        .run();
                 }
             } else {
                 // Data changed - create new user
                 clientId = crypto.randomUUID();
-                await db.insert(schema.users).values({
-                    id: clientId,
-                    email: clientData.email || `${clientData.phone}@temp.com`,
-                    role: "user",
-                    name: clientData.name,
-                    surname: clientData.surname,
-                    phone: clientData.phone,
-                    whatsapp: clientData.whatsapp || null,
-                    telegram: clientData.telegram || null,
-                    gender: (clientData.gender as any) || null,
-                    passportNumber: passportNumber,
-                    citizenship: clientData.citizenship || null,
-                    dateOfBirth: clientData.dateOfBirth,
-                    passportPhotos: passportPhotosValue.length > 0 ? JSON.stringify(passportPhotosValue) : null,
-                    driverLicensePhotos: driverLicensePhotosValue.length > 0 ? JSON.stringify(driverLicensePhotosValue) : null,
-                });
+                await context.cloudflare.env.DB
+                    .prepare(`
+                        INSERT INTO users (
+                            id, email, role, name, surname, phone, whatsapp, telegram, gender, passport_number, citizenship,
+                            date_of_birth, passport_photos, driver_license_photos, created_at, updated_at
+                        ) VALUES (?, ?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `)
+                    .bind(
+                        clientId,
+                        clientData.email || `${clientData.phone}@temp.com`,
+                        clientData.name,
+                        clientData.surname,
+                        clientData.phone,
+                        clientData.whatsapp || null,
+                        clientData.telegram || null,
+                        clientData.gender || null,
+                        passportNumber,
+                        clientData.citizenship || null,
+                        clientData.dateOfBirth ? clientData.dateOfBirth.toISOString() : null,
+                        passportPhotosValue.length > 0 ? JSON.stringify(passportPhotosValue) : null,
+                        driverLicensePhotosValue.length > 0 ? JSON.stringify(driverLicensePhotosValue) : null,
+                        new Date().toISOString(),
+                        new Date().toISOString()
+                    )
+                    .run();
             }
         } else {
             // Client not found - create new
             clientId = crypto.randomUUID();
-            await db.insert(schema.users).values({
-                id: clientId,
-                email: clientData.email || `${clientData.phone}@temp.com`,
-                role: "user",
-                name: clientData.name,
-                surname: clientData.surname,
-                phone: clientData.phone,
-                whatsapp: clientData.whatsapp || null,
-                telegram: clientData.telegram || null,
-                gender: (clientData.gender as any) || null,
-                passportNumber: passportNumber,
-                citizenship: clientData.citizenship || null,
-                dateOfBirth: clientData.dateOfBirth,
-                passportPhotos: passportPhotosValue.length > 0 ? JSON.stringify(passportPhotosValue) : null,
-                driverLicensePhotos: driverLicensePhotosValue.length > 0 ? JSON.stringify(driverLicensePhotosValue) : null,
-            });
+            await context.cloudflare.env.DB
+                .prepare(`
+                    INSERT INTO users (
+                        id, email, role, name, surname, phone, whatsapp, telegram, gender, passport_number, citizenship,
+                        date_of_birth, passport_photos, driver_license_photos, created_at, updated_at
+                    ) VALUES (?, ?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `)
+                .bind(
+                    clientId,
+                    clientData.email || `${clientData.phone}@temp.com`,
+                    clientData.name,
+                    clientData.surname,
+                    clientData.phone,
+                    clientData.whatsapp || null,
+                    clientData.telegram || null,
+                    clientData.gender || null,
+                    passportNumber,
+                    clientData.citizenship || null,
+                    clientData.dateOfBirth ? clientData.dateOfBirth.toISOString() : null,
+                    passportPhotosValue.length > 0 ? JSON.stringify(passportPhotosValue) : null,
+                    driverLicensePhotosValue.length > 0 ? JSON.stringify(driverLicensePhotosValue) : null,
+                    new Date().toISOString(),
+                    new Date().toISOString()
+                )
+                .run();
         }
 
         // Parse contract data
@@ -226,13 +236,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
 
         // SECURITY: Verify car belongs to user's company
-        const car = await db.query.companyCars.findFirst({
-            where: (c, { eq, and }) => and(
-                eq(c.id, companyCarId),
-                eq(c.companyId, user.companyId!)
-            ),
-            columns: { id: true, status: true }
-        });
+        const car = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT id, status
+                FROM company_cars
+                WHERE id = ? AND company_id = ?
+                LIMIT 1
+            `)
+            .bind(companyCarId, user.companyId)
+            .first<any>();
         
         if (!car) {
             throw new Error("Car not found or doesn't belong to your company");
@@ -243,18 +255,28 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
 
         // Check for overlapping contracts
-        const overlapping = await db.query.contracts.findFirst({
-            where: (c, { eq, and, or, lte, gte }) => and(
-                eq(c.companyCarId, companyCarId),
-                eq(c.status, 'active'),
-                or(
-                    and(lte(c.startDate, startDate), gte(c.endDate, startDate)),
-                    and(lte(c.startDate, endDate), gte(c.endDate, endDate)),
-                    and(gte(c.startDate, startDate), lte(c.endDate, endDate))
-                )
-            ),
-            columns: { id: true }
-        });
+        const overlapping = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT id
+                FROM contracts
+                WHERE company_car_id = ? AND status = 'active'
+                  AND (
+                    (start_date <= ? AND end_date >= ?)
+                    OR (start_date <= ? AND end_date >= ?)
+                    OR (start_date >= ? AND end_date <= ?)
+                  )
+                LIMIT 1
+            `)
+            .bind(
+                companyCarId,
+                startDate.toISOString(),
+                startDate.toISOString(),
+                endDate.toISOString(),
+                endDate.toISOString(),
+                startDate.toISOString(),
+                endDate.toISOString()
+            )
+            .first<any>();
 
         if (overlapping) {
             throw new Error("Car is already booked for these dates");
@@ -289,40 +311,53 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const startMileage = Number(formData.get("start_mileage")) || 0;
 
         // Create contract
-        const [newContract] = await db.insert(schema.contracts).values({
-            companyCarId,
-            clientId,
-            managerId: user.id,
-            startDate,
-            endDate,
-            totalAmount,
-            totalCurrency,
-            depositAmount,
-            depositCurrency: totalCurrency,
-            depositPaymentMethod: (formData.get("deposit_payment_method") as any) || null,
-            fullInsuranceEnabled: formData.get("fullInsurance") === "true",
-            fullInsurancePrice: 0,
-            babySeatEnabled: formData.get("babySeat") === "true",
-            babySeatPrice: 0,
-            islandTripEnabled: formData.get("islandTrip") === "true",
-            islandTripPrice: 0,
-            krabiTripEnabled: formData.get("krabiTrip") === "true",
-            krabiTripPrice: 0,
-            pickupDistrictId,
-            pickupHotel: (formData.get("pickup_hotel") as string) || null,
-            pickupRoom: (formData.get("pickup_room") as string) || null,
-            deliveryCost,
-            returnDistrictId,
-            returnHotel: (formData.get("return_hotel") as string) || null,
-            returnRoom: (formData.get("return_room") as string) || null,
-            returnCost,
-            startMileage,
-            fuelLevel,
-            cleanliness,
-            status: "active",
-            notes: formData.get("notes") as string || null,
-            photos: contractPhotosValue.length > 0 ? JSON.stringify(contractPhotosValue) : null,
-        }).returning({ id: schema.contracts.id });
+        const contractInsert = await context.cloudflare.env.DB
+            .prepare(`
+                INSERT INTO contracts (
+                    company_car_id, client_id, manager_id, start_date, end_date, total_amount, total_currency,
+                    deposit_amount, deposit_currency, deposit_payment_method, full_insurance_enabled, full_insurance_price,
+                    baby_seat_enabled, baby_seat_price, island_trip_enabled, island_trip_price, krabi_trip_enabled, krabi_trip_price,
+                    pickup_district_id, pickup_hotel, pickup_room, delivery_cost, return_district_id, return_hotel, return_room, return_cost,
+                    start_mileage, fuel_level, cleanliness, status, notes, photos, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
+            `)
+            .bind(
+                companyCarId,
+                clientId,
+                user.id,
+                startDate.toISOString(),
+                endDate.toISOString(),
+                totalAmount,
+                totalCurrency,
+                depositAmount,
+                totalCurrency,
+                (formData.get("deposit_payment_method") as string) || null,
+                formData.get("fullInsurance") === "true" ? 1 : 0,
+                0,
+                formData.get("babySeat") === "true" ? 1 : 0,
+                0,
+                formData.get("islandTrip") === "true" ? 1 : 0,
+                0,
+                formData.get("krabiTrip") === "true" ? 1 : 0,
+                0,
+                pickupDistrictId,
+                (formData.get("pickup_hotel") as string) || null,
+                (formData.get("pickup_room") as string) || null,
+                deliveryCost,
+                returnDistrictId,
+                (formData.get("return_hotel") as string) || null,
+                (formData.get("return_room") as string) || null,
+                returnCost,
+                startMileage,
+                fuelLevel,
+                cleanliness,
+                (formData.get("notes") as string) || null,
+                contractPhotosValue.length > 0 ? JSON.stringify(contractPhotosValue) : null,
+                new Date().toISOString(),
+                new Date().toISOString()
+            )
+            .run();
+        const newContract = { id: Number(contractInsert.meta.last_row_id) };
 
         // Create payments from selected templates
         const paymentCount = Number(formData.get("paymentCount")) || 0;
@@ -333,25 +368,24 @@ export async function action({ request, context }: ActionFunctionArgs) {
             const paymentMethod = formData.get(`payment_${i}_method`) as string;
 
             if (paymentTypeId && amount > 0) {
-                await db.insert(schema.payments).values({
-                    contractId: newContract.id,
-                    paymentTypeId,
-                    amount,
-                    currencyId,
-                    paymentMethod: paymentMethod as any,
-                    status: "completed",
-                    createdBy: user.id,
-                });
+                await context.cloudflare.env.DB
+                    .prepare(`
+                        INSERT INTO payments (
+                            contract_id, payment_type_id, amount, currency_id, payment_method, status, created_by, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?)
+                    `)
+                    .bind(newContract.id, paymentTypeId, amount, currencyId || null, paymentMethod || null, user.id, new Date().toISOString(), new Date().toISOString())
+                    .run();
             }
         }
 
         // Update car status to 'rented'
         const { updateCarStatus } = await import("~/lib/contract-helpers.server");
-        await updateCarStatus(db, companyCarId, 'rented', 'Contract created');
+        await updateCarStatus(context.cloudflare.env.DB, companyCarId, 'rented', 'Contract created');
 
         // Create calendar events for contract
         await createContractEvents({
-            db,
+            db: context.cloudflare.env.DB,
             companyId: user.companyId!,
             contractId: newContract.id,
             startDate,
@@ -362,7 +396,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         // Audit log
         const metadata = getRequestMetadata(request);
         quickAudit({
-            db,
+            db: context.cloudflare.env.DB,
             userId: user.id,
             role: user.role,
             companyId: user.companyId,
@@ -374,8 +408,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         });
 
         return redirect(`/contracts?success=${encodeURIComponent("Contract created successfully")}`);
-    } catch (error) {
-        console.error("Failed to create contract:", error);
+    } catch {
         return redirect(`/contracts/new?error=${encodeURIComponent("Failed to create contract")}`);
     }
 }

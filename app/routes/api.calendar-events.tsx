@@ -1,13 +1,10 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { and, gte, lte, eq } from "drizzle-orm";
-import { contracts, calendarEvents } from "~/db/schema";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     try {
         const user = await requireAuth(request);
-        const db = drizzle(context.cloudflare.env.DB);
+        const d1 = context.cloudflare.env.DB;
 
         const url = new URL(request.url);
         const limit = parseInt(url.searchParams.get("limit") || "5");
@@ -19,23 +16,21 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         futureDate.setDate(today.getDate() + 30);
 
         // Get upcoming contract end dates
-        const upcomingContracts = await db
-            .select({
-                id: contracts.id,
-                endDate: contracts.endDate,
-                status: contracts.status
-            })
-            .from(contracts)
-            .where(
-                and(
-                    gte(contracts.endDate, today),
-                    lte(contracts.endDate, futureDate)
-                )
+        const upcomingContractsResult = await d1
+            .prepare(
+                `
+                SELECT id, end_date AS endDate, status
+                FROM contracts
+                WHERE end_date >= ? AND end_date <= ?
+                LIMIT ?
+                `
             )
-            .limit(limit);
+            .bind(today.getTime(), futureDate.getTime(), limit)
+            .all();
+        const upcomingContracts = (upcomingContractsResult.results ?? []) as Array<Record<string, unknown>>;
 
         upcomingContracts.forEach((contract) => {
-            const eventDate = new Date(contract.endDate);
+            const eventDate = new Date(Number(contract.endDate));
             const diffDays = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
             let status: 'upcoming' | 'today' | 'overdue' = 'upcoming';
@@ -44,38 +39,38 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
             events.push({
                 id: contract.id,
-                title: `Contract #${contract.id} ends`,
+                title: `Contract #${String(contract.id)} ends`,
                 type: 'contract',
-                date: new Date(contract.endDate).toISOString(),
+                date: eventDate.toISOString(),
                 status
             });
         });
 
         // Get calendar events
-        const eventConditions = [
-            gte(calendarEvents.startDate, today),
-            lte(calendarEvents.startDate, futureDate),
-        ];
-
+        let calendarEventsQuery = `
+            SELECT id, title, start_date AS startDate, event_type AS eventType
+            FROM calendar_events
+            WHERE start_date >= ? AND start_date <= ?
+        `;
+        const bindings: Array<string | number> = [today.getTime(), futureDate.getTime()];
         if (companyId) {
-            eventConditions.push(eq(calendarEvents.companyId, parseInt(companyId, 10)));
+            calendarEventsQuery += " AND company_id = ?";
+            bindings.push(parseInt(companyId, 10));
         } else if (user.companyId) {
-            eventConditions.push(eq(calendarEvents.companyId, user.companyId));
+            calendarEventsQuery += " AND company_id = ?";
+            bindings.push(user.companyId);
         }
+        calendarEventsQuery += " LIMIT ?";
+        bindings.push(limit);
 
-        const calendarEventsData = await db
-            .select({
-                id: calendarEvents.id,
-                title: calendarEvents.title,
-                startDate: calendarEvents.startDate,
-                eventType: calendarEvents.eventType
-            })
-            .from(calendarEvents)
-            .where(and(...eventConditions))
-            .limit(limit);
+        const calendarEventsDataResult = await d1
+            .prepare(calendarEventsQuery)
+            .bind(...bindings)
+            .all();
+        const calendarEventsData = (calendarEventsDataResult.results ?? []) as Array<Record<string, unknown>>;
 
         calendarEventsData.forEach((event) => {
-            const eventDate = new Date(event.startDate);
+            const eventDate = new Date(Number(event.startDate));
             const diffDays = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
             let status: 'upcoming' | 'today' | 'overdue' = 'upcoming';
@@ -84,9 +79,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
             events.push({
                 id: event.id,
-                title: event.title,
+                title: String(event.title || ""),
                 type: event.eventType,
-                date: new Date(event.startDate).toISOString(),
+                date: eventDate.toISOString(),
                 status
             });
         });
@@ -99,7 +94,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             data: events.slice(0, limit)
         });
     } catch (error) {
-        console.error("Error loading calendar events:", error);
         return Response.json({
             success: false,
             error: "Failed to load calendar events",

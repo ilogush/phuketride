@@ -2,8 +2,6 @@ import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { users } from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -15,7 +13,6 @@ import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB);
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
     const isModMode = user.role === "admin" && effectiveCompanyId !== null;
 
@@ -56,14 +53,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             usersList = [...(managersResult.results || []), ...(clientsResult.results || [])];
         } else {
             // Admin can see all users
-            usersList = await db.select({
-                id: users.id,
-                email: users.email,
-                name: users.name,
-                surname: users.surname,
-                role: users.role,
-                phone: users.phone,
-            }).from(users).limit(50);
+            const usersResult = await context.cloudflare.env.DB
+                .prepare(`
+                    SELECT id, email, name, surname, role, phone
+                    FROM users
+                    ORDER BY created_at DESC
+                    LIMIT 50
+                `)
+                .all() as { results?: any[] };
+            usersList = usersResult.results || [];
         }
 
         roleCounts.all = usersList.length;

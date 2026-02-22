@@ -1,5 +1,4 @@
 import { createCookie, redirect } from "react-router";
-import { users } from "~/db/schema";
 import { verifyPasswordHash } from "~/lib/password.server";
 
 // Session cookie configuration
@@ -21,6 +20,36 @@ export interface SessionUser {
     name: string | null;
     surname: string | null;
     companyId?: number;
+}
+
+interface LoginUser {
+    id: string;
+    email: string;
+    role: string;
+    name: string | null;
+    surname: string | null;
+    phone: string | null;
+    whatsapp: string | null;
+    telegram: string | null;
+    passportNumber: string | null;
+    citizenship: string | null;
+    city: string | null;
+    countryId: number | null;
+    dateOfBirth: string | null;
+    gender: string | null;
+    passportPhotos: string | null;
+    driverLicensePhotos: string | null;
+    passwordHash: string | null;
+    avatarUrl: string | null;
+    hotelId: number | null;
+    roomNumber: string | null;
+    locationId: number | null;
+    districtId: number | null;
+    address: string | null;
+    isFirstLogin: number | null;
+    archivedAt: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
 }
 
 // Get user from session
@@ -89,7 +118,7 @@ export async function login(
 ): Promise<{ user: SessionUser; cookie: string } | { error: string }> {
     const isSecureRequest = request.url.startsWith("https://");
 
-    let user: typeof users.$inferSelect | undefined;
+    let user: LoginUser | undefined;
     try {
         // Use raw SQL query to avoid drizzle mapping issues
         const rawUser = await db
@@ -126,7 +155,7 @@ export async function login(
                 archivedAt: rawUser.archived_at,
                 createdAt: rawUser.created_at,
                 updatedAt: rawUser.updated_at,
-            } as typeof users.$inferSelect;
+            } as LoginUser;
         }
     } catch (e) {
         return { error: "Database connection error. Please try again." };

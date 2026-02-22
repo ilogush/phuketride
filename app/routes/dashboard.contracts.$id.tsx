@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useNavigate } from "react-router";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
 import { requireAuth } from "~/lib/auth.server";
-import { contracts, companyCars, districts, users } from "~/db/schema";
 import FormSection from "~/components/dashboard/FormSection";
 import ReadOnlyField from "~/components/dashboard/ReadOnlyField";
 import PageHeader from "~/components/dashboard/PageHeader";
@@ -24,43 +21,76 @@ import { format } from "date-fns";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB);
+    const d1 = context.cloudflare.env.DB;
     const contractId = parseInt(params.id!);
 
     // Get contract
-    const [contract] = await db
-        .select()
-        .from(contracts)
-        .where(eq(contracts.id, contractId))
-        .limit(1);
+    const contract = await d1
+        .prepare("SELECT * FROM contracts WHERE id = ? LIMIT 1")
+        .bind(contractId)
+        .first<Record<string, unknown>>();
 
     if (!contract) {
         throw new Response("Contract not found", { status: 404 });
     }
 
     // Get car details
-    const [car] = await db
-        .select()
-        .from(companyCars)
-        .where(eq(companyCars.id, contract.companyCarId))
-        .limit(1);
+    const car = await d1
+        .prepare("SELECT * FROM company_cars WHERE id = ? LIMIT 1")
+        .bind(contract.company_car_id)
+        .first<Record<string, unknown>>();
 
     // Get client details
-    const [client] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, contract.clientId))
-        .limit(1);
+    const client = await d1
+        .prepare("SELECT * FROM users WHERE id = ? LIMIT 1")
+        .bind(contract.client_id)
+        .first<Record<string, unknown>>();
 
     // Get districts
-    const allDistricts = await db.select().from(districts);
-    const pickupDistrict = allDistricts.find(d => d.id === contract.pickupDistrictId);
-    const returnDistrict = allDistricts.find(d => d.id === contract.returnDistrictId);
+    const districtsResult = await d1
+        .prepare("SELECT * FROM districts")
+        .all();
+    const allDistricts = (districtsResult.results ?? []) as Array<Record<string, unknown>>;
+    const pickupDistrict = allDistricts.find(d => d.id === contract.pickup_district_id);
+    const returnDistrict = allDistricts.find(d => d.id === contract.return_district_id);
 
     return {
-        contract,
-        car,
-        client,
+        contract: {
+            ...contract,
+            companyCarId: contract.company_car_id,
+            clientId: contract.client_id,
+            pickupDistrictId: contract.pickup_district_id,
+            returnDistrictId: contract.return_district_id,
+            pickupHotel: contract.pickup_hotel,
+            pickupRoom: contract.pickup_room,
+            returnHotel: contract.return_hotel,
+            returnRoom: contract.return_room,
+            startMileage: contract.start_mileage,
+            endMileage: contract.end_mileage,
+            fuelLevel: contract.fuel_level,
+            deliveryCost: contract.delivery_cost,
+            returnCost: contract.return_cost,
+            totalAmount: contract.total_amount,
+            depositAmount: contract.deposit_amount,
+            photos: contract.photos,
+            startDate: contract.start_date,
+            endDate: contract.end_date,
+        },
+        car: car
+            ? {
+                ...car,
+                licensePlate: car.license_plate,
+            }
+            : null,
+        client: client
+            ? {
+                ...client,
+                passportNumber: client.passport_number,
+                dateOfBirth: client.date_of_birth,
+                passportPhotos: client.passport_photos,
+                driverLicensePhotos: client.driver_license_photos,
+            }
+            : null,
         pickupDistrict,
         returnDistrict,
     };

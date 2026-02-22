@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
 import { useLoaderData, Form } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { desc, eq } from "drizzle-orm";
 import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
@@ -40,54 +37,73 @@ const ACTION_COLORS: Record<string, string> = {
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
-
-    const baseQuery = db
-        .select({
-            id: schema.auditLogs.id,
-            userId: schema.auditLogs.userId,
-            role: schema.auditLogs.role,
-            companyId: schema.auditLogs.companyId,
-            entityType: schema.auditLogs.entityType,
-            entityId: schema.auditLogs.entityId,
-            action: schema.auditLogs.action,
-            beforeState: schema.auditLogs.beforeState,
-            afterState: schema.auditLogs.afterState,
-            ipAddress: schema.auditLogs.ipAddress,
-            userAgent: schema.auditLogs.userAgent,
-            createdAt: schema.auditLogs.createdAt,
-            userName: schema.users.name,
-            userSurname: schema.users.surname,
-        })
-        .from(schema.auditLogs)
-        .leftJoin(schema.users, eq(schema.auditLogs.userId, schema.users.id))
-        .orderBy(desc(schema.auditLogs.createdAt));
+    const d1 = context.cloudflare.env.DB;
 
     // Partner and manager can only see logs from their company.
     // Admin should always see all logs, including in mod mode.
     if (user.role !== "admin" && effectiveCompanyId) {
-        const logs = await baseQuery.where(eq(schema.auditLogs.companyId, effectiveCompanyId)).limit(100);
+        const logsResult = await d1
+            .prepare(
+                `
+                SELECT
+                  a.id, a.user_id AS userId, a.role, a.company_id AS companyId,
+                  a.entity_type AS entityType, a.entity_id AS entityId, a.action,
+                  a.before_state AS beforeState, a.after_state AS afterState,
+                  a.ip_address AS ipAddress, a.user_agent AS userAgent,
+                  a.created_at AS createdAt,
+                  u.name AS userName, u.surname AS userSurname
+                FROM audit_logs a
+                LEFT JOIN users u ON a.user_id = u.id
+                WHERE a.company_id = ?
+                ORDER BY a.created_at DESC
+                LIMIT 100
+                `
+            )
+            .bind(effectiveCompanyId)
+            .all();
+        const logs = (logsResult.results ?? []) as AuditLog[];
         return { user, logs };
     }
 
-    const logs = await baseQuery.limit(100);
+    const logsResult = await d1
+        .prepare(
+            `
+            SELECT
+              a.id, a.user_id AS userId, a.role, a.company_id AS companyId,
+              a.entity_type AS entityType, a.entity_id AS entityId, a.action,
+              a.before_state AS beforeState, a.after_state AS afterState,
+              a.ip_address AS ipAddress, a.user_agent AS userAgent,
+              a.created_at AS createdAt,
+              u.name AS userName, u.surname AS userSurname
+            FROM audit_logs a
+            LEFT JOIN users u ON a.user_id = u.id
+            ORDER BY a.created_at DESC
+            LIMIT 100
+            `
+        )
+        .all();
+    const logs = (logsResult.results ?? []) as AuditLog[];
     return { user, logs };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
     const intent = formData.get("intent");
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
     if (intent === "clear") {
         if (user.role !== "admin" && effectiveCompanyId) {
-            await db.delete(schema.auditLogs).where(eq(schema.auditLogs.companyId, effectiveCompanyId));
+            await context.cloudflare.env.DB
+                .prepare("DELETE FROM audit_logs WHERE company_id = ?")
+                .bind(effectiveCompanyId)
+                .run();
         } else {
             // Admin can clear all logs
-            await db.delete(schema.auditLogs);
+            await context.cloudflare.env.DB
+                .prepare("DELETE FROM audit_logs")
+                .run();
         }
         
         return data({ success: true, message: "Audit logs cleared successfully" });

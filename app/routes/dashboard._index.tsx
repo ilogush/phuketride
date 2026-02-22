@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and, sql, gte, desc } from "drizzle-orm";
-import { companies, users, companyCars, contracts, calendarEvents } from "~/db/schema";
 import {
     BuildingOfficeIcon,
     UserGroupIcon,
@@ -28,8 +25,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     if (intent === "delete" && taskId) {
         try {
-            const db = drizzle(context.cloudflare.env.DB);
-            
             // Delete calendar event (task)
             await context.cloudflare.env.DB
                 .prepare("DELETE FROM calendar_events WHERE id = ?")
@@ -58,7 +53,6 @@ const ICON_MAP: Record<string, any> = {
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB);
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
     let statCards: any[] = [];
@@ -67,51 +61,50 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     try {
         if (effectiveCompanyId) {
             // Partner/Manager/Admin(mod mode) stats for selected company
+            const company = await context.cloudflare.env.DB
+                .prepare("SELECT bank_name AS bankName, account_number AS accountNumber, account_name AS accountName FROM companies WHERE id = ? LIMIT 1")
+                .bind(effectiveCompanyId)
+                .first<any>();
 
-            const [company] = await db
-                .select()
-                .from(companies)
-                .where(eq(companies.id, effectiveCompanyId))
-                .limit(1);
-
-            const [managersCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(users)
-                .innerJoin(sql`managers`, sql`managers.user_id = users.id`)
-                .where(
-                    and(
-                        sql`managers.company_id = ${effectiveCompanyId}`,
-                        sql`managers.is_active = 1`
-                    )
-                );
+            const managersCount = await context.cloudflare.env.DB
+                .prepare(`
+                    SELECT COUNT(*) AS count
+                    FROM managers
+                    WHERE company_id = ? AND is_active = 1
+                `)
+                .bind(effectiveCompanyId)
+                .first<any>();
 
             const onlineUsers = 0; // Online tracking not implemented
 
-            const [carsCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(companyCars)
-                .where(eq(companyCars.companyId, effectiveCompanyId));
+            const carsCount = await context.cloudflare.env.DB
+                .prepare("SELECT COUNT(*) AS count FROM company_cars WHERE company_id = ?")
+                .bind(effectiveCompanyId)
+                .first<any>();
 
-            const [contractsCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(contracts)
-                .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-                .where(eq(companyCars.companyId, effectiveCompanyId));
+            const contractsCount = await context.cloudflare.env.DB
+                .prepare(`
+                    SELECT COUNT(*) AS count
+                    FROM contracts c
+                    JOIN company_cars cc ON cc.id = c.company_car_id
+                    WHERE cc.company_id = ?
+                `)
+                .bind(effectiveCompanyId)
+                .first<any>();
 
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
             startOfMonth.setHours(0, 0, 0, 0);
 
-            const [activeContractsCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(contracts)
-                .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-                .where(
-                    and(
-                        eq(companyCars.companyId, effectiveCompanyId),
-                        gte(contracts.createdAt, startOfMonth)
-                    )
-                );
+            const activeContractsCount = await context.cloudflare.env.DB
+                .prepare(`
+                    SELECT COUNT(*) AS count
+                    FROM contracts c
+                    JOIN company_cars cc ON cc.id = c.company_car_id
+                    WHERE cc.company_id = ? AND c.created_at >= ?
+                `)
+                .bind(effectiveCompanyId, startOfMonth.toISOString())
+                .first<any>();
 
             statCards = [
                 {
@@ -150,22 +143,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 !company.accountName
             );
 
-            const upcomingTasks = await db
-                .select({
-                    id: calendarEvents.id,
-                    title: calendarEvents.title,
-                    description: calendarEvents.description,
-                    status: calendarEvents.status,
-                })
-                .from(calendarEvents)
-                .where(
-                    and(
-                        eq(calendarEvents.companyId, effectiveCompanyId),
-                        eq(calendarEvents.status, "pending")
-                    )
-                )
-                .orderBy(desc(calendarEvents.startDate))
-                .limit(5);
+            const upcomingTasksResult = await context.cloudflare.env.DB
+                .prepare(`
+                    SELECT id, title, description, status
+                    FROM calendar_events
+                    WHERE company_id = ? AND status = 'pending'
+                    ORDER BY start_date DESC
+                    LIMIT 5
+                `)
+                .bind(effectiveCompanyId)
+                .all() as { results?: any[] };
+            const upcomingTasks = upcomingTasksResult.results || [];
 
             tasks = upcomingTasks.map(task => ({
                 id: task.id.toString(),
@@ -186,29 +174,25 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             }
         } else if (user.role === "admin") {
             // Admin stats
-            const [companiesCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(companies);
-
-            const [usersCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(users);
+            const [companiesCount, usersCount] = await Promise.all([
+                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM companies").first<any>(),
+                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM users").first<any>(),
+            ]);
 
             const onlineUsers = 0; // Online tracking not implemented
 
-            const [carsCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(companyCars);
+            const carsCount = await context.cloudflare.env.DB
+                .prepare("SELECT COUNT(*) AS count FROM company_cars")
+                .first<any>();
 
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
             startOfMonth.setHours(0, 0, 0, 0);
 
-            // Using Date object for drizzle-orm timestamp comparison
-            const [contractsThisMonth] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(contracts)
-                .where(gte(contracts.createdAt, startOfMonth));
+            const contractsThisMonth = await context.cloudflare.env.DB
+                .prepare("SELECT COUNT(*) AS count FROM contracts WHERE created_at >= ?")
+                .bind(startOfMonth.toISOString())
+                .first<any>();
 
             statCards = [
                 {
@@ -242,17 +226,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             ];
 
             // Load tasks from calendar events
-            const upcomingTasks = await db
-                .select({
-                    id: calendarEvents.id,
-                    title: calendarEvents.title,
-                    description: calendarEvents.description,
-                    status: calendarEvents.status,
-                })
-                .from(calendarEvents)
-                .where(eq(calendarEvents.status, "pending"))
-                .orderBy(desc(calendarEvents.startDate))
-                .limit(5);
+            const upcomingTasksResult = await context.cloudflare.env.DB
+                .prepare(`
+                    SELECT id, title, description, status
+                    FROM calendar_events
+                    WHERE status = 'pending'
+                    ORDER BY start_date DESC
+                    LIMIT 5
+                `)
+                .all() as { results?: any[] };
+            const upcomingTasks = upcomingTasksResult.results || [];
 
             tasks = upcomingTasks.map(task => ({
                 id: task.id.toString(),
@@ -263,35 +246,21 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             }));
         } else {
             // User role - show personal stats
-            const [userContractsCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(contracts)
-                .where(eq(contracts.clientId, user.id));
+            const userContractsCount = await context.cloudflare.env.DB
+                .prepare("SELECT COUNT(*) AS count FROM contracts WHERE client_id = ?")
+                .bind(user.id)
+                .first<any>();
 
-            const startOfMonth = new Date();
-            startOfMonth.setDate(1);
-            startOfMonth.setHours(0, 0, 0, 0);
-
-            const [activeContractsCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(contracts)
-                .where(
-                    and(
-                        eq(contracts.clientId, user.id),
-                        eq(contracts.status, "active")
-                    )
-                );
-
-            const [upcomingContractsCount] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(contracts)
-                .where(
-                    and(
-                        eq(contracts.clientId, user.id),
-                        eq(contracts.status, "active"),
-                        gte(contracts.startDate, new Date())
-                    )
-                );
+            const [activeContractsCount, upcomingContractsCount] = await Promise.all([
+                context.cloudflare.env.DB
+                    .prepare("SELECT COUNT(*) AS count FROM contracts WHERE client_id = ? AND status = 'active'")
+                    .bind(user.id)
+                    .first<any>(),
+                context.cloudflare.env.DB
+                    .prepare("SELECT COUNT(*) AS count FROM contracts WHERE client_id = ? AND status = 'active' AND start_date >= ?")
+                    .bind(user.id, new Date().toISOString())
+                    .first<any>(),
+            ]);
 
             statCards = [
                 {

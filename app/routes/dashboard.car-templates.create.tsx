@@ -1,6 +1,4 @@
-import { drizzle } from 'drizzle-orm/d1'
 import { redirect } from 'react-router'
-import * as schema from '~/db/schema'
 import type { Route } from './+types/dashboard.car-templates.create'
 import { requireAuth } from '~/lib/auth.server'
 import { CarTemplateForm } from '~/components/dashboard/CarTemplateForm'
@@ -15,50 +13,18 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         throw new Response('Forbidden', { status: 403 })
     }
 
-    const db = drizzle(context.cloudflare.env.DB, { schema })
-
-    const brands = await db
-        .select({
-            id: schema.carBrands.id,
-            name: schema.carBrands.name,
-        })
-        .from(schema.carBrands)
-        .orderBy(schema.carBrands.name)
-        .limit(100)
-
-    const models = await db
-        .select({
-            id: schema.carModels.id,
-            name: schema.carModels.name,
-            brand_id: schema.carModels.brandId,
-        })
-        .from(schema.carModels)
-        .orderBy(schema.carModels.name)
-        .limit(500)
-
-    const bodyTypes = await db
-        .select({
-            id: schema.bodyTypes.id,
-            name: schema.bodyTypes.name,
-        })
-        .from(schema.bodyTypes)
-        .orderBy(schema.bodyTypes.name)
-
-    const fuelTypes = await db
-        .select({
-            id: schema.fuelTypes.id,
-            name: schema.fuelTypes.name,
-        })
-        .from(schema.fuelTypes)
-        .orderBy(schema.fuelTypes.name)
+    const [brands, models, bodyTypes, fuelTypes] = await Promise.all([
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM car_brands ORDER BY name ASC LIMIT 100").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT id, name, brand_id FROM car_models ORDER BY name ASC LIMIT 500").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM body_types ORDER BY name ASC").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM fuel_types ORDER BY name ASC").all().then((r: any) => r.results || []),
+    ])
 
     return { brands, models, bodyTypes, fuelTypes }
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
     const formData = await request.formData()
-    const db = drizzle(context.cloudflare.env.DB, { schema })
-
     const data = {
         brand_id: formData.get('brand_id'),
         model_id: formData.get('model_id'),
@@ -76,18 +42,28 @@ export async function action({ request, context }: Route.ActionArgs) {
         return { error: 'Brand and model are required' }
     }
 
-    await db.insert(schema.carTemplates).values({
-        brandId: Number(data.brand_id),
-        modelId: Number(data.model_id),
-        transmission: data.transmission as 'automatic' | 'manual' | null,
-        engineVolume: data.engine_volume ? Number(data.engine_volume) : null,
-        bodyTypeId: data.body_type ? Number(data.body_type) : null,
-        seats: data.seats ? Number(data.seats) : null,
-        doors: data.doors ? Number(data.doors) : null,
-        fuelTypeId: data.fuel_type ? Number(data.fuel_type) : null,
-        description: data.description as string | null,
-        photos: data.photos as string | null,
-    })
+    await context.cloudflare.env.DB
+        .prepare(`
+            INSERT INTO car_templates (
+                brand_id, model_id, transmission, engine_volume, body_type_id, seats, doors,
+                fuel_type_id, description, photos, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        .bind(
+            Number(data.brand_id),
+            Number(data.model_id),
+            data.transmission,
+            data.engine_volume ? Number(data.engine_volume) : null,
+            data.body_type ? Number(data.body_type) : null,
+            data.seats ? Number(data.seats) : null,
+            data.doors ? Number(data.doors) : null,
+            data.fuel_type ? Number(data.fuel_type) : null,
+            data.description as string | null,
+            data.photos as string | null,
+            new Date().toISOString(),
+            new Date().toISOString()
+        )
+        .run()
 
     return redirect('/car-templates')
 }

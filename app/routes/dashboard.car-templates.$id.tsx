@@ -1,6 +1,3 @@
-import { drizzle } from 'drizzle-orm/d1'
-import { eq } from 'drizzle-orm'
-import * as schema from '~/db/schema'
 import type { Route } from './+types/dashboard.car-templates.$id'
 import { Link } from 'react-router'
 import { requireAuth } from '~/lib/auth.server'
@@ -19,34 +16,36 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
         throw new Response('Forbidden', { status: 403 })
     }
 
-    const db = drizzle(context.cloudflare.env.DB, { schema })
     const templateId = Number(params.id)
 
-    const [template] = await db
-        .select({
-            id: schema.carTemplates.id,
-            brand_id: schema.carTemplates.brandId,
-            model_id: schema.carTemplates.modelId,
-            transmission: schema.carTemplates.transmission,
-            engine_volume: schema.carTemplates.engineVolume,
-            body_type_id: schema.carTemplates.bodyTypeId,
-            seats: schema.carTemplates.seats,
-            doors: schema.carTemplates.doors,
-            fuel_type_id: schema.carTemplates.fuelTypeId,
-            photos: schema.carTemplates.photos,
-            created_at: schema.carTemplates.createdAt,
-            brand_name: schema.carBrands.name,
-            model_name: schema.carModels.name,
-            body_type_name: schema.bodyTypes.name,
-            fuel_type_name: schema.fuelTypes.name,
-        })
-        .from(schema.carTemplates)
-        .leftJoin(schema.carBrands, eq(schema.carTemplates.brandId, schema.carBrands.id))
-        .leftJoin(schema.carModels, eq(schema.carTemplates.modelId, schema.carModels.id))
-        .leftJoin(schema.bodyTypes, eq(schema.carTemplates.bodyTypeId, schema.bodyTypes.id))
-        .leftJoin(schema.fuelTypes, eq(schema.carTemplates.fuelTypeId, schema.fuelTypes.id))
-        .where(eq(schema.carTemplates.id, templateId))
-        .limit(1)
+    const template = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT
+                ct.id,
+                ct.brand_id,
+                ct.model_id,
+                ct.transmission,
+                ct.engine_volume,
+                ct.body_type_id,
+                ct.seats,
+                ct.doors,
+                ct.fuel_type_id,
+                ct.photos,
+                ct.created_at,
+                cb.name AS brand_name,
+                cm.name AS model_name,
+                bt.name AS body_type_name,
+                ft.name AS fuel_type_name
+            FROM car_templates ct
+            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+            LEFT JOIN car_models cm ON cm.id = ct.model_id
+            LEFT JOIN body_types bt ON bt.id = ct.body_type_id
+            LEFT JOIN fuel_types ft ON ft.id = ct.fuel_type_id
+            WHERE ct.id = ?
+            LIMIT 1
+        `)
+        .bind(templateId)
+        .first<any>()
 
     if (!template) {
         throw new Response('Template not found', { status: 404 })

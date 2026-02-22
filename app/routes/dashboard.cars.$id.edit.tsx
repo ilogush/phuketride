@@ -2,9 +2,6 @@ import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "reac
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
-import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
@@ -22,187 +19,226 @@ import { calculateSeasonalPrice, getAverageDays } from "~/lib/pricing";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const carId = Number(params.id);
 
-    const car = await db.query.companyCars.findFirst({
-        where: eq(schema.companyCars.id, carId),
-        with: {
-            template: {
-                with: {
-                    brand: true,
-                    model: true,
-                    bodyType: true,
-                    fuelType: true,
-                }
-            },
-            color: true,
-            fuelType: true,
-        }
-    });
+    const carRaw = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT
+                cc.*,
+                cb.name AS brandName,
+                cm.name AS modelName,
+                bt.name AS bodyTypeName,
+                ft.name AS templateFuelTypeName,
+                c.name AS colorName
+            FROM company_cars cc
+            LEFT JOIN car_templates ct ON ct.id = cc.template_id
+            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+            LEFT JOIN car_models cm ON cm.id = ct.model_id
+            LEFT JOIN body_types bt ON bt.id = ct.body_type_id
+            LEFT JOIN fuel_types ft ON ft.id = ct.fuel_type_id
+            LEFT JOIN colors c ON c.id = cc.color_id
+            WHERE cc.id = ?
+            LIMIT 1
+        `)
+        .bind(carId)
+        .first<any>();
 
-    if (!car) {
+    if (!carRaw) {
         throw new Response("Car not found", { status: 404 });
     }
 
-    if (user.role !== "admin" && car.companyId !== user.companyId) {
+    if (user.role !== "admin" && carRaw.company_id !== user.companyId) {
         throw new Response("Access denied", { status: 403 });
     }
 
     const [templatesList, colorsList, seasonsList, durationsList, fuelTypesList] = await Promise.all([
-        db.query.carTemplates.findMany({
-            with: {
-                brand: true,
-                model: true,
-                bodyType: true,
-                fuelType: true,
-            },
-            limit: 100,
-        }),
-        db.select().from(schema.colors).limit(100),
-        db.select().from(schema.seasons).limit(10),
-        db.select().from(schema.rentalDurations).limit(10),
-        db.select().from(schema.fuelTypes).limit(20),
+        context.cloudflare.env.DB.prepare(`
+            SELECT
+                ct.*,
+                cb.name AS brandName,
+                cm.name AS modelName,
+                bt.name AS bodyTypeName,
+                ft.name AS fuelTypeName
+            FROM car_templates ct
+            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+            LEFT JOIN car_models cm ON cm.id = ct.model_id
+            LEFT JOIN body_types bt ON bt.id = ct.body_type_id
+            LEFT JOIN fuel_types ft ON ft.id = ct.fuel_type_id
+            LIMIT 100
+        `).all().then((r: any) => (r.results || []).map((t: any) => ({
+            ...t,
+            brand: { name: t.brandName },
+            model: { name: t.modelName },
+            bodyType: { name: t.bodyTypeName },
+            fuelType: { name: t.fuelTypeName },
+            engineVolume: t.engine_volume,
+        }))),
+        context.cloudflare.env.DB.prepare("SELECT * FROM colors LIMIT 100").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM seasons LIMIT 10").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM rental_durations LIMIT 10").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM fuel_types LIMIT 20").all().then((r: any) => r.results || []),
     ]);
+
+    const car = {
+        ...carRaw,
+        companyId: carRaw.company_id,
+        templateId: carRaw.template_id,
+        colorId: carRaw.color_id,
+        licensePlate: carRaw.license_plate,
+        pricePerDay: carRaw.price_per_day,
+        insuranceType: carRaw.insurance_type,
+        insuranceExpiryDate: carRaw.insurance_expiry_date,
+        registrationExpiry: carRaw.registration_expiry,
+        taxRoadExpiryDate: carRaw.tax_road_expiry_date,
+        nextOilChangeMileage: carRaw.next_oil_change_mileage,
+        oilChangeInterval: carRaw.oil_change_interval,
+        minInsurancePrice: carRaw.min_insurance_price,
+        maxInsurancePrice: carRaw.max_insurance_price,
+        archivedAt: carRaw.archived_at,
+        template: {
+            brand: { name: carRaw.brandName },
+            model: { name: carRaw.modelName },
+            bodyType: { name: carRaw.bodyTypeName },
+            fuelType: { name: carRaw.templateFuelTypeName },
+            engineVolume: carRaw.engine_volume,
+            transmission: carRaw.transmission,
+            seats: carRaw.seats,
+            doors: carRaw.doors,
+        },
+        color: { name: carRaw.colorName },
+    };
 
     return { car, templates: templatesList, colors: colorsList, seasons: seasonsList, durations: durationsList, fuelTypes: fuelTypesList, user };
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
     const carId = Number(params.id);
 
-    const car = await db.query.companyCars.findFirst({
-        where: eq(schema.companyCars.id, carId),
-    });
+    const car = await context.cloudflare.env.DB
+        .prepare("SELECT * FROM company_cars WHERE id = ? LIMIT 1")
+        .bind(carId)
+        .first<any>();
 
     if (!car) {
         return redirect(`/cars?error=Car not found`);
     }
-
-    if (user.role !== "admin" && car.companyId !== user.companyId) {
+    if (user.role !== "admin" && car.company_id !== user.companyId) {
         return redirect(`/cars/${carId}?error=Access denied`);
     }
 
     const intent = formData.get("intent");
-
     if (intent === "archive" || intent === "delete") {
         const { deleteOrArchiveCar } = await import("~/lib/archive.server");
-        const result = await deleteOrArchiveCar(context.cloudflare.env.DB, carId, car.companyId);
-        
+        const result = await deleteOrArchiveCar(context.cloudflare.env.DB, carId, car.company_id);
         if (result.success) {
             return redirect(`/cars?success=${encodeURIComponent(result.message || "Car updated successfully")}`);
-        } else {
-            return redirect(`/cars/${carId}/edit?error=${encodeURIComponent(result.message || result.error || "Failed to update car")}`);
         }
+        return redirect(`/cars/${carId}/edit?error=${encodeURIComponent(result.message || result.error || "Failed to update car")}`);
     }
-
     if (intent === "unarchive") {
-        await db.update(schema.companyCars)
-            .set({ archivedAt: null })
-            .where(eq(schema.companyCars.id, carId));
-        
+        await context.cloudflare.env.DB
+            .prepare("UPDATE company_cars SET archived_at = NULL, updated_at = ? WHERE id = ?")
+            .bind(new Date().toISOString(), carId)
+            .run();
         return redirect(`/cars/${carId}/edit?success=Car unarchived successfully`);
     }
 
     const rawData = {
-        templateId: formData.get("templateId") ? Number(formData.get("templateId")) : (car.templateId || null),
+        templateId: formData.get("templateId") ? Number(formData.get("templateId")) : (car.template_id || null),
         year: formData.get("year") ? Number(formData.get("year")) : car.year,
-        colorId: Number(formData.get("colorId")) || car.colorId || 0,
-        licensePlate: (formData.get("licensePlate") as string)?.toUpperCase() || car.licensePlate || "",
+        colorId: Number(formData.get("colorId")) || car.color_id || 0,
+        licensePlate: (formData.get("licensePlate") as string)?.toUpperCase() || car.license_plate || "",
         transmission: (formData.get("transmission") as "automatic" | "manual") || car.transmission || "automatic",
-        engineVolume: Number(formData.get("engineVolume")) || car.engineVolume || 0,
+        engineVolume: Number(formData.get("engineVolume")) || car.engine_volume || 0,
         fuelType: (formData.get("fuelType") as "petrol" | "diesel" | "electric" | "hybrid") || "petrol",
         status: (formData.get("status") as "available" | "rented" | "maintenance" | "booked") || car.status || "available",
         vin: (formData.get("vin") as string) || car.vin || null,
         currentMileage: Number(formData.get("currentMileage")) || car.mileage || 0,
-        nextOilChangeMileage: Number(formData.get("nextOilChangeMileage")) || car.nextOilChangeMileage || 0,
-        oilChangeInterval: Number(formData.get("oilChangeInterval")) || car.oilChangeInterval || 10000,
-        pricePerDay: Number(formData.get("pricePerDay")) || car.pricePerDay || 0,
+        nextOilChangeMileage: Number(formData.get("nextOilChangeMileage")) || car.next_oil_change_mileage || 0,
+        oilChangeInterval: Number(formData.get("oilChangeInterval")) || car.oil_change_interval || 10000,
+        pricePerDay: Number(formData.get("pricePerDay")) || car.price_per_day || 0,
         deposit: Number(formData.get("deposit")) || car.deposit || 0,
-        insuranceType: (formData.get("insuranceType") as string) || car.insuranceType || null,
+        insuranceType: (formData.get("insuranceType") as string) || car.insurance_type || null,
         insuranceExpiry: (formData.get("insuranceExpiry") as string) || null,
         registrationExpiry: (formData.get("registrationExpiry") as string) || null,
         taxRoadExpiry: (formData.get("taxRoadExpiry") as string) || null,
         fullInsuranceMinDays: formData.get("fullInsuranceMinDays") ? Number(formData.get("fullInsuranceMinDays")) : null,
         minInsurancePrice: formData.get("fullInsuranceEnabled") === "true"
-            ? (formData.get("minInsurancePrice") ? Number(formData.get("minInsurancePrice")) : car.minInsurancePrice)
+            ? (formData.get("minInsurancePrice") ? Number(formData.get("minInsurancePrice")) : car.min_insurance_price)
             : null,
         maxInsurancePrice: formData.get("fullInsuranceEnabled") === "true"
-            ? (formData.get("maxInsurancePrice") ? Number(formData.get("maxInsurancePrice")) : car.maxInsurancePrice)
+            ? (formData.get("maxInsurancePrice") ? Number(formData.get("maxInsurancePrice")) : car.max_insurance_price)
             : null,
     };
-
     const validation = carSchema.safeParse(rawData);
     if (!validation.success) {
         const firstError = validation.error.errors[0];
         return redirect(`/cars/${carId}/edit?error=${encodeURIComponent(firstError.message)}`);
     }
-
     const validData = validation.data;
 
     try {
-        const fuelTypes = await db.select({
-            id: schema.fuelTypes.id,
-            name: schema.fuelTypes.name,
-        }).from(schema.fuelTypes);
-        const fuelType = fuelTypes.find((item) => item.name.toLowerCase() === validData.fuelType.toLowerCase());
-
-        // Handle photos upload to R2
+        const fuelTypesResult = await context.cloudflare.env.DB.prepare("SELECT id, name FROM fuel_types").all() as { results?: any[] };
+        const fuelType = (fuelTypesResult.results || []).find((item) => item.name.toLowerCase() === validData.fuelType.toLowerCase());
         const photosData = formData.get("photos") as string;
         let photoUrls: string[] = car.photos ? JSON.parse(car.photos as string) : [];
-        
         if (photosData) {
             try {
                 const photos = JSON.parse(photosData);
                 if (Array.isArray(photos) && photos.length > 0) {
                     const { uploadToR2 } = await import("~/lib/r2.server");
-                    const uploadedUrls = await Promise.all(
+                    photoUrls = await Promise.all(
                         photos.map(async (photo: { base64: string; fileName: string }) => {
-                            if (photo.base64.startsWith('/assets/') || photo.base64.startsWith('http')) {
-                                return photo.base64; // Already uploaded
-                            }
-                            return await uploadToR2(context.cloudflare.env.ASSETS, photo.base64, `cars/${carId}/${photo.fileName}`);
+                            if (photo.base64.startsWith('/assets/') || photo.base64.startsWith('http')) return photo.base64;
+                            return uploadToR2(context.cloudflare.env.ASSETS, photo.base64, `cars/${carId}/${photo.fileName}`);
                         })
                     );
-                    photoUrls = uploadedUrls;
                 }
-            } catch (e) {
-                console.error("Failed to upload photos:", e);
+            } catch {
             }
         }
 
-        await db.update(schema.companyCars)
-            .set({
-                templateId: validData.templateId,
-                year: validData.year ?? null,
-                colorId: validData.colorId,
-                licensePlate: validData.licensePlate,
-                transmission: validData.transmission,
-                engineVolume: validData.engineVolume,
-                fuelTypeId: fuelType?.id ?? null,
-                vin: validData.vin,
-                status: validData.status,
-                mileage: validData.currentMileage,
-                nextOilChangeMileage: validData.nextOilChangeMileage,
-                oilChangeInterval: validData.oilChangeInterval,
-                pricePerDay: validData.pricePerDay,
-                deposit: validData.deposit,
-                insuranceType: validData.insuranceType,
-                insuranceExpiryDate: validData.insuranceExpiry ? new Date(validData.insuranceExpiry.split('-').reverse().join('-')) : null,
-                registrationExpiry: validData.registrationExpiry ? new Date(validData.registrationExpiry.split('-').reverse().join('-')) : null,
-                taxRoadExpiryDate: validData.taxRoadExpiry ? new Date(validData.taxRoadExpiry.split('-').reverse().join('-')) : null,
-                minInsurancePrice: validData.minInsurancePrice,
-                maxInsurancePrice: validData.maxInsurancePrice,
-                photos: photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
-            })
-            .where(eq(schema.companyCars.id, carId));
+        await context.cloudflare.env.DB
+            .prepare(`
+                UPDATE company_cars
+                SET template_id = ?, year = ?, color_id = ?, license_plate = ?, transmission = ?, engine_volume = ?,
+                    fuel_type_id = ?, vin = ?, status = ?, mileage = ?, next_oil_change_mileage = ?, oil_change_interval = ?,
+                    price_per_day = ?, deposit = ?, insurance_type = ?, insurance_expiry_date = ?, registration_expiry = ?,
+                    tax_road_expiry_date = ?, min_insurance_price = ?, max_insurance_price = ?, photos = ?, updated_at = ?
+                WHERE id = ?
+            `)
+            .bind(
+                validData.templateId,
+                validData.year ?? null,
+                validData.colorId,
+                validData.licensePlate,
+                validData.transmission,
+                validData.engineVolume,
+                fuelType?.id ?? null,
+                validData.vin,
+                validData.status,
+                validData.currentMileage,
+                validData.nextOilChangeMileage,
+                validData.oilChangeInterval,
+                validData.pricePerDay,
+                validData.deposit,
+                validData.insuranceType,
+                validData.insuranceExpiry ? new Date(validData.insuranceExpiry.split('-').reverse().join('-')).toISOString() : null,
+                validData.registrationExpiry ? new Date(validData.registrationExpiry.split('-').reverse().join('-')).toISOString() : null,
+                validData.taxRoadExpiry ? new Date(validData.taxRoadExpiry.split('-').reverse().join('-')).toISOString() : null,
+                validData.minInsurancePrice,
+                validData.maxInsurancePrice,
+                photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
+                new Date().toISOString(),
+                carId
+            )
+            .run();
 
         const metadata = getRequestMetadata(request);
         quickAudit({
-            db,
+            db: context.cloudflare.env.DB,
             userId: user.id,
             role: user.role,
             companyId: user.companyId,
@@ -215,7 +251,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 
         return redirect(`/cars?success=${encodeURIComponent("Car updated successfully")}`);
     } catch (error: any) {
-        console.error("Failed to update car:", error);
         if (error.message?.includes('UNIQUE constraint failed') && error.message?.includes('license_plate')) {
             return redirect(`/cars/${carId}/edit?error=${encodeURIComponent(`License plate "${validData.licensePlate}" is already in use`)}`);
         }

@@ -1,9 +1,5 @@
 // Contract calculation helpers
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and, sql } from "drizzle-orm";
-import * as schema from "~/db/schema";
-
-type DbType = ReturnType<typeof drizzle<typeof schema>>;
+type DbType = D1Database;
 
 /**
  * Calculate amount paid for a contract from payments
@@ -14,30 +10,28 @@ export async function calculateAmountPaid(
     contractId: number
 ): Promise<number> {
     const result = await db
-        .select({
-            total: sql<number>`
-                COALESCE(
-                    SUM(
-                        CASE 
-                            WHEN ${schema.paymentTypes.sign} = '+' THEN ${schema.payments.amount}
-                            WHEN ${schema.paymentTypes.sign} = '-' THEN -${schema.payments.amount}
-                            ELSE 0
-                        END
-                    ),
-                    0
-                )
+        .prepare(
             `
-        })
-        .from(schema.payments)
-        .innerJoin(schema.paymentTypes, eq(schema.payments.paymentTypeId, schema.paymentTypes.id))
-        .where(
-            and(
-                eq(schema.payments.contractId, contractId),
-                eq(schema.payments.status, 'completed')
-            )
-        );
+            SELECT
+              COALESCE(
+                SUM(
+                  CASE
+                    WHEN pt.sign = '+' THEN p.amount
+                    WHEN pt.sign = '-' THEN -p.amount
+                    ELSE 0
+                  END
+                ),
+                0
+              ) AS total
+            FROM payments p
+            INNER JOIN payment_types pt ON p.payment_type_id = pt.id
+            WHERE p.contract_id = ? AND p.status = 'completed'
+            `
+        )
+        .bind(contractId)
+        .first<{ total: number }>();
 
-    return result[0]?.total || 0;
+    return Number(result?.total || 0);
 }
 
 /**
@@ -47,26 +41,14 @@ export async function getContractWithAmountPaid(
     db: DbType,
     contractId: number
 ) {
-    const contract = await db.query.contracts.findFirst({
-        where: (c, { eq }) => eq(c.id, contractId),
-        with: {
-            payments: {
-                with: {
-                    paymentType: {
-                        columns: { sign: true }
-                    }
-                },
-                where: (p, { eq }) => eq(p.status, 'completed')
-            }
-        }
-    });
+    const contract = await db
+        .prepare("SELECT * FROM contracts WHERE id = ? LIMIT 1")
+        .bind(contractId)
+        .first<Record<string, unknown>>();
 
     if (!contract) return null;
 
-    const amountPaid = contract.payments.reduce((sum: number, payment: any) => {
-        const multiplier = payment.paymentType.sign === '+' ? 1 : -1;
-        return sum + (payment.amount * multiplier);
-    }, 0);
+    const amountPaid = await calculateAmountPaid(db, contractId);
 
     return {
         ...contract,
@@ -83,10 +65,9 @@ export async function updateCarStatus(
     status: 'available' | 'rented' | 'booked' | 'maintenance',
     reason: string
 ): Promise<void> {
-    await db.update(schema.companyCars)
-        .set({ 
-            status,
-            updatedAt: new Date()
-        })
-        .where(eq(schema.companyCars.id, carId));
+    void reason;
+    await db
+        .prepare("UPDATE company_cars SET status = ?, updated_at = ? WHERE id = ?")
+        .bind(status, Date.now(), carId)
+        .run();
 }

@@ -1,6 +1,3 @@
-import { drizzle } from 'drizzle-orm/d1'
-import { eq, desc } from 'drizzle-orm'
-import * as schema from '~/db/schema'
 import type { Route } from './+types/dashboard.car-templates'
 import { Link, redirect, useNavigate, useSearchParams } from 'react-router'
 import { requireAuth } from '~/lib/auth.server'
@@ -23,59 +20,54 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         throw new Response('Forbidden', { status: 403 })
     }
 
-    const db = drizzle(context.cloudflare.env.DB, { schema })
-
-    // Load brands
-    const brands = await db
-        .select({
-            id: schema.carBrands.id,
-            name: schema.carBrands.name,
-            logo_url: schema.carBrands.logoUrl,
-            created_at: schema.carBrands.createdAt,
-        })
-        .from(schema.carBrands)
-        .orderBy(schema.carBrands.name)
-        .limit(100)
-
-    // Load models
-    const models = await db
-        .select({
-            id: schema.carModels.id,
-            name: schema.carModels.name,
-            brand_id: schema.carModels.brandId,
-            body_type_id: schema.carModels.bodyTypeId,
-            created_at: schema.carModels.createdAt,
-            brand_name: schema.carBrands.name,
-        })
-        .from(schema.carModels)
-        .leftJoin(schema.carBrands, eq(schema.carModels.brandId, schema.carBrands.id))
-        .orderBy(schema.carModels.name)
-        .limit(200)
-
-    // Load templates
-    const templates = await db
-        .select({
-            id: schema.carTemplates.id,
-            brand_id: schema.carTemplates.brandId,
-            model_id: schema.carTemplates.modelId,
-            transmission: schema.carTemplates.transmission,
-            engine_volume: schema.carTemplates.engineVolume,
-            body_type_id: schema.carTemplates.bodyTypeId,
-            seats: schema.carTemplates.seats,
-            doors: schema.carTemplates.doors,
-            fuel_type_id: schema.carTemplates.fuelTypeId,
-            photos: schema.carTemplates.photos,
-            created_at: schema.carTemplates.createdAt,
-            brand_name: schema.carBrands.name,
-            model_name: schema.carModels.name,
-            fuel_type_name: schema.fuelTypes.name,
-        })
-        .from(schema.carTemplates)
-        .leftJoin(schema.carBrands, eq(schema.carTemplates.brandId, schema.carBrands.id))
-        .leftJoin(schema.carModels, eq(schema.carTemplates.modelId, schema.carModels.id))
-        .leftJoin(schema.fuelTypes, eq(schema.carTemplates.fuelTypeId, schema.fuelTypes.id))
-        .orderBy(desc(schema.carTemplates.createdAt))
-        .limit(100)
+    const [brands, models, templates] = await Promise.all([
+        context.cloudflare.env.DB
+            .prepare("SELECT id, name, logo_url, created_at FROM car_brands ORDER BY name ASC LIMIT 100")
+            .all()
+            .then((r: any) => r.results || []),
+        context.cloudflare.env.DB
+            .prepare(`
+                SELECT
+                    cm.id,
+                    cm.name,
+                    cm.brand_id,
+                    cm.body_type_id,
+                    cm.created_at,
+                    cb.name AS brand_name
+                FROM car_models cm
+                LEFT JOIN car_brands cb ON cb.id = cm.brand_id
+                ORDER BY cm.name ASC
+                LIMIT 200
+            `)
+            .all()
+            .then((r: any) => r.results || []),
+        context.cloudflare.env.DB
+            .prepare(`
+                SELECT
+                    ct.id,
+                    ct.brand_id,
+                    ct.model_id,
+                    ct.transmission,
+                    ct.engine_volume,
+                    ct.body_type_id,
+                    ct.seats,
+                    ct.doors,
+                    ct.fuel_type_id,
+                    ct.photos,
+                    ct.created_at,
+                    cb.name AS brand_name,
+                    cm.name AS model_name,
+                    ft.name AS fuel_type_name
+                FROM car_templates ct
+                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+                LEFT JOIN car_models cm ON cm.id = ct.model_id
+                LEFT JOIN fuel_types ft ON ft.id = ct.fuel_type_id
+                ORDER BY ct.created_at DESC
+                LIMIT 100
+            `)
+            .all()
+            .then((r: any) => r.results || []),
+    ])
 
     return { brands, models, templates }
 }
@@ -83,15 +75,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export async function action({ request, context }: Route.ActionArgs) {
     const formData = await request.formData()
     const intent = formData.get('intent')
-    const db = drizzle(context.cloudflare.env.DB, { schema })
-
     // Brand actions
     if (intent === 'create_brand') {
         const name = formData.get('name') as string
         if (!name) {
             return { error: 'Brand name is required' }
         }
-        await db.insert(schema.carBrands).values({ name })
+        await context.cloudflare.env.DB
+            .prepare("INSERT INTO car_brands (name, created_at, updated_at) VALUES (?, ?, ?)")
+            .bind(name, new Date().toISOString(), new Date().toISOString())
+            .run()
         return { success: true, message: 'Brand created successfully' }
     }
 
@@ -100,7 +93,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (!id) {
             return { error: 'Brand ID is required' }
         }
-        await db.delete(schema.carBrands).where(eq(schema.carBrands.id, Number(id)))
+        await context.cloudflare.env.DB.prepare("DELETE FROM car_brands WHERE id = ?").bind(Number(id)).run()
         return { success: true, message: 'Brand deleted successfully' }
     }
 
@@ -111,10 +104,10 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (!name || !brand_id) {
             return { error: 'Model name and brand are required' }
         }
-        await db.insert(schema.carModels).values({
-            name,
-            brandId: Number(brand_id),
-        })
+        await context.cloudflare.env.DB
+            .prepare("INSERT INTO car_models (name, brand_id, created_at, updated_at) VALUES (?, ?, ?, ?)")
+            .bind(name, Number(brand_id), new Date().toISOString(), new Date().toISOString())
+            .run()
         return { success: true, message: 'Model created successfully' }
     }
 
@@ -123,7 +116,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (!id) {
             return { error: 'Model ID is required' }
         }
-        await db.delete(schema.carModels).where(eq(schema.carModels.id, Number(id)))
+        await context.cloudflare.env.DB.prepare("DELETE FROM car_models WHERE id = ?").bind(Number(id)).run()
         return { success: true, message: 'Model deleted successfully' }
     }
 
@@ -133,7 +126,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (!id) {
             return { error: 'Template ID is required' }
         }
-        await db.delete(schema.carTemplates).where(eq(schema.carTemplates.id, Number(id)))
+        await context.cloudflare.env.DB.prepare("DELETE FROM car_templates WHERE id = ?").bind(Number(id)).run()
         return { success: true, message: 'Template deleted successfully' }
     }
 

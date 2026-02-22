@@ -1,9 +1,6 @@
 import type { Route } from "./+types/home";
 import { useMemo, useState } from "react";
 import { useLoaderData } from "react-router";
-import { drizzle } from "drizzle-orm/d1";
-import { and, desc, eq, isNull } from "drizzle-orm";
-import * as schema from "~/db/schema";
 import Header from "~/components/public/Header";
 import HeroSection from "~/components/public/HeroSection";
 import BodyTypeFilters from "~/components/public/BodyTypeFilters";
@@ -39,85 +36,94 @@ export function meta({ }: Route.MetaArgs) {
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const db = drizzle(context.cloudflare.env.DB, { schema });
+  const d1 = context.cloudflare.env.DB;
 
-  const rows = await db
-    .select({
-      id: schema.companyCars.id,
-      companyId: schema.companyCars.companyId,
-      brandName: schema.carBrands.name,
-      modelName: schema.carModels.name,
-      bodyType: schema.bodyTypes.name,
-      year: schema.companyCars.year,
-      transmission: schema.companyCars.transmission,
-      fuelType: schema.fuelTypes.name,
-      pricePerDay: schema.companyCars.pricePerDay,
-      deposit: schema.companyCars.deposit,
-      photos: schema.companyCars.photos,
-      companyName: schema.companies.name,
-      locationName: schema.locations.name,
-      districtName: schema.districts.name,
-      street: schema.companies.street,
-      houseNumber: schema.companies.houseNumber,
-    })
-    .from(schema.companyCars)
-    .leftJoin(schema.carTemplates, eq(schema.companyCars.templateId, schema.carTemplates.id))
-    .leftJoin(schema.carBrands, eq(schema.carTemplates.brandId, schema.carBrands.id))
-    .leftJoin(schema.carModels, eq(schema.carTemplates.modelId, schema.carModels.id))
-    .leftJoin(schema.bodyTypes, eq(schema.carTemplates.bodyTypeId, schema.bodyTypes.id))
-    .leftJoin(schema.fuelTypes, eq(schema.companyCars.fuelTypeId, schema.fuelTypes.id))
-    .innerJoin(schema.companies, eq(schema.companyCars.companyId, schema.companies.id))
-    .leftJoin(schema.locations, eq(schema.companies.locationId, schema.locations.id))
-    .leftJoin(schema.districts, eq(schema.companies.districtId, schema.districts.id))
-    .where(
-      and(
-        eq(schema.companyCars.status, "available"),
-        isNull(schema.companyCars.archivedAt),
-        isNull(schema.companies.archivedAt),
-      ),
+  const rowsResult = await d1
+    .prepare(
+      `
+      SELECT
+        cc.id AS id,
+        cc.company_id AS companyId,
+        cb.name AS brandName,
+        cm.name AS modelName,
+        bt.name AS bodyType,
+        cc.year AS year,
+        cc.transmission AS transmission,
+        ft.name AS fuelType,
+        cc.price_per_day AS pricePerDay,
+        cc.deposit AS deposit,
+        CASE
+          WHEN json_valid(cc.photos) THEN json_extract(cc.photos, '$[0]')
+          ELSE NULL
+        END AS photoUrl,
+        c.name AS companyName,
+        l.name AS locationName,
+        d.name AS districtName,
+        c.street AS street,
+        c.house_number AS houseNumber,
+        crm.total_rating AS rating,
+        crm.total_ratings AS totalRatings
+      FROM company_cars cc
+      LEFT JOIN car_templates ct ON cc.template_id = ct.id
+      LEFT JOIN car_brands cb ON ct.brand_id = cb.id
+      LEFT JOIN car_models cm ON ct.model_id = cm.id
+      LEFT JOIN body_types bt ON ct.body_type_id = bt.id
+      LEFT JOIN fuel_types ft ON cc.fuel_type_id = ft.id
+      INNER JOIN companies c ON cc.company_id = c.id
+      LEFT JOIN locations l ON c.location_id = l.id
+      LEFT JOIN districts d ON c.district_id = d.id
+      LEFT JOIN car_rating_metrics crm ON cc.id = crm.company_car_id
+      WHERE cc.status = 'available'
+        AND cc.archived_at IS NULL
+        AND c.archived_at IS NULL
+      ORDER BY cc.created_at DESC
+      LIMIT 120
+      `
     )
-    .orderBy(desc(schema.companyCars.createdAt))
-    .limit(120);
+    .all();
+  const rows = ((rowsResult.results ?? []) as Array<Record<string, unknown>>);
 
-  const districtsRows = await db
-    .select({
-      name: schema.districts.name,
-    })
-    .from(schema.districts)
-    .orderBy(schema.districts.name);
+  const districtsResult = await d1
+    .prepare("SELECT name FROM districts ORDER BY name")
+    .all();
+  const districtsRows = ((districtsResult.results ?? []) as Array<Record<string, unknown>>);
 
   const cars = rows.map((row) => {
-    let photoUrl: string | null = null;
-    if (row.photos) {
-      try {
-        const parsed = JSON.parse(row.photos) as string[];
-        photoUrl = Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : null;
-      } catch {
-        photoUrl = null;
-      }
-    }
+    const photoUrl = typeof row.photoUrl === "string" ? row.photoUrl : null;
 
-    const districtTitle = row.districtName || row.locationName || row.companyName || "Available cars";
-    const officeAddress = [row.street, row.houseNumber].filter(Boolean).join(" ");
+    const districtTitle =
+      (typeof row.districtName === "string" && row.districtName) ||
+      (typeof row.locationName === "string" && row.locationName) ||
+      (typeof row.companyName === "string" && row.companyName) ||
+      "Available cars";
+    const officeAddress = [row.street, row.houseNumber].filter(Boolean).map(String).join(" ");
 
     return {
-      id: row.id,
-      companyId: row.companyId,
-      brandName: row.brandName || "Car",
-      modelName: row.modelName || `#${row.id}`,
-      bodyType: row.bodyType || "",
-      year: row.year,
-      transmission: row.transmission,
-      fuelType: row.fuelType,
+      id: Number(row.id),
+      companyId: Number(row.companyId),
+      brandName: (row.brandName as string) || "Car",
+      modelName: (row.modelName as string) || `#${String(row.id)}`,
+      bodyType: (row.bodyType as string) || "",
+      year: (row.year as number | null) ?? null,
+      transmission: (row.transmission as string | null) ?? null,
+      fuelType: (row.fuelType as string | null) ?? null,
       pricePerDay: Number(row.pricePerDay || 0),
       deposit: Number(row.deposit || 0),
       photoUrl,
       districtTitle,
-      officeAddress: officeAddress || row.companyName,
+      officeAddress: officeAddress || String(row.companyName || ""),
+      rating: row.rating ? Number(row.rating) : null,
+      totalRatings: row.totalRatings ? Number(row.totalRatings) : null,
     };
   });
 
-  const districts = Array.from(new Set(districtsRows.map((row) => row.name).filter((name): name is string => Boolean(name))));
+  const districts = Array.from(
+    new Set(
+      districtsRows
+        .map((row) => row.name)
+        .filter((name): name is string => typeof name === "string" && Boolean(name))
+    )
+  );
 
   return { cars, districts };
 }
@@ -137,9 +143,9 @@ export default function Home() {
   }, [cars, activeBodyType]);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen">
       <Header />
-      <main className="flex-1 bg-white">
+      <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 pt-0 pb-6 space-y-6">
           <HeroSection districts={districts} />
           <BodyTypeFilters

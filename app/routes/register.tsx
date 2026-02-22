@@ -5,9 +5,6 @@ import { useState } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import Button from "~/components/dashboard/Button";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
-import { users } from "~/db/schema";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
 import { sessionCookie } from "~/lib/auth.server";
 
@@ -36,10 +33,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
         return { error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters` };
     }
 
-    const db = drizzle(context.cloudflare.env.DB);
-
-    const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-    if (existing.length > 0) {
+    const d1 = context.cloudflare.env.DB;
+    const existing = await d1
+        .prepare("SELECT id FROM users WHERE email = ? LIMIT 1")
+        .bind(email)
+        .all();
+    if ((existing.results?.length ?? 0) > 0) {
         return { error: "Email already registered" };
     }
 
@@ -47,17 +46,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const { hashPassword } = await import("~/lib/password.server");
     const passwordHash = await hashPassword(password);
 
-    await db.insert(users).values({
-        id,
-        email,
-        role: "user",
-        name: firstName,
-        surname: lastName,
-        phone,
-        passwordHash,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-    });
+    await d1
+        .prepare(
+            `
+            INSERT INTO users (
+                id, email, role, name, surname, phone, password_hash, created_at, updated_at
+            ) VALUES (?, ?, 'user', ?, ?, ?, ?, ?, ?)
+            `
+        )
+        .bind(id, email, firstName, lastName, phone, passwordHash, Date.now(), Date.now())
+        .run();
 
     const cookie = await sessionCookie.serialize({
         id,

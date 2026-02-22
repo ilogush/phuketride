@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, data, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { eq, and } from "drizzle-orm";
 import { useState, useEffect } from "react";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
@@ -53,13 +50,24 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         throw new Response("Access denied", { status: 403 });
     }
     
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-
     // Get all seasons (global, not company-specific)
-    const seasons = await db
-        .select()
-        .from(schema.seasons)
-        .limit(100);
+    const seasonsResult = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT
+                id,
+                season_name AS seasonName,
+                start_month AS startMonth,
+                start_day AS startDay,
+                end_month AS endMonth,
+                end_day AS endDay,
+                price_multiplier AS priceMultiplier,
+                discount_label AS discountLabel
+            FROM seasons
+            ORDER BY id ASC
+            LIMIT 100
+        `)
+        .all() as { results?: any[] };
+    const seasons = seasonsResult.results || [];
 
     return { user, seasons };
 }
@@ -144,7 +152,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
         return data({ success: false, message: "Access denied" }, { status: 403 });
     }
     
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
     const intent = formData.get("intent");
 
@@ -152,7 +159,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const id = Number(formData.get("id"));
         
         // Get all seasons except the one being deleted
-        const allSeasons = await db.select().from(schema.seasons);
+        const allSeasonsResult = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT id, start_month AS startMonth, start_day AS startDay, end_month AS endMonth, end_day AS endDay
+                FROM seasons
+            `)
+            .all() as { results?: any[] };
+        const allSeasons = allSeasonsResult.results || [];
         const remainingSeasons = allSeasons.filter(s => s.id !== id);
         
         // Validate coverage after deletion
@@ -163,7 +176,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
             }
         }
         
-        await db.delete(schema.seasons).where(eq(schema.seasons.id, id));
+        await context.cloudflare.env.DB
+            .prepare("DELETE FROM seasons WHERE id = ?")
+            .bind(id)
+            .run();
         return redirect("/seasons?success=Season deleted successfully");
     }
 
@@ -185,7 +201,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
 
         // Get existing seasons
-        const existingSeasons = await db.select().from(schema.seasons);
+        const existingSeasonsResult = await context.cloudflare.env.DB
+            .prepare("SELECT start_month AS startMonth, start_day AS startDay, end_month AS endMonth, end_day AS endDay FROM seasons")
+            .all() as { results?: any[] };
+        const existingSeasons = existingSeasonsResult.results || [];
         
         // Add new season to validation
         const allSeasons = [
@@ -198,17 +217,25 @@ export async function action({ request, context }: ActionFunctionArgs) {
             return redirect(`/seasons?error=${encodeURIComponent(validation.message!)}`);
         }
 
-        await db.insert(schema.seasons).values({
-            seasonName,
-            startMonth,
-            startDay,
-            endMonth,
-            endDay,
-            priceMultiplier,
-            discountLabel: discountLabel || null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        });
+        await context.cloudflare.env.DB
+            .prepare(`
+                INSERT INTO seasons (
+                    season_name, start_month, start_day, end_month, end_day,
+                    price_multiplier, discount_label, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `)
+            .bind(
+                seasonName,
+                startMonth,
+                startDay,
+                endMonth,
+                endDay,
+                priceMultiplier,
+                discountLabel || null,
+                new Date().toISOString(),
+                new Date().toISOString()
+            )
+            .run();
 
         return redirect("/seasons?success=Season created successfully");
     }
@@ -232,7 +259,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
 
         // Get all seasons except the one being updated
-        const existingSeasons = await db.select().from(schema.seasons);
+        const existingSeasonsResult = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT id, start_month AS startMonth, start_day AS startDay, end_month AS endMonth, end_day AS endDay
+                FROM seasons
+            `)
+            .all() as { results?: any[] };
+        const existingSeasons = existingSeasonsResult.results || [];
         const otherSeasons = existingSeasons.filter(s => s.id !== id);
         
         // Add updated season to validation
@@ -246,19 +279,25 @@ export async function action({ request, context }: ActionFunctionArgs) {
             return redirect(`/seasons?error=${encodeURIComponent(validation.message!)}`);
         }
 
-        await db
-            .update(schema.seasons)
-            .set({
+        await context.cloudflare.env.DB
+            .prepare(`
+                UPDATE seasons
+                SET season_name = ?, start_month = ?, start_day = ?, end_month = ?, end_day = ?,
+                    price_multiplier = ?, discount_label = ?, updated_at = ?
+                WHERE id = ?
+            `)
+            .bind(
                 seasonName,
                 startMonth,
                 startDay,
                 endMonth,
                 endDay,
                 priceMultiplier,
-                discountLabel: discountLabel || null,
-                updatedAt: new Date(),
-            })
-            .where(eq(schema.seasons.id, id));
+                discountLabel || null,
+                new Date().toISOString(),
+                id
+            )
+            .run();
 
         return redirect("/seasons?success=Season updated successfully");
     }
@@ -272,11 +311,25 @@ export async function action({ request, context }: ActionFunctionArgs) {
         ];
 
         for (const season of defaultSeasons) {
-            await db.insert(schema.seasons).values({
-                ...season,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            });
+            await context.cloudflare.env.DB
+                .prepare(`
+                    INSERT INTO seasons (
+                        season_name, start_month, start_day, end_month, end_day,
+                        price_multiplier, discount_label, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `)
+                .bind(
+                    season.seasonName,
+                    season.startMonth,
+                    season.startDay,
+                    season.endMonth,
+                    season.endDay,
+                    season.priceMultiplier,
+                    season.discountLabel,
+                    new Date().toISOString(),
+                    new Date().toISOString()
+                )
+                .run();
         }
 
         return redirect("/seasons?success=Default seasons created successfully");

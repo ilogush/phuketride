@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, Link } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and, isNull, or, sql } from "drizzle-orm";
-import * as schema from "~/db/schema";
 import { z } from "zod";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import Button from "~/components/dashboard/Button";
@@ -14,7 +11,6 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
-import { createBookingEvents } from "~/lib/calendar-events.server";
 
 const bookingSchema = z.object({
     carId: z.string().min(1, "Car is required"),
@@ -43,42 +39,44 @@ const bookingSchema = z.object({
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
 
     if (!user.companyId) {
         throw new Response("Manager must be assigned to a company", { status: 403 });
     }
 
-    // Get available cars
-    const cars = await db.query.companyCars.findMany({
-        where: and(
-            eq(schema.companyCars.companyId, user.companyId),
-            eq(schema.companyCars.status, "available"),
-            isNull(schema.companyCars.archivedAt)
-        ),
-        with: {
-            template: {
-                with: {
-                    brand: true,
-                    model: true,
-                }
-            },
-            color: true,
-        },
-        limit: 50,
-    });
-
-    // Get districts
-    const districts = await db.query.districts.findMany({
-        where: eq(schema.districts.isActive, true),
-    });
+    const [carsRaw, districts] = await Promise.all([
+        context.cloudflare.env.DB
+            .prepare(`
+                SELECT
+                    cc.id,
+                    cc.price_per_day AS pricePerDay,
+                    cc.deposit,
+                    cc.license_plate AS licensePlate,
+                    cc.year,
+                    cb.name AS brandName,
+                    cm.name AS modelName
+                FROM company_cars cc
+                LEFT JOIN car_templates ct ON ct.id = cc.template_id
+                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+                LEFT JOIN car_models cm ON cm.id = ct.model_id
+                WHERE cc.company_id = ? AND cc.status = 'available' AND cc.archived_at IS NULL
+                LIMIT 50
+            `)
+            .bind(user.companyId)
+            .all()
+            .then((r: any) => r.results || []),
+        context.cloudflare.env.DB
+            .prepare("SELECT * FROM districts WHERE is_active = 1")
+            .all()
+            .then((r: any) => r.results || []),
+    ]);
 
     return { 
-        cars: cars.map(car => ({
+        cars: carsRaw.map((car: any) => ({
             id: car.id,
-            name: `${car.template?.brand?.name || ''} ${car.template?.model?.name || ''} ${car.year} - ${car.licensePlate}`,
+            name: `${car.brandName || ""} ${car.modelName || ""} ${car.year || ""} - ${car.licensePlate}`,
             pricePerDay: car.pricePerDay ?? 0,
-            deposit: car.deposit,
+            deposit: car.deposit ?? 0,
         })),
         districts,
         user,
@@ -87,7 +85,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
     const data = Object.fromEntries(formData);
 
@@ -103,12 +100,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     try {
         // Get car details
-        const car = await db.query.companyCars.findFirst({
-            where: and(
-                eq(schema.companyCars.id, Number(carId)),
-                eq(schema.companyCars.companyId, user.companyId!)
-            ),
-        });
+        const car = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT id, price_per_day AS pricePerDay
+                FROM company_cars
+                WHERE id = ? AND company_id = ?
+                LIMIT 1
+            `)
+            .bind(Number(carId), user.companyId)
+            .first<any>();
 
         if (!car) {
             return { error: "Car not found" };
@@ -132,73 +132,76 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         // Add delivery costs
         if (pickupDistrictId) {
-            const district = await db.query.districts.findFirst({
-                where: eq(schema.districts.id, Number(pickupDistrictId)),
-            });
+            const district = await context.cloudflare.env.DB
+                .prepare("SELECT delivery_price AS deliveryPrice FROM districts WHERE id = ? LIMIT 1")
+                .bind(Number(pickupDistrictId))
+                .first<any>();
             if (district) estimatedAmount += district.deliveryPrice || 0;
         }
         if (returnDistrictId) {
-            const district = await db.query.districts.findFirst({
-                where: eq(schema.districts.id, Number(returnDistrictId)),
-            });
+            const district = await context.cloudflare.env.DB
+                .prepare("SELECT delivery_price AS deliveryPrice FROM districts WHERE id = ? LIMIT 1")
+                .bind(Number(returnDistrictId))
+                .first<any>();
             if (district) estimatedAmount += district.deliveryPrice || 0;
         }
 
         // Create booking
-        const [booking] = await db.insert(schema.bookings).values({
-            companyCarId: Number(carId),
-            clientId: user.id, // Temporary, will be updated when client is created
-            managerId: user.id,
-            startDate: start,
-            endDate: end,
-            estimatedAmount,
-            currency: "THB",
-            depositAmount: depositAmount ? Number(depositAmount) : 0,
-            depositPaid: depositPaid === "on",
-            depositPaymentMethod: depositPaymentMethod as any,
-            clientName,
-            clientSurname,
-            clientPhone,
-            clientEmail: clientEmail || null,
-            clientPassport: clientPassport || null,
-            pickupDistrictId: pickupDistrictId ? Number(pickupDistrictId) : null,
-            pickupHotel: pickupHotel || null,
-            pickupRoom: pickupRoom || null,
-            returnDistrictId: returnDistrictId ? Number(returnDistrictId) : null,
-            returnHotel: returnHotel || null,
-            returnRoom: returnRoom || null,
-            fullInsuranceEnabled: !!fullInsurance,
-            fullInsurancePrice: fullInsurance ? Number(fullInsurance) : 0,
-            babySeatEnabled: !!babySeat,
-            babySeatPrice: babySeat ? Number(babySeat) : 0,
-            islandTripEnabled: !!islandTrip,
-            islandTripPrice: islandTrip ? Number(islandTrip) : 0,
-            krabiTripEnabled: !!krabiTrip,
-            krabiTripPrice: krabiTrip ? Number(krabiTrip) : 0,
-            status: "pending",
-            notes: notes || null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        }).returning();
+        const insertResult = await context.cloudflare.env.DB
+            .prepare(`
+                INSERT INTO bookings (
+                    company_car_id, client_id, manager_id, start_date, end_date, estimated_amount, currency,
+                    deposit_amount, deposit_paid, deposit_payment_method, client_name, client_surname, client_phone,
+                    client_email, client_passport, pickup_district_id, pickup_hotel, pickup_room, return_district_id,
+                    return_hotel, return_room, full_insurance_enabled, full_insurance_price, baby_seat_enabled,
+                    baby_seat_price, island_trip_enabled, island_trip_price, krabi_trip_enabled, krabi_trip_price,
+                    status, notes, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, 'THB', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+            `)
+            .bind(
+                Number(carId),
+                user.id,
+                user.id,
+                start.toISOString(),
+                end.toISOString(),
+                estimatedAmount,
+                depositAmount ? Number(depositAmount) : 0,
+                depositPaid === "on" ? 1 : 0,
+                depositPaymentMethod || null,
+                clientName,
+                clientSurname,
+                clientPhone,
+                clientEmail || null,
+                clientPassport || null,
+                pickupDistrictId ? Number(pickupDistrictId) : null,
+                pickupHotel || null,
+                pickupRoom || null,
+                returnDistrictId ? Number(returnDistrictId) : null,
+                returnHotel || null,
+                returnRoom || null,
+                fullInsurance ? 1 : 0,
+                fullInsurance ? Number(fullInsurance) : 0,
+                babySeat ? 1 : 0,
+                babySeat ? Number(babySeat) : 0,
+                islandTrip ? 1 : 0,
+                islandTrip ? Number(islandTrip) : 0,
+                krabiTrip ? 1 : 0,
+                krabiTrip ? Number(krabiTrip) : 0,
+                notes || null,
+                new Date().toISOString(),
+                new Date().toISOString()
+            )
+            .run();
+        const booking = { id: Number(insertResult.meta.last_row_id) };
 
-            // Update car status to booked
-            const { updateCarStatus } = await import("~/lib/contract-helpers.server");
-            await updateCarStatus(db, Number(carId), 'booked', 'Booking created');
-
-        // Create calendar events for booking
-        await createBookingEvents({
-            db,
-            companyId: user.companyId!,
-            bookingId: booking.id,
-            startDate: start,
-            endDate: end,
-            createdBy: user.id,
-        });
+        // Update car status to booked
+        const { updateCarStatus } = await import("~/lib/contract-helpers.server");
+        await updateCarStatus(context.cloudflare.env.DB, Number(carId), 'booked', 'Booking created');
 
         // Audit log
         const metadata = getRequestMetadata(request);
         await quickAudit({
-            db,
+            db: context.cloudflare.env.DB,
             userId: user.id,
             role: user.role,
             companyId: user.companyId,
@@ -210,8 +213,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         });
 
         return redirect(`/dashboard/bookings?success=Booking created successfully`);
-    } catch (error) {
-        console.error("Failed to create booking:", error);
+    } catch {
         return { error: "Failed to create booking" };
     }
 }

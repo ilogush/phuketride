@@ -1,8 +1,5 @@
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-
 interface CreateEventParams {
-    db: ReturnType<typeof drizzle>;
+    db: D1Database;
     companyId: number;
     eventType: "contract" | "booking" | "payment_due" | "maintenance" | "document_expiry" | "delivery" | "pickup" | "other";
     title: string;
@@ -29,28 +26,37 @@ export async function createCalendarEvent(params: CreateEventParams) {
     } = params;
 
     try {
-        const [event] = await db.insert(schema.calendarEvents).values({
-            companyId,
-            eventType,
-            title,
-            description,
-            startDate,
-            endDate,
-            relatedId,
-            color,
-            status: "pending",
-            createdBy,
-        }).returning({ id: schema.calendarEvents.id });
+        const insertResult = await db
+            .prepare(
+                `
+                INSERT INTO calendar_events (
+                    company_id, event_type, title, description,
+                    start_date, end_date, related_id, color,
+                    status, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+                `
+            )
+            .bind(
+                companyId,
+                eventType,
+                title,
+                description || null,
+                startDate.getTime(),
+                endDate ? endDate.getTime() : null,
+                relatedId || null,
+                color,
+                createdBy
+            )
+            .run();
 
-        return event;
-    } catch (error) {
-        console.error("Failed to create calendar event:", error);
+        return { id: Number(insertResult.meta.last_row_id) };
+    } catch {
         return null;
     }
 }
 
 export async function createContractEvents(params: {
-    db: ReturnType<typeof drizzle>;
+    db: D1Database;
     companyId: number;
     contractId: number;
     startDate: Date;
@@ -87,7 +93,7 @@ export async function createContractEvents(params: {
 }
 
 export async function createBookingEvents(params: {
-    db: ReturnType<typeof drizzle>;
+    db: D1Database;
     companyId: number;
     bookingId: number;
     startDate: Date;

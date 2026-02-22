@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and, desc, sql } from "drizzle-orm";
-import * as schema from "~/db/schema";
 import { PlusIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import Button from "~/components/dashboard/Button";
@@ -13,7 +10,6 @@ const ITEMS_PER_PAGE = 20;
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get("page") || "1");
@@ -21,48 +17,43 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     
     const offset = (page - 1) * ITEMS_PER_PAGE;
 
-    // Build where conditions
-    const conditions = [eq(schema.contracts.clientId, user.id)];
+    const whereSql = status === "all" ? "WHERE c.client_id = ?" : "WHERE c.client_id = ? AND c.status = ?";
+    const countSql = `SELECT COUNT(*) AS count FROM contracts c ${whereSql}`;
+    const countResult = status === "all"
+        ? await context.cloudflare.env.DB.prepare(countSql).bind(user.id).first<any>()
+        : await context.cloudflare.env.DB.prepare(countSql).bind(user.id, status).first<any>();
 
-    if (status !== "all") {
-        conditions.push(sql`${schema.contracts.status} = ${status}`);
-    }
-
-    // Get total count
-    const [countResult] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(schema.contracts)
-        .where(and(...conditions));
-
-    const totalItems = countResult?.count || 0;
+    const totalItems = Number(countResult?.count || 0);
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
-    // Get bookings
-    const bookings = await db
-        .select({
-            id: schema.contracts.id,
-            startDate: schema.contracts.startDate,
-            endDate: schema.contracts.endDate,
-            totalAmount: schema.contracts.totalAmount,
-            totalCurrency: schema.contracts.totalCurrency,
-            status: schema.contracts.status,
-            createdAt: schema.contracts.createdAt,
-            carLicensePlate: schema.companyCars.licensePlate,
-            carYear: schema.companyCars.year,
-            brandName: schema.carBrands.name,
-            modelName: schema.carModels.name,
-            colorName: schema.colors.name,
-        })
-        .from(schema.contracts)
-        .innerJoin(schema.companyCars, eq(schema.contracts.companyCarId, schema.companyCars.id))
-        .leftJoin(schema.carTemplates, eq(schema.companyCars.templateId, schema.carTemplates.id))
-        .leftJoin(schema.carBrands, eq(schema.carTemplates.brandId, schema.carBrands.id))
-        .leftJoin(schema.carModels, eq(schema.carTemplates.modelId, schema.carModels.id))
-        .leftJoin(schema.colors, eq(schema.companyCars.colorId, schema.colors.id))
-        .where(and(...conditions))
-        .orderBy(desc(schema.contracts.createdAt))
-        .limit(ITEMS_PER_PAGE)
-        .offset(offset);
+    const bookingsSql = `
+        SELECT
+            c.id,
+            c.start_date AS startDate,
+            c.end_date AS endDate,
+            c.total_amount AS totalAmount,
+            c.total_currency AS totalCurrency,
+            c.status,
+            c.created_at AS createdAt,
+            cc.license_plate AS carLicensePlate,
+            cc.year AS carYear,
+            cb.name AS brandName,
+            cm.name AS modelName,
+            cl.name AS colorName
+        FROM contracts c
+        JOIN company_cars cc ON cc.id = c.company_car_id
+        LEFT JOIN car_templates ct ON ct.id = cc.template_id
+        LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+        LEFT JOIN car_models cm ON cm.id = ct.model_id
+        LEFT JOIN colors cl ON cl.id = cc.color_id
+        ${whereSql}
+        ORDER BY c.created_at DESC
+        LIMIT ? OFFSET ?
+    `;
+    const bookingsResult = status === "all"
+        ? await context.cloudflare.env.DB.prepare(bookingsSql).bind(user.id, ITEMS_PER_PAGE, offset).all()
+        : await context.cloudflare.env.DB.prepare(bookingsSql).bind(user.id, status, ITEMS_PER_PAGE, offset).all();
+    const bookings = (bookingsResult as any).results || [];
 
     return { bookings, totalPages, currentPage: page, status };
 }

@@ -4,9 +4,6 @@
  * Usage: npx tsx scripts/check-users.ts
  */
 
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
-import * as schema from "../app/db/schema";
 import { verifyPasswordHash } from "../app/lib/password.server";
 
 // Test credentials to check
@@ -20,7 +17,7 @@ async function main() {
     console.log("🔍 Checking users in database...\n");
 
     // Check if we're in Cloudflare environment
-    let db;
+    let d1: D1Database | undefined;
     try {
         // Try to access D1 from Cloudflare bindings
         const env = process.env as unknown as { DB?: D1Database };
@@ -38,14 +35,31 @@ async function main() {
             process.exit(1);
         }
 
-        db = drizzle(env.DB, { schema });
-    } catch (error) {
-        console.error("❌ Database connection error:", error);
+        d1 = env.DB;
+    } catch {
+        console.error("❌ Database connection error");
         process.exit(1);
     }
 
     // Get all users
-    const allUsers = await db.select().from(schema.users);
+    const allUsersResult = await d1
+        .prepare(
+            `
+            SELECT
+              id,
+              email,
+              role,
+              password_hash AS passwordHash
+            FROM users
+            `
+        )
+        .all();
+    const allUsers = (allUsersResult.results ?? []) as Array<{
+        id: string;
+        email: string;
+        role: string;
+        passwordHash: string | null;
+    }>;
     
     console.log(`📊 Total users in database: ${allUsers.length}\n`);
     

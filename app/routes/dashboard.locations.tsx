@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
 import { useLoaderData, Form } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { and, eq } from "drizzle-orm";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -30,7 +27,6 @@ interface District {
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
     const isModMode = user.role === "admin" && effectiveCompanyId !== null;
 
@@ -39,28 +35,47 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     if (user.role === "partner" || isModMode) {
         if (effectiveCompanyId) {
             // Load company-specific delivery settings
-            const settings = await db.select({
-                id: schema.districts.id,
-                name: schema.districts.name,
-                locationId: schema.districts.locationId,
-                beaches: schema.districts.beaches,
-                streets: schema.districts.streets,
-                isActive: schema.companyDeliverySettings.isActive,
-                deliveryPrice: schema.companyDeliverySettings.deliveryPrice,
-                createdAt: schema.districts.createdAt,
-                updatedAt: schema.districts.updatedAt,
-            })
-            .from(schema.companyDeliverySettings)
-            .innerJoin(schema.districts, eq(schema.companyDeliverySettings.districtId, schema.districts.id))
-            .where(eq(schema.companyDeliverySettings.companyId, effectiveCompanyId))
-            .limit(100);
-
-            districts = settings.map(s => ({ ...s, isActive: s.isActive ?? false }));
+            const settings = await context.cloudflare.env.DB
+                .prepare(`
+                    SELECT
+                        d.id,
+                        d.name,
+                        d.location_id AS locationId,
+                        d.beaches,
+                        d.streets,
+                        cds.is_active AS isActive,
+                        cds.delivery_price AS deliveryPrice,
+                        d.created_at AS createdAt,
+                        d.updated_at AS updatedAt
+                    FROM company_delivery_settings cds
+                    JOIN districts d ON d.id = cds.district_id
+                    WHERE cds.company_id = ?
+                    LIMIT 100
+                `)
+                .bind(effectiveCompanyId)
+                .all() as { results?: any[] };
+            districts = (settings.results || []).map((s) => ({ ...s, isActive: !!s.isActive }));
         }
     } else {
         // Admin sees all districts
-        const districtsRaw = await db.select().from(schema.districts).where(eq(schema.districts.locationId, 1)).limit(100);
-        districts = districtsRaw.map((d) => ({ ...d, isActive: d.isActive ?? false }));
+        const districtsRaw = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT
+                    id,
+                    name,
+                    location_id AS locationId,
+                    beaches,
+                    streets,
+                    is_active AS isActive,
+                    delivery_price AS deliveryPrice,
+                    created_at AS createdAt,
+                    updated_at AS updatedAt
+                FROM districts
+                WHERE location_id = 1
+                LIMIT 100
+            `)
+            .all() as { results?: any[] };
+        districts = (districtsRaw.results || []).map((d) => ({ ...d, isActive: !!d.isActive }));
     }
 
     return { districts, user, isModMode };
@@ -75,7 +90,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (user.role !== "admin" && !canManageCompanyDelivery) {
         return data({ success: false, message: "Forbidden" }, { status: 403 });
     }
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
     const intent = formData.get("intent");
 
@@ -85,27 +99,26 @@ export async function action({ request, context }: ActionFunctionArgs) {
         if (canManageCompanyDelivery && effectiveCompanyId) {
             // Partner/mod mode updates company-specific delivery settings by district id.
             for (const update of updates) {
-                await db.update(schema.companyDeliverySettings)
-                    .set({
-                        isActive: update.isActive,
-                        deliveryPrice: update.deliveryPrice,
-                        updatedAt: new Date()
-                    })
-                    .where(and(
-                        eq(schema.companyDeliverySettings.companyId, effectiveCompanyId),
-                        eq(schema.companyDeliverySettings.districtId, update.id)
-                    ));
+                await context.cloudflare.env.DB
+                    .prepare(`
+                        UPDATE company_delivery_settings
+                        SET is_active = ?, delivery_price = ?, updated_at = ?
+                        WHERE company_id = ? AND district_id = ?
+                    `)
+                    .bind(update.isActive ? 1 : 0, update.deliveryPrice, new Date().toISOString(), effectiveCompanyId, update.id)
+                    .run();
             }
         } else {
             // Admin updates global districts
             for (const update of updates) {
-                await db.update(schema.districts)
-                    .set({ 
-                        isActive: update.isActive,
-                        deliveryPrice: update.deliveryPrice,
-                        updatedAt: new Date() 
-                    })
-                    .where(eq(schema.districts.id, update.id));
+                await context.cloudflare.env.DB
+                    .prepare(`
+                        UPDATE districts
+                        SET is_active = ?, delivery_price = ?, updated_at = ?
+                        WHERE id = ?
+                    `)
+                    .bind(update.isActive ? 1 : 0, update.deliveryPrice, new Date().toISOString(), update.id)
+                    .run();
             }
         }
 
@@ -117,16 +130,19 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const isActive = formData.get("isActive") === "true";
 
         if (canManageCompanyDelivery && effectiveCompanyId) {
-            await db.update(schema.companyDeliverySettings)
-                .set({ isActive, updatedAt: new Date() })
-                .where(and(
-                    eq(schema.companyDeliverySettings.companyId, effectiveCompanyId),
-                    eq(schema.companyDeliverySettings.districtId, id)
-                ));
+            await context.cloudflare.env.DB
+                .prepare(`
+                    UPDATE company_delivery_settings
+                    SET is_active = ?, updated_at = ?
+                    WHERE company_id = ? AND district_id = ?
+                `)
+                .bind(isActive ? 1 : 0, new Date().toISOString(), effectiveCompanyId, id)
+                .run();
         } else {
-            await db.update(schema.districts)
-                .set({ isActive, updatedAt: new Date() })
-                .where(eq(schema.districts.id, id));
+            await context.cloudflare.env.DB
+                .prepare("UPDATE districts SET is_active = ?, updated_at = ? WHERE id = ?")
+                .bind(isActive ? 1 : 0, new Date().toISOString(), id)
+                .run();
         }
 
         return data({ success: true, message: "Status updated successfully" });
@@ -137,16 +153,19 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const deliveryPrice = Number(formData.get("deliveryPrice"));
 
         if (canManageCompanyDelivery && effectiveCompanyId) {
-            await db.update(schema.companyDeliverySettings)
-                .set({ deliveryPrice, updatedAt: new Date() })
-                .where(and(
-                    eq(schema.companyDeliverySettings.companyId, effectiveCompanyId),
-                    eq(schema.companyDeliverySettings.districtId, id)
-                ));
+            await context.cloudflare.env.DB
+                .prepare(`
+                    UPDATE company_delivery_settings
+                    SET delivery_price = ?, updated_at = ?
+                    WHERE company_id = ? AND district_id = ?
+                `)
+                .bind(deliveryPrice, new Date().toISOString(), effectiveCompanyId, id)
+                .run();
         } else {
-            await db.update(schema.districts)
-                .set({ deliveryPrice, updatedAt: new Date() })
-                .where(eq(schema.districts.id, id));
+            await context.cloudflare.env.DB
+                .prepare("UPDATE districts SET delivery_price = ?, updated_at = ? WHERE id = ?")
+                .bind(deliveryPrice, new Date().toISOString(), id)
+                .run();
         }
 
         return data({ success: true, message: "Price updated successfully" });
@@ -154,7 +173,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));
-        await db.delete(schema.districts).where(eq(schema.districts.id, id));
+        await context.cloudflare.env.DB.prepare("DELETE FROM districts WHERE id = ?").bind(id).run();
         return data({ success: true, message: "District deleted successfully" });
     }
 
@@ -171,9 +190,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const streetsArray = streets.split(",").map(s => s.trim()).filter(s => s);
         const streetsJson = JSON.stringify(streetsArray);
 
-        await db.update(schema.districts)
-            .set({ name, beaches: beachesJson, streets: streetsJson, deliveryPrice })
-            .where(eq(schema.districts.id, id));
+        await context.cloudflare.env.DB
+            .prepare(`
+                UPDATE districts
+                SET name = ?, beaches = ?, streets = ?, delivery_price = ?, updated_at = ?
+                WHERE id = ?
+            `)
+            .bind(name, beachesJson, streetsJson, deliveryPrice, new Date().toISOString(), id)
+            .run();
 
         return data({ success: true, message: "District updated successfully" });
     }
@@ -190,13 +214,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const streetsArray = streets.split(",").map(s => s.trim()).filter(s => s);
         const streetsJson = JSON.stringify(streetsArray);
 
-        await db.insert(schema.districts).values({
-            name,
-            locationId: 1,
-            beaches: beachesJson,
-            streets: streetsJson,
-            deliveryPrice
-        });
+        await context.cloudflare.env.DB
+            .prepare(`
+                INSERT INTO districts (name, location_id, beaches, streets, delivery_price, created_at, updated_at)
+                VALUES (?, 1, ?, ?, ?, ?, ?)
+            `)
+            .bind(name, beachesJson, streetsJson, deliveryPrice, new Date().toISOString(), new Date().toISOString())
+            .run();
 
         return data({ success: true, message: "District created successfully" });
     }

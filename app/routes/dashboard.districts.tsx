@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { eq } from "drizzle-orm";
 import { useState, useEffect } from "react";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
@@ -26,29 +23,34 @@ interface District {
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-
-    const [districts, locations] = await Promise.all([
-        db.select().from(schema.districts).limit(100),
-        db.select().from(schema.locations).limit(100),
+    const [districtsResult, locationsResult] = await Promise.all([
+        context.cloudflare.env.DB
+            .prepare("SELECT id, name, location_id AS locationId, beaches, delivery_price AS deliveryPrice, created_at AS createdAt, updated_at AS updatedAt FROM districts LIMIT 100")
+            .all(),
+        context.cloudflare.env.DB
+            .prepare("SELECT id, name FROM locations LIMIT 100")
+            .all(),
     ]);
+    const districts = (districtsResult.results ?? []) as District[];
+    const locations = (locationsResult.results ?? []) as Array<{ id: number; name: string }>;
 
     return { user, districts, locations };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
+    await requireAuth(request);
     const formData = await request.formData();
     const intent = formData.get("intent");
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));
         try {
-            await db.delete(schema.districts).where(eq(schema.districts.id, id));
+            await context.cloudflare.env.DB
+                .prepare("DELETE FROM districts WHERE id = ?")
+                .bind(id)
+                .run();
             return redirect("/districts?success=District deleted successfully");
-        } catch (error) {
-            console.error("Failed to delete district:", error);
+        } catch {
             return redirect("/districts?error=Failed to delete district");
         }
     }
@@ -59,14 +61,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const deliveryPrice = Number(formData.get("deliveryPrice"));
 
         try {
-            await db.insert(schema.districts).values({
-                name,
-                locationId,
-                deliveryPrice,
-            });
+            await context.cloudflare.env.DB
+                .prepare("INSERT INTO districts (name, location_id, delivery_price) VALUES (?, ?, ?)")
+                .bind(name, locationId, deliveryPrice)
+                .run();
             return redirect("/districts?success=District created successfully");
-        } catch (error) {
-            console.error("Failed to create district:", error);
+        } catch {
             return redirect("/districts?error=Failed to create district");
         }
     }
@@ -78,13 +78,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const deliveryPrice = Number(formData.get("deliveryPrice"));
 
         try {
-            await db
-                .update(schema.districts)
-                .set({ name, locationId, deliveryPrice })
-                .where(eq(schema.districts.id, id));
+            await context.cloudflare.env.DB
+                .prepare("UPDATE districts SET name = ?, location_id = ?, delivery_price = ? WHERE id = ?")
+                .bind(name, locationId, deliveryPrice, id)
+                .run();
             return redirect("/districts?success=District updated successfully");
-        } catch (error) {
-            console.error("Failed to update district:", error);
+        } catch {
             return redirect("/districts?error=Failed to update district");
         }
     }

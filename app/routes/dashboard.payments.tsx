@@ -2,10 +2,6 @@ import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { payments, contracts, companyCars } from "~/db/schema";
-import { eq } from "drizzle-orm";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -18,64 +14,65 @@ import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
     let paymentsList: any[] = [];
     let statusCounts = { all: 0, pending: 0, completed: 0, cancelled: 0 };
 
     try {
-        if (!effectiveCompanyId) {
-            // Admin sees all payments with relations
-            paymentsList = await db.query.payments.findMany({
-                with: {
-                    contract: {
-                        columns: { id: true }
-                    },
-                    paymentType: {
-                        columns: { name: true, sign: true }
-                    },
-                    currency: {
-                        columns: { code: true, symbol: true }
-                    },
-                    creator: {
-                        columns: { name: true, surname: true }
-                    }
-                },
-                limit: 50,
-                orderBy: (p, { desc }) => [desc(p.createdAt)]
-            });
-        } else {
-            // Partner/Manager sees only their company's payments
-            const allContracts = await db.query.contracts.findMany({
-                with: {
-                    companyCar: true,
-                    payments: {
-                        with: {
-                            paymentType: true,
-                            currency: true,
-                            creator: true
-                        }
-                    }
-                },
-                limit: 100
-            });
+        const sql = effectiveCompanyId
+            ? `
+                SELECT
+                    p.*,
+                    c.id AS contractId,
+                    pt.name AS paymentTypeName,
+                    pt.sign AS paymentTypeSign,
+                    cur.code AS currencyCode,
+                    cur.symbol AS currencySymbol,
+                    u.name AS creatorName,
+                    u.surname AS creatorSurname
+                FROM payments p
+                JOIN contracts c ON c.id = p.contract_id
+                JOIN company_cars cc ON cc.id = c.company_car_id
+                LEFT JOIN payment_types pt ON pt.id = p.payment_type_id
+                LEFT JOIN currencies cur ON cur.code = p.currency
+                LEFT JOIN users u ON u.id = p.created_by
+                WHERE cc.company_id = ?
+                ORDER BY p.created_at DESC
+                LIMIT 50
+            `
+            : `
+                SELECT
+                    p.*,
+                    c.id AS contractId,
+                    pt.name AS paymentTypeName,
+                    pt.sign AS paymentTypeSign,
+                    cur.code AS currencyCode,
+                    cur.symbol AS currencySymbol,
+                    u.name AS creatorName,
+                    u.surname AS creatorSurname
+                FROM payments p
+                LEFT JOIN contracts c ON c.id = p.contract_id
+                LEFT JOIN payment_types pt ON pt.id = p.payment_type_id
+                LEFT JOIN currencies cur ON cur.code = p.currency
+                LEFT JOIN users u ON u.id = p.created_by
+                ORDER BY p.created_at DESC
+                LIMIT 50
+            `;
 
-            // Filter contracts by company and flatten payments
-            const companyContracts = allContracts.filter(
-                c => c.companyCar.companyId === effectiveCompanyId
-            );
-
-            paymentsList = companyContracts.flatMap(c => 
-                c.payments.map(p => ({
-                    ...p,
-                    contract: { id: c.id },
-                    paymentType: p.paymentType,
-                    currency: p.currency,
-                    creator: p.creator
-                }))
-            ).slice(0, 50);
-        }
+        const query = context.cloudflare.env.DB.prepare(sql);
+        const result = effectiveCompanyId
+            ? await query.bind(effectiveCompanyId).all()
+            : await query.all();
+        paymentsList = ((result as any).results || []).map((p: any) => ({
+            ...p,
+            createdAt: p.created_at ?? p.createdAt,
+            paymentMethod: p.payment_method ?? p.paymentMethod,
+            contract: p.contractId ? { id: p.contractId } : null,
+            paymentType: p.paymentTypeName ? { name: p.paymentTypeName, sign: p.paymentTypeSign } : null,
+            currency: p.currencyCode ? { code: p.currencyCode, symbol: p.currencySymbol } : null,
+            creator: p.creatorName || p.creatorSurname ? { name: p.creatorName, surname: p.creatorSurname } : null,
+        }));
 
         statusCounts.all = paymentsList.length;
         statusCounts.pending = paymentsList.filter(p => p.status === "pending").length;

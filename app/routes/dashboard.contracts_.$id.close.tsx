@@ -1,10 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useNavigate, useParams } from "react-router";
 import { useState } from "react";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and } from "drizzle-orm";
 import { requireAuth } from "~/lib/auth.server";
-import * as schema from "~/db/schema";
 import Modal from "~/components/dashboard/Modal";
 import FormSection from "~/components/dashboard/FormSection";
 import FormInput from "~/components/dashboard/FormInput";
@@ -17,65 +14,78 @@ import { BanknotesIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const contractId = Number(params.id);
 
-    // Get contract with car details
-    const contract = await db.query.contracts.findFirst({
-        where: (c, { eq }) => eq(c.id, contractId),
-        with: {
-            companyCar: {
-                with: {
-                    template: {
-                        with: {
-                            brand: true,
-                            model: true,
-                        }
-                    }
-                }
-            },
-            client: true,
-        }
-    });
+    const contract = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT
+                c.*,
+                cc.company_id AS companyId,
+                cb.name AS brandName,
+                cm.name AS modelName,
+                u.name AS clientName,
+                u.surname AS clientSurname
+            FROM contracts c
+            JOIN company_cars cc ON cc.id = c.company_car_id
+            LEFT JOIN car_templates ct ON ct.id = cc.template_id
+            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+            LEFT JOIN car_models cm ON cm.id = ct.model_id
+            LEFT JOIN users u ON u.id = c.client_id
+            WHERE c.id = ?
+            LIMIT 1
+        `)
+        .bind(contractId)
+        .first<any>();
 
     if (!contract) {
         throw new Response("Contract not found", { status: 404 });
     }
 
     // SECURITY: Verify contract belongs to user's company
-    if (user.role !== "admin" && contract.companyCar.companyId !== user.companyId) {
+    if (user.role !== "admin" && contract.companyId !== user.companyId) {
         throw new Response("Forbidden", { status: 403 });
     }
 
     // Get payment templates for contract closing (show_on_close = 1)
-    const paymentTemplates = await db.query.paymentTypes.findMany({
-        where: (pt, { eq, and, or, isNull }) => and(
-            eq(pt.isActive, true),
-            eq(pt.showOnClose, true),
-            or(
-                isNull(pt.companyId),
-                eq(pt.companyId, user.companyId!)
-            )
-        ),
-    });
+    const paymentTemplates = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT * FROM payment_types
+            WHERE is_active = 1 AND show_on_close = 1 AND (company_id IS NULL OR company_id = ?)
+        `)
+        .bind(user.companyId ?? null)
+        .all()
+        .then((r: any) => r.results || []);
 
     // Get active currencies
-    const currencies = await db.query.currencies.findMany({
-        where: (c, { eq, and, or, isNull }) => and(
-            eq(c.isActive, true),
-            or(
-                isNull(c.companyId),
-                eq(c.companyId, user.companyId!)
-            )
-        ),
-    });
+    const currencies = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT * FROM currencies
+            WHERE is_active = 1 AND (company_id IS NULL OR company_id = ?)
+        `)
+        .bind(user.companyId ?? null)
+        .all()
+        .then((r: any) => r.results || []);
 
-    return { contract, paymentTemplates, currencies };
+    return {
+        contract: {
+            ...contract,
+            companyCar: {
+                id: contract.company_car_id,
+                companyId: contract.companyId,
+                template: {
+                    brand: { name: contract.brandName },
+                    model: { name: contract.modelName },
+                },
+            },
+            client: { name: contract.clientName, surname: contract.clientSurname },
+        },
+        paymentTemplates,
+        currencies,
+    };
 }
 
 export async function action({ request, params, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const contractId = Number(params.id);
     const formData = await request.formData();
 
@@ -88,35 +98,33 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
         const notes = formData.get("notes") as string || null;
 
         // Get contract to update car status
-        const contract = await db.query.contracts.findFirst({
-            where: (c, { eq }) => eq(c.id, contractId),
-            with: {
-                companyCar: {
-                    columns: { companyId: true }
-                }
-            }
-        });
+        const contract = await context.cloudflare.env.DB
+            .prepare("SELECT id, status, company_car_id AS companyCarId FROM contracts WHERE id = ? LIMIT 1")
+            .bind(contractId)
+            .first<any>();
+        const carCompany = await context.cloudflare.env.DB
+            .prepare("SELECT company_id AS companyId FROM company_cars WHERE id = ? LIMIT 1")
+            .bind(contract?.companyCarId || 0)
+            .first<any>();
 
         if (!contract) {
             return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
         }
 
         // SECURITY: Verify contract belongs to user's company
-        if (user.role !== "admin" && contract.companyCar.companyId !== user.companyId) {
+        if (user.role !== "admin" && carCompany?.companyId !== user.companyId) {
             return redirect(`/contracts?error=${encodeURIComponent("Forbidden")}`);
         }
 
         // Update contract status to closed
-        await db.update(schema.contracts)
-            .set({
-                status: "closed",
-                actualEndDate,
-                endMileage,
-                fuelLevel,
-                cleanliness,
-                notes,
-            })
-            .where(eq(schema.contracts.id, contractId));
+        await context.cloudflare.env.DB
+            .prepare(`
+                UPDATE contracts
+                SET status = 'closed', actual_end_date = ?, end_mileage = ?, fuel_level = ?, cleanliness = ?, notes = ?, updated_at = ?
+                WHERE id = ?
+            `)
+            .bind(actualEndDate.toISOString(), endMileage, fuelLevel, cleanliness, notes, new Date().toISOString(), contractId)
+            .run();
 
         // Create payments from selected templates
         const paymentCount = Number(formData.get("paymentCount")) || 0;
@@ -127,26 +135,34 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
             const paymentMethod = formData.get(`payment_${i}_method`) as string;
 
             if (paymentTypeId && amount > 0) {
-                await db.insert(schema.payments).values({
-                    contractId,
-                    paymentTypeId,
-                    amount,
-                    currencyId,
-                    paymentMethod: paymentMethod as any,
-                    status: "completed",
-                    createdBy: user.id,
-                });
+                await context.cloudflare.env.DB
+                    .prepare(`
+                        INSERT INTO payments (
+                            contract_id, payment_type_id, amount, currency_id, payment_method, status, created_by, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?)
+                    `)
+                    .bind(
+                        contractId,
+                        paymentTypeId,
+                        amount,
+                        currencyId || null,
+                        paymentMethod || null,
+                        user.id,
+                        new Date().toISOString(),
+                        new Date().toISOString()
+                    )
+                    .run();
             }
         }
 
         // Update car status to available
         const { updateCarStatus } = await import("~/lib/contract-helpers.server");
-        await updateCarStatus(db, contract.companyCarId, 'available', 'Contract closed');
+        await updateCarStatus(context.cloudflare.env.DB, contract.companyCarId, 'available', 'Contract closed');
 
         // Audit log
         const metadata = getRequestMetadata(request);
         quickAudit({
-            db,
+            db: context.cloudflare.env.DB,
             userId: user.id,
             role: user.role,
             companyId: user.companyId,
@@ -159,8 +175,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
         });
 
         return redirect(`/contracts?success=${encodeURIComponent("Contract closed successfully")}`);
-    } catch (error) {
-        console.error("Failed to close contract:", error);
+    } catch {
         return redirect(`/contracts/${contractId}/close?error=${encodeURIComponent("Failed to close contract")}`);
     }
 }

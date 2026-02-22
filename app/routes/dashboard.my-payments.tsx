@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useSearchParams, Link } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and, desc, sql } from "drizzle-orm";
-import * as schema from "~/db/schema";
 import { CurrencyDollarIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import SimplePagination from "~/components/dashboard/SimplePagination";
@@ -11,12 +8,12 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import Card from "~/components/dashboard/Card";
 import EmptyState from "~/components/dashboard/EmptyState";
 import StatusBadge from "~/components/dashboard/StatusBadge";
+import Button from "~/components/dashboard/Button";
 
 const ITEMS_PER_PAGE = 20;
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get("page") || "1");
@@ -24,53 +21,52 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     
     const offset = (page - 1) * ITEMS_PER_PAGE;
 
-    // Build where conditions
-    const conditions = [
-        sql`${schema.contracts.clientId} = ${user.id}`
-    ];
+    const whereSql = status === "all"
+        ? "WHERE c.client_id = ?"
+        : "WHERE c.client_id = ? AND p.status = ?";
+    const countSql = `
+        SELECT COUNT(*) AS count
+        FROM payments p
+        JOIN contracts c ON c.id = p.contract_id
+        ${whereSql}
+    `;
+    const countResult = status === "all"
+        ? await context.cloudflare.env.DB.prepare(countSql).bind(user.id).first<any>()
+        : await context.cloudflare.env.DB.prepare(countSql).bind(user.id, status).first<any>();
 
-    if (status !== "all") {
-        conditions.push(sql`${schema.payments.status} = ${status}`);
-    }
-
-    // Get total count
-    const [countResult] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(schema.payments)
-        .innerJoin(schema.contracts, eq(schema.payments.contractId, schema.contracts.id))
-        .where(and(...conditions));
-
-    const totalItems = countResult?.count || 0;
+    const totalItems = Number(countResult?.count || 0);
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
-    // Get payments
-    const payments = await db
-        .select({
-            id: schema.payments.id,
-            amount: schema.payments.amount,
-            currency: schema.payments.currency,
-            paymentMethod: schema.payments.paymentMethod,
-            status: schema.payments.status,
-            notes: schema.payments.notes,
-            createdAt: schema.payments.createdAt,
-            contractId: schema.contracts.id,
-            paymentTypeName: schema.paymentTypes.name,
-            paymentTypeSign: schema.paymentTypes.sign,
-            carLicensePlate: schema.companyCars.licensePlate,
-            brandName: schema.carBrands.name,
-            modelName: schema.carModels.name,
-        })
-        .from(schema.payments)
-        .innerJoin(schema.contracts, eq(schema.payments.contractId, schema.contracts.id))
-        .innerJoin(schema.paymentTypes, eq(schema.payments.paymentTypeId, schema.paymentTypes.id))
-        .innerJoin(schema.companyCars, eq(schema.contracts.companyCarId, schema.companyCars.id))
-        .leftJoin(schema.carTemplates, eq(schema.companyCars.templateId, schema.carTemplates.id))
-        .leftJoin(schema.carBrands, eq(schema.carTemplates.brandId, schema.carBrands.id))
-        .leftJoin(schema.carModels, eq(schema.carTemplates.modelId, schema.carModels.id))
-        .where(and(...conditions))
-        .orderBy(desc(schema.payments.createdAt))
-        .limit(ITEMS_PER_PAGE)
-        .offset(offset);
+    const paymentsSql = `
+        SELECT
+            p.id,
+            p.amount,
+            p.currency,
+            p.payment_method AS paymentMethod,
+            p.status,
+            p.notes,
+            p.created_at AS createdAt,
+            c.id AS contractId,
+            pt.name AS paymentTypeName,
+            pt.sign AS paymentTypeSign,
+            cc.license_plate AS carLicensePlate,
+            cb.name AS brandName,
+            cm.name AS modelName
+        FROM payments p
+        JOIN contracts c ON c.id = p.contract_id
+        JOIN payment_types pt ON pt.id = p.payment_type_id
+        JOIN company_cars cc ON cc.id = c.company_car_id
+        LEFT JOIN car_templates ct ON ct.id = cc.template_id
+        LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+        LEFT JOIN car_models cm ON cm.id = ct.model_id
+        ${whereSql}
+        ORDER BY p.created_at DESC
+        LIMIT ? OFFSET ?
+    `;
+    const paymentsResult = status === "all"
+        ? await context.cloudflare.env.DB.prepare(paymentsSql).bind(user.id, ITEMS_PER_PAGE, offset).all()
+        : await context.cloudflare.env.DB.prepare(paymentsSql).bind(user.id, status, ITEMS_PER_PAGE, offset).all();
+    const payments = (paymentsResult as any).results || [];
 
     return { payments, totalPages, currentPage: page, status };
 }

@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { eq } from "drizzle-orm";
 import { useState, useEffect } from "react";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
@@ -38,30 +35,39 @@ interface District {
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-
-    const [hotels, locations, districts] = await Promise.all([
-        db.select().from(schema.hotels).limit(100),
-        db.select().from(schema.locations).limit(100),
-        db.select().from(schema.districts).limit(100),
+    const [hotelsResult, locationsResult, districtsResult] = await Promise.all([
+        context.cloudflare.env.DB
+            .prepare("SELECT id, name, location_id AS locationId, district_id AS districtId, address, created_at AS createdAt, updated_at AS updatedAt FROM hotels LIMIT 100")
+            .all(),
+        context.cloudflare.env.DB
+            .prepare("SELECT id, name FROM locations LIMIT 100")
+            .all(),
+        context.cloudflare.env.DB
+            .prepare("SELECT id, name, location_id AS locationId FROM districts LIMIT 100")
+            .all(),
     ]);
+
+    const hotels = (hotelsResult.results ?? []) as Hotel[];
+    const locations = (locationsResult.results ?? []) as Location[];
+    const districts = (districtsResult.results ?? []) as District[];
 
     return { user, hotels, locations, districts };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
+    await requireAuth(request);
     const formData = await request.formData();
     const intent = formData.get("intent");
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));
         try {
-            await db.delete(schema.hotels).where(eq(schema.hotels.id, id));
+            await context.cloudflare.env.DB
+                .prepare("DELETE FROM hotels WHERE id = ?")
+                .bind(id)
+                .run();
             return redirect("/hotels?success=Hotel deleted successfully");
-        } catch (error) {
-            console.error("Failed to delete hotel:", error);
+        } catch {
             return redirect("/hotels?error=Failed to delete hotel");
         }
     }
@@ -73,15 +79,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const address = formData.get("address") as string | null;
 
         try {
-            await db.insert(schema.hotels).values({
-                name,
-                locationId,
-                districtId,
-                address: address || null,
-            });
+            await context.cloudflare.env.DB
+                .prepare("INSERT INTO hotels (name, location_id, district_id, address) VALUES (?, ?, ?, ?)")
+                .bind(name, locationId, districtId, address || null)
+                .run();
             return redirect("/hotels?success=Hotel created successfully");
-        } catch (error) {
-            console.error("Failed to create hotel:", error);
+        } catch {
             return redirect("/hotels?error=Failed to create hotel");
         }
     }
@@ -94,13 +97,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const address = formData.get("address") as string | null;
 
         try {
-            await db
-                .update(schema.hotels)
-                .set({ name, locationId, districtId, address: address || null })
-                .where(eq(schema.hotels.id, id));
+            await context.cloudflare.env.DB
+                .prepare("UPDATE hotels SET name = ?, location_id = ?, district_id = ?, address = ? WHERE id = ?")
+                .bind(name, locationId, districtId, address || null, id)
+                .run();
             return redirect("/hotels?success=Hotel updated successfully");
-        } catch (error) {
-            console.error("Failed to update hotel:", error);
+        } catch {
             return redirect("/hotels?error=Failed to update hotel");
         }
     }

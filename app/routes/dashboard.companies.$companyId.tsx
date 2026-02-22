@@ -1,13 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Link, Form } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, desc, sql, and, gte, count } from "drizzle-orm";
-import { 
-    companies, users, companyCars, contracts, 
-    calendarEvents, carModels, carBrands, payments,
-    managers
-} from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import StatusBadge from "~/components/dashboard/StatusBadge";
@@ -26,7 +19,6 @@ import { useState } from "react";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB);
     const companyId = parseInt(params.companyId || "0");
 
     let company: any = null;
@@ -44,81 +36,80 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     let teamMembers: any[] = [];
 
     try {
-        // Load company info
-        const companyData = await db
-            .select()
-            .from(companies)
-            .where(eq(companies.id, companyId))
-            .limit(1);
-
-        company = companyData[0] || null;
+        company = await context.cloudflare.env.DB
+            .prepare("SELECT * FROM companies WHERE id = ? LIMIT 1")
+            .bind(companyId)
+            .first<any>();
 
         if (!company) {
             throw new Response("Company not found", { status: 404 });
         }
 
-        // Load stats
-        const [totalVehicles] = await db
-            .select({ count: count() })
-            .from(companyCars)
-            .where(eq(companyCars.companyId, companyId));
+        const nowIso = new Date().toISOString();
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+        const monthStartIso = monthStart.toISOString();
 
-        const [inWorkshop] = await db
-            .select({ count: count() })
-            .from(companyCars)
-            .where(and(
-                eq(companyCars.companyId, companyId),
-                eq(companyCars.status, "maintenance")
-            ));
-
-        const [activeBookings] = await db
-            .select({ count: count() })
-            .from(contracts)
-            .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-            .where(and(
-                eq(companyCars.companyId, companyId),
-                eq(contracts.status, "active")
-            ));
-
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        startOfMonth.setHours(0, 0, 0, 0);
-
-        // Get upcoming bookings (future start date)
-        const [upcomingBookings] = await db
-            .select({ count: count() })
-            .from(contracts)
-            .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-            .where(and(
-                eq(companyCars.companyId, companyId),
-                gte(contracts.startDate, now)
-            ));
-
-        // Get total revenue
-        const [totalRevenue] = await db
-            .select({ sum: sql<number>`coalesce(sum(${payments.amount}), 0)` })
-            .from(payments)
-            .innerJoin(contracts, eq(payments.contractId, contracts.id))
-            .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-            .where(eq(companyCars.companyId, companyId));
-
-        // Get this month revenue
-        const [thisMonthRevenue] = await db
-            .select({ sum: sql<number>`coalesce(sum(${payments.amount}), 0)` })
-            .from(payments)
-            .innerJoin(contracts, eq(payments.contractId, contracts.id))
-            .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-            .where(and(
-                eq(companyCars.companyId, companyId),
-                gte(payments.createdAt, startOfMonth)
-            ));
-
-        // Get total unique customers
-        const [totalCustomers] = await db
-            .select({ count: sql<number>`count(distinct ${contracts.clientId})` })
-            .from(contracts)
-            .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-            .where(eq(companyCars.companyId, companyId));
+        const [
+            totalVehicles,
+            inWorkshop,
+            activeBookings,
+            upcomingBookings,
+            totalRevenue,
+            thisMonthRevenue,
+            totalCustomers,
+        ] = await Promise.all([
+            context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM company_cars WHERE company_id = ?").bind(companyId).first<any>(),
+            context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM company_cars WHERE company_id = ? AND status = 'maintenance'").bind(companyId).first<any>(),
+            context.cloudflare.env.DB
+                .prepare(`
+                    SELECT COUNT(*) AS count
+                    FROM contracts c
+                    JOIN company_cars cc ON cc.id = c.company_car_id
+                    WHERE cc.company_id = ? AND c.status = 'active'
+                `)
+                .bind(companyId)
+                .first<any>(),
+            context.cloudflare.env.DB
+                .prepare(`
+                    SELECT COUNT(*) AS count
+                    FROM contracts c
+                    JOIN company_cars cc ON cc.id = c.company_car_id
+                    WHERE cc.company_id = ? AND c.start_date >= ?
+                `)
+                .bind(companyId, nowIso)
+                .first<any>(),
+            context.cloudflare.env.DB
+                .prepare(`
+                    SELECT COALESCE(SUM(p.amount), 0) AS sum
+                    FROM payments p
+                    JOIN contracts c ON c.id = p.contract_id
+                    JOIN company_cars cc ON cc.id = c.company_car_id
+                    WHERE cc.company_id = ?
+                `)
+                .bind(companyId)
+                .first<any>(),
+            context.cloudflare.env.DB
+                .prepare(`
+                    SELECT COALESCE(SUM(p.amount), 0) AS sum
+                    FROM payments p
+                    JOIN contracts c ON c.id = p.contract_id
+                    JOIN company_cars cc ON cc.id = c.company_car_id
+                    WHERE cc.company_id = ? AND p.created_at >= ?
+                `)
+                .bind(companyId, monthStartIso)
+                .first<any>(),
+            context.cloudflare.env.DB
+                .prepare(`
+                    SELECT COUNT(DISTINCT c.client_id) AS count
+                    FROM contracts c
+                    JOIN company_cars cc ON cc.id = c.company_car_id
+                    WHERE cc.company_id = ?
+                `)
+                .bind(companyId)
+                .first<any>(),
+        ]);
 
         stats = {
             totalVehicles: totalVehicles?.count || 0,
@@ -131,81 +122,65 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         };
 
         // Load vehicles
-        const vehiclesData = await db
-            .select({
-                id: companyCars.id,
-                licensePlate: companyCars.licensePlate,
-                year: companyCars.year,
-                pricePerDay: companyCars.pricePerDay,
-                status: companyCars.status,
-                mileage: companyCars.mileage,
-                brandName: carBrands.name,
-                modelName: carModels.name,
-            })
-            .from(companyCars)
-            .leftJoin(carModels, eq(companyCars.templateId, carModels.id))
-            .leftJoin(carBrands, eq(carModels.brandId, carBrands.id))
-            .where(eq(companyCars.companyId, companyId))
-            .orderBy(desc(companyCars.createdAt))
-            .limit(100);
-
-        vehicles = vehiclesData;
+        const vehiclesData = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT
+                    cc.id,
+                    cc.license_plate AS licensePlate,
+                    cc.year,
+                    cc.price_per_day AS pricePerDay,
+                    cc.status,
+                    cc.mileage,
+                    cb.name AS brandName,
+                    cm.name AS modelName
+                FROM company_cars cc
+                LEFT JOIN car_models cm ON cm.id = cc.template_id
+                LEFT JOIN car_brands cb ON cb.id = cm.brand_id
+                WHERE cc.company_id = ?
+                ORDER BY cc.created_at DESC
+                LIMIT 100
+            `)
+            .bind(companyId)
+            .all() as { results?: any[] };
+        vehicles = vehiclesData.results || [];
 
         // Load team members (managers + owner)
-        const ownerData = await db
-            .select({
-                id: users.id,
-                name: users.name,
-                surname: users.surname,
-                email: users.email,
-                phone: users.phone,
-                role: sql`'owner'`.as("role"),
-                avatarUrl: users.avatarUrl,
-            })
-            .from(users)
-            .where(eq(users.id, company.ownerId))
-            .limit(1);
-
-        const managersData = await db
-            .select({
-                id: users.id,
-                name: users.name,
-                surname: users.surname,
-                email: users.email,
-                phone: users.phone,
-                role: sql`'manager'`.as("role"),
-                avatarUrl: users.avatarUrl,
-            })
-            .from(managers)
-            .innerJoin(users, eq(managers.userId, users.id))
-            .where(and(
-                eq(managers.companyId, companyId),
-                eq(managers.isActive, true)
-            ));
-
-        teamMembers = [...ownerData, ...managersData];
+        const [ownerData, managersData] = await Promise.all([
+            context.cloudflare.env.DB
+                .prepare(`
+                    SELECT id, name, surname, email, phone, avatar_url AS avatarUrl, 'owner' AS role
+                    FROM users
+                    WHERE id = ?
+                    LIMIT 1
+                `)
+                .bind(company.owner_id)
+                .all(),
+            context.cloudflare.env.DB
+                .prepare(`
+                    SELECT u.id, u.name, u.surname, u.email, u.phone, u.avatar_url AS avatarUrl, 'manager' AS role
+                    FROM managers m
+                    JOIN users u ON u.id = m.user_id
+                    WHERE m.company_id = ? AND m.is_active = 1
+                `)
+                .bind(companyId)
+                .all(),
+        ]);
+        teamMembers = [...((ownerData as any).results || []), ...((managersData as any).results || [])];
 
         // Load recent activity (calendar events)
-        const activityData = await db
-            .select({
-                id: calendarEvents.id,
-                title: calendarEvents.title,
-                description: calendarEvents.description,
-                startDate: calendarEvents.startDate,
-                status: calendarEvents.status,
-            })
-            .from(calendarEvents)
-            .where(and(
-                eq(calendarEvents.companyId, companyId),
-                eq(calendarEvents.status, "pending")
-            ))
-            .orderBy(desc(calendarEvents.startDate))
-            .limit(10);
-
-        recentActivity = activityData;
-
-    } catch (error) {
-        console.error("Error loading company data:", error);
+        const activityData = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT id, title, description, start_date AS startDate, status
+                FROM calendar_events
+                WHERE company_id = ? AND status = 'pending'
+                ORDER BY start_date DESC
+                LIMIT 10
+            `)
+            .bind(companyId)
+            .all() as { results?: any[] };
+        recentActivity = activityData.results || [];
+    } catch {
+        company = null;
     }
 
     return { 

@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and, gte } from "drizzle-orm";
-import * as schema from "~/db/schema";
 import { BellIcon, CalendarIcon, CurrencyDollarIcon, TruckIcon } from "@heroicons/react/24/outline";
 import { format, addDays } from "date-fns";
 import PageHeader from "~/components/dashboard/PageHeader";
@@ -12,7 +9,6 @@ import EmptyState from "~/components/dashboard/EmptyState";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
 
     const notifications: Array<{
         id: string;
@@ -25,27 +21,25 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     // Get upcoming contract end dates (within 3 days)
     const threeDaysFromNow = addDays(new Date(), 3);
-    const upcomingContracts = await db
-        .select({
-            id: schema.contracts.id,
-            endDate: schema.contracts.endDate,
-            carLicensePlate: schema.companyCars.licensePlate,
-            brandName: schema.carBrands.name,
-            modelName: schema.carModels.name,
-        })
-        .from(schema.contracts)
-        .innerJoin(schema.companyCars, eq(schema.contracts.companyCarId, schema.companyCars.id))
-        .leftJoin(schema.carTemplates, eq(schema.companyCars.templateId, schema.carTemplates.id))
-        .leftJoin(schema.carBrands, eq(schema.carTemplates.brandId, schema.carBrands.id))
-        .leftJoin(schema.carModels, eq(schema.carTemplates.modelId, schema.carModels.id))
-        .where(
-            and(
-                eq(schema.contracts.clientId, user.id),
-                eq(schema.contracts.status, "active"),
-                gte(schema.contracts.endDate, new Date())
-            )
-        )
-        .limit(10);
+    const upcomingContractsResult = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT
+                c.id,
+                c.end_date AS endDate,
+                cc.license_plate AS carLicensePlate,
+                cb.name AS brandName,
+                cm.name AS modelName
+            FROM contracts c
+            JOIN company_cars cc ON cc.id = c.company_car_id
+            LEFT JOIN car_templates ct ON ct.id = cc.template_id
+            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+            LEFT JOIN car_models cm ON cm.id = ct.model_id
+            WHERE c.client_id = ? AND c.status = 'active' AND c.end_date >= ?
+            LIMIT 10
+        `)
+        .bind(user.id, new Date().toISOString())
+        .all() as { results?: any[] };
+    const upcomingContracts = upcomingContractsResult.results || [];
 
     upcomingContracts.forEach((contract) => {
         if (contract.endDate <= threeDaysFromNow) {
@@ -62,28 +56,27 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     // Get recent contracts (last 7 days)
     const sevenDaysAgo = addDays(new Date(), -7);
-    const recentContracts = await db
-        .select({
-            id: schema.contracts.id,
-            createdAt: schema.contracts.createdAt,
-            status: schema.contracts.status,
-            carLicensePlate: schema.companyCars.licensePlate,
-            brandName: schema.carBrands.name,
-            modelName: schema.carModels.name,
-        })
-        .from(schema.contracts)
-        .innerJoin(schema.companyCars, eq(schema.contracts.companyCarId, schema.companyCars.id))
-        .leftJoin(schema.carTemplates, eq(schema.companyCars.templateId, schema.carTemplates.id))
-        .leftJoin(schema.carBrands, eq(schema.carTemplates.brandId, schema.carBrands.id))
-        .leftJoin(schema.carModels, eq(schema.carTemplates.modelId, schema.carModels.id))
-        .where(
-            and(
-                eq(schema.contracts.clientId, user.id),
-                gte(schema.contracts.createdAt, sevenDaysAgo)
-            )
-        )
-        .orderBy(schema.contracts.createdAt)
-        .limit(5);
+    const recentContractsResult = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT
+                c.id,
+                c.created_at AS createdAt,
+                c.status,
+                cc.license_plate AS carLicensePlate,
+                cb.name AS brandName,
+                cm.name AS modelName
+            FROM contracts c
+            JOIN company_cars cc ON cc.id = c.company_car_id
+            LEFT JOIN car_templates ct ON ct.id = cc.template_id
+            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+            LEFT JOIN car_models cm ON cm.id = ct.model_id
+            WHERE c.client_id = ? AND c.created_at >= ?
+            ORDER BY c.created_at DESC
+            LIMIT 5
+        `)
+        .bind(user.id, sevenDaysAgo.toISOString())
+        .all() as { results?: any[] };
+    const recentContracts = recentContractsResult.results || [];
 
     recentContracts.forEach((contract) => {
         notifications.push({

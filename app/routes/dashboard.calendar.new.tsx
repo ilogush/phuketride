@@ -1,9 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useNavigate, useSearchParams } from "react-router";
 import { useEffect } from "react";
-import { drizzle } from "drizzle-orm/d1";
 import { requireAuth } from "~/lib/auth.server";
-import * as schema from "~/db/schema";
 import FormSection from "~/components/dashboard/FormSection";
 import FormInput from "~/components/dashboard/FormInput";
 import FormSelect from "~/components/dashboard/FormSelect";
@@ -11,7 +9,6 @@ import { Textarea } from "~/components/dashboard/Textarea";
 import Modal from "~/components/dashboard/Modal";
 import Button from "~/components/dashboard/Button";
 import { useToast } from "~/lib/toast";
-import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { CalendarIcon } from "@heroicons/react/24/outline";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -21,7 +18,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
     try {
@@ -32,35 +28,29 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const endDate = formData.get("endDate") ? new Date(formData.get("endDate") as string) : null;
         const color = formData.get("color") as string || "#3B82F6";
 
-        const [newEvent] = await db.insert(schema.calendarEvents).values({
-            companyId: user.companyId!,
-            eventType: eventType as any,
-            title,
-            description,
-            startDate,
-            endDate,
-            color,
-            status: "pending",
-            createdBy: user.id,
-        }).returning({ id: schema.calendarEvents.id });
-
-        // Audit log
-        const metadata = getRequestMetadata(request);
-        quickAudit({
-            db,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId,
-            entityType: "calendar-event",
-            entityId: newEvent.id,
-            action: "create",
-            afterState: { eventId: newEvent.id, title, eventType },
-            ...metadata,
-        });
+        await context.cloudflare.env.DB
+            .prepare(
+                `
+                INSERT INTO calendar_events (
+                  company_id, event_type, title, description,
+                  start_date, end_date, color, status, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+                `
+            )
+            .bind(
+                user.companyId!,
+                eventType,
+                title,
+                description,
+                startDate.getTime(),
+                endDate ? endDate.getTime() : null,
+                color,
+                user.id
+            )
+            .run();
 
         return redirect(`/dashboard/calendar?success=${encodeURIComponent("Event created successfully")}`);
-    } catch (error) {
-        console.error("Failed to create event:", error);
+    } catch {
         return redirect(`/dashboard/calendar/new?error=${encodeURIComponent("Failed to create event")}`);
     }
 }

@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { eq } from "drizzle-orm";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
@@ -24,27 +21,34 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         throw new Response("Forbidden", { status: 403 });
     }
 
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-
     const userId = params.userId;
     if (!userId) {
         throw new Response("User ID is required", { status: 400 });
     }
 
-    const user = await db.query.users.findFirst({
-        where: eq(schema.users.id, userId),
-        columns: { passwordHash: false },
-    });
+    const user = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT id, email, role, name, surname, phone, whatsapp, telegram,
+                   passport_number AS passportNumber, citizenship, city, country_id AS countryId,
+                   date_of_birth AS dateOfBirth, gender, avatar_url AS avatarUrl,
+                   hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
+                   district_id AS districtId, address
+            FROM users
+            WHERE id = ?
+            LIMIT 1
+        `)
+        .bind(userId)
+        .first<any>();
     if (!user) {
         throw new Response("User not found", { status: 404 });
     }
 
     // Load reference data
     const [countries, hotels, locations, districts] = await Promise.all([
-        db.select().from(schema.countries).all(),
-        db.select().from(schema.hotels).all(),
-        db.select().from(schema.locations).all(),
-        db.select().from(schema.districts).all(),
+        context.cloudflare.env.DB.prepare("SELECT * FROM countries ORDER BY name ASC").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM hotels ORDER BY name ASC").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM locations ORDER BY name ASC").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM districts ORDER BY name ASC").all().then((r: any) => r.results || []),
     ]);
 
     return { user, countries, hotels, locations, districts };
@@ -56,7 +60,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         throw new Response("Forbidden", { status: 403 });
     }
 
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
     const userId = params.userId;
@@ -65,10 +68,18 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     }
 
     // Get current user state for audit log
-    const currentUser = await db.query.users.findFirst({
-        where: eq(schema.users.id, userId),
-        columns: { passwordHash: false },
-    });
+    const currentUser = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT id, email, role, name, surname, phone, whatsapp, telegram,
+                   passport_number AS passportNumber, citizenship, city, country_id AS countryId,
+                   date_of_birth AS dateOfBirth, gender, hotel_id AS hotelId, room_number AS roomNumber,
+                   location_id AS locationId, district_id AS districtId, address
+            FROM users
+            WHERE id = ?
+            LIMIT 1
+        `)
+        .bind(userId)
+        .first<any>();
     if (!currentUser) {
         throw new Response("User not found", { status: 404 });
     }
@@ -108,30 +119,9 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const validData = validation.data;
 
     try {
-        const updateData: any = {
-            email: validData.email,
-            role: validData.role,
-            name: validData.name,
-            surname: validData.surname,
-            phone: validData.phone,
-            whatsapp: validData.whatsapp,
-            telegram: validData.telegram,
-            passportNumber: validData.passportNumber,
-            citizenship: validData.citizenship,
-            city: validData.city,
-            countryId: validData.countryId,
-            dateOfBirth: validData.dateOfBirth ? new Date(validData.dateOfBirth) : null,
-            gender: validData.gender,
-            hotelId: validData.hotelId,
-            roomNumber: validData.roomNumber,
-            locationId: validData.locationId,
-            districtId: validData.districtId,
-            address: validData.address,
-            updatedAt: new Date(),
-        };
-
         const passwordChanged = !!(newPassword || confirmPassword);
-        if (newPassword || confirmPassword) {
+        let passwordHash: string | null = null;
+        if (passwordChanged) {
             if (newPassword.length < PASSWORD_MIN_LENGTH) {
                 return redirect(`/users/${userId}/edit?error=${encodeURIComponent(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`)}`);
             }
@@ -139,15 +129,48 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 return redirect(`/users/${userId}/edit?error=${encodeURIComponent("Passwords do not match")}`);
             }
             const { hashPassword } = await import("~/lib/password.server");
-            updateData.passwordHash = await hashPassword(newPassword);
+            passwordHash = await hashPassword(newPassword);
         }
 
-        await db.update(schema.users).set(updateData).where(eq(schema.users.id, userId));
+        const dateOfBirth = validData.dateOfBirth ? new Date(validData.dateOfBirth).toISOString() : null;
+        await context.cloudflare.env.DB
+            .prepare(`
+                UPDATE users
+                SET email = ?, role = ?, name = ?, surname = ?, phone = ?, whatsapp = ?, telegram = ?,
+                    passport_number = ?, citizenship = ?, city = ?, country_id = ?, date_of_birth = ?,
+                    gender = ?, hotel_id = ?, room_number = ?, location_id = ?, district_id = ?, address = ?,
+                    password_hash = COALESCE(?, password_hash), updated_at = ?
+                WHERE id = ?
+            `)
+            .bind(
+                validData.email,
+                validData.role,
+                validData.name,
+                validData.surname,
+                validData.phone,
+                validData.whatsapp,
+                validData.telegram,
+                validData.passportNumber,
+                validData.citizenship,
+                validData.city,
+                validData.countryId,
+                dateOfBirth,
+                validData.gender,
+                validData.hotelId,
+                validData.roomNumber,
+                validData.locationId,
+                validData.districtId,
+                validData.address,
+                passwordHash,
+                new Date().toISOString(),
+                userId
+            )
+            .run();
 
         // Audit log
         const metadata = getRequestMetadata(request);
         quickAudit({
-            db,
+            db: context.cloudflare.env.DB,
             userId: sessionUser.id,
             role: sessionUser.role,
             companyId: sessionUser.companyId,
@@ -160,8 +183,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         });
 
         return redirect(`/users/${userId}?success=${encodeURIComponent("User updated successfully")}`);
-    } catch (error) {
-        console.error("Failed to update user:", error);
+    } catch {
         return redirect(`/users/${userId}/edit?error=${encodeURIComponent("Failed to update user")}`);
     }
 }

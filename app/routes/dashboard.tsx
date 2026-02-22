@@ -2,10 +2,7 @@ import { useState, useEffect, createContext, useContext } from "react";
 import { type LoaderFunctionArgs } from "react-router";
 import { Outlet, useLoaderData, useLocation, useParams, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and, gte } from "drizzle-orm";
 import { addDays } from "date-fns";
-import * as schema from "~/db/schema";
 import Sidebar from "~/components/dashboard/Sidebar";
 import Topbar from "~/components/dashboard/Topbar";
 import { useToast } from "~/lib/toast";
@@ -32,21 +29,18 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     let notificationsCount = 0;
     
     try {
-        const db = drizzle(context.cloudflare.env.DB, { schema });
-        
         // Count upcoming contract end dates (within 3 days)
         const threeDaysFromNow = addDays(new Date(), 3);
-        const upcomingContracts = await db
-            .select()
-            .from(schema.contracts)
-            .where(
-                and(
-                    eq(schema.contracts.clientId, user.id),
-                    eq(schema.contracts.status, "active"),
-                    gte(schema.contracts.endDate, new Date())
-                )
-            )
-            .limit(10);
+        const upcomingContractsResult = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT end_date AS endDate
+                FROM contracts
+                WHERE client_id = ? AND status = 'active' AND end_date >= ?
+                LIMIT 10
+            `)
+            .bind(user.id, new Date().toISOString())
+            .all() as { results?: any[] };
+        const upcomingContracts = upcomingContractsResult.results || [];
         
         // Filter contracts ending within 3 days
         const upcomingCount = upcomingContracts.filter(
@@ -55,16 +49,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         
         // Count recent contracts (last 7 days)
         const sevenDaysAgo = addDays(new Date(), -7);
-        const recentContracts = await db
-            .select()
-            .from(schema.contracts)
-            .where(
-                and(
-                    eq(schema.contracts.clientId, user.id),
-                    gte(schema.contracts.createdAt, sevenDaysAgo)
-                )
-            )
-            .limit(5);
+        const recentContractsResult = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT id
+                FROM contracts
+                WHERE client_id = ? AND created_at >= ?
+                LIMIT 5
+            `)
+            .bind(user.id, sevenDaysAgo.toISOString())
+            .all() as { results?: any[] };
+        const recentContracts = recentContractsResult.results || [];
         
         notificationsCount = upcomingCount + recentContracts.length;
     } catch {

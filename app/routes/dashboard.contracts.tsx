@@ -2,9 +2,6 @@ import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams, Outlet } from "react-router";
 import { useState, useEffect } from "react";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
-import { contracts, companyCars } from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -17,7 +14,6 @@ import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB);
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
     let contractsList: any[] = [];
@@ -25,20 +21,23 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     try {
         if (effectiveCompanyId) {
-            const companyCarsForCompany = await db
-                .select({ id: companyCars.id })
-                .from(companyCars)
-                .where(eq(companyCars.companyId, effectiveCompanyId));
-
-            const carIds = companyCarsForCompany.map(car => car.id);
-
-            if (carIds.length > 0) {
-                // Get contracts for these cars
-                const allContracts = await db.select().from(contracts).limit(100);
-                contractsList = allContracts.filter(c => carIds.includes(c.companyCarId));
-            }
+            const result = await context.cloudflare.env.DB
+                .prepare(`
+                    SELECT c.*
+                    FROM contracts c
+                    JOIN company_cars cc ON cc.id = c.company_car_id
+                    WHERE cc.company_id = ?
+                    ORDER BY c.created_at DESC
+                    LIMIT 100
+                `)
+                .bind(effectiveCompanyId)
+                .all() as { results?: any[] };
+            contractsList = result.results || [];
         } else {
-            contractsList = await db.select().from(contracts).limit(50);
+            const result = await context.cloudflare.env.DB
+                .prepare("SELECT * FROM contracts ORDER BY created_at DESC LIMIT 50")
+                .all() as { results?: any[] };
+            contractsList = result.results || [];
         }
 
         statusCounts.all = contractsList.length;

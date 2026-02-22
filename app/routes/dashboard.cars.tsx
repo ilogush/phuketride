@@ -2,10 +2,6 @@ import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
-import { companyCars } from "~/db/schema";
-import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -17,43 +13,60 @@ import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
     let cars: any[] = [];
     let statusCounts = { all: 0, available: 0, rented: 0, maintenance: 0, booked: 0 };
 
     try {
-        const carsQuery = !effectiveCompanyId
-            ? db.query.companyCars.findMany({
-                with: {
-                    template: {
-                        with: {
-                            brand: true,
-                            model: true,
-                            bodyType: true,
-                        }
-                    },
-                    color: true,
-                },
-                limit: 50,
-            })
-            : db.query.companyCars.findMany({
-                where: (companyCars, { eq }) => eq(companyCars.companyId, effectiveCompanyId),
-                with: {
-                    template: {
-                        with: {
-                            brand: true,
-                            model: true,
-                            bodyType: true,
-                        }
-                    },
-                    color: true,
-                },
-                limit: 50,
-            });
-
-        cars = await carsQuery;
+        const query = effectiveCompanyId
+            ? context.cloudflare.env.DB.prepare(`
+                SELECT
+                    cc.*,
+                    cb.name AS brandName,
+                    cm.name AS modelName,
+                    bt.name AS bodyTypeName,
+                    cl.name AS colorName
+                FROM company_cars cc
+                LEFT JOIN car_templates ct ON ct.id = cc.template_id
+                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+                LEFT JOIN car_models cm ON cm.id = ct.model_id
+                LEFT JOIN body_types bt ON bt.id = ct.body_type_id
+                LEFT JOIN colors cl ON cl.id = cc.color_id
+                WHERE cc.company_id = ?
+                ORDER BY cc.created_at DESC
+                LIMIT 50
+            `).bind(effectiveCompanyId)
+            : context.cloudflare.env.DB.prepare(`
+                SELECT
+                    cc.*,
+                    cb.name AS brandName,
+                    cm.name AS modelName,
+                    bt.name AS bodyTypeName,
+                    cl.name AS colorName
+                FROM company_cars cc
+                LEFT JOIN car_templates ct ON ct.id = cc.template_id
+                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+                LEFT JOIN car_models cm ON cm.id = ct.model_id
+                LEFT JOIN body_types bt ON bt.id = ct.body_type_id
+                LEFT JOIN colors cl ON cl.id = cc.color_id
+                ORDER BY cc.created_at DESC
+                LIMIT 50
+            `);
+        const result = await query.all() as { results?: any[] };
+        cars = (result.results || []).map((car) => ({
+            ...car,
+            licensePlate: car.license_plate,
+            pricePerDay: car.price_per_day,
+            insuranceType: car.insurance_type,
+            template: {
+                brand: { name: car.brandName },
+                model: { name: car.modelName },
+                bodyType: { name: car.bodyTypeName },
+                engineVolume: car.engine_volume,
+            },
+            color: { name: car.colorName },
+        }));
 
         statusCounts.all = cars.length;
         statusCounts.available = cars.filter(c => c.status === "available").length;

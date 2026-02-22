@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { eq, count } from "drizzle-orm";
 import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
@@ -13,7 +10,6 @@ import { useEffect } from "react";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     
     // Get showArchived from query params
     const url = new URL(request.url);
@@ -22,61 +18,40 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     let companiesList: any[] = [];
 
     try {
-        // Fetch companies with additional data using relations
-        const companiesData = await db.query.companies.findMany({
-            with: {
-                owner: {
-                    columns: {
-                        name: true,
-                        surname: true,
-                        archivedAt: true,
-                    },
-                },
-            },
-            limit: 50,
-        });
-
-        // Filter companies based on archived status
-        const filteredCompaniesData = companiesData.filter(c => {
-            if (showArchived) return true; // Show all if archived filter is on
-            return !c.archivedAt; // Show only non-archived by default
-        });
-
-        // Fetch district and car count for each company
-        for (const company of filteredCompaniesData) {
-            // Get district info
-            const districtData = await db.select({
-                name: schema.districts.name,
-            })
-            .from(schema.districts)
-            .where(eq(schema.districts.id, company.districtId || 0))
-            .limit(1);
-
-            // Get car count
-            const carCountData = await db.select({
-                count: count(schema.companyCars.id),
-            })
-            .from(schema.companyCars)
-            .where(eq(schema.companyCars.companyId, company.id));
-
-            companiesList.push({
-                id: company.id,
-                name: company.name,
-                email: company.email,
-                phone: company.phone,
-                locationId: company.locationId,
-                districtId: company.districtId,
-                ownerId: company.ownerId,
-                archivedAt: company.archivedAt,
-                partnerName: company.owner ? `${company.owner.name || ''} ${company.owner.surname || ''}`.trim() : '-',
-                partnerArchived: !!company.owner?.archivedAt,
-                districtName: districtData[0]?.name || '-',
-                carCount: carCountData[0]?.count || 0,
-                status: company.archivedAt ? 'archived' : 'active',
-            });
-        }
-    } catch (error) {
-        console.error("Error loading companies:", error);
+        const baseSql = `
+            SELECT
+                c.id,
+                c.name,
+                c.email,
+                c.phone,
+                c.location_id AS locationId,
+                c.district_id AS districtId,
+                c.owner_id AS ownerId,
+                c.archived_at AS archivedAt,
+                u.name AS ownerName,
+                u.surname AS ownerSurname,
+                u.archived_at AS ownerArchivedAt,
+                d.name AS districtName,
+                COUNT(cc.id) AS carCount
+            FROM companies c
+            LEFT JOIN users u ON u.id = c.owner_id
+            LEFT JOIN districts d ON d.id = c.district_id
+            LEFT JOIN company_cars cc ON cc.company_id = c.id
+            ${showArchived ? "" : "WHERE c.archived_at IS NULL"}
+            GROUP BY c.id
+            ORDER BY c.created_at DESC
+            LIMIT 50
+        `;
+        const result = await context.cloudflare.env.DB.prepare(baseSql).all() as { results?: any[] };
+        companiesList = (result.results || []).map((company) => ({
+            ...company,
+            partnerName: `${company.ownerName || ""} ${company.ownerSurname || ""}`.trim() || "-",
+            partnerArchived: !!company.ownerArchivedAt,
+            carCount: Number(company.carCount || 0),
+            status: company.archivedAt ? "archived" : "active",
+        }));
+    } catch {
+        companiesList = [];
     }
 
     return { user, companies: companiesList, showArchived };

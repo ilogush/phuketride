@@ -2,9 +2,6 @@ import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "reac
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
-import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
@@ -23,24 +20,32 @@ import { calculateSeasonalPrice, getAverageDays } from "~/lib/pricing";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-
-    // Load templates with related data using relations
-    const templatesList = await db.query.carTemplates.findMany({
-        with: {
-            brand: true,
-            model: true,
-            bodyType: true,
-            fuelType: true,
-        },
-        limit: 100,
-    });
-
-    const [colorsList, seasonsList, durationsList, fuelTypesList] = await Promise.all([
-        db.select().from(schema.colors).limit(100),
-        db.select().from(schema.seasons).limit(10),
-        db.select().from(schema.rentalDurations).limit(10),
-        db.select().from(schema.fuelTypes).limit(20),
+    const [templatesList, colorsList, seasonsList, durationsList, fuelTypesList] = await Promise.all([
+        context.cloudflare.env.DB.prepare(`
+            SELECT
+                ct.*,
+                cb.name AS brandName,
+                cm.name AS modelName,
+                bt.name AS bodyTypeName,
+                ft.name AS fuelTypeName
+            FROM car_templates ct
+            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+            LEFT JOIN car_models cm ON cm.id = ct.model_id
+            LEFT JOIN body_types bt ON bt.id = ct.body_type_id
+            LEFT JOIN fuel_types ft ON ft.id = ct.fuel_type_id
+            LIMIT 100
+        `).all().then((r: any) => (r.results || []).map((t: any) => ({
+            ...t,
+            brand: { name: t.brandName },
+            model: { name: t.modelName },
+            bodyType: { name: t.bodyTypeName },
+            fuelType: { name: t.fuelTypeName },
+            engineVolume: t.engine_volume,
+        }))),
+        context.cloudflare.env.DB.prepare("SELECT * FROM colors LIMIT 100").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM seasons LIMIT 10").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM rental_durations LIMIT 10").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM fuel_types LIMIT 20").all().then((r: any) => r.results || []),
     ]);
 
     return { 
@@ -55,7 +60,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
     const companyId = user.companyId!;
@@ -100,10 +104,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
     try {
         const marketingHeadline = formData.get("marketingHeadline") as string || null;
         const description = formData.get("description") as string || null;
-        const fuelTypes = await db.select({
-            id: schema.fuelTypes.id,
-            name: schema.fuelTypes.name,
-        }).from(schema.fuelTypes);
+        const fuelTypesResult = await context.cloudflare.env.DB
+            .prepare("SELECT id, name FROM fuel_types")
+            .all() as { results?: any[] };
+        const fuelTypes = fuelTypesResult.results || [];
         const fuelType = fuelTypes.find((item) => item.name.toLowerCase() === validData.fuelType.toLowerCase());
 
         // Handle photos upload to R2
@@ -123,41 +127,53 @@ export async function action({ request, context }: ActionFunctionArgs) {
                         })
                     );
                 }
-            } catch (e) {
-                console.error("Failed to upload photos:", e);
+            } catch {
             }
         }
 
-        const [newCar] = await db.insert(schema.companyCars).values({
-            companyId,
-            templateId: validData.templateId,
-            colorId: validData.colorId,
-            licensePlate: validData.licensePlate,
-            transmission: validData.transmission,
-            engineVolume: validData.engineVolume,
-            fuelTypeId: fuelType?.id ?? null,
-            vin: validData.vin,
-            status: validData.status,
-            mileage: validData.currentMileage,
-            nextOilChangeMileage: validData.nextOilChangeMileage,
-            oilChangeInterval: validData.oilChangeInterval,
-            pricePerDay: validData.pricePerDay,
-            deposit: validData.deposit,
-            insuranceType: validData.insuranceType,
-            insuranceExpiryDate: validData.insuranceExpiry ? new Date(validData.insuranceExpiry.split('-').reverse().join('-')) : null,
-            registrationExpiry: validData.registrationExpiry ? new Date(validData.registrationExpiry.split('-').reverse().join('-')) : null,
-            taxRoadExpiryDate: validData.taxRoadExpiry ? new Date(validData.taxRoadExpiry.split('-').reverse().join('-')) : null,
-            minInsurancePrice: validData.minInsurancePrice,
-            maxInsurancePrice: validData.maxInsurancePrice,
-            marketingHeadline,
-            description,
-            photos: photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
-        }).returning({ id: schema.companyCars.id });
+        const insertResult = await context.cloudflare.env.DB
+            .prepare(`
+                INSERT INTO company_cars (
+                    company_id, template_id, color_id, license_plate, transmission, engine_volume, fuel_type_id,
+                    vin, status, mileage, next_oil_change_mileage, oil_change_interval, price_per_day, deposit,
+                    insurance_type, insurance_expiry_date, registration_expiry, tax_road_expiry_date,
+                    min_insurance_price, max_insurance_price, marketing_headline, description, photos, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `)
+            .bind(
+                companyId,
+                validData.templateId,
+                validData.colorId,
+                validData.licensePlate,
+                validData.transmission,
+                validData.engineVolume,
+                fuelType?.id ?? null,
+                validData.vin,
+                validData.status,
+                validData.currentMileage,
+                validData.nextOilChangeMileage,
+                validData.oilChangeInterval,
+                validData.pricePerDay,
+                validData.deposit,
+                validData.insuranceType,
+                validData.insuranceExpiry ? new Date(validData.insuranceExpiry.split('-').reverse().join('-')).toISOString() : null,
+                validData.registrationExpiry ? new Date(validData.registrationExpiry.split('-').reverse().join('-')).toISOString() : null,
+                validData.taxRoadExpiry ? new Date(validData.taxRoadExpiry.split('-').reverse().join('-')).toISOString() : null,
+                validData.minInsurancePrice,
+                validData.maxInsurancePrice,
+                marketingHeadline,
+                description,
+                photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
+                new Date().toISOString(),
+                new Date().toISOString()
+            )
+            .run();
+        const newCar = { id: Number(insertResult.meta.last_row_id) };
 
         // Audit log
         const metadata = getRequestMetadata(request);
         quickAudit({
-            db,
+            db: context.cloudflare.env.DB,
             userId: user.id,
             role: user.role,
             companyId: user.companyId,
@@ -170,7 +186,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         return redirect(`/cars?success=${encodeURIComponent("Car created successfully")}`);
     } catch (error: any) {
-        console.error("Failed to create car:", error);
         if (error.message?.includes('UNIQUE constraint failed') && error.message?.includes('license_plate')) {
             return redirect(`/cars/create?error=${encodeURIComponent(`License plate "${validData.licensePlate}" is already in use`)}`);
         }

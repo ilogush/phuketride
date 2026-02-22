@@ -1,13 +1,6 @@
 import { type LoaderFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Link } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, desc, sql, and, gte, count } from "drizzle-orm";
-import { 
-    companies, users, companyCars, contracts, 
-    calendarEvents, carModels, carBrands, payments,
-    managers
-} from "~/db/schema";
 import Button from "~/components/dashboard/Button";
 import StatusBadge from "~/components/dashboard/StatusBadge";
 import DataTable from "~/components/dashboard/DataTable";
@@ -50,7 +43,7 @@ interface TeamMember {
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB);
+    const d1 = context.cloudflare.env.DB;
     const companyId = Number.parseInt(params.companyId || "0", 10);
 
     if (!Number.isFinite(companyId) || companyId <= 0) {
@@ -78,164 +71,209 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 
     try {
         // Load company info
-        const companyData = await db
-            .select()
-            .from(companies)
-            .where(eq(companies.id, companyId))
-            .limit(1);
+        const companyData = await d1
+            .prepare("SELECT * FROM companies WHERE id = ? LIMIT 1")
+            .bind(companyId)
+            .all();
 
-        company = companyData[0] || null;
+        company = (companyData.results?.[0] as Record<string, unknown> | undefined) || null;
 
         if (!company) {
             throw new Response("Company not found", { status: 404 });
         }
 
         // Load stats
-        const [totalVehicles] = await db
-            .select({ count: count() })
-            .from(companyCars)
-            .where(eq(companyCars.companyId, companyId));
+        const totalVehicles = await d1
+            .prepare("SELECT count(*) as count FROM company_cars WHERE company_id = ?")
+            .bind(companyId)
+            .all();
 
-        const [inWorkshop] = await db
-            .select({ count: count() })
-            .from(companyCars)
-            .where(and(
-                eq(companyCars.companyId, companyId),
-                eq(companyCars.status, "maintenance")
-            ));
+        const inWorkshop = await d1
+            .prepare("SELECT count(*) as count FROM company_cars WHERE company_id = ? AND status = 'maintenance'")
+            .bind(companyId)
+            .all();
 
-        const [activeBookings] = await db
-            .select({ count: count() })
-            .from(contracts)
-            .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-            .where(and(
-                eq(companyCars.companyId, companyId),
-                eq(contracts.status, "active")
-            ));
+        const activeBookings = await d1
+            .prepare(
+                `
+                SELECT count(*) as count
+                FROM contracts c
+                INNER JOIN company_cars cc ON c.company_car_id = cc.id
+                WHERE cc.company_id = ? AND c.status = 'active'
+                `
+            )
+            .bind(companyId)
+            .all();
 
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         startOfMonth.setHours(0, 0, 0, 0);
 
         // Get upcoming bookings (future start date)
-        const [upcomingBookings] = await db
-            .select({ count: count() })
-            .from(contracts)
-            .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-            .where(and(
-                eq(companyCars.companyId, companyId),
-                gte(contracts.startDate, now)
-            ));
+        const upcomingBookings = await d1
+            .prepare(
+                `
+                SELECT count(*) as count
+                FROM contracts c
+                INNER JOIN company_cars cc ON c.company_car_id = cc.id
+                WHERE cc.company_id = ? AND c.start_date >= ?
+                `
+            )
+            .bind(companyId, now.getTime())
+            .all();
 
         // Get total revenue
-        const [totalRevenue] = await db
-            .select({ sum: sql<number>`coalesce(sum(${payments.amount}), 0)` })
-            .from(payments)
-            .innerJoin(contracts, eq(payments.contractId, contracts.id))
-            .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-            .where(eq(companyCars.companyId, companyId));
+        const totalRevenue = await d1
+            .prepare(
+                `
+                SELECT coalesce(sum(p.amount), 0) as sum
+                FROM payments p
+                INNER JOIN contracts c ON p.contract_id = c.id
+                INNER JOIN company_cars cc ON c.company_car_id = cc.id
+                WHERE cc.company_id = ?
+                `
+            )
+            .bind(companyId)
+            .all();
 
         // Get this month revenue
-        const [thisMonthRevenue] = await db
-            .select({ sum: sql<number>`coalesce(sum(${payments.amount}), 0)` })
-            .from(payments)
-            .innerJoin(contracts, eq(payments.contractId, contracts.id))
-            .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-            .where(and(
-                eq(companyCars.companyId, companyId),
-                gte(payments.createdAt, startOfMonth)
-            ));
+        const thisMonthRevenue = await d1
+            .prepare(
+                `
+                SELECT coalesce(sum(p.amount), 0) as sum
+                FROM payments p
+                INNER JOIN contracts c ON p.contract_id = c.id
+                INNER JOIN company_cars cc ON c.company_car_id = cc.id
+                WHERE cc.company_id = ? AND p.created_at >= ?
+                `
+            )
+            .bind(companyId, startOfMonth.getTime())
+            .all();
 
         // Get total unique customers
-        const [totalCustomers] = await db
-            .select({ count: sql<number>`count(distinct ${contracts.clientId})` })
-            .from(contracts)
-            .innerJoin(companyCars, eq(contracts.companyCarId, companyCars.id))
-            .where(eq(companyCars.companyId, companyId));
+        const totalCustomers = await d1
+            .prepare(
+                `
+                SELECT count(distinct c.client_id) as count
+                FROM contracts c
+                INNER JOIN company_cars cc ON c.company_car_id = cc.id
+                WHERE cc.company_id = ?
+                `
+            )
+            .bind(companyId)
+            .all();
+
+        const totalVehiclesRow = (totalVehicles.results?.[0] as Record<string, unknown> | undefined) || {};
+        const inWorkshopRow = (inWorkshop.results?.[0] as Record<string, unknown> | undefined) || {};
+        const activeBookingsRow = (activeBookings.results?.[0] as Record<string, unknown> | undefined) || {};
+        const upcomingBookingsRow = (upcomingBookings.results?.[0] as Record<string, unknown> | undefined) || {};
+        const totalRevenueRow = (totalRevenue.results?.[0] as Record<string, unknown> | undefined) || {};
+        const thisMonthRevenueRow = (thisMonthRevenue.results?.[0] as Record<string, unknown> | undefined) || {};
+        const totalCustomersRow = (totalCustomers.results?.[0] as Record<string, unknown> | undefined) || {};
 
         stats = {
-            totalVehicles: totalVehicles?.count || 0,
-            inWorkshop: inWorkshop?.count || 0,
-            activeBookings: activeBookings?.count || 0,
-            upcomingBookings: upcomingBookings?.count || 0,
-            totalRevenue: totalRevenue?.sum || 0,
-            thisMonthRevenue: thisMonthRevenue?.sum || 0,
-            totalCustomers: totalCustomers?.count || 0,
+            totalVehicles: Number(totalVehiclesRow.count || 0),
+            inWorkshop: Number(inWorkshopRow.count || 0),
+            activeBookings: Number(activeBookingsRow.count || 0),
+            upcomingBookings: Number(upcomingBookingsRow.count || 0),
+            totalRevenue: Number(totalRevenueRow.sum || 0),
+            thisMonthRevenue: Number(thisMonthRevenueRow.sum || 0),
+            totalCustomers: Number(totalCustomersRow.count || 0),
         };
 
         // Load vehicles
-        const vehiclesData = await db
-            .select({
-                id: companyCars.id,
-                licensePlate: companyCars.licensePlate,
-                year: companyCars.year,
-                pricePerDay: companyCars.pricePerDay,
-                status: companyCars.status,
-                mileage: companyCars.mileage,
-                brandName: carBrands.name,
-                modelName: carModels.name,
-            })
-            .from(companyCars)
-            .leftJoin(carModels, eq(companyCars.templateId, carModels.id))
-            .leftJoin(carBrands, eq(carModels.brandId, carBrands.id))
-            .where(eq(companyCars.companyId, companyId))
-            .orderBy(desc(companyCars.createdAt))
-            .limit(100);
+        const vehiclesData = await d1
+            .prepare(
+                `
+                SELECT
+                  cc.id AS id,
+                  cc.license_plate AS licensePlate,
+                  cc.year AS year,
+                  cc.price_per_day AS pricePerDay,
+                  cc.status AS status,
+                  cc.mileage AS mileage,
+                  cb.name AS brandName,
+                  cm.name AS modelName
+                FROM company_cars cc
+                LEFT JOIN car_models cm ON cc.template_id = cm.id
+                LEFT JOIN car_brands cb ON cm.brand_id = cb.id
+                WHERE cc.company_id = ?
+                ORDER BY cc.created_at DESC
+                LIMIT 100
+                `
+            )
+            .bind(companyId)
+            .all();
 
-        vehicles = vehiclesData;
+        vehicles = ((vehiclesData.results ?? []) as Array<Record<string, unknown>>).map((row) => ({
+            id: Number(row.id),
+            licensePlate: String(row.licensePlate || ""),
+            year: row.year === null ? null : Number(row.year),
+            pricePerDay: row.pricePerDay === null ? null : Number(row.pricePerDay),
+            status: (row.status as string | null) ?? null,
+            mileage: row.mileage === null ? null : Number(row.mileage),
+            brandName: (row.brandName as string | null) ?? null,
+            modelName: (row.modelName as string | null) ?? null,
+        }));
 
         // Load team members (managers + owner)
-        const ownerData = await db
-            .select({
-                id: users.id,
-                name: users.name,
-                surname: users.surname,
-                email: users.email,
-                phone: users.phone,
-                role: sql<string>`'owner'`.as("role"),
-                avatarUrl: users.avatarUrl,
-            })
-            .from(users)
-            .where(eq(users.id, company.ownerId))
-            .limit(1);
+        const ownerData = await d1
+            .prepare(
+                `
+                SELECT
+                  id, name, surname, email, phone,
+                  'owner' as role,
+                  avatar_url as avatarUrl
+                FROM users
+                WHERE id = ?
+                LIMIT 1
+                `
+            )
+            .bind(company.owner_id)
+            .all();
 
-        const managersData = await db
-            .select({
-                id: users.id,
-                name: users.name,
-                surname: users.surname,
-                email: users.email,
-                phone: users.phone,
-                role: sql<string>`'manager'`.as("role"),
-                avatarUrl: users.avatarUrl,
-            })
-            .from(managers)
-            .innerJoin(users, eq(managers.userId, users.id))
-            .where(and(
-                eq(managers.companyId, companyId),
-                eq(managers.isActive, true)
-            ));
+        const managersData = await d1
+            .prepare(
+                `
+                SELECT
+                  u.id as id,
+                  u.name as name,
+                  u.surname as surname,
+                  u.email as email,
+                  u.phone as phone,
+                  'manager' as role,
+                  u.avatar_url as avatarUrl
+                FROM managers m
+                INNER JOIN users u ON m.user_id = u.id
+                WHERE m.company_id = ? AND m.is_active = 1
+                `
+            )
+            .bind(companyId)
+            .all();
 
-        teamMembers = [...ownerData, ...managersData] as TeamMember[];
+        teamMembers = [
+            ...((ownerData.results ?? []) as TeamMember[]),
+            ...((managersData.results ?? []) as TeamMember[]),
+        ];
 
         // Load recent activity (calendar events)
-        const activityData = await db
-            .select({
-                id: calendarEvents.id,
-                title: calendarEvents.title,
-                description: calendarEvents.description,
-                startDate: calendarEvents.startDate,
-                status: calendarEvents.status,
-            })
-            .from(calendarEvents)
-            .where(and(
-                eq(calendarEvents.companyId, companyId),
-                eq(calendarEvents.status, "pending")
-            ))
-            .orderBy(desc(calendarEvents.startDate))
-            .limit(10);
+        const activityData = await d1
+            .prepare(
+                `
+                SELECT
+                  id, title, description,
+                  start_date as startDate,
+                  status
+                FROM calendar_events
+                WHERE company_id = ? AND status = 'pending'
+                ORDER BY start_date DESC
+                LIMIT 10
+                `
+            )
+            .bind(companyId)
+            .all();
 
-        recentActivity = activityData;
+        recentActivity = (activityData.results ?? []) as any[];
 
     } catch {
         // Keep page resilient and show empty states if partial loading fails

@@ -1,13 +1,27 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
 import { verifyPasswordHash } from "~/lib/password.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-    
-    // Get all users
-    const allUsers = await db.select().from(schema.users);
+    const d1 = context.cloudflare.env.DB;
+
+    const usersResult = await d1
+        .prepare(
+            `
+            SELECT
+              id,
+              email,
+              role,
+              password_hash AS passwordHash
+            FROM users
+            `
+        )
+        .all();
+    const allUsers = (usersResult.results ?? []) as Array<{
+        id: string;
+        email: string;
+        role: string;
+        passwordHash: string | null;
+    }>;
     
     // Test credentials
     const TEST_USERS = [

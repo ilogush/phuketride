@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and, desc, sql } from "drizzle-orm";
-import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import { PlusIcon, BookmarkIcon, FunnelIcon } from "@heroicons/react/24/outline";
@@ -14,7 +11,6 @@ const ITEMS_PER_PAGE = 20;
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     
     if (!user.companyId) {
         throw new Response("Manager must be assigned to a company", { status: 403 });
@@ -26,64 +22,53 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     
     const offset = (page - 1) * ITEMS_PER_PAGE;
 
-    // Get company cars for this manager's company
-    const companyCarsIds = await db
-        .select({ id: schema.companyCars.id })
-        .from(schema.companyCars)
-        .where(eq(schema.companyCars.companyId, user.companyId));
-
-    const carIds = companyCarsIds.map(car => car.id);
-
-    if (carIds.length === 0) {
-        return { bookings: [], totalPages: 0, currentPage: page, status };
-    }
-
-    // Build where conditions
-    const conditions = [sql`${schema.bookings.companyCarId} IN (${sql.join(carIds.map(id => sql`${id}`), sql`, `)})`];
-
-    if (status !== "all") {
-        conditions.push(sql`${schema.bookings.status} = ${status}`);
-    }
-
-    // Get total count
-    const [countResult] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(schema.bookings)
-        .where(and(...conditions));
-
-    const totalItems = countResult?.count || 0;
+    const whereSql = status === "all"
+        ? "WHERE cc.company_id = ?"
+        : "WHERE cc.company_id = ? AND b.status = ?";
+    const countSql = `
+        SELECT COUNT(*) AS count
+        FROM bookings b
+        JOIN company_cars cc ON cc.id = b.company_car_id
+        ${whereSql}
+    `;
+    const countResult = status === "all"
+        ? await context.cloudflare.env.DB.prepare(countSql).bind(user.companyId).first<any>()
+        : await context.cloudflare.env.DB.prepare(countSql).bind(user.companyId, status).first<any>();
+    const totalItems = Number(countResult?.count || 0);
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
-    // Get bookings
-    const bookings = await db
-        .select({
-            id: schema.bookings.id,
-            startDate: schema.bookings.startDate,
-            endDate: schema.bookings.endDate,
-            estimatedAmount: schema.bookings.estimatedAmount,
-            currency: schema.bookings.currency,
-            depositAmount: schema.bookings.depositAmount,
-            depositPaid: schema.bookings.depositPaid,
-            status: schema.bookings.status,
-            createdAt: schema.bookings.createdAt,
-            clientName: schema.bookings.clientName,
-            clientSurname: schema.bookings.clientSurname,
-            clientPhone: schema.bookings.clientPhone,
-            clientEmail: schema.bookings.clientEmail,
-            carLicensePlate: schema.companyCars.licensePlate,
-            carYear: schema.companyCars.year,
-            brandName: schema.carBrands.name,
-            modelName: schema.carModels.name,
-        })
-        .from(schema.bookings)
-        .innerJoin(schema.companyCars, eq(schema.bookings.companyCarId, schema.companyCars.id))
-        .leftJoin(schema.carTemplates, eq(schema.companyCars.templateId, schema.carTemplates.id))
-        .leftJoin(schema.carBrands, eq(schema.carTemplates.brandId, schema.carBrands.id))
-        .leftJoin(schema.carModels, eq(schema.carTemplates.modelId, schema.carModels.id))
-        .where(and(...conditions))
-        .orderBy(desc(schema.bookings.createdAt))
-        .limit(ITEMS_PER_PAGE)
-        .offset(offset);
+    const bookingsSql = `
+        SELECT
+            b.id,
+            b.start_date AS startDate,
+            b.end_date AS endDate,
+            b.estimated_amount AS estimatedAmount,
+            b.currency,
+            b.deposit_amount AS depositAmount,
+            b.deposit_paid AS depositPaid,
+            b.status,
+            b.created_at AS createdAt,
+            b.client_name AS clientName,
+            b.client_surname AS clientSurname,
+            b.client_phone AS clientPhone,
+            b.client_email AS clientEmail,
+            cc.license_plate AS carLicensePlate,
+            cc.year AS carYear,
+            cb.name AS brandName,
+            cm.name AS modelName
+        FROM bookings b
+        JOIN company_cars cc ON cc.id = b.company_car_id
+        LEFT JOIN car_templates ct ON ct.id = cc.template_id
+        LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+        LEFT JOIN car_models cm ON cm.id = ct.model_id
+        ${whereSql}
+        ORDER BY b.created_at DESC
+        LIMIT ? OFFSET ?
+    `;
+    const bookingsResult = status === "all"
+        ? await context.cloudflare.env.DB.prepare(bookingsSql).bind(user.companyId, ITEMS_PER_PAGE, offset).all()
+        : await context.cloudflare.env.DB.prepare(bookingsSql).bind(user.companyId, status, ITEMS_PER_PAGE, offset).all();
+    const bookings = (bookingsResult as any).results || [];
 
     return { bookings, totalPages, currentPage: page, status };
 }

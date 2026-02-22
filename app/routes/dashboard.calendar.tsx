@@ -1,10 +1,7 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Outlet, Link, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
-import { drizzle } from "drizzle-orm/d1";
-import { and, gte, lte, eq } from "drizzle-orm";
 import { requireAuth } from "~/lib/auth.server";
-import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import Card from "~/components/dashboard/Card";
@@ -14,7 +11,6 @@ import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
     if (!effectiveCompanyId) {
@@ -33,63 +29,41 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const firstDay = new Date(currentYear, currentMonth, 1);
     const lastDay = new Date(currentYear, currentMonth + 1, 0);
 
-    // Get events for current month
-    const events = await db.query.calendarEvents.findMany({
-        where: (events, { and, gte, lte, eq }) => and(
-            eq(events.companyId, effectiveCompanyId),
-            gte(events.startDate, firstDay),
-            lte(events.startDate, lastDay)
-        ),
-        orderBy: (events, { asc }) => [asc(events.startDate)],
-        limit: 100,
-    });
-
-    // Get contracts ending this month
-    const contractsRaw = await db.query.contracts.findMany({
-        where: (contracts, { and, gte, lte, eq, inArray }) => and(
-            gte(contracts.endDate, firstDay),
-            lte(contracts.endDate, lastDay),
-            inArray(contracts.status, ["active"])
-        ),
-        with: {
-            companyCar: {
-                with: {
-                    template: {
-                        with: {
-                            brand: true,
-                            model: true,
-                        }
-                    }
-                }
-            },
-            client: true,
-        },
-        limit: 50,
-    });
-    const contracts = contractsRaw.filter(contract => contract.companyCar.companyId === effectiveCompanyId);
-
-    // Get bookings this month
-    const bookingsRaw = await db.query.bookings.findMany({
-        where: (bookings, { and, gte, lte, inArray }) => and(
-            gte(bookings.startDate, firstDay),
-            lte(bookings.startDate, lastDay),
-            inArray(bookings.status, ["pending", "confirmed"])
-        ),
-        with: {
-            companyCar: {
-                with: {
-                    template: {
-                        with: {
-                            brand: true,
-                            model: true,
-                        }
-                    }
-                }
-            },
-        },
-        limit: 50,
-    });
-    const bookings = bookingsRaw.filter(booking => booking.companyCar.companyId === effectiveCompanyId);
+    const [eventsResult, contractsResult, bookingsResult] = await Promise.all([
+        context.cloudflare.env.DB
+            .prepare(`
+                SELECT *
+                FROM calendar_events
+                WHERE company_id = ? AND start_date >= ? AND start_date <= ?
+                ORDER BY start_date ASC
+                LIMIT 100
+            `)
+            .bind(effectiveCompanyId, firstDay.toISOString(), lastDay.toISOString())
+            .all(),
+        context.cloudflare.env.DB
+            .prepare(`
+                SELECT c.*
+                FROM contracts c
+                JOIN company_cars cc ON cc.id = c.company_car_id
+                WHERE cc.company_id = ? AND c.status = 'active' AND c.end_date >= ? AND c.end_date <= ?
+                LIMIT 50
+            `)
+            .bind(effectiveCompanyId, firstDay.toISOString(), lastDay.toISOString())
+            .all(),
+        context.cloudflare.env.DB
+            .prepare(`
+                SELECT b.*
+                FROM bookings b
+                JOIN company_cars cc ON cc.id = b.company_car_id
+                WHERE cc.company_id = ? AND b.status IN ('pending', 'confirmed') AND b.start_date >= ? AND b.start_date <= ?
+                LIMIT 50
+            `)
+            .bind(effectiveCompanyId, firstDay.toISOString(), lastDay.toISOString())
+            .all(),
+    ]);
+    const events = (eventsResult as any).results || [];
+    const contracts = (contractsResult as any).results || [];
+    const bookings = (bookingsResult as any).results || [];
 
     return { 
         user, 

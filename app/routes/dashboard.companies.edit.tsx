@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useActionData, Link } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { companies } from "~/db/schema";
-import { eq } from "drizzle-orm";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { Input } from "~/components/dashboard/Input";
 import Button from "~/components/dashboard/Button";
@@ -13,33 +10,29 @@ import { useLatinValidation } from "~/lib/useLatinValidation";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB);
     const companyId = parseInt(params.companyId || "0");
 
     let company: any = null;
 
     try {
-        const companyData = await db
-            .select()
-            .from(companies)
-            .where(eq(companies.id, companyId))
-            .limit(1);
+        const companyData = await context.cloudflare.env.DB
+            .prepare("SELECT * FROM companies WHERE id = ? LIMIT 1")
+            .bind(companyId)
+            .all();
 
-        company = companyData[0] || null;
+        company = (companyData.results?.[0] as Record<string, unknown>) || null;
 
         if (!company) {
             throw new Response("Company not found", { status: 404 });
         }
-    } catch (error) {
-        console.error("Error loading company:", error);
+    } catch {
     }
 
     return { user, company };
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB);
+    await requireAuth(request);
     const companyId = parseInt(params.companyId || "0");
     const formData = await request.formData();
 
@@ -68,9 +61,29 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     }
 
     try {
-        await db
-            .update(companies)
-            .set({
+        await context.cloudflare.env.DB
+            .prepare(
+                `
+                UPDATE companies
+                SET
+                    name = ?,
+                    email = ?,
+                    phone = ?,
+                    telegram = ?,
+                    street = ?,
+                    house_number = ?,
+                    address = ?,
+                    bank_name = ?,
+                    account_number = ?,
+                    account_name = ?,
+                    swift_code = ?,
+                    preparation_time = ?,
+                    delivery_fee_after_hours = ?,
+                    updated_at = ?
+                WHERE id = ?
+                `
+            )
+            .bind(
                 name,
                 email,
                 phone,
@@ -84,13 +97,13 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 swiftCode,
                 preparationTime,
                 deliveryFeeAfterHours,
-                updatedAt: new Date(),
-            })
-            .where(eq(companies.id, companyId));
+                Date.now(),
+                companyId
+            )
+            .run();
 
         return redirect(`/companies/${companyId}?success=Company updated successfully`);
-    } catch (error) {
-        console.error("Error updating company:", error);
+    } catch {
         return redirect(`/companies/${companyId}/edit?error=Failed to update company`);
     }
 }

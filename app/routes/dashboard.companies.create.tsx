@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { ne, eq } from "drizzle-orm";
-import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
@@ -30,19 +27,19 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     if (user.role !== "admin") {
         throw new Response("Forbidden", { status: 403 });
     }
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-
     const [locationsList, districtsList, usersList] = await Promise.all([
-        db.select().from(schema.locations).limit(100),
-        db.select().from(schema.districts).limit(200),
-        db.select({
-            id: schema.users.id,
-            email: schema.users.email,
-            name: schema.users.name,
-            surname: schema.users.surname,
-            role: schema.users.role,
-            phone: schema.users.phone,
-        }).from(schema.users).where(ne(schema.users.role, "admin")).limit(200),
+        context.cloudflare.env.DB.prepare("SELECT * FROM locations ORDER BY name ASC LIMIT 100").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM districts ORDER BY name ASC LIMIT 200").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB
+            .prepare(`
+                SELECT id, email, name, surname, role, phone
+                FROM users
+                WHERE role != 'admin'
+                ORDER BY created_at DESC
+                LIMIT 200
+            `)
+            .all()
+            .then((r: any) => r.results || []),
     ]);
 
     return { locations: locationsList, districts: districtsList, users: usersList };
@@ -53,7 +50,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (user.role !== "admin") {
         throw new Response("Forbidden", { status: 403 });
     }
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
     const parseMoneyValue = (value: FormDataEntryValue | null): number | null => {
@@ -111,44 +107,70 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const managerIds = formData.getAll("managerIds") as string[];
 
         // Create company
-        const [newCompany] = await db.insert(schema.companies).values({
-            name: validData.name,
-            ownerId: user.id, // Admin creates company but doesn't own it
-            email: validData.email,
-            phone: validData.phone,
-            telegram: validData.telegram,
-            locationId: validData.locationId,
-            districtId: validData.districtId,
-            street: validData.street,
-            houseNumber: validData.houseNumber,
-            bankName: validData.bankName,
-            accountNumber: validData.accountNumber,
-            accountName: validData.accountName,
-            swiftCode: validData.swiftCode,
-            preparationTime: validData.preparationTime,
-            deliveryFeeAfterHours: validData.deliveryFeeAfterHours,
-            islandTripPrice: validData.islandTripPrice,
-            krabiTripPrice: validData.krabiTripPrice,
-            babySeatPricePerDay: validData.babySeatPricePerDay,
-            weeklySchedule,
-            holidays,
-        }).returning({ id: schema.companies.id });
+        const insertResult = await context.cloudflare.env.DB
+            .prepare(`
+                INSERT INTO companies (
+                    name, owner_id, email, phone, telegram, location_id, district_id,
+                    street, house_number, bank_name, account_number, account_name, swift_code,
+                    preparation_time, delivery_fee_after_hours, island_trip_price, krabi_trip_price,
+                    baby_seat_price_per_day, weekly_schedule, holidays, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `)
+            .bind(
+                validData.name,
+                user.id,
+                validData.email,
+                validData.phone,
+                validData.telegram,
+                validData.locationId,
+                validData.districtId,
+                validData.street,
+                validData.houseNumber,
+                validData.bankName,
+                validData.accountNumber,
+                validData.accountName,
+                validData.swiftCode,
+                validData.preparationTime,
+                validData.deliveryFeeAfterHours,
+                validData.islandTripPrice,
+                validData.krabiTripPrice,
+                validData.babySeatPricePerDay,
+                weeklySchedule,
+                holidays,
+                new Date().toISOString(),
+                new Date().toISOString()
+            )
+            .run();
+        const newCompany = { id: Number(insertResult.meta.last_row_id) };
 
         if (!newCompany?.id) {
             throw new Error("Failed to create company - no ID returned");
         }
 
         // Create delivery settings for all districts in the location
-        const allDistricts = await db.select().from(schema.districts).where(eq(schema.districts.locationId, validData.locationId));
+        const allDistrictsResult = await context.cloudflare.env.DB
+            .prepare("SELECT id, delivery_price AS deliveryPrice FROM districts WHERE location_id = ?")
+            .bind(validData.locationId)
+            .all() as { results?: any[] };
+        const allDistricts = allDistrictsResult.results || [];
         
         await Promise.all(
             allDistricts.map(district =>
-                db.insert(schema.companyDeliverySettings).values({
-                    companyId: newCompany.id,
-                    districtId: district.id,
-                    isActive: district.id === validData.districtId, // Only company's district is active
-                    deliveryPrice: district.id === validData.districtId ? 0 : (district.deliveryPrice || 0),
-                })
+                context.cloudflare.env.DB
+                    .prepare(`
+                        INSERT INTO company_delivery_settings (
+                            company_id, district_id, is_active, delivery_price, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?)
+                    `)
+                    .bind(
+                        newCompany.id,
+                        district.id,
+                        district.id === validData.districtId ? 1 : 0,
+                        district.id === validData.districtId ? 0 : (district.deliveryPrice || 0),
+                        new Date().toISOString(),
+                        new Date().toISOString()
+                    )
+                    .run()
             )
         );
 
@@ -158,23 +180,27 @@ export async function action({ request, context }: ActionFunctionArgs) {
             const ownerId = managerIds[0];
             
             // Update company owner
-            await db.update(schema.companies)
-                .set({ ownerId })
-                .where(eq(schema.companies.id, newCompany.id));
+            await context.cloudflare.env.DB
+                .prepare("UPDATE companies SET owner_id = ?, updated_at = ? WHERE id = ?")
+                .bind(ownerId, new Date().toISOString(), newCompany.id)
+                .run();
 
             // Create manager records and update roles
             await Promise.all([
                 ...managerIds.map(userId =>
-                    db.insert(schema.managers).values({
-                        userId,
-                        companyId: newCompany.id,
-                        isActive: true,
-                    })
+                    context.cloudflare.env.DB
+                        .prepare(`
+                            INSERT INTO managers (user_id, company_id, is_active, created_at, updated_at)
+                            VALUES (?, ?, 1, ?, ?)
+                        `)
+                        .bind(userId, newCompany.id, new Date().toISOString(), new Date().toISOString())
+                        .run()
                 ),
                 ...managerIds.map(userId =>
-                    db.update(schema.users)
-                        .set({ role: "partner", updatedAt: new Date() })
-                        .where(eq(schema.users.id, userId))
+                    context.cloudflare.env.DB
+                        .prepare("UPDATE users SET role = 'partner', updated_at = ? WHERE id = ?")
+                        .bind(new Date().toISOString(), userId)
+                        .run()
                 )
             ]);
         } else if (!managerIds.length) {
@@ -184,7 +210,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         // Audit log
         const metadata = getRequestMetadata(request);
         quickAudit({
-            db,
+            db: context.cloudflare.env.DB,
             userId: user.id,
             role: user.role,
             companyId: newCompany.id,

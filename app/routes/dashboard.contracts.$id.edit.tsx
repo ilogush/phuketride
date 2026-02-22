@@ -1,11 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useNavigate } from "react-router";
 import { useState } from "react";
-import { drizzle } from "drizzle-orm/d1";
-import { and, eq, or } from "drizzle-orm";
 import { requireAuth } from "~/lib/auth.server";
-import { calendarEvents, contracts, companyCars, districts, users } from "~/db/schema";
-import * as schema from "~/db/schema";
 import FormSection from "~/components/dashboard/FormSection";
 import FormInput from "~/components/dashboard/FormInput";
 import FormSelect from "~/components/dashboard/FormSelect";
@@ -30,19 +26,82 @@ import { format } from "date-fns";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const contractId = parseInt(params.id!);
 
     // Get contract with car details
-    const contract = await db.query.contracts.findFirst({
-        where: (c, { eq }) => eq(c.id, contractId),
-        with: {
-            companyCar: {
-                columns: { id: true, companyId: true, licensePlate: true }
+    const contractRaw = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT
+                c.*,
+                cc.id AS carId,
+                cc.company_id AS companyId,
+                cc.license_plate AS licensePlate,
+                u.id AS clientId,
+                u.name AS clientName,
+                u.surname AS clientSurname,
+                u.phone AS clientPhone,
+                u.email AS clientEmail,
+                u.whatsapp AS clientWhatsapp,
+                u.telegram AS clientTelegram,
+                u.passport_number AS clientPassport,
+                u.citizenship AS clientCitizenship,
+                u.gender AS clientGender,
+                u.date_of_birth AS clientDateOfBirth,
+                u.passport_photos AS clientPassportPhotos,
+                u.driver_license_photos AS clientDriverLicensePhotos
+            FROM contracts c
+            JOIN company_cars cc ON cc.id = c.company_car_id
+            LEFT JOIN users u ON u.id = c.client_id
+            WHERE c.id = ?
+            LIMIT 1
+        `)
+        .bind(contractId)
+        .first<any>();
+    const contract = contractRaw
+        ? {
+            ...contractRaw,
+            companyCarId: contractRaw.company_car_id,
+            startDate: contractRaw.start_date,
+            endDate: contractRaw.end_date,
+            pickupDistrictId: contractRaw.pickup_district_id,
+            pickupHotel: contractRaw.pickup_hotel,
+            pickupRoom: contractRaw.pickup_room,
+            returnDistrictId: contractRaw.return_district_id,
+            returnHotel: contractRaw.return_hotel,
+            returnRoom: contractRaw.return_room,
+            deliveryCost: contractRaw.delivery_cost,
+            returnCost: contractRaw.return_cost,
+            depositAmount: contractRaw.deposit_amount,
+            depositPaymentMethod: contractRaw.deposit_payment_method,
+            totalAmount: contractRaw.total_amount,
+            fuelLevel: contractRaw.fuel_level,
+            fullInsuranceEnabled: !!contractRaw.full_insurance_enabled,
+            babySeatEnabled: !!contractRaw.baby_seat_enabled,
+            islandTripEnabled: !!contractRaw.island_trip_enabled,
+            krabiTripEnabled: !!contractRaw.krabi_trip_enabled,
+            fullInsurancePrice: contractRaw.full_insurance_price,
+            babySeatPrice: contractRaw.baby_seat_price,
+            islandTripPrice: contractRaw.island_trip_price,
+            krabiTripPrice: contractRaw.krabi_trip_price,
+            startMileage: contractRaw.start_mileage,
+            companyCar: { id: contractRaw.carId, companyId: contractRaw.companyId, licensePlate: contractRaw.licensePlate },
+            client: {
+                id: contractRaw.clientId,
+                name: contractRaw.clientName,
+                surname: contractRaw.clientSurname,
+                phone: contractRaw.clientPhone,
+                email: contractRaw.clientEmail,
+                whatsapp: contractRaw.clientWhatsapp,
+                telegram: contractRaw.clientTelegram,
+                passportNumber: contractRaw.clientPassport,
+                citizenship: contractRaw.clientCitizenship,
+                gender: contractRaw.clientGender,
+                dateOfBirth: contractRaw.clientDateOfBirth,
+                passportPhotos: contractRaw.clientPassportPhotos,
+                driverLicensePhotos: contractRaw.clientDriverLicensePhotos,
             },
-            client: true
         }
-    });
+        : null;
 
     if (!contract) {
         throw new Response("Contract not found", { status: 404 });
@@ -54,20 +113,17 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     }
 
     // Get company cars
-    const cars = await db.query.companyCars.findMany({
-        where: (c, { eq, and, isNull }) => and(
-            eq(c.companyId, user.companyId!),
-            eq(c.status, 'available'),
-            isNull(c.archivedAt)
-        ),
-        columns: { id: true, licensePlate: true }
-    });
+    const cars = await context.cloudflare.env.DB
+        .prepare("SELECT id, license_plate AS licensePlate FROM company_cars WHERE company_id = ? AND status = 'available' AND archived_at IS NULL")
+        .bind(user.companyId)
+        .all()
+        .then((r: any) => r.results || []);
 
     // Get districts
-    const districtsList = await db.query.districts.findMany({
-        where: (d, { eq }) => eq(d.isActive, true),
-        columns: { id: true, name: true }
-    });
+    const districtsList = await context.cloudflare.env.DB
+        .prepare("SELECT id, name FROM districts WHERE is_active = 1")
+        .all()
+        .then((r: any) => r.results || []);
 
     return { contract, cars, districts: districtsList, client: contract.client };
 }
@@ -76,14 +132,15 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const user = await requireAuth(request);
     const formData = await request.formData();
     const contractId = parseInt(params.id!);
-
-    const db = drizzle(context.cloudflare.env.DB);
-
-    const [existingContract] = await db
-        .select()
-        .from(contracts)
-        .where(eq(contracts.id, contractId))
-        .limit(1);
+    const existingContract = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT *
+            FROM contracts
+            WHERE id = ?
+            LIMIT 1
+        `)
+        .bind(contractId)
+        .first<any>();
 
     if (!existingContract) {
         return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
@@ -116,14 +173,16 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     };
 
     // SECURITY: Verify contract belongs to user's company
-    const contract = await db.query.contracts.findFirst({
-        where: (c, { eq }) => eq(c.id, contractId),
-        with: {
-            companyCar: {
-                columns: { companyId: true }
-            }
-        }
-    });
+    const contract = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT c.id, cc.company_id AS companyId
+            FROM contracts c
+            JOIN company_cars cc ON cc.id = c.company_car_id
+            WHERE c.id = ?
+            LIMIT 1
+        `)
+        .bind(contractId)
+        .first<any>();
 
     if (!contract) {
         return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
@@ -161,7 +220,31 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         clientUpdate.driverLicensePhotos = JSON.stringify(driverLicensePhotosValue);
     }
 
-    await db.update(users).set(clientUpdate as any).where(eq(users.id, existingContract.clientId));
+    await context.cloudflare.env.DB
+        .prepare(`
+            UPDATE users
+            SET name = ?, surname = ?, phone = ?, whatsapp = ?, telegram = ?, passport_number = ?, citizenship = ?,
+                gender = ?, date_of_birth = ?, email = COALESCE(?, email), passport_photos = COALESCE(?, passport_photos),
+                driver_license_photos = COALESCE(?, driver_license_photos), updated_at = ?
+            WHERE id = ?
+        `)
+        .bind(
+            clientUpdate.name,
+            clientUpdate.surname,
+            clientUpdate.phone,
+            clientUpdate.whatsapp,
+            clientUpdate.telegram,
+            clientUpdate.passportNumber,
+            clientUpdate.citizenship,
+            clientUpdate.gender,
+            (clientUpdate.dateOfBirth as Date | null)?.toISOString?.() ?? null,
+            (clientUpdate.email as string | undefined) ?? null,
+            (clientUpdate.passportPhotos as string | undefined) ?? null,
+            (clientUpdate.driverLicensePhotos as string | undefined) ?? null,
+            new Date().toISOString(),
+            existingContract.client_id
+        )
+        .run();
 
     const getValidDate = (value: FormDataEntryValue | null, fallback: Date) => {
         if (typeof value !== "string" || !value) return fallback;
@@ -215,30 +298,70 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         updatePayload.photos = JSON.stringify(photosValue);
     }
 
-    await db.update(contracts).set(updatePayload as any).where(eq(contracts.id, contractId));
+    await context.cloudflare.env.DB
+        .prepare(`
+            UPDATE contracts
+            SET company_car_id = ?, start_date = ?, end_date = ?, pickup_district_id = ?, pickup_hotel = ?, pickup_room = ?,
+                delivery_cost = ?, return_district_id = ?, return_hotel = ?, return_room = ?, return_cost = ?, deposit_amount = ?,
+                deposit_payment_method = ?, total_amount = ?, fuel_level = ?, cleanliness = ?, start_mileage = ?,
+                full_insurance_enabled = ?, baby_seat_enabled = ?, island_trip_enabled = ?, krabi_trip_enabled = ?,
+                full_insurance_price = ?, baby_seat_price = ?, island_trip_price = ?, krabi_trip_price = ?, notes = ?,
+                photos = COALESCE(?, photos), updated_at = ?
+            WHERE id = ?
+        `)
+        .bind(
+            updatePayload.companyCarId,
+            (updatePayload.startDate as Date).toISOString(),
+            (updatePayload.endDate as Date).toISOString(),
+            updatePayload.pickupDistrictId,
+            updatePayload.pickupHotel,
+            updatePayload.pickupRoom,
+            updatePayload.deliveryCost,
+            updatePayload.returnDistrictId,
+            updatePayload.returnHotel,
+            updatePayload.returnRoom,
+            updatePayload.returnCost,
+            updatePayload.depositAmount,
+            updatePayload.depositPaymentMethod,
+            updatePayload.totalAmount,
+            updatePayload.fuelLevel,
+            updatePayload.cleanliness,
+            updatePayload.startMileage,
+            updatePayload.fullInsuranceEnabled ? 1 : 0,
+            updatePayload.babySeatEnabled ? 1 : 0,
+            updatePayload.islandTripEnabled ? 1 : 0,
+            updatePayload.krabiTripEnabled ? 1 : 0,
+            updatePayload.fullInsurancePrice,
+            updatePayload.babySeatPrice,
+            updatePayload.islandTripPrice,
+            updatePayload.krabiTripPrice,
+            updatePayload.notes,
+            (updatePayload.photos as string | undefined) ?? null,
+            new Date().toISOString(),
+            contractId
+        )
+        .run();
 
     if (newCompanyCarId !== existingContract.companyCarId) {
         const { updateCarStatus } = await import("~/lib/contract-helpers.server");
-        await updateCarStatus(db, existingContract.companyCarId, 'available', 'Contract car changed');
-        await updateCarStatus(db, newCompanyCarId, 'rented', 'Contract car changed');
+        await updateCarStatus(context.cloudflare.env.DB, existingContract.company_car_id, 'available', 'Contract car changed');
+        await updateCarStatus(context.cloudflare.env.DB, newCompanyCarId, 'rented', 'Contract car changed');
     }
 
     // Refresh calendar events (delete old and recreate)
-    const [carRow] = await db
-        .select({ companyId: companyCars.companyId })
-        .from(companyCars)
-        .where(eq(companyCars.id, newCompanyCarId))
-        .limit(1);
+    const carRow = await context.cloudflare.env.DB
+        .prepare("SELECT company_id AS companyId FROM company_cars WHERE id = ? LIMIT 1")
+        .bind(newCompanyCarId)
+        .first<any>();
 
     if (carRow?.companyId) {
-        await db.delete(calendarEvents).where(and(
-            eq(calendarEvents.relatedId, contractId),
-            or(eq(calendarEvents.eventType, "pickup"), eq(calendarEvents.eventType, "contract"))
-        ));
+        await context.cloudflare.env.DB
+            .prepare("DELETE FROM calendar_events WHERE related_id = ? AND event_type IN ('pickup', 'contract')")
+            .bind(contractId)
+            .run();
 
-        const dbWithSchema = drizzle(context.cloudflare.env.DB, { schema });
         await createContractEvents({
-            db: dbWithSchema,
+            db: context.cloudflare.env.DB,
             companyId: carRow.companyId,
             contractId,
             startDate,

@@ -1,36 +1,49 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Link, Form } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { eq } from "drizzle-orm";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
 import ProfileForm from "~/components/dashboard/ProfileForm";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
-    const sessionUser = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
+    await requireAuth(request);
 
     const userId = params.userId;
     if (!userId) {
         throw new Response("User ID is required", { status: 400 });
     }
 
-    const user = await db.query.users.findFirst({
-        where: eq(schema.users.id, userId),
-        columns: { passwordHash: false },
-    });
+    const userResult = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT id, email, role, name, surname, phone, whatsapp, telegram,
+                   passport_number AS passportNumber, citizenship, city, country_id AS countryId,
+                   date_of_birth AS dateOfBirth, gender, passport_photos AS passportPhotos,
+                   driver_license_photos AS driverLicensePhotos, avatar_url AS avatarUrl,
+                   hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
+                   district_id AS districtId, address, archived_at AS archivedAt
+            FROM users
+            WHERE id = ?
+            LIMIT 1
+        `)
+        .bind(userId)
+        .first<any>();
+    const user = userResult || null;
     if (!user) {
         throw new Response("User not found", { status: 404 });
     }
 
     // Load reference data
     const [country, hotel, location] = await Promise.all([
-        user.countryId ? db.select().from(schema.countries).where(eq(schema.countries.id, user.countryId)).get() : null,
-        user.hotelId ? db.select().from(schema.hotels).where(eq(schema.hotels.id, user.hotelId)).get() : null,
-        user.locationId ? db.select().from(schema.locations).where(eq(schema.locations.id, user.locationId)).get() : null,
+        user.countryId
+            ? context.cloudflare.env.DB.prepare("SELECT * FROM countries WHERE id = ? LIMIT 1").bind(user.countryId).first<any>()
+            : null,
+        user.hotelId
+            ? context.cloudflare.env.DB.prepare("SELECT * FROM hotels WHERE id = ? LIMIT 1").bind(user.hotelId).first<any>()
+            : null,
+        user.locationId
+            ? context.cloudflare.env.DB.prepare("SELECT * FROM locations WHERE id = ? LIMIT 1").bind(user.locationId).first<any>()
+            : null,
     ]);
 
     return { user, country, hotel, location };

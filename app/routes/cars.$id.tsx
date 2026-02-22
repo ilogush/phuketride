@@ -1,8 +1,5 @@
 import type { Route } from "./+types/cars.$id";
 import { useLoaderData } from "react-router";
-import { drizzle } from "drizzle-orm/d1";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
-import * as schema from "~/db/schema";
 import Header from "~/components/public/Header";
 import Footer from "~/components/public/Footer";
 import CarGallery from "~/components/public/car/CarGallery";
@@ -40,136 +37,180 @@ const formatMonthYear = (date: Date | null) => {
   });
 };
 
+const toDateOrNull = (value: unknown): Date | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return null;
+  }
+  const date = new Date(n);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
 export async function loader({ context, params }: Route.LoaderArgs) {
-  const db = drizzle(context.cloudflare.env.DB, { schema });
+  const d1 = context.cloudflare.env.DB;
   const carId = Number(params.id);
 
   if (!Number.isFinite(carId) || carId <= 0) {
     throw new Response("Invalid car id", { status: 400 });
   }
 
-  const car = await db
-    .select({
-      id: schema.companyCars.id,
-      brandName: schema.carBrands.name,
-      modelName: schema.carModels.name,
-      bodyType: schema.bodyTypes.name,
-      year: schema.companyCars.year,
-      transmission: schema.companyCars.transmission,
-      fuelType: schema.fuelTypes.name,
-      engineVolume: schema.companyCars.engineVolume,
-      seats: schema.carTemplates.seats,
-      doors: schema.carTemplates.doors,
-      pricePerDay: schema.companyCars.pricePerDay,
-      deposit: schema.companyCars.deposit,
-      minInsurancePrice: schema.companyCars.minInsurancePrice,
-      maxInsurancePrice: schema.companyCars.maxInsurancePrice,
-      fullInsuranceMinPrice: schema.companyCars.fullInsuranceMinPrice,
-      fullInsuranceMaxPrice: schema.companyCars.fullInsuranceMaxPrice,
-      photos: schema.companyCars.photos,
-      companyName: schema.companies.name,
-      locationName: schema.locations.name,
-      districtName: schema.districts.name,
-      ownerName: schema.users.name,
-      ownerAvatarUrl: schema.users.avatarUrl,
-      ownerCreatedAt: schema.users.createdAt,
-      marketingHeadline: schema.companyCars.marketingHeadline,
-      description: schema.companyCars.description,
-    })
-    .from(schema.companyCars)
-    .leftJoin(schema.carTemplates, eq(schema.companyCars.templateId, schema.carTemplates.id))
-    .leftJoin(schema.carBrands, eq(schema.carTemplates.brandId, schema.carBrands.id))
-    .leftJoin(schema.carModels, eq(schema.carTemplates.modelId, schema.carModels.id))
-    .leftJoin(schema.bodyTypes, eq(schema.carTemplates.bodyTypeId, schema.bodyTypes.id))
-    .leftJoin(schema.fuelTypes, eq(schema.companyCars.fuelTypeId, schema.fuelTypes.id))
-    .innerJoin(schema.companies, eq(schema.companyCars.companyId, schema.companies.id))
-    .leftJoin(schema.users, eq(schema.companies.ownerId, schema.users.id))
-    .leftJoin(schema.locations, eq(schema.companies.locationId, schema.locations.id))
-    .leftJoin(schema.districts, eq(schema.companies.districtId, schema.districts.id))
-    .where(
-      and(
-        eq(schema.companyCars.id, carId),
-        isNull(schema.companyCars.archivedAt),
-        isNull(schema.companies.archivedAt),
-      ),
+  const carResult = await d1
+    .prepare(
+      `
+      SELECT
+        cc.id AS id,
+        cb.name AS brandName,
+        cm.name AS modelName,
+        bt.name AS bodyType,
+        cc.year AS year,
+        cc.transmission AS transmission,
+        ft.name AS fuelType,
+        cc.engine_volume AS engineVolume,
+        ct.seats AS seats,
+        ct.doors AS doors,
+        cc.price_per_day AS pricePerDay,
+        cc.deposit AS deposit,
+        cc.min_insurance_price AS minInsurancePrice,
+        cc.max_insurance_price AS maxInsurancePrice,
+        cc.full_insurance_min_price AS fullInsuranceMinPrice,
+        cc.full_insurance_max_price AS fullInsuranceMaxPrice,
+        cc.photos AS photos,
+        c.name AS companyName,
+        l.name AS locationName,
+        d.name AS districtName,
+        u.name AS ownerName,
+        u.avatar_url AS ownerAvatarUrl,
+        u.created_at AS ownerCreatedAt,
+        cc.marketing_headline AS marketingHeadline,
+        cc.description AS description
+      FROM company_cars cc
+      LEFT JOIN car_templates ct ON cc.template_id = ct.id
+      LEFT JOIN car_brands cb ON ct.brand_id = cb.id
+      LEFT JOIN car_models cm ON ct.model_id = cm.id
+      LEFT JOIN body_types bt ON ct.body_type_id = bt.id
+      LEFT JOIN fuel_types ft ON cc.fuel_type_id = ft.id
+      INNER JOIN companies c ON cc.company_id = c.id
+      LEFT JOIN users u ON c.owner_id = u.id
+      LEFT JOIN locations l ON c.location_id = l.id
+      LEFT JOIN districts d ON c.district_id = d.id
+      WHERE cc.id = ?
+        AND cc.archived_at IS NULL
+        AND c.archived_at IS NULL
+      LIMIT 1
+      `
     )
-    .limit(1);
+    .bind(carId)
+    .all();
+  const carRows = (carResult.results ?? []) as Array<Record<string, unknown>>;
 
-  if (!car.length) {
+  if (!carRows.length) {
     throw new Response("Car not found", { status: 404 });
   }
+  const car = carRows[0];
 
-  const tripStats = await db
-    .select({
-      trips: sql<number>`count(*)`,
-    })
-    .from(schema.contracts)
-    .where(eq(schema.contracts.companyCarId, carId));
+  const tripStatsResult = await d1
+    .prepare("SELECT count(*) AS trips FROM contracts WHERE company_car_id = ?")
+    .bind(carId)
+    .all();
+  const tripStats = (tripStatsResult.results ?? []) as Array<Record<string, unknown>>;
 
-  const ratingMetricsRows = await db
-    .select({
-      totalRating: schema.carRatingMetrics.totalRating,
-      totalRatings: schema.carRatingMetrics.totalRatings,
-      cleanliness: schema.carRatingMetrics.cleanliness,
-      maintenance: schema.carRatingMetrics.maintenance,
-      communication: schema.carRatingMetrics.communication,
-      convenience: schema.carRatingMetrics.convenience,
-      accuracy: schema.carRatingMetrics.accuracy,
-    })
-    .from(schema.carRatingMetrics)
-    .where(eq(schema.carRatingMetrics.companyCarId, carId))
-    .limit(1);
+  const ratingMetricsResult = await d1
+    .prepare(
+      `
+      SELECT
+        total_rating AS totalRating,
+        total_ratings AS totalRatings,
+        cleanliness,
+        maintenance,
+        communication,
+        convenience,
+        accuracy
+      FROM car_rating_metrics
+      WHERE company_car_id = ?
+      LIMIT 1
+      `
+    )
+    .bind(carId)
+    .all();
+  const ratingMetricsRows = (ratingMetricsResult.results ?? []) as Array<Record<string, unknown>>;
 
-  const reviewRows = await db
-    .select({
-      id: schema.carReviews.id,
-      reviewerName: schema.carReviews.reviewerName,
-      reviewerAvatarUrl: schema.carReviews.reviewerAvatarUrl,
-      rating: schema.carReviews.rating,
-      reviewText: schema.carReviews.reviewText,
-      reviewDate: schema.carReviews.reviewDate,
-    })
-    .from(schema.carReviews)
-    .where(eq(schema.carReviews.companyCarId, carId))
-    .orderBy(asc(schema.carReviews.sortOrder), asc(schema.carReviews.id));
+  const reviewsResult = await d1
+    .prepare(
+      `
+      SELECT
+        id,
+        reviewer_name AS reviewerName,
+        reviewer_avatar_url AS reviewerAvatarUrl,
+        rating,
+        review_text AS reviewText,
+        review_date AS reviewDate
+      FROM car_reviews
+      WHERE company_car_id = ?
+      ORDER BY sort_order ASC, id ASC
+      `
+    )
+    .bind(carId)
+    .all();
+  const reviewRows = (reviewsResult.results ?? []) as Array<Record<string, unknown>>;
 
-  const includedRows = await db
-    .select({
-      id: schema.carIncludedItems.id,
-      category: schema.carIncludedItems.category,
-      title: schema.carIncludedItems.title,
-      description: schema.carIncludedItems.description,
-      iconKey: schema.carIncludedItems.iconKey,
-    })
-    .from(schema.carIncludedItems)
-    .where(eq(schema.carIncludedItems.companyCarId, carId))
-    .orderBy(asc(schema.carIncludedItems.sortOrder), asc(schema.carIncludedItems.id));
+  const includedResult = await d1
+    .prepare(
+      `
+      SELECT
+        id,
+        category,
+        title,
+        description,
+        icon_key AS iconKey
+      FROM car_included_items
+      WHERE company_car_id = ?
+      ORDER BY sort_order ASC, id ASC
+      `
+    )
+    .bind(carId)
+    .all();
+  const includedRows = (includedResult.results ?? []) as Array<Record<string, unknown>>;
 
-  const rulesRows = await db
-    .select({
-      id: schema.carRules.id,
-      title: schema.carRules.title,
-      description: schema.carRules.description,
-      iconKey: schema.carRules.iconKey,
-    })
-    .from(schema.carRules)
-    .where(eq(schema.carRules.companyCarId, carId))
-    .orderBy(asc(schema.carRules.sortOrder), asc(schema.carRules.id));
+  const rulesResult = await d1
+    .prepare(
+      `
+      SELECT
+        id,
+        title,
+        description,
+        icon_key AS iconKey
+      FROM car_rules
+      WHERE company_car_id = ?
+      ORDER BY sort_order ASC, id ASC
+      `
+    )
+    .bind(carId)
+    .all();
+  const rulesRows = (rulesResult.results ?? []) as Array<Record<string, unknown>>;
 
-  const featureRows = await db
-    .select({
-      id: schema.carFeatures.id,
-      category: schema.carFeatures.category,
-      name: schema.carFeatures.name,
-    })
-    .from(schema.carFeatures)
-    .where(eq(schema.carFeatures.companyCarId, carId))
-    .orderBy(asc(schema.carFeatures.sortOrder), asc(schema.carFeatures.id));
+  const featuresResult = await d1
+    .prepare(
+      `
+      SELECT
+        id,
+        category,
+        name
+      FROM car_features
+      WHERE company_car_id = ?
+      ORDER BY sort_order ASC, id ASC
+      `
+    )
+    .bind(carId)
+    .all();
+  const featureRows = (featuresResult.results ?? []) as Array<Record<string, unknown>>;
 
   let photos: string[] = [];
-  if (car[0].photos) {
+  if (typeof car.photos === "string" && car.photos) {
     try {
-      const parsed = JSON.parse(car[0].photos);
+      const parsed = JSON.parse(car.photos);
       photos = Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
     } catch {
       photos = [];
@@ -189,37 +230,62 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     : null;
 
   const reviews: CarReviewItem[] = reviewRows.map((row) => ({
-    id: row.id,
-    reviewerName: row.reviewerName,
-    reviewerAvatarUrl: row.reviewerAvatarUrl,
+    id: Number(row.id),
+    reviewerName: String(row.reviewerName || ""),
+    reviewerAvatarUrl: (row.reviewerAvatarUrl as string | null) ?? null,
     rating: Number(row.rating || 0),
-    reviewText: row.reviewText,
-    reviewDate: formatDate(row.reviewDate || null),
+    reviewText: String(row.reviewText || ""),
+    reviewDate: formatDate(toDateOrNull(row.reviewDate)),
   }));
 
   const includedItems: CarIncludedItem[] = includedRows.map((row) => ({
-    id: row.id,
-    category: row.category || "General",
-    title: row.title,
-    description: row.description,
-    iconKey: row.iconKey,
+    id: Number(row.id),
+    category: (row.category as string) || "General",
+    title: String(row.title || ""),
+    description: (row.description as string | null) ?? null,
+    iconKey: String(row.iconKey || ""),
   }));
 
   const rules: CarRuleItem[] = rulesRows.map((row) => ({
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    iconKey: row.iconKey,
+    id: Number(row.id),
+    title: String(row.title || ""),
+    description: (row.description as string | null) ?? null,
+    iconKey: String(row.iconKey || ""),
   }));
 
   const features: CarFeatureItem[] = featureRows.map((row) => ({
-    id: row.id,
-    category: row.category,
-    name: row.name,
+    id: Number(row.id),
+    category: String(row.category || ""),
+    name: String(row.name || ""),
   }));
 
   return {
-    car: car[0],
+    car: {
+      id: Number(car.id),
+      brandName: (car.brandName as string | null) ?? null,
+      modelName: (car.modelName as string | null) ?? null,
+      bodyType: (car.bodyType as string | null) ?? null,
+      year: (car.year as number | null) ?? null,
+      transmission: (car.transmission as string | null) ?? null,
+      fuelType: (car.fuelType as string | null) ?? null,
+      engineVolume: Number(car.engineVolume || 0) || null,
+      seats: (car.seats as number | null) ?? null,
+      doors: (car.doors as number | null) ?? null,
+      pricePerDay: Number(car.pricePerDay || 0),
+      deposit: Number(car.deposit || 0),
+      minInsurancePrice: car.minInsurancePrice ? Number(car.minInsurancePrice) : null,
+      maxInsurancePrice: car.maxInsurancePrice ? Number(car.maxInsurancePrice) : null,
+      fullInsuranceMinPrice: car.fullInsuranceMinPrice ? Number(car.fullInsuranceMinPrice) : null,
+      fullInsuranceMaxPrice: car.fullInsuranceMaxPrice ? Number(car.fullInsuranceMaxPrice) : null,
+      companyName: String(car.companyName || ""),
+      locationName: (car.locationName as string | null) ?? null,
+      districtName: (car.districtName as string | null) ?? null,
+      ownerName: (car.ownerName as string | null) ?? null,
+      ownerAvatarUrl: (car.ownerAvatarUrl as string | null) ?? null,
+      ownerCreatedAt: toDateOrNull(car.ownerCreatedAt),
+      marketingHeadline: (car.marketingHeadline as string | null) ?? null,
+      description: (car.description as string | null) ?? null,
+    },
     photos,
     hostTrips: Number(tripStats[0]?.trips || 0),
     ratingSummary,
@@ -247,7 +313,7 @@ export default function PublicCarPage() {
   ].filter((item): item is string => Boolean(item));
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen">
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

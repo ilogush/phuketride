@@ -2,15 +2,11 @@ import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "reac
 import { useLoaderData, Form, Link, Outlet, useSearchParams } from "react-router";
 import { useEffect } from "react";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { eq } from "drizzle-orm";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon, SwatchIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
-import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
 interface Color {
     id: number;
@@ -20,52 +16,30 @@ interface Color {
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-
-    const colors = await db
-        .select()
-        .from(schema.colors)
-        .limit(100);
+    const colorsResult = await context.cloudflare.env.DB
+        .prepare("SELECT id, name, hex_code AS hexCode FROM colors LIMIT 100")
+        .all();
+    const colors = (colorsResult.results ?? []) as Color[];
 
     return { user, colors };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
+    await requireAuth(request);
     const formData = await request.formData();
     const intent = formData.get("intent");
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));
-        
-        // Get current color for audit log
-        const currentColor = await db
-            .select()
-            .from(schema.colors)
-            .where(eq(schema.colors.id, id))
-            .limit(1);
 
         try {
-            await db.delete(schema.colors).where(eq(schema.colors.id, id));
-
-            // Audit log
-            const metadata = getRequestMetadata(request);
-            quickAudit({
-                db,
-                userId: user.id,
-                role: user.role,
-                companyId: user.companyId,
-                entityType: "color",
-                entityId: id,
-                action: "delete",
-                beforeState: currentColor[0],
-                ...metadata,
-            });
+            await context.cloudflare.env.DB
+                .prepare("DELETE FROM colors WHERE id = ?")
+                .bind(id)
+                .run();
 
             return redirect("/colors?success=Color deleted successfully");
-        } catch (error) {
-            console.error("Failed to delete color:", error);
+        } catch {
             return redirect("/colors?error=Failed to delete color");
         }
     }
@@ -90,11 +64,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         try {
             for (const color of defaultColors) {
-                await db.insert(schema.colors).values(color);
+                await context.cloudflare.env.DB
+                    .prepare("INSERT INTO colors (name, hex_code) VALUES (?, ?)")
+                    .bind(color.name, color.hexCode)
+                    .run();
             }
             return redirect("/colors?success=Default colors created successfully");
-        } catch (error) {
-            console.error("Failed to create default colors:", error);
+        } catch {
             return redirect("/colors?error=Failed to create default colors");
         }
     }

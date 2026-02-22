@@ -1,27 +1,22 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useNavigate, useLoaderData, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { eq } from "drizzle-orm";
 import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
 import Button from "~/components/dashboard/Button";
 import { useState, useEffect } from "react";
 import { useToast } from "~/lib/toast";
 import { colorSchema } from "~/schemas/dictionary";
-import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const colorId = Number(params.colorId);
 
-    const color = await db
-        .select()
-        .from(schema.colors)
-        .where(eq(schema.colors.id, colorId))
-        .limit(1);
+    const colorResult = await context.cloudflare.env.DB
+        .prepare("SELECT id, name, hex_code AS hexCode FROM colors WHERE id = ? LIMIT 1")
+        .bind(colorId)
+        .all();
+    const color = (colorResult.results ?? []) as Array<{ id: number; name: string; hexCode: string | null }>;
 
     if (!color[0]) {
         throw new Response("Color not found", { status: 404 });
@@ -31,17 +26,16 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
+    await requireAuth(request);
     const formData = await request.formData();
     const colorId = Number(params.colorId);
 
     // Get current color for audit log
-    const currentColor = await db
-        .select()
-        .from(schema.colors)
-        .where(eq(schema.colors.id, colorId))
-        .limit(1);
+    const currentColorResult = await context.cloudflare.env.DB
+        .prepare("SELECT id, name, hex_code AS hexCode FROM colors WHERE id = ? LIMIT 1")
+        .bind(colorId)
+        .all();
+    const currentColor = (currentColorResult.results ?? []) as Array<{ id: number; name: string; hexCode: string | null }>;
 
     if (!currentColor[0]) {
         return redirect("/colors?error=Color not found");
@@ -62,32 +56,13 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const validData = validation.data;
 
     try {
-        await db
-            .update(schema.colors)
-            .set({
-                name: validData.name,
-                hexCode: validData.hexCode,
-            })
-            .where(eq(schema.colors.id, colorId));
-
-        // Audit log
-        const metadata = getRequestMetadata(request);
-        quickAudit({
-            db,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId,
-            entityType: "color",
-            entityId: colorId,
-            action: "update",
-            beforeState: currentColor[0],
-            afterState: { ...validData, id: colorId },
-            ...metadata,
-        });
+        await context.cloudflare.env.DB
+            .prepare("UPDATE colors SET name = ?, hex_code = ? WHERE id = ?")
+            .bind(validData.name, validData.hexCode, colorId)
+            .run();
 
         return redirect("/colors?success=Color updated successfully");
-    } catch (error) {
-        console.error("Failed to update color:", error);
+    } catch {
         return redirect(`/colors/${colorId}/edit?error=Failed to update color`);
     }
 }

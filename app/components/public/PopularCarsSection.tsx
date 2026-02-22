@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import Button from "~/components/public/Button";
+import ClientButton from "~/components/public/ClientButton";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { StarIcon } from "@heroicons/react/24/solid";
 
 interface PublicCarItem {
   id: number;
@@ -16,6 +18,8 @@ interface PublicCarItem {
   photoUrl: string | null;
   districtTitle: string;
   officeAddress: string;
+  rating: number | null;
+  totalRatings: number | null;
 }
 
 interface PopularCarsSectionProps {
@@ -102,32 +106,30 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                       )}
                     </Link>
 
-                    <div className="p-4 space-y-2">
+                    <div className="px-3 pt-3 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="text-base font-semibold text-gray-800">
                           {car.brandName} {car.modelName}
                         </h3>
-                        {car.bodyType && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500">
-                            {car.bodyType}
-                          </span>
-                        )}
                       </div>
 
-                      <p className="text-xs text-gray-500">
-                        {car.year || "Year N/A"} • {car.transmission || "automatic"} • {car.fuelType || "fuel"}
-                      </p>
-
-                      <div className="pt-1 flex items-end justify-between">
-                        <div>
-                          <p className="text-sm text-gray-500">Price per day</p>
-                          <p className="text-lg font-semibold text-gray-800">{formatMoney(car.pricePerDay)}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-500">Deposit</p>
-                          <p className="text-base font-semibold text-gray-800">{formatMoney(car.deposit)}</p>
-                        </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-500">
+                          {car.year || "Year N/A"} • {car.rating?.toFixed(2) || "N/A"}{" "}
+                          <StarIcon className="inline w-4 h-4 pb-1 text-indigo-600 align-middle" />{" "}
+                          ({car.totalRatings || 0})
+                        </p>
+                        <p className="text-base font-semibold text-gray-800">
+                          {formatMoney(car.pricePerDay)}
+                          <span className="ml-1 text-sm font-normal text-gray-500">/day</span>
+                        </p>
                       </div>
+
+                      <Link to={`/cars/${car.id}`} className="block sm:hidden mb-3">
+                        <ClientButton type="button" className="w-full text-sm">
+                          Book now
+                        </ClientButton>
+                      </Link>
                     </div>
                   </article>
                 ))}

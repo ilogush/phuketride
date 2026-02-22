@@ -1,8 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { Input } from "~/components/dashboard/Input";
 import Button from "~/components/dashboard/Button";
@@ -12,7 +10,6 @@ import { TagIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { useEffect } from "react";
 import { brandSchema } from "~/schemas/dictionary";
-import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -27,7 +24,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (user.role !== "admin") {
         throw new Response("Forbidden", { status: 403 });
     }
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
     const rawData = {
@@ -45,29 +41,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     try {
         const logoUrl = formData.get("logoUrl") as string;
-
-        const [newBrand] = await db.insert(schema.carBrands).values({
-            name: validData.name,
-            logoUrl: logoUrl || null,
-        }).returning({ id: schema.carBrands.id });
-
-        // Audit log
-        const metadata = getRequestMetadata(request);
-        quickAudit({
-            db,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId,
-            entityType: "brand",
-            entityId: newBrand.id,
-            action: "create",
-            afterState: { ...validData, id: newBrand.id, logoUrl },
-            ...metadata,
-        });
+        await context.cloudflare.env.DB
+            .prepare("INSERT INTO car_brands (name, logo_url) VALUES (?, ?)")
+            .bind(validData.name, logoUrl || null)
+            .run();
 
         return redirect(`/brands?success=${encodeURIComponent("Brand created successfully")}`);
-    } catch (error) {
-        console.error("Failed to create brand:", error);
+    } catch {
         return redirect(`/brands/create?error=${encodeURIComponent("Failed to create brand")}`);
     }
 }

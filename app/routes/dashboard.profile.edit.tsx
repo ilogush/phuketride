@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { eq } from "drizzle-orm";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import BackButton from "~/components/dashboard/BackButton";
@@ -22,19 +19,28 @@ import { PASSWORD_MIN_LENGTH } from "~/lib/password";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-    const fullUser = await db.query.users.findFirst({
-        where: eq(schema.users.id, sessionUser.id),
-        columns: { passwordHash: false },
-    });
+    const fullUser = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT id, email, role, name, surname, phone, whatsapp, telegram,
+                   passport_number AS passportNumber, citizenship, city, country_id AS countryId,
+                   date_of_birth AS dateOfBirth, gender, passport_photos AS passportPhotos,
+                   driver_license_photos AS driverLicensePhotos, avatar_url AS avatarUrl,
+                   hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
+                   district_id AS districtId, address
+            FROM users
+            WHERE id = ?
+            LIMIT 1
+        `)
+        .bind(sessionUser.id)
+        .first<any>();
     if (!fullUser) throw new Response("User not found", { status: 404 });
 
     // Load reference data
     const [countries, hotels, locations, districts] = await Promise.all([
-        db.select().from(schema.countries).all(),
-        db.select().from(schema.hotels).all(),
-        db.select().from(schema.locations).all(),
-        db.select().from(schema.districts).all(),
+        context.cloudflare.env.DB.prepare("SELECT * FROM countries ORDER BY name ASC").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM hotels ORDER BY name ASC").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM locations ORDER BY name ASC").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM districts ORDER BY name ASC").all().then((r: any) => r.results || []),
     ]);
 
     return {
@@ -49,14 +55,22 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
     // Get current user data
-    const currentUser = await db.query.users.findFirst({
-        where: eq(schema.users.id, user.id),
-        columns: { passwordHash: false },
-    });
+    const currentUser = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT id, email, role, name, surname, phone, whatsapp, telegram,
+                   passport_number AS passportNumber, citizenship, city, country_id AS countryId,
+                   date_of_birth AS dateOfBirth, gender, avatar_url AS avatarUrl,
+                   hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
+                   district_id AS districtId, address
+            FROM users
+            WHERE id = ?
+            LIMIT 1
+        `)
+        .bind(user.id)
+        .first<any>();
     if (!currentUser) throw new Response("User not found", { status: 404 });
 
     let avatarUrl = currentUser.avatarUrl;
@@ -69,8 +83,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         if (currentUser.avatarUrl) {
             try {
                 await deleteAvatar(context.cloudflare.env.ASSETS, currentUser.avatarUrl);
-            } catch (error) {
-                console.error("Failed to delete old avatar:", error);
+            } catch {
             }
         }
         avatarUrl = await uploadAvatarFromBase64(
@@ -87,8 +100,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         try {
             await deleteAvatar(context.cloudflare.env.ASSETS, currentUser.avatarUrl);
             avatarUrl = null;
-        } catch (error) {
-            console.error("Failed to delete avatar:", error);
+        } catch {
         }
     }
 
@@ -142,16 +154,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const validData = validation.data;
 
     try {
-        const updateData: any = {
-            ...validData,
-            dateOfBirth: validData.dateOfBirth ? new Date(validData.dateOfBirth) : null,
-            avatarUrl,
-            passportPhotos,
-            driverLicensePhotos,
-            updatedAt: new Date(),
-        };
-
         const passwordChanged = !!(newPassword || confirmPassword);
+        let passwordHash: string | null = null;
         if (newPassword || confirmPassword) {
             if (newPassword.length < PASSWORD_MIN_LENGTH) {
                 return redirect(`/profile/edit?error=${encodeURIComponent(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`)}`);
@@ -160,25 +164,61 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 return redirect(`/profile/edit?error=${encodeURIComponent("Passwords do not match")}`);
             }
             const { hashPassword } = await import("~/lib/password.server");
-            updateData.passwordHash = await hashPassword(newPassword);
+            passwordHash = await hashPassword(newPassword);
         }
 
         // Only admin can change role
+        let nextRole = currentUser.role;
         if (user.role === "admin") {
             const newRole = formData.get("role") as string;
             if (newRole && ["admin", "partner", "manager", "user"].includes(newRole)) {
-                updateData.role = newRole;
+                nextRole = newRole;
             }
         }
 
-        await db.update(schema.users)
-            .set(updateData)
-            .where(eq(schema.users.id, user.id));
+        const dateOfBirth = validData.dateOfBirth ? new Date(validData.dateOfBirth).toISOString() : null;
+        await context.cloudflare.env.DB
+            .prepare(`
+                UPDATE users
+                SET role = ?, name = ?, surname = ?, phone = ?, whatsapp = ?, telegram = ?,
+                    passport_number = ?, citizenship = ?, city = ?, country_id = ?, date_of_birth = ?,
+                    gender = ?, avatar_url = ?, passport_photos = ?, driver_license_photos = ?,
+                    hotel_id = ?, room_number = ?, location_id = ?, district_id = ?, address = ?,
+                    password_hash = COALESCE(?, password_hash),
+                    updated_at = ?
+                WHERE id = ?
+            `)
+            .bind(
+                nextRole,
+                validData.name,
+                validData.surname,
+                validData.phone,
+                validData.whatsapp,
+                validData.telegram,
+                validData.passportNumber,
+                validData.citizenship,
+                validData.city,
+                validData.countryId,
+                dateOfBirth,
+                validData.gender,
+                avatarUrl,
+                passportPhotos,
+                driverLicensePhotos,
+                validData.hotelId,
+                validData.roomNumber,
+                validData.locationId,
+                validData.districtId,
+                validData.address,
+                passwordHash,
+                new Date().toISOString(),
+                user.id
+            )
+            .run();
 
         // Audit log
         const metadata = getRequestMetadata(request);
         quickAudit({
-            db,
+            db: context.cloudflare.env.DB,
             userId: user.id,
             role: user.role,
             companyId: user.companyId,
@@ -191,8 +231,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         });
 
         return redirect(`/profile?success=${encodeURIComponent("Profile updated successfully")}`);
-    } catch (error) {
-        console.error("Failed to update profile:", error);
+    } catch {
         return redirect(`/profile/edit?error=${encodeURIComponent("Failed to update profile")}`);
     }
 }

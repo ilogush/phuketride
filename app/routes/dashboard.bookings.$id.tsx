@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, Link } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and } from "drizzle-orm";
-import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
@@ -13,27 +10,67 @@ import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const bookingId = Number(params.id);
 
-    const booking = await db.query.bookings.findFirst({
-        where: eq(schema.bookings.id, bookingId),
-        with: {
+    const bookingRaw = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT
+                b.*,
+                cc.company_id AS companyId,
+                cc.id AS carId,
+                cc.license_plate AS carLicensePlate,
+                cc.year AS carYear,
+                cb.name AS brandName,
+                cm.name AS modelName,
+                cl.name AS colorName,
+                d1.name AS pickupDistrictName,
+                d2.name AS returnDistrictName
+            FROM bookings b
+            JOIN company_cars cc ON cc.id = b.company_car_id
+            LEFT JOIN car_templates ct ON ct.id = cc.template_id
+            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+            LEFT JOIN car_models cm ON cm.id = ct.model_id
+            LEFT JOIN colors cl ON cl.id = cc.color_id
+            LEFT JOIN districts d1 ON d1.id = b.pickup_district_id
+            LEFT JOIN districts d2 ON d2.id = b.return_district_id
+            WHERE b.id = ?
+            LIMIT 1
+        `)
+        .bind(bookingId)
+        .first<any>();
+    const booking = bookingRaw
+        ? {
+            ...bookingRaw,
+            startDate: bookingRaw.start_date,
+            endDate: bookingRaw.end_date,
+            estimatedAmount: bookingRaw.estimated_amount,
+            depositAmount: bookingRaw.deposit_amount,
+            depositPaid: !!bookingRaw.deposit_paid,
+            clientName: bookingRaw.client_name,
+            clientSurname: bookingRaw.client_surname,
+            clientPhone: bookingRaw.client_phone,
+            clientEmail: bookingRaw.client_email,
+            clientPassport: bookingRaw.client_passport,
+            pickupDistrictId: bookingRaw.pickup_district_id,
+            pickupHotel: bookingRaw.pickup_hotel,
+            pickupRoom: bookingRaw.pickup_room,
+            returnDistrictId: bookingRaw.return_district_id,
+            returnHotel: bookingRaw.return_hotel,
+            returnRoom: bookingRaw.return_room,
+            notes: bookingRaw.notes,
+            createdAt: bookingRaw.created_at,
             companyCar: {
-                with: {
-                    template: {
-                        with: {
-                            brand: true,
-                            model: true,
-                        }
-                    },
-                    color: true,
-                }
+                id: bookingRaw.carId,
+                companyId: bookingRaw.companyId,
+                licensePlate: bookingRaw.carLicensePlate,
+                year: bookingRaw.carYear,
+                template: { brand: { name: bookingRaw.brandName }, model: { name: bookingRaw.modelName } },
+                color: { name: bookingRaw.colorName },
             },
-            pickupDistrict: true,
-            returnDistrict: true,
+            pickupDistrict: { name: bookingRaw.pickupDistrictName },
+            returnDistrict: { name: bookingRaw.returnDistrictName },
         }
-    });
+        : null;
 
     if (!booking) {
         throw new Response("Booking not found", { status: 404 });
@@ -44,15 +81,28 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 
 export async function action({ request, params, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const bookingId = Number(params.id);
     const formData = await request.formData();
     const action = formData.get("_action");
 
     try {
-        const booking = await db.query.bookings.findFirst({
-            where: eq(schema.bookings.id, bookingId),
-        });
+        const booking = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT
+                    id, status, company_car_id AS companyCarId, client_id AS clientId, start_date AS startDate, end_date AS endDate,
+                    estimated_amount AS estimatedAmount, currency, deposit_amount AS depositAmount, deposit_payment_method AS depositPaymentMethod,
+                    full_insurance_enabled AS fullInsuranceEnabled, full_insurance_price AS fullInsurancePrice, baby_seat_enabled AS babySeatEnabled,
+                    baby_seat_price AS babySeatPrice, island_trip_enabled AS islandTripEnabled, island_trip_price AS islandTripPrice,
+                    krabi_trip_enabled AS krabiTripEnabled, krabi_trip_price AS krabiTripPrice, pickup_district_id AS pickupDistrictId,
+                    pickup_hotel AS pickupHotel, pickup_room AS pickupRoom, delivery_cost AS deliveryCost, return_district_id AS returnDistrictId,
+                    return_hotel AS returnHotel, return_room AS returnRoom, return_cost AS returnCost, notes, client_name AS clientName,
+                    client_surname AS clientSurname, client_phone AS clientPhone, client_email AS clientEmail, client_passport AS clientPassport
+                FROM bookings
+                WHERE id = ?
+                LIMIT 1
+            `)
+            .bind(bookingId)
+            .first<any>();
 
         if (!booking) {
             return { error: "Booking not found" };
@@ -60,18 +110,19 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
 
         if (action === "cancel") {
             // Cancel booking
-            await db.update(schema.bookings)
-                .set({ status: "cancelled", updatedAt: new Date() })
-                .where(eq(schema.bookings.id, bookingId));
+            await context.cloudflare.env.DB
+                .prepare("UPDATE bookings SET status = 'cancelled', updated_at = ? WHERE id = ?")
+                .bind(new Date().toISOString(), bookingId)
+                .run();
 
             // Update car status back to available
             const { updateCarStatus } = await import("~/lib/contract-helpers.server");
-            await updateCarStatus(db, booking.companyCarId, 'available', 'Booking cancelled');
+            await updateCarStatus(context.cloudflare.env.DB, booking.companyCarId, 'available', 'Booking cancelled');
 
             // Audit log
             const metadata = getRequestMetadata(request);
             await quickAudit({
-                db,
+                db: context.cloudflare.env.DB,
                 userId: user.id,
                 role: user.role,
                 companyId: user.companyId,
@@ -91,77 +142,97 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
             let clientId = booking.clientId;
             
             if (booking.clientPassport) {
-                const existingClient = await db.query.users.findFirst({
-                    where: eq(schema.users.passportNumber, booking.clientPassport),
-                });
+                const existingClient = await context.cloudflare.env.DB
+                    .prepare("SELECT id FROM users WHERE passport_number = ? LIMIT 1")
+                    .bind(booking.clientPassport)
+                    .first<any>();
 
                 if (existingClient) {
                     clientId = existingClient.id;
                 } else {
                     // Create new client user
-                    const [newClient] = await db.insert(schema.users).values({
-                        id: crypto.randomUUID(),
-                        email: booking.clientEmail || `${booking.clientPassport}@temp.com`,
-                        role: "user",
-                        name: booking.clientName,
-                        surname: booking.clientSurname,
-                        phone: booking.clientPhone,
-                        passportNumber: booking.clientPassport,
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
-                    }).returning();
-                    clientId = newClient.id;
+                    const newClientId = crypto.randomUUID();
+                    await context.cloudflare.env.DB
+                        .prepare(`
+                            INSERT INTO users (
+                                id, email, role, name, surname, phone, passport_number, created_at, updated_at
+                            ) VALUES (?, ?, 'user', ?, ?, ?, ?, ?, ?)
+                        `)
+                        .bind(
+                            newClientId,
+                            booking.clientEmail || `${booking.clientPassport}@temp.com`,
+                            booking.clientName,
+                            booking.clientSurname,
+                            booking.clientPhone,
+                            booking.clientPassport,
+                            new Date().toISOString(),
+                            new Date().toISOString()
+                        )
+                        .run();
+                    clientId = newClientId;
                 }
             }
 
             // Create contract from booking
-            const [contract] = await db.insert(schema.contracts).values({
-                companyCarId: booking.companyCarId,
-                clientId,
-                managerId: user.id,
-                bookingId: booking.id,
-                startDate: booking.startDate,
-                endDate: booking.endDate,
-                totalAmount: booking.estimatedAmount,
-                totalCurrency: booking.currency,
-                depositAmount: booking.depositAmount,
-                depositCurrency: booking.currency,
-                depositPaymentMethod: booking.depositPaymentMethod,
-                fullInsuranceEnabled: booking.fullInsuranceEnabled,
-                fullInsurancePrice: booking.fullInsurancePrice,
-                babySeatEnabled: booking.babySeatEnabled,
-                babySeatPrice: booking.babySeatPrice,
-                islandTripEnabled: booking.islandTripEnabled,
-                islandTripPrice: booking.islandTripPrice,
-                krabiTripEnabled: booking.krabiTripEnabled,
-                krabiTripPrice: booking.krabiTripPrice,
-                pickupDistrictId: booking.pickupDistrictId,
-                pickupHotel: booking.pickupHotel,
-                pickupRoom: booking.pickupRoom,
-                deliveryCost: booking.deliveryCost,
-                returnDistrictId: booking.returnDistrictId,
-                returnHotel: booking.returnHotel,
-                returnRoom: booking.returnRoom,
-                returnCost: booking.returnCost,
-                status: "active",
-                notes: booking.notes,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            }).returning();
+            const insertContractResult = await context.cloudflare.env.DB
+                .prepare(`
+                    INSERT INTO contracts (
+                        company_car_id, client_id, manager_id, booking_id, start_date, end_date, total_amount, total_currency,
+                        deposit_amount, deposit_currency, deposit_payment_method, full_insurance_enabled, full_insurance_price,
+                        baby_seat_enabled, baby_seat_price, island_trip_enabled, island_trip_price, krabi_trip_enabled, krabi_trip_price,
+                        pickup_district_id, pickup_hotel, pickup_room, delivery_cost, return_district_id, return_hotel, return_room, return_cost,
+                        status, notes, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
+                `)
+                .bind(
+                    booking.companyCarId,
+                    clientId,
+                    user.id,
+                    booking.id,
+                    booking.startDate,
+                    booking.endDate,
+                    booking.estimatedAmount,
+                    booking.currency,
+                    booking.depositAmount,
+                    booking.currency,
+                    booking.depositPaymentMethod,
+                    booking.fullInsuranceEnabled ? 1 : 0,
+                    booking.fullInsurancePrice || 0,
+                    booking.babySeatEnabled ? 1 : 0,
+                    booking.babySeatPrice || 0,
+                    booking.islandTripEnabled ? 1 : 0,
+                    booking.islandTripPrice || 0,
+                    booking.krabiTripEnabled ? 1 : 0,
+                    booking.krabiTripPrice || 0,
+                    booking.pickupDistrictId,
+                    booking.pickupHotel,
+                    booking.pickupRoom,
+                    booking.deliveryCost || 0,
+                    booking.returnDistrictId,
+                    booking.returnHotel,
+                    booking.returnRoom,
+                    booking.returnCost || 0,
+                    booking.notes,
+                    new Date().toISOString(),
+                    new Date().toISOString()
+                )
+                .run();
+            const contract = { id: Number(insertContractResult.meta.last_row_id) };
 
             // Update booking status to converted
-            await db.update(schema.bookings)
-                .set({ status: "converted", updatedAt: new Date() })
-                .where(eq(schema.bookings.id, bookingId));
+            await context.cloudflare.env.DB
+                .prepare("UPDATE bookings SET status = 'converted', updated_at = ? WHERE id = ?")
+                .bind(new Date().toISOString(), bookingId)
+                .run();
 
             // Update car status to rented
             const { updateCarStatus } = await import("~/lib/contract-helpers.server");
-            await updateCarStatus(db, booking.companyCarId, 'rented', 'Booking converted to contract');
+            await updateCarStatus(context.cloudflare.env.DB, booking.companyCarId, 'rented', 'Booking converted to contract');
 
             // Audit logs
             const metadata = getRequestMetadata(request);
             await quickAudit({
-                db,
+                db: context.cloudflare.env.DB,
                 userId: user.id,
                 role: user.role,
                 companyId: user.companyId,
@@ -174,7 +245,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
             });
 
             await quickAudit({
-                db,
+                db: context.cloudflare.env.DB,
                 userId: user.id,
                 role: user.role,
                 companyId: user.companyId,
@@ -189,8 +260,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
         }
 
         return { error: "Invalid action" };
-    } catch (error) {
-        console.error("Failed to process booking action:", error);
+    } catch {
         return { error: "Failed to process booking action" };
     }
 }

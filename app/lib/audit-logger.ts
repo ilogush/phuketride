@@ -1,11 +1,8 @@
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-
 export type AuditAction = "create" | "update" | "delete" | "view" | "export" | "clear";
 export type EntityType = "user" | "company" | "car" | "contract" | "payment" | "color" | "model" | "brand" | "district" | "hotel" | "season" | "duration" | "booking" | "car_template" | "calendar-event";
 
 interface AuditLogParams {
-    db: ReturnType<typeof drizzle>;
+    db: D1Database;
     userId: string;
     role: string;
     companyId?: number | null;
@@ -39,21 +36,30 @@ export async function quickAudit(params: AuditLogParams): Promise<void> {
     } = params;
 
     try {
-        await db.insert(schema.auditLogs).values({
-            userId,
-            role,
-            companyId: companyId || null,
-            entityType,
-            entityId: entityId ? Number(entityId) : null,
-            action,
-            beforeState: beforeState ? JSON.stringify(beforeState) : null,
-            afterState: afterState ? JSON.stringify(afterState) : null,
-            ipAddress: ipAddress || null,
-            userAgent: userAgent || null,
-        });
-    } catch (error) {
-        // Log error but don't throw - audit logging should not break the main flow
-        console.error("Audit logging failed:", error);
+        await db
+            .prepare(
+                `
+                INSERT INTO audit_logs (
+                    user_id, role, company_id, entity_type, entity_id, action,
+                    before_state, after_state, ip_address, user_agent
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `
+            )
+            .bind(
+                userId,
+                role,
+                companyId || null,
+                entityType,
+                entityId ? Number(entityId) : null,
+                action,
+                beforeState ? JSON.stringify(beforeState) : null,
+                afterState ? JSON.stringify(afterState) : null,
+                ipAddress || null,
+                userAgent || null
+            )
+            .run();
+    } catch {
+        // Audit logging should never break the main flow.
     }
 }
 

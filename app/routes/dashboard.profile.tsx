@@ -1,30 +1,39 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { eq } from "drizzle-orm";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import ProfileForm from "~/components/dashboard/ProfileForm";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-    const fullUser = await db.query.users.findFirst({
-        where: eq(schema.users.id, sessionUser.id),
-        columns: {
-            passwordHash: false,
-        },
-    });
+    const d1 = context.cloudflare.env.DB;
+    const fullUser = await d1
+        .prepare(
+            `
+            SELECT
+              id, email, role, name, surname, phone, whatsapp, telegram,
+              passport_number AS passportNumber, citizenship, city, country_id AS countryId,
+              date_of_birth AS dateOfBirth, gender, passport_photos AS passportPhotos,
+              driver_license_photos AS driverLicensePhotos, avatar_url AS avatarUrl,
+              hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
+              district_id AS districtId, address, is_first_login AS isFirstLogin,
+              archived_at AS archivedAt, created_at AS createdAt, updated_at AS updatedAt
+            FROM users
+            WHERE id = ?
+            LIMIT 1
+            `
+        )
+        .bind(sessionUser.id)
+        .first<Record<string, unknown>>();
 
     if (!fullUser) throw new Response("User not found", { status: 404 });
 
     // Load reference data in parallel
     const [country, hotel, location] = await Promise.all([
-        fullUser.countryId ? db.select().from(schema.countries).where(eq(schema.countries.id, fullUser.countryId)).get() : null,
-        fullUser.hotelId ? db.select().from(schema.hotels).where(eq(schema.hotels.id, fullUser.hotelId)).get() : null,
-        fullUser.locationId ? db.select().from(schema.locations).where(eq(schema.locations.id, fullUser.locationId)).get() : null,
+        fullUser.countryId ? d1.prepare("SELECT * FROM countries WHERE id = ? LIMIT 1").bind(fullUser.countryId).first() : null,
+        fullUser.hotelId ? d1.prepare("SELECT * FROM hotels WHERE id = ? LIMIT 1").bind(fullUser.hotelId).first() : null,
+        fullUser.locationId ? d1.prepare("SELECT * FROM locations WHERE id = ? LIMIT 1").bind(fullUser.locationId).first() : null,
     ]);
 
     return { user: fullUser, country, hotel, location };

@@ -1,13 +1,10 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { and, gte, eq, sql } from "drizzle-orm";
-import { contracts } from "~/db/schema";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     try {
-        const user = await requireAuth(request);
-        const db = drizzle(context.cloudflare.env.DB);
+        await requireAuth(request);
+        const d1 = context.cloudflare.env.DB;
 
         // Activity by day (last 7 days) - count contracts created per day
         const activityByDay = [];
@@ -20,15 +17,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             const nextDate = new Date(date);
             nextDate.setDate(nextDate.getDate() + 1);
 
-            const [result] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(contracts)
-                .where(
-                    and(
-                        gte(contracts.createdAt, date),
-                        sql`${contracts.createdAt} < ${nextDate}`
-                    )
-                );
+            const result = await d1
+                .prepare("SELECT count(*) AS count FROM contracts WHERE created_at >= ? AND created_at < ?")
+                .bind(date.getTime(), nextDate.getTime())
+                .first<{ count: number }>();
 
             activityByDay.push({
                 date: dateStr,
@@ -50,25 +42,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         const companiesByLocation = companiesByLocationRaw.results as Array<{ location: string; count: number }>;
 
         // Contract stats
-        const [activeResult] = await db
-            .select({ count: sql<number>`count(*)` })
-            .from(contracts)
-            .where(sql`status = 'active'`);
-
-        const [closedResult] = await db
-            .select({ count: sql<number>`count(*)` })
-            .from(contracts)
-            .where(eq(contracts.status, "closed"));
-
-        const [closedTodayResult] = await db
-            .select({ count: sql<number>`count(*)` })
-            .from(contracts)
-            .where(
-                and(
-                    eq(contracts.status, "closed"),
-                    gte(contracts.updatedAt, new Date(new Date().setHours(0, 0, 0, 0)))
-                )
-            );
+        const activeResult = await d1
+            .prepare("SELECT count(*) AS count FROM contracts WHERE status = 'active'")
+            .first<{ count: number }>();
+        const closedResult = await d1
+            .prepare("SELECT count(*) AS count FROM contracts WHERE status = 'closed'")
+            .first<{ count: number }>();
+        const closedTodayResult = await d1
+            .prepare("SELECT count(*) AS count FROM contracts WHERE status = 'closed' AND updated_at >= ?")
+            .bind(new Date(new Date().setHours(0, 0, 0, 0)).getTime())
+            .first<{ count: number }>();
 
         const contractStats = {
             active: activeResult?.count || 0,
@@ -87,8 +70,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 contractStats
             }
         });
-    } catch (error) {
-        console.error("Error loading dashboard charts:", error);
+    } catch {
         return Response.json({
             success: false,
             error: "Failed to load dashboard charts"

@@ -1,0 +1,9 @@
+# Query: -gray-950
+# ContextLines: 1
+
+1 result - 1 file
+
+app/app.css:
+   9  body {
+  10:   @apply bg-white text-gray-800;
+  11    font-weight: 400;

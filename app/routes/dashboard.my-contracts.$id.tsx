@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and } from "drizzle-orm";
-import * as schema from "~/db/schema";
 import { ArrowLeftIcon, CalendarIcon, MapPinIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import BackButton from "~/components/dashboard/BackButton";
@@ -12,94 +9,95 @@ import StatusBadge from "~/components/dashboard/StatusBadge";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const { id } = params;
 
     if (!id) {
         throw new Response("Contract ID is required", { status: 400 });
     }
 
-    // Get contract with car details
-    const [contract] = await db
-        .select({
-            id: schema.contracts.id,
-            startDate: schema.contracts.startDate,
-            endDate: schema.contracts.endDate,
-            actualEndDate: schema.contracts.actualEndDate,
-            totalAmount: schema.contracts.totalAmount,
-            totalCurrency: schema.contracts.totalCurrency,
-            depositAmount: schema.contracts.depositAmount,
-            depositCurrency: schema.contracts.depositCurrency,
-            depositPaymentMethod: schema.contracts.depositPaymentMethod,
-            fullInsuranceEnabled: schema.contracts.fullInsuranceEnabled,
-            fullInsurancePrice: schema.contracts.fullInsurancePrice,
-            babySeatEnabled: schema.contracts.babySeatEnabled,
-            babySeatPrice: schema.contracts.babySeatPrice,
-            islandTripEnabled: schema.contracts.islandTripEnabled,
-            islandTripPrice: schema.contracts.islandTripPrice,
-            krabiTripEnabled: schema.contracts.krabiTripEnabled,
-            krabiTripPrice: schema.contracts.krabiTripPrice,
-            pickupHotel: schema.contracts.pickupHotel,
-            pickupRoom: schema.contracts.pickupRoom,
-            deliveryCost: schema.contracts.deliveryCost,
-            returnHotel: schema.contracts.returnHotel,
-            returnRoom: schema.contracts.returnRoom,
-            returnCost: schema.contracts.returnCost,
-            startMileage: schema.contracts.startMileage,
-            endMileage: schema.contracts.endMileage,
-            fuelLevel: schema.contracts.fuelLevel,
-            cleanliness: schema.contracts.cleanliness,
-            status: schema.contracts.status,
-            photos: schema.contracts.photos,
-            notes: schema.contracts.notes,
-            createdAt: schema.contracts.createdAt,
-            carId: schema.companyCars.id,
-            carLicensePlate: schema.companyCars.licensePlate,
-            carYear: schema.companyCars.year,
-            carTransmission: schema.companyCars.transmission,
-            carPhotos: schema.companyCars.photos,
-            brandName: schema.carBrands.name,
-            modelName: schema.carModels.name,
-            colorName: schema.colors.name,
-            pickupDistrictName: schema.districts.name,
-            returnDistrictName: schema.districts.name,
-        })
-        .from(schema.contracts)
-        .innerJoin(schema.companyCars, eq(schema.contracts.companyCarId, schema.companyCars.id))
-        .leftJoin(schema.carTemplates, eq(schema.companyCars.templateId, schema.carTemplates.id))
-        .leftJoin(schema.carBrands, eq(schema.carTemplates.brandId, schema.carBrands.id))
-        .leftJoin(schema.carModels, eq(schema.carTemplates.modelId, schema.carModels.id))
-        .leftJoin(schema.colors, eq(schema.companyCars.colorId, schema.colors.id))
-        .leftJoin(schema.districts, eq(schema.contracts.pickupDistrictId, schema.districts.id))
-        .where(
-            and(
-                eq(schema.contracts.id, Number(id)),
-                eq(schema.contracts.clientId, user.id)
-            )
-        )
-        .limit(1);
+    const contract = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT
+                c.id,
+                c.start_date AS startDate,
+                c.end_date AS endDate,
+                c.actual_end_date AS actualEndDate,
+                c.total_amount AS totalAmount,
+                c.total_currency AS totalCurrency,
+                c.deposit_amount AS depositAmount,
+                c.deposit_currency AS depositCurrency,
+                c.deposit_payment_method AS depositPaymentMethod,
+                c.full_insurance_enabled AS fullInsuranceEnabled,
+                c.full_insurance_price AS fullInsurancePrice,
+                c.baby_seat_enabled AS babySeatEnabled,
+                c.baby_seat_price AS babySeatPrice,
+                c.island_trip_enabled AS islandTripEnabled,
+                c.island_trip_price AS islandTripPrice,
+                c.krabi_trip_enabled AS krabiTripEnabled,
+                c.krabi_trip_price AS krabiTripPrice,
+                c.pickup_hotel AS pickupHotel,
+                c.pickup_room AS pickupRoom,
+                c.delivery_cost AS deliveryCost,
+                c.return_hotel AS returnHotel,
+                c.return_room AS returnRoom,
+                c.return_cost AS returnCost,
+                c.start_mileage AS startMileage,
+                c.end_mileage AS endMileage,
+                c.fuel_level AS fuelLevel,
+                c.cleanliness,
+                c.status,
+                c.photos,
+                c.notes,
+                c.created_at AS createdAt,
+                cc.id AS carId,
+                cc.license_plate AS carLicensePlate,
+                cc.year AS carYear,
+                cc.transmission AS carTransmission,
+                cc.photos AS carPhotos,
+                cb.name AS brandName,
+                cm.name AS modelName,
+                cl.name AS colorName,
+                d_pick.name AS pickupDistrictName,
+                d_ret.name AS returnDistrictName
+            FROM contracts c
+            JOIN company_cars cc ON cc.id = c.company_car_id
+            LEFT JOIN car_templates ct ON ct.id = cc.template_id
+            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+            LEFT JOIN car_models cm ON cm.id = ct.model_id
+            LEFT JOIN colors cl ON cl.id = cc.color_id
+            LEFT JOIN districts d_pick ON d_pick.id = c.pickup_district_id
+            LEFT JOIN districts d_ret ON d_ret.id = c.return_district_id
+            WHERE c.id = ? AND c.client_id = ?
+            LIMIT 1
+        `)
+        .bind(Number(id), user.id)
+        .first<any>();
 
     if (!contract) {
         throw new Response("Contract not found", { status: 404 });
     }
 
     // Get payments for this contract
-    const payments = await db
-        .select({
-            id: schema.payments.id,
-            amount: schema.payments.amount,
-            currency: schema.payments.currency,
-            paymentMethod: schema.payments.paymentMethod,
-            status: schema.payments.status,
-            notes: schema.payments.notes,
-            createdAt: schema.payments.createdAt,
-            paymentTypeName: schema.paymentTypes.name,
-            paymentTypeSign: schema.paymentTypes.sign,
-        })
-        .from(schema.payments)
-        .innerJoin(schema.paymentTypes, eq(schema.payments.paymentTypeId, schema.paymentTypes.id))
-        .where(eq(schema.payments.contractId, Number(id)))
-        .orderBy(schema.payments.createdAt);
+    const paymentsResult = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT
+                p.id,
+                p.amount,
+                p.currency,
+                p.payment_method AS paymentMethod,
+                p.status,
+                p.notes,
+                p.created_at AS createdAt,
+                pt.name AS paymentTypeName,
+                pt.sign AS paymentTypeSign
+            FROM payments p
+            JOIN payment_types pt ON pt.id = p.payment_type_id
+            WHERE p.contract_id = ?
+            ORDER BY p.created_at ASC
+        `)
+        .bind(Number(id))
+        .all() as { results?: any[] };
+    const payments = paymentsResult.results || [];
 
     return { contract, payments };
 }

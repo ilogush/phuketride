@@ -1,8 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
 import ProfileForm from "~/components/dashboard/ProfileForm";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
@@ -19,14 +17,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         throw new Response("Forbidden", { status: 403 });
     }
 
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-
     // Load reference data
     const [countries, hotels, locations, districts] = await Promise.all([
-        db.select().from(schema.countries).all(),
-        db.select().from(schema.hotels).all(),
-        db.select().from(schema.locations).all(),
-        db.select().from(schema.districts).all(),
+        context.cloudflare.env.DB.prepare("SELECT * FROM countries ORDER BY name ASC").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM hotels ORDER BY name ASC").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM locations ORDER BY name ASC").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM districts ORDER BY name ASC").all().then((r: any) => r.results || []),
     ]);
 
     return { user, countries, hotels, locations, districts };
@@ -37,7 +33,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (user.role !== "admin") {
         throw new Response("Forbidden", { status: 403 });
     }
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
     // Parse form data
@@ -89,36 +84,51 @@ export async function action({ request, context }: ActionFunctionArgs) {
             passwordHash = await hashPassword(newPassword);
         }
 
-        await db.insert(schema.users).values({
-            id,
-            email: validData.email,
-            role: validData.role,
-            name: validData.name,
-            surname: validData.surname,
-            phone: validData.phone,
-            whatsapp: validData.whatsapp,
-            telegram: validData.telegram,
-            passportNumber: validData.passportNumber,
-            citizenship: validData.citizenship,
-            city: validData.city,
-            countryId: validData.countryId,
-            dateOfBirth: validData.dateOfBirth ? new Date(validData.dateOfBirth) : null,
-            gender: validData.gender,
-            hotelId: validData.hotelId,
-            roomNumber: validData.roomNumber,
-            locationId: validData.locationId,
-            districtId: validData.districtId,
-            address: validData.address,
-            avatarUrl: null,
-            passportPhotos: null,
-            driverLicensePhotos: null,
-            passwordHash,
-        });
+        const dateOfBirth = validData.dateOfBirth ? new Date(validData.dateOfBirth).toISOString() : null;
+        await context.cloudflare.env.DB
+            .prepare(`
+                INSERT INTO users (
+                    id, email, role, name, surname, phone, whatsapp, telegram,
+                    passport_number, citizenship, city, country_id, date_of_birth, gender,
+                    hotel_id, room_number, location_id, district_id, address,
+                    avatar_url, passport_photos, driver_license_photos, password_hash,
+                    is_first_login, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `)
+            .bind(
+                id,
+                validData.email,
+                validData.role,
+                validData.name,
+                validData.surname,
+                validData.phone,
+                validData.whatsapp,
+                validData.telegram,
+                validData.passportNumber,
+                validData.citizenship,
+                validData.city,
+                validData.countryId,
+                dateOfBirth,
+                validData.gender,
+                validData.hotelId,
+                validData.roomNumber,
+                validData.locationId,
+                validData.districtId,
+                validData.address,
+                null,
+                null,
+                null,
+                passwordHash,
+                1,
+                new Date().toISOString(),
+                new Date().toISOString()
+            )
+            .run();
 
         // Audit log
         const metadata = getRequestMetadata(request);
         quickAudit({
-            db,
+            db: context.cloudflare.env.DB,
             userId: user.id,
             role: user.role,
             companyId: user.companyId,
@@ -130,8 +140,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         });
 
         return redirect(`/users?success=${encodeURIComponent("User created successfully")}`);
-    } catch (error) {
-        console.error("Failed to create user:", error);
+    } catch {
         return redirect(`/users/create?error=${encodeURIComponent("Failed to create user")}`);
     }
 }

@@ -1,8 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
@@ -13,18 +11,19 @@ import { CubeIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { useEffect } from "react";
 import { modelSchema } from "~/schemas/dictionary";
-import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     if (user.role !== "admin") {
         throw new Response("Forbidden", { status: 403 });
     }
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-    const [brandsList, bodyTypesList] = await Promise.all([
-        db.select().from(schema.carBrands).limit(100),
-        db.select().from(schema.bodyTypes).limit(100),
+    const d1 = context.cloudflare.env.DB;
+    const [brandsResult, bodyTypesResult] = await Promise.all([
+        d1.prepare("SELECT id, name FROM car_brands LIMIT 100").all(),
+        d1.prepare("SELECT id, name FROM body_types LIMIT 100").all(),
     ]);
+    const brandsList = (brandsResult.results ?? []) as Array<{ id: number; name: string }>;
+    const bodyTypesList = (bodyTypesResult.results ?? []) as Array<{ id: number; name: string }>;
 
     return { brands: brandsList, bodyTypes: bodyTypesList };
 }
@@ -34,7 +33,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (user.role !== "admin") {
         throw new Response("Forbidden", { status: 403 });
     }
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
 
     const rawData = {
@@ -53,30 +51,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     try {
         const bodyTypeId = formData.get("bodyTypeId") ? Number(formData.get("bodyTypeId")) : null;
-
-        const [newModel] = await db.insert(schema.carModels).values({
-            name: validData.name,
-            brandId: validData.brandId,
-            bodyTypeId,
-        }).returning({ id: schema.carModels.id });
-
-        // Audit log
-        const metadata = getRequestMetadata(request);
-        quickAudit({
-            db,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId,
-            entityType: "model",
-            entityId: newModel.id,
-            action: "create",
-            afterState: { ...validData, id: newModel.id, bodyTypeId },
-            ...metadata,
-        });
+        await context.cloudflare.env.DB
+            .prepare("INSERT INTO car_models (name, brand_id, body_type_id) VALUES (?, ?, ?)")
+            .bind(validData.name, validData.brandId, bodyTypeId)
+            .run();
 
         return redirect(`/models?success=${encodeURIComponent("Model created successfully")}`);
-    } catch (error) {
-        console.error("Failed to create model:", error);
+    } catch {
         return redirect(`/models/create?error=${encodeURIComponent("Failed to create model")}`);
     }
 }

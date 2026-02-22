@@ -1,19 +1,15 @@
 import { type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useNavigate, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
 import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
 import Button from "~/components/dashboard/Button";
 import { useState, useEffect } from "react";
 import { useToast } from "~/lib/toast";
 import { colorSchema } from "~/schemas/dictionary";
-import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    const db = drizzle(context.cloudflare.env.DB, { schema });
+    await requireAuth(request);
     const formData = await request.formData();
 
     const rawData = {
@@ -31,28 +27,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const validData = validation.data;
 
     try {
-        const [newColor] = await db.insert(schema.colors).values({
-            name: validData.name,
-            hexCode: validData.hexCode,
-        }).returning({ id: schema.colors.id });
-
-        // Audit log
-        const metadata = getRequestMetadata(request);
-        quickAudit({
-            db,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId,
-            entityType: "color",
-            entityId: newColor.id,
-            action: "create",
-            afterState: { ...validData, id: newColor.id },
-            ...metadata,
-        });
+        await context.cloudflare.env.DB
+            .prepare("INSERT INTO colors (name, hex_code) VALUES (?, ?)")
+            .bind(validData.name, validData.hexCode)
+            .run();
 
         return redirect("/colors?success=Color created successfully");
-    } catch (error) {
-        console.error("Failed to create color:", error);
+    } catch {
         return redirect("/colors/new?error=Failed to create color");
     }
 }

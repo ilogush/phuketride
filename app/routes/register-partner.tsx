@@ -3,9 +3,6 @@ import { Form, Link, useActionData, useLoaderData } from "react-router";
 import { getUserFromSession } from "~/lib/auth.server";
 import { useState, useEffect } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
-import { drizzle } from "drizzle-orm/d1";
-import { and, eq } from "drizzle-orm";
-import { districts, users } from "~/db/schema";
 import { useToast } from "~/lib/toast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
@@ -19,12 +16,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     }
 
     // Load districts for Phuket (location_id = 1)
-    const db = drizzle(context.cloudflare.env.DB);
-    const districtsList = await db
-        .select()
-        .from(districts)
-        .where(and(eq(districts.locationId, 1), eq(districts.isActive, true)))
-        .orderBy(districts.name);
+    const districtsResult = await context.cloudflare.env.DB
+        .prepare(
+            `
+            SELECT id, name
+            FROM districts
+            WHERE location_id = 1 AND is_active = 1
+            ORDER BY name
+            `
+        )
+        .all();
+    const districtsList = (districtsResult.results ?? []) as Array<{ id: number; name: string }>;
 
     return { districts: districtsList };
 }
@@ -81,16 +83,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
         return { error: "Invalid phone number format" };
     }
 
-    const db = drizzle(context.cloudflare.env.DB);
-
     // Check if email already exists
-    const existingUser = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-        .limit(1);
+    const existingUser = await context.cloudflare.env.DB
+        .prepare("SELECT id FROM users WHERE email = ? LIMIT 1")
+        .bind(email)
+        .all();
 
-    if (existingUser.length > 0) {
+    if ((existingUser.results?.length ?? 0) > 0) {
         return { error: "Email already registered" };
     }
 

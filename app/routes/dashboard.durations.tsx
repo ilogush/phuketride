@@ -1,9 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, data, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "~/db/schema";
-import { eq, and } from "drizzle-orm";
 import { useState, useEffect } from "react";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
@@ -83,13 +80,22 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         throw new Response("Access denied", { status: 403 });
     }
     
-    const db = drizzle(context.cloudflare.env.DB, { schema });
-
     // Get all durations (global, not company-specific)
-    const durations = await db
-        .select()
-        .from(schema.rentalDurations)
-        .limit(100);
+    const durationsResult = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT
+                id,
+                range_name AS rangeName,
+                min_days AS minDays,
+                max_days AS maxDays,
+                price_multiplier AS priceMultiplier,
+                discount_label AS discountLabel
+            FROM rental_durations
+            ORDER BY min_days ASC
+            LIMIT 100
+        `)
+        .all() as { results?: any[] };
+    const durations = durationsResult.results || [];
 
     return { user, durations };
 }
@@ -102,7 +108,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
         return data({ success: false, message: "Access denied" }, { status: 403 });
     }
     
-    const db = drizzle(context.cloudflare.env.DB, { schema });
     const formData = await request.formData();
     const intent = formData.get("intent");
 
@@ -110,7 +115,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const id = Number(formData.get("id"));
         
         // Get all durations except the one being deleted
-        const allDurations = await db.select().from(schema.rentalDurations);
+        const allDurationsResult = await context.cloudflare.env.DB
+            .prepare("SELECT id, min_days AS minDays, max_days AS maxDays FROM rental_durations")
+            .all() as { results?: any[] };
+        const allDurations = allDurationsResult.results || [];
         const remainingDurations = allDurations.filter(d => d.id !== id);
         
         // Validate coverage after deletion
@@ -121,7 +129,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
             }
         }
         
-        await db.delete(schema.rentalDurations).where(eq(schema.rentalDurations.id, id));
+        await context.cloudflare.env.DB
+            .prepare("DELETE FROM rental_durations WHERE id = ?")
+            .bind(id)
+            .run();
         return redirect("/durations?success=Duration deleted successfully");
     }
 
@@ -136,7 +147,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const normalizedMaxDays = maxDays === 0 ? null : maxDays;
 
         // Get existing durations
-        const existingDurations = await db.select().from(schema.rentalDurations);
+        const existingDurationsResult = await context.cloudflare.env.DB
+            .prepare("SELECT min_days AS minDays, max_days AS maxDays FROM rental_durations")
+            .all() as { results?: any[] };
+        const existingDurations = existingDurationsResult.results || [];
         
         // Add new duration to validation
         const allDurations = [
@@ -149,15 +163,22 @@ export async function action({ request, context }: ActionFunctionArgs) {
             return redirect(`/durations?error=${encodeURIComponent(validation.message!)}`);
         }
 
-        await db.insert(schema.rentalDurations).values({
-            rangeName,
-            minDays,
-            maxDays: normalizedMaxDays,
-            priceMultiplier,
-            discountLabel: discountLabel || null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        });
+        await context.cloudflare.env.DB
+            .prepare(`
+                INSERT INTO rental_durations (
+                    range_name, min_days, max_days, price_multiplier, discount_label, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            `)
+            .bind(
+                rangeName,
+                minDays,
+                normalizedMaxDays,
+                priceMultiplier,
+                discountLabel || null,
+                new Date().toISOString(),
+                new Date().toISOString()
+            )
+            .run();
 
         return redirect("/durations?success=Duration created successfully");
     }
@@ -174,7 +195,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const normalizedMaxDays = maxDays === 0 ? null : maxDays;
 
         // Get all durations except the one being updated
-        const allDurations = await db.select().from(schema.rentalDurations);
+        const allDurationsResult = await context.cloudflare.env.DB
+            .prepare("SELECT id, min_days AS minDays, max_days AS maxDays FROM rental_durations")
+            .all() as { results?: any[] };
+        const allDurations = allDurationsResult.results || [];
         const otherDurations = allDurations.filter(d => d.id !== id);
         
         // Add updated duration to validation
@@ -188,17 +212,23 @@ export async function action({ request, context }: ActionFunctionArgs) {
             return redirect(`/durations?error=${encodeURIComponent(validation.message!)}`);
         }
 
-        await db
-            .update(schema.rentalDurations)
-            .set({
+        await context.cloudflare.env.DB
+            .prepare(`
+                UPDATE rental_durations
+                SET range_name = ?, min_days = ?, max_days = ?, price_multiplier = ?,
+                    discount_label = ?, updated_at = ?
+                WHERE id = ?
+            `)
+            .bind(
                 rangeName,
                 minDays,
-                maxDays: normalizedMaxDays,
+                normalizedMaxDays,
                 priceMultiplier,
-                discountLabel: discountLabel || null,
-                updatedAt: new Date(),
-            })
-            .where(eq(schema.rentalDurations.id, id));
+                discountLabel || null,
+                new Date().toISOString(),
+                id
+            )
+            .run();
 
         return redirect("/durations?success=Duration updated successfully");
     }
@@ -215,11 +245,22 @@ export async function action({ request, context }: ActionFunctionArgs) {
         ];
 
         for (const duration of defaultDurations) {
-            await db.insert(schema.rentalDurations).values({
-                ...duration,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            });
+            await context.cloudflare.env.DB
+                .prepare(`
+                    INSERT INTO rental_durations (
+                        range_name, min_days, max_days, price_multiplier, discount_label, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                `)
+                .bind(
+                    duration.rangeName,
+                    duration.minDays,
+                    duration.maxDays,
+                    duration.priceMultiplier,
+                    duration.discountLabel,
+                    new Date().toISOString(),
+                    new Date().toISOString()
+                )
+                .run();
         }
 
         return redirect("/durations?success=Default durations created successfully");
