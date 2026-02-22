@@ -252,9 +252,11 @@ export default function CarTripSidebar({
           ) : null}
         </div>
 
-        <div className="pt-4 border-t border-gray-200 space-y-2">
-          <h3 className="text-xl font-semibold text-gray-800">Deposit</h3>
-          <p className="text-base text-gray-800">{money(effectiveDeposit)}</p>
+        <div className="pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold text-gray-800">Deposit</h3>
+            <p className="text-base font-semibold text-gray-800">{money(effectiveDeposit)}</p>
+          </div>
           <p className="text-sm text-gray-500">
             {withFullInsurance ? "With full insurance, deposit is not required." : "Refundable security deposit paid at pickup."}
           </p>
