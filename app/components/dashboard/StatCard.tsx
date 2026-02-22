@@ -113,7 +113,7 @@ export default function StatCard({
                             </div>
                         )}
                         {trend && (
-                            <div className={`text-xs font-bold uppercase tracking-wide flex items-center gap-1 ${trend.isPositive ? 'text-green-600' : 'text-red-500'}`}>
+                            <div className={`text-xs font-bold uppercase tracking-wide flex items-center gap-2${trend.isPositive ? 'text-green-600' : 'text-red-500'}`}>
                                 {trend.isPositive ? '↑' : '↓'} {trend.value}%
                             </div>
                         )}

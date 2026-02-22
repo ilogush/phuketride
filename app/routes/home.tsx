@@ -52,6 +52,7 @@ export async function loader({ context }: Route.LoaderArgs) {
         ft.name AS fuelType,
         cc.price_per_day AS pricePerDay,
         cc.deposit AS deposit,
+        cc.photos AS photos,
         CASE
           WHEN json_valid(cc.photos) THEN json_extract(cc.photos, '$[0]')
           ELSE NULL
@@ -89,7 +90,19 @@ export async function loader({ context }: Route.LoaderArgs) {
   const districtsRows = ((districtsResult.results ?? []) as Array<Record<string, unknown>>);
 
   const cars = rows.map((row) => {
-    const photoUrl = typeof row.photoUrl === "string" ? row.photoUrl : null;
+    const fallbackPhotoUrl = typeof row.photoUrl === "string" ? row.photoUrl : null;
+    let photoUrls: string[] = [];
+    if (typeof row.photos === "string" && row.photos) {
+      try {
+        const parsed = JSON.parse(row.photos);
+        photoUrls = Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string" && Boolean(item)) : [];
+      } catch {
+        photoUrls = [];
+      }
+    }
+    if (!photoUrls.length && fallbackPhotoUrl) {
+      photoUrls = [fallbackPhotoUrl];
+    }
 
     const districtTitle =
       (typeof row.districtName === "string" && row.districtName) ||
@@ -109,7 +122,8 @@ export async function loader({ context }: Route.LoaderArgs) {
       fuelType: (row.fuelType as string | null) ?? null,
       pricePerDay: Number(row.pricePerDay || 0),
       deposit: Number(row.deposit || 0),
-      photoUrl,
+      photoUrl: photoUrls[0] || fallbackPhotoUrl,
+      photoUrls,
       districtTitle,
       officeAddress: officeAddress || String(row.companyName || ""),
       rating: row.rating ? Number(row.rating) : null,
@@ -146,7 +160,7 @@ export default function Home() {
     <div className="min-h-screen">
       <Header />
       <main className="flex-1">
-        <div className="max-w-7xl mx-auto px-4 pt-0 pb-6 space-y-6">
+        <div className="max-w-5xl mx-auto px-4 pt-0 pb-6 space-y-6">
           <HeroSection districts={districts} />
           <BodyTypeFilters
             bodyTypes={bodyTypes}

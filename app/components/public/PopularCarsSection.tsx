@@ -16,6 +16,7 @@ interface PublicCarItem {
   pricePerDay: number;
   deposit: number;
   photoUrl: string | null;
+  photoUrls: string[];
   districtTitle: string;
   officeAddress: string;
   rating: number | null;
@@ -30,7 +31,8 @@ const formatMoney = (value: number) => `฿${Math.round(value).toLocaleString()}
 
 export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
   const [pageByDistrict, setPageByDistrict] = useState<Record<string, number>>({});
-  const pageSize = 4;
+  const [activePhotoByCar, setActivePhotoByCar] = useState<Record<number, number>>({});
+  const pageSize = 3;
 
   const grouped = cars.reduce<Record<string, PublicCarItem[]>>((acc, car) => {
     if (!acc[car.districtTitle]) {
@@ -88,13 +90,27 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                {visibleCars.map((car) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {visibleCars.map((car) => {
+                  const photoUrls = car.photoUrls.length ? car.photoUrls : (car.photoUrl ? [car.photoUrl] : []);
+                  const activeIndex = Math.max(0, Math.min(activePhotoByCar[car.id] || 0, Math.max(photoUrls.length - 1, 0)));
+                  const currentPhotoUrl = photoUrls[activeIndex] || null;
+
+                  return (
                   <article key={car.id} className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
-                    <Link to={`/cars/${car.id}`} className="block aspect-[16/10] bg-gray-100">
-                      {car.photoUrl ? (
+                    <Link
+                      to={`/cars/${car.id}`}
+                      className="relative hidden sm:block aspect-[16/10] bg-gray-100"
+                      onMouseLeave={() =>
+                        setActivePhotoByCar((prev) => ({
+                          ...prev,
+                          [car.id]: 0,
+                        }))
+                      }
+                    >
+                      {currentPhotoUrl ? (
                         <img
-                          src={car.photoUrl}
+                          src={currentPhotoUrl}
                           alt={`${car.brandName} ${car.modelName}`}
                           className="w-full h-full object-cover"
                           loading="lazy"
@@ -104,18 +120,52 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                           No photo
                         </div>
                       )}
+
+                      {photoUrls.length > 1 ? (
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-black/45 px-2 py-1">
+                          {photoUrls.map((_, index) => (
+                            <span
+                              key={`${car.id}-dot-${index}`}
+                              onMouseEnter={() =>
+                                setActivePhotoByCar((prev) => ({
+                                  ...prev,
+                                  [car.id]: index,
+                                }))
+                              }
+                              className={`block h-1.5 w-1.5 rounded-full ${index === activeIndex ? "bg-white" : "bg-white/50"}`}
+                            />
+                          ))}
+                        </div>
+                      ) : null}
                     </Link>
+                    <div className="sm:hidden aspect-[16/10] bg-gray-100">
+                      {currentPhotoUrl ? (
+                        <img
+                          src={currentPhotoUrl}
+                          alt={`${car.brandName} ${car.modelName}`}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
+                          No photo
+                        </div>
+                      )}
+                    </div>
 
                     <div className="px-3 pt-3 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="text-base font-semibold text-gray-800">
                           {car.brandName} {car.modelName}
+                          <span className="ml-2 text-sm font-normal text-gray-500">
+                            {car.year || "Year N/A"}
+                          </span>
                         </h3>
                       </div>
 
                       <div className="flex items-center justify-between">
                         <p className="text-sm text-gray-500">
-                          {car.year || "Year N/A"} • {car.rating?.toFixed(2) || "N/A"}{" "}
+                          {car.rating?.toFixed(2) || "N/A"}{" "}
                           <StarIcon className="inline w-4 h-4 pb-1 text-indigo-600 align-middle" />{" "}
                           ({car.totalRatings || 0})
                         </p>
@@ -132,7 +182,7 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                       </Link>
                     </div>
                   </article>
-                ))}
+                )})}
               </div>
             </section>
           )})}

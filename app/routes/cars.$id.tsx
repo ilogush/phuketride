@@ -339,16 +339,14 @@ export default function PublicCarPage() {
   return (
     <div className="min-h-screen">
       <Header />
-      <main className="max-w-7xl mx-auto px-4 space-y-6">
+      <main className="max-w-5xl mx-auto px-4 space-y-6">
+        <CarGallery title={title} photos={photos} />
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <section className="lg:col-span-2 space-y-6">
-            <CarGallery title={title} photos={photos} />
-
-            <div className="space-y-1">
-              <h1 className="text-3xl font-semibold text-gray-800">{title}</h1>
-            </div>
-
             <CarHostSection
+              title={title}
+              year={car.year}
               hostName={car.ownerName || car.companyName}
               hostTrips={hostTrips}
               hostJoinedAt={formatMonthYear(car.ownerCreatedAt || null)}
@@ -363,15 +361,12 @@ export default function PublicCarPage() {
           </section>
 
           <CarTripSidebar
+            carId={car.id}
+            showPricePerDay={false}
             pickupDistrict={pickupDistrict}
             returnDistricts={returnDistricts.map((district) => district.name)}
             initialReturnDistrict={car.districtName}
             pricePerDay={car.pricePerDay}
-            deposit={car.deposit}
-            minInsurancePrice={car.minInsurancePrice}
-            maxInsurancePrice={car.maxInsurancePrice}
-            fullInsuranceMinPrice={car.fullInsuranceMinPrice}
-            fullInsuranceMaxPrice={car.fullInsuranceMaxPrice}
           />
         </div>
       </main>

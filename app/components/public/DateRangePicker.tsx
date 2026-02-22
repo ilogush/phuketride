@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDaysIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { CalendarDaysIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon } from "@heroicons/react/24/outline";
 import { createPortal } from "react-dom";
 
 interface DateRangePickerProps {
@@ -16,6 +16,8 @@ interface DateRangePickerProps {
   compactDateBorder?: boolean;
   compactCalendarIconClassName?: string;
   compactShowChevron?: boolean;
+  compactShowTime?: boolean;
+  compactVertical?: boolean;
 }
 
 export interface DateRangeValue {
@@ -50,6 +52,18 @@ const formatDisplay = (value: string) => {
   const [year, month, day] = value.split("-");
   return `${day}/${month}/${year}`;
 };
+const formatTimeDisplay = (value: string) => {
+  const [hour, minute] = value.split(":").map(Number);
+  const date = new Date(2026, 0, 1, hour || 0, minute || 0, 0, 0);
+  return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+};
+const timeOptions = Array.from({ length: 48 }, (_, index) => {
+  const hour = Math.floor(index / 2);
+  const minute = index % 2 === 0 ? 0 : 30;
+  const value = `${pad(hour)}:${pad(minute)}`;
+  const date = new Date(2026, 0, 1, hour, minute, 0, 0);
+  return { value, label: date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }) };
+});
 
 const monthLabel = (date: Date) => date.toLocaleString("en-US", { month: "long", year: "numeric" });
 
@@ -90,6 +104,8 @@ export default function DateRangePicker({
   compactDateBorder = false,
   compactCalendarIconClassName = "h-4 w-4",
   compactShowChevron = false,
+  compactShowTime = false,
+  compactVertical = false,
 }: DateRangePickerProps) {
   const initial = useMemo(() => defaultDates(), []);
   const [internal, setInternal] = useState<DateRangeValue>(initial);
@@ -219,39 +235,50 @@ export default function DateRangePicker({
     );
   }
 
+  const startDisplayValue = formatDisplay(model.startDate);
+  const endDisplayValue = formatDisplay(model.endDate);
+
   return (
-    <div className={`${dropdownFullWidth ? "static" : "relative"} grid grid-cols-2 text-left`}>
+    <div className={`${dropdownFullWidth ? "static" : "relative"} grid ${compactVertical ? "grid-cols-1 gap-2" : "grid-cols-2"} text-left`}>
       <button
         type="button"
-        className="w-full space-y-1 pr-2 text-left border-0 bg-transparent appearance-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:shadow-none focus-visible:outline-none focus-visible:ring-0 active:outline-none active:ring-0"
+        className={`w-full space-y-1 ${compactVertical ? "" : "pr-2"} text-left border-0 bg-transparent appearance-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:shadow-none focus-visible:outline-none focus-visible:ring-0 active:outline-none active:ring-0`}
         onClick={() => setOpen((prev) => !prev)}
       >
         <p className={compactLabelClassName}>{compactStartLabel}</p>
-        <div className={`flex items-center whitespace-nowrap ${compactDateBorder ? "rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800" : ""}`}>
-          <CalendarDaysIcon className={`${compactCalendarIconClassName} text-gray-500 mr-2 shrink-0`} />
-          <div className={`relative min-w-[108px] ${compactShowChevron ? "pr-6" : ""}`}>
-            <input type="text" readOnly value={formatDisplay(model.startDate)} className={inputClass} />
-            {compactShowChevron ? (
-              <ChevronDownIcon className="pointer-events-none absolute right-0 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
-            ) : null}
-          </div>
+        <div className={`flex items-center gap-2${compactDateBorder ? " rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800" : ""}`}>
+          <CalendarDaysIcon className={`${compactCalendarIconClassName} text-gray-500 flex-shrink-0`} />
+          <span className="text-base text-gray-800 whitespace-nowrap">{startDisplayValue}</span>
+          {compactShowTime ? (
+            <>
+              <ClockIcon className="h-4 w-4 text-gray-500 flex-shrink-0" />
+              <span className="text-base  text-gray-700 whitespace-nowrap">{formatTimeDisplay(model.startTime)}</span>
+            </>
+          ) : null}
+          {compactShowChevron ? (
+            <ChevronDownIcon className="pointer-events-none h-5 w-5 text-gray-700 ml-auto" />
+          ) : null}
         </div>
       </button>
 
       <button
         type="button"
-        className="w-full space-y-1 pl-2 text-left border-0 bg-transparent appearance-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:shadow-none focus-visible:outline-none focus-visible:ring-0 active:outline-none active:ring-0"
+        className={`w-full space-y-1 ${compactVertical ? "" : "pl-2"} text-left border-0 bg-transparent appearance-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:shadow-none focus-visible:outline-none focus-visible:ring-0 active:outline-none active:ring-0`}
         onClick={() => setOpen((prev) => !prev)}
       >
         <p className={compactLabelClassName}>{compactEndLabel}</p>
-        <div className={`flex items-center whitespace-nowrap ${compactDateBorder ? "rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800" : ""}`}>
-          <CalendarDaysIcon className={`${compactCalendarIconClassName} text-gray-500 mr-2 shrink-0`} />
-          <div className={`relative min-w-[108px] ${compactShowChevron ? "pr-6" : ""}`}>
-            <input type="text" readOnly value={formatDisplay(model.endDate)} className={inputClass} />
-            {compactShowChevron ? (
-              <ChevronDownIcon className="pointer-events-none absolute right-0 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
-            ) : null}
-          </div>
+        <div className={`flex items-center gap-2${compactDateBorder ? " rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800" : ""}`}>
+          <CalendarDaysIcon className={`${compactCalendarIconClassName} text-gray-500 flex-shrink-0`} />
+          <span className="text-base text-gray-800 whitespace-nowrap">{endDisplayValue}</span>
+          {compactShowTime ? (
+            <>
+              <ClockIcon className="h-4 w-4 text-gray-500 flex-shrink-0" />
+              <span className="text-base  text-gray-700 whitespace-nowrap">{formatTimeDisplay(model.endTime)}</span>
+            </>
+          ) : null}
+          {compactShowChevron ? (
+            <ChevronDownIcon className="pointer-events-none h-5 w-5 text-gray-700 ml-auto" />
+          ) : null}
         </div>
       </button>
 
@@ -349,11 +376,32 @@ export default function DateRangePicker({
                     })}
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 py-3 px-4 border-t border-gray-200">
-                    <div className="flex justify-center md:justify-start items-center gap-x-2">
-                      <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.startDate)} />
-                      <span className="text-gray-800">-</span>
-                      <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.endDate)} />
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 py-3 px-4 border-t border-gray-200">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1">
+                        <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.startDate)} />
+                        <select
+                          value={draft.startTime}
+                          onChange={(event) => update({ startTime: event.target.value })}
+                          className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-indigo-600 focus:outline-none"
+                        >
+                          {timeOptions.map((time) => (
+                            <option key={`draft-start-${time.value}`} value={time.value}>{time.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.endDate)} />
+                        <select
+                          value={draft.endTime}
+                          onChange={(event) => update({ endTime: event.target.value })}
+                          className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-indigo-600 focus:outline-none"
+                        >
+                          {timeOptions.map((time) => (
+                            <option key={`draft-end-${time.value}`} value={time.value}>{time.label}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
                     <div className="flex items-center md:justify-end gap-x-2">
@@ -458,11 +506,32 @@ export default function DateRangePicker({
                   })}
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 py-3 px-4 border-t border-gray-200">
-                  <div className="flex justify-center md:justify-start items-center gap-x-2">
-                    <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.startDate)} />
-                    <span className="text-gray-800">-</span>
-                    <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.endDate)} />
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 py-3 px-4 border-t border-gray-200">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1">
+                      <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.startDate)} />
+                      <select
+                        value={draft.startTime}
+                        onChange={(event) => update({ startTime: event.target.value })}
+                        className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-indigo-600 focus:outline-none"
+                      >
+                        {timeOptions.map((time) => (
+                          <option key={`draft2-start-${time.value}`} value={time.value}>{time.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.endDate)} />
+                      <select
+                        value={draft.endTime}
+                        onChange={(event) => update({ endTime: event.target.value })}
+                        className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-indigo-600 focus:outline-none"
+                      >
+                        {timeOptions.map((time) => (
+                          <option key={`draft2-end-${time.value}`} value={time.value}>{time.label}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <div className="flex items-center md:justify-end gap-x-2">

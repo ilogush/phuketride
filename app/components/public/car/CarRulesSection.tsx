@@ -24,7 +24,7 @@ export default function CarRulesSection({ rules }: CarRulesSectionProps) {
   }
 
   return (
-    <section className="rounded-2xl border border-gray-200 p-5 space-y-4">
+    <section className="rounded-2xl border border-gray-200 p-4 space-y-4">
       <h2 className="text-xl font-semibold text-gray-800">Rules of the road</h2>
       <div className="space-y-4 text-gray-800">
         {rules.map((rule) => {

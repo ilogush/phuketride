@@ -54,6 +54,25 @@ export default function CarPhotoModal({
     return [photos[safeIndex], ...photos.filter((_, index) => index !== safeIndex)];
   }, [activeIndex, photos]);
 
+  const photoRows = useMemo(() => {
+    const rows: string[][] = [];
+    let index = 0;
+    let singleRow = true;
+
+    while (index < orderedPhotos.length) {
+      if (singleRow || index === orderedPhotos.length - 1) {
+        rows.push([orderedPhotos[index]]);
+        index += 1;
+      } else {
+        rows.push([orderedPhotos[index], orderedPhotos[index + 1]]);
+        index += 2;
+      }
+      singleRow = !singleRow;
+    }
+
+    return rows;
+  }, [orderedPhotos]);
+
   if (!isOpen || !photos.length || !orderedPhotos.length) {
     return null;
   }
@@ -79,17 +98,24 @@ export default function CarPhotoModal({
         </div>
 
         <div className="mt-4 overflow-y-auto min-h-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {orderedPhotos.map((photo, index) => (
+          <div className="space-y-2">
+            {photoRows.map((row, rowIndex) => (
               <div
-                key={`${photo}-${index}`}
-                className={`rounded-xl overflow-hidden bg-gray-100 border border-gray-200 ${index === 0 ? "md:col-span-2" : ""}`}
+                key={`row-${rowIndex}`}
+                className={row.length === 1 ? "grid grid-cols-1 gap-2" : "grid grid-cols-1 md:grid-cols-2 gap-2"}
               >
-                <img
-                  src={photo}
-                  alt={`${title} ${index + 1}`}
-                  className={index === 0 ? "w-full h-[340px] object-cover" : "w-full h-[220px] object-cover"}
-                />
+                {row.map((photo, photoIndex) => (
+                  <div
+                    key={`${photo}-${rowIndex}-${photoIndex}`}
+                    className="rounded-xl overflow-hidden bg-gray-100 border border-gray-200 h-[78vh]"
+                  >
+                    <img
+                      src={photo}
+                      alt={`${title} ${rowIndex + photoIndex + 1}`}
+                      className="block w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
               </div>
             ))}
           </div>

@@ -35,7 +35,7 @@ export default function HeroSection({ districts }: HeroSectionProps) {
           style={{ backgroundImage: "url('/images/hero-bg.webp')" }}
         />
         <div className="absolute inset-0 rounded-3xl bg-black/20" />
-        <div className="relative z-50 w-full max-w-5xl text-center px-4 py-6">
+        <div className="relative z-50 w-full max-w-5xl text-center p-6">
           <h1 className="text-3xl md:text-4xl font-semibold text-white drop-shadow-md">
             Car rental in Phuket directly from the owner
           </h1>
@@ -99,6 +99,10 @@ export default function HeroSection({ districts }: HeroSectionProps) {
                   compact
                   dropdownFullWidth
                   portalTargetId="hero-search-shell"
+                  compactLabelClassName="text-xs font-medium text-gray-500"
+                  compactCalendarIconClassName="h-4 w-4"
+                  compactShowChevron
+                  compactShowTime
                   isOpen={datePickerOpen}
                   onOpenChange={(open) => {
                     setDatePickerOpen(open);
@@ -110,7 +114,7 @@ export default function HeroSection({ districts }: HeroSectionProps) {
               </div>
 
               <Link
-                className="bg-indigo-600 hover:bg-indigo-700 transition text-white px-6 py-3 flex items-center justify-center rounded-xl"
+                className="bg-indigo-600 hover:bg-indigo-700 transition text-white p-3 flex items-center justify-center rounded-xl"
                 to="/"
               >
                 <MagnifyingGlassIcon className="h-5 w-5" />

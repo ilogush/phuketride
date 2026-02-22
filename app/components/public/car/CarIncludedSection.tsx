@@ -28,7 +28,7 @@ export default function CarIncludedSection({ items }: CarIncludedSectionProps) {
   const categories = Array.from(new Set(items.map((item) => item.category || "General")));
 
   return (
-    <section className="rounded-2xl border border-gray-200 p-5 space-y-4">
+    <section className="rounded-2xl border border-gray-200 p-4 space-y-4">
       <h2 className="text-xl font-semibold text-gray-800">Included in the price</h2>
       {categories.map((category) => (
         <div key={category} className="space-y-3">

@@ -2,6 +2,8 @@ import { StarIcon } from "@heroicons/react/24/solid";
 import type { CarFeatureItem } from "~/components/public/car/types";
 
 interface CarHostSectionProps {
+  title: string;
+  year: number | null;
   hostName: string;
   hostTrips: number;
   hostJoinedAt: string | null;
@@ -11,6 +13,8 @@ interface CarHostSectionProps {
 }
 
 export default function CarHostSection({
+  title,
+  year,
   hostName,
   hostTrips,
   hostJoinedAt,
@@ -27,8 +31,7 @@ export default function CarHostSection({
   }, {});
 
   return (
-    <section className="rounded-2xl border border-gray-200 p-5 space-y-5">
-      <h2 className="text-xl font-semibold text-gray-800">Hosted by</h2>
+    <section className="rounded-2xl border border-gray-200 p-4 space-y-5">
       <div className="flex items-center gap-4">
         <div className="relative">
           {hostAvatarUrl ? (
@@ -47,7 +50,7 @@ export default function CarHostSection({
           </div>
         </div>
         <div>
-          <p className="text-2xl font-semibold text-gray-800">{hostName}</p>
+          <p className="text-xl font-semibold text-gray-800">{hostName}</p>
           <p className="text-sm text-gray-500">
             {hostTrips} trips
             {hostJoinedAt ? ` • Joined ${hostJoinedAt}` : ""}
@@ -57,7 +60,10 @@ export default function CarHostSection({
 
       {Object.keys(grouped).length > 0 || specifications.length > 0 ? (
         <div className="pt-4 border-t border-gray-200 space-y-3">
-          <h3 className="text-xl font-semibold text-gray-800">Vehicle features</h3>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
+            <span className="text-xl text-gray-500">{year ?? ""}</span>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-gray-800">
             <div>
               <p className="font-semibold text-sm mb-1">Specifications</p>

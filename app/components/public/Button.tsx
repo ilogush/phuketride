@@ -60,7 +60,7 @@ export default function Button({
   const isSubmitting = type === "submit" && (isSubmitClicked || isNavigating);
   const isDisabled = disabled || loading || isProcessing || (type === "submit" && isNavigating);
   const isIconButton = /\bw-\d+\b/.test(className) && /\bh-\d+\b/.test(className);
-  const sizeClass = isIconButton ? "" : "rounded-xl px-5 py-3 text-base";
+  const sizeClass = isIconButton ? "" : "rounded-xl px-5  text-base";
 
   useEffect(() => {
     if (navigation.state === "idle") {

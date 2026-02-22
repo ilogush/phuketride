@@ -8,7 +8,7 @@ export default function Header() {
 
   return (
     <header className="bg-white">
-      <div className="max-w-7xl mx-auto px-4">
+      <div className="max-w-5xl mx-auto px-4">
         <div className="flex items-center justify-between py-4">
           <Link className="flex items-center space-x-2" to="/">
             <div className="font-black text-xl tracking-tight">Phuket Ride</div>
