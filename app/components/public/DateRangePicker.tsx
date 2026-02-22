@@ -10,6 +10,12 @@ interface DateRangePickerProps {
   portalTargetId?: string;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  compactStartLabel?: string;
+  compactEndLabel?: string;
+  compactLabelClassName?: string;
+  compactDateBorder?: boolean;
+  compactCalendarIconClassName?: string;
+  compactShowChevron?: boolean;
 }
 
 export interface DateRangeValue {
@@ -78,6 +84,12 @@ export default function DateRangePicker({
   portalTargetId,
   isOpen,
   onOpenChange,
+  compactStartLabel = "Start date",
+  compactEndLabel = "End date",
+  compactLabelClassName = "text-xs font-medium text-gray-500",
+  compactDateBorder = false,
+  compactCalendarIconClassName = "h-4 w-4",
+  compactShowChevron = false,
 }: DateRangePickerProps) {
   const initial = useMemo(() => defaultDates(), []);
   const [internal, setInternal] = useState<DateRangeValue>(initial);
@@ -214,11 +226,14 @@ export default function DateRangePicker({
         className="w-full space-y-1 pr-2 text-left border-0 bg-transparent appearance-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:shadow-none focus-visible:outline-none focus-visible:ring-0 active:outline-none active:ring-0"
         onClick={() => setOpen((prev) => !prev)}
       >
-        <p className="text-xs font-medium text-gray-500">Start date</p>
-        <div className="flex items-center whitespace-nowrap">
-          <CalendarDaysIcon className="h-4 w-4 text-gray-500 mr-2 shrink-0" />
-          <div className="relative min-w-[108px]">
+        <p className={compactLabelClassName}>{compactStartLabel}</p>
+        <div className={`flex items-center whitespace-nowrap ${compactDateBorder ? "rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800" : ""}`}>
+          <CalendarDaysIcon className={`${compactCalendarIconClassName} text-gray-500 mr-2 shrink-0`} />
+          <div className={`relative min-w-[108px] ${compactShowChevron ? "pr-6" : ""}`}>
             <input type="text" readOnly value={formatDisplay(model.startDate)} className={inputClass} />
+            {compactShowChevron ? (
+              <ChevronDownIcon className="pointer-events-none absolute right-0 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
+            ) : null}
           </div>
         </div>
       </button>
@@ -228,11 +243,14 @@ export default function DateRangePicker({
         className="w-full space-y-1 pl-2 text-left border-0 bg-transparent appearance-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:shadow-none focus-visible:outline-none focus-visible:ring-0 active:outline-none active:ring-0"
         onClick={() => setOpen((prev) => !prev)}
       >
-        <p className="text-xs font-medium text-gray-500">End date</p>
-        <div className="flex items-center whitespace-nowrap">
-          <CalendarDaysIcon className="h-4 w-4 text-gray-500 mr-2 shrink-0" />
-          <div className="relative min-w-[108px]">
+        <p className={compactLabelClassName}>{compactEndLabel}</p>
+        <div className={`flex items-center whitespace-nowrap ${compactDateBorder ? "rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800" : ""}`}>
+          <CalendarDaysIcon className={`${compactCalendarIconClassName} text-gray-500 mr-2 shrink-0`} />
+          <div className={`relative min-w-[108px] ${compactShowChevron ? "pr-6" : ""}`}>
             <input type="text" readOnly value={formatDisplay(model.endDate)} className={inputClass} />
+            {compactShowChevron ? (
+              <ChevronDownIcon className="pointer-events-none absolute right-0 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
+            ) : null}
           </div>
         </div>
       </button>

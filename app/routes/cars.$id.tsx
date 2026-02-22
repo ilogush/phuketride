@@ -79,6 +79,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
         cc.full_insurance_max_price AS fullInsuranceMaxPrice,
         cc.photos AS photos,
         c.name AS companyName,
+        c.location_id AS locationId,
         l.name AS locationName,
         d.name AS districtName,
         u.name AS ownerName,
@@ -110,6 +111,24 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     throw new Response("Car not found", { status: 404 });
   }
   const car = carRows[0];
+
+  const parsedLocationId = Number(car.locationId);
+  const safeLocationId = Number.isFinite(parsedLocationId) && parsedLocationId > 0 ? parsedLocationId : null;
+  const districtRows: Array<Record<string, unknown>> = safeLocationId
+    ? ((await d1
+        .prepare(
+          `
+          SELECT
+            id,
+            name
+          FROM districts
+          WHERE location_id = ?
+          ORDER BY name ASC
+          `
+        )
+        .bind(safeLocationId)
+        .all()).results ?? []) as Array<Record<string, unknown>>
+    : [];
 
   const tripStatsResult = await d1
     .prepare("SELECT count(*) AS trips FROM contracts WHERE company_car_id = ?")
@@ -278,6 +297,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       fullInsuranceMinPrice: car.fullInsuranceMinPrice ? Number(car.fullInsuranceMinPrice) : null,
       fullInsuranceMaxPrice: car.fullInsuranceMaxPrice ? Number(car.fullInsuranceMaxPrice) : null,
       companyName: String(car.companyName || ""),
+      locationId: Number(car.locationId || 0) || null,
       locationName: (car.locationName as string | null) ?? null,
       districtName: (car.districtName as string | null) ?? null,
       ownerName: (car.ownerName as string | null) ?? null,
@@ -287,6 +307,10 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       description: (car.description as string | null) ?? null,
     },
     photos,
+    returnDistricts: districtRows.map((row) => ({
+      id: Number(row.id || 0),
+      name: String(row.name || ""),
+    })).filter((row) => row.id > 0 && row.name),
     hostTrips: Number(tripStats[0]?.trips || 0),
     ratingSummary,
     reviews,
@@ -297,10 +321,10 @@ export async function loader({ context, params }: Route.LoaderArgs) {
 }
 
 export default function PublicCarPage() {
-  const { car, photos, hostTrips, ratingSummary, reviews, includedItems, rules, features } = useLoaderData<typeof loader>();
+  const { car, photos, returnDistricts, hostTrips, ratingSummary, reviews, includedItems, rules, features } = useLoaderData<typeof loader>();
 
   const title = `${car.brandName || "Car"} ${car.modelName || `#${car.id}`}`;
-  const officeLocation = [car.locationName, car.districtName].filter(Boolean).join(" • ") || car.companyName;
+  const pickupDistrict = car.districtName || car.locationName || car.companyName;
   const specifications = [
     car.year ? String(car.year) : null,
     `${car.seats || 4} seats`,
@@ -315,7 +339,7 @@ export default function PublicCarPage() {
   return (
     <div className="min-h-screen">
       <Header />
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-4 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <section className="lg:col-span-2 space-y-6">
             <CarGallery title={title} photos={photos} />
@@ -339,8 +363,11 @@ export default function PublicCarPage() {
           </section>
 
           <CarTripSidebar
-            officeLocation={officeLocation}
+            pickupDistrict={pickupDistrict}
+            returnDistricts={returnDistricts.map((district) => district.name)}
+            initialReturnDistrict={car.districtName}
             pricePerDay={car.pricePerDay}
+            deposit={car.deposit}
             minInsurancePrice={car.minInsurancePrice}
             maxInsurancePrice={car.maxInsurancePrice}
             fullInsuranceMinPrice={car.fullInsuranceMinPrice}

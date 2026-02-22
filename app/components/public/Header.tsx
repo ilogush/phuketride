@@ -14,15 +14,15 @@ export default function Header() {
             <div className="font-black text-xl tracking-tight">Phuket Ride</div>
           </Link>
           <div className="flex items-center gap-2">
-            <button className="px-4 py-2 border rounded-full text-sm font-medium hidden md:block">
-              Why choose CARs
+            <button className="px-4 py-2 rounded-full text-sm font-medium hidden md:block hover:bg-gray-100 transition-colors">
+              Why choose Phuket Ride ?
             </button>
             
             {/* Language Dropdown */}
             <div className="relative">
               <button 
                 onClick={() => setIsLanguageOpen(!isLanguageOpen)}
-                className="p-2 rounded-full border border-gray-300 hover:border-gray-400 transition-colors flex items-center justify-center"
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors flex items-center justify-center"
               >
                 <GlobeAltIcon className="w-6 h-6" />
               </button>
@@ -35,7 +35,7 @@ export default function Header() {
                     ไทย (Thai)
                   </button>
                   <button className="w-full px-4 py-2 text-left hover:bg-gray-100 transition-colors">
-                    Русский (Russian)
+                    Russian
                   </button>
                 </div>
               )}
@@ -45,7 +45,7 @@ export default function Header() {
             <div className="relative">
               <button 
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 rounded-full border border-gray-300 hover:border-gray-400 transition-colors flex items-center justify-center"
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors flex items-center justify-center"
               >
                 <Bars3Icon className="w-6 h-6" />
               </button>
@@ -82,7 +82,7 @@ export default function Header() {
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-300 transition-colors"
                   >
                     <KeyIcon className="h-5 w-5 text-gray-500" />
-                    <span className="text-sm font-medium text-gray-800">Why choose CARs</span>
+                    <span className="text-sm font-medium text-gray-800">Why choose Phuket Ride ?</span>
                   </Link>
                   <Link 
                     to="#" 

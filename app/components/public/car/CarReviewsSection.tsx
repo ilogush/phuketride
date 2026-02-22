@@ -1,5 +1,5 @@
 import Button from "~/components/public/Button";
-import { StarIcon } from "@heroicons/react/24/solid";
+import { ChevronDownIcon, StarIcon } from "@heroicons/react/24/solid";
 import type { CarRatingSummary, CarReviewItem } from "~/components/public/car/types";
 
 interface CarReviewsSectionProps {
@@ -80,8 +80,12 @@ export default function CarReviewsSection({ rating, reviews }: CarReviewsSection
             </div>
           ))}
           <div className="pt-2">
-            <Button type="button" className="rounded-xl bg-indigo-600 text-white px-5 py-3 text-base font-medium hover:bg-indigo-700">
+            <Button
+              type="button"
+              className="inline-flex items-center justify-center rounded-xl bg-indigo-600 text-white px-5 py-3 text-base font-medium hover:bg-indigo-700 gap-2"
+            >
               See more
+              <ChevronDownIcon className="w-5 h-5" />
             </Button>
           </div>
         </div>
