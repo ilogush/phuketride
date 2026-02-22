@@ -189,7 +189,7 @@ export default function CarTripSidebar({
 
         <div className="pt-4 border-t border-gray-200 space-y-3">
           <h3 className="text-xl font-semibold text-gray-800">Insurance</h3>
-          <div className="space-y-1">
+          <div className={`space-y-1 ${fullInsuranceAvailable ? "border-b border-gray-200 pb-3" : ""}`}>
             <p className="text-base text-gray-800">Basic protection included</p>
             <p className="text-sm text-gray-500">Damage coverage, theft protection and roadside support.</p>
             {(minInsurancePrice || maxInsurancePrice) ? (
@@ -275,12 +275,6 @@ export default function CarTripSidebar({
             <p className="text-base font-semibold text-gray-800">Total</p>
             <p className="text-xl font-semibold text-gray-800">{money(finalTotal)}</p>
           </div>
-          {!withFullInsurance && effectiveDeposit > 0 ? (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">+ Deposit</p>
-              <p className="text-base text-gray-800">{money(effectiveDeposit)}</p>
-            </div>
-          ) : null}
           <p className="text-xs text-gray-500">Before taxes</p>
         </div>
 
