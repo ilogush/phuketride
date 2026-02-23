@@ -3,6 +3,7 @@ import { Link, useLoaderData } from "react-router";
 import type { Route } from "./+types/cars.$id.checkout";
 import Header from "~/components/public/Header";
 import Footer from "~/components/public/Footer";
+import Breadcrumbs from "~/components/public/Breadcrumbs";
 import {
   CalendarDaysIcon,
   ChevronDownIcon,
@@ -233,10 +234,17 @@ export default function CheckoutPage() {
   const fullInsuranceDaily = Number(data.fullInsuranceMinPrice || data.fullInsuranceMaxPrice || 0);
   const hasFullInsurance = fullInsuranceDaily > 0;
   const effectiveDeposit = withFullInsurance ? 0 : Number(data.deposit || 0);
+  const breadcrumbs = [
+    { label: "Главная", to: "/" },
+    { label: "Автомобили", to: "/cars" },
+    { label: data.carName, to: `/cars/${data.carId}` },
+    { label: "Оформление" },
+  ];
 
   return (
     <div className="min-h-screen bg-white">
       <Header />
+      <Breadcrumbs items={breadcrumbs} />
       <main className="max-w-5xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <section className="lg:col-span-2">

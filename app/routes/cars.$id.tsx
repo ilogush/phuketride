@@ -2,6 +2,7 @@ import type { Route } from "./+types/cars.$id";
 import { useLoaderData } from "react-router";
 import Header from "~/components/public/Header";
 import Footer from "~/components/public/Footer";
+import Breadcrumbs from "~/components/public/Breadcrumbs";
 import CarGallery from "~/components/public/car/CarGallery";
 import CarHostSection from "~/components/public/car/CarHostSection";
 import CarIncludedSection from "~/components/public/car/CarIncludedSection";
@@ -324,6 +325,11 @@ export default function PublicCarPage() {
   const { car, photos, returnDistricts, hostTrips, ratingSummary, reviews, includedItems, rules, features } = useLoaderData<typeof loader>();
 
   const title = `${car.brandName || "Car"} ${car.modelName || `#${car.id}`}`;
+  const breadcrumbs = [
+    { label: "Главная", to: "/" },
+    { label: "Автомобили", to: "/cars" },
+    { label: title },
+  ];
   const pickupDistrict = car.districtName || car.locationName || car.companyName;
   const specifications = [
     car.year ? String(car.year) : null,
@@ -339,6 +345,7 @@ export default function PublicCarPage() {
   return (
     <div className="min-h-screen">
       <Header />
+      <Breadcrumbs items={breadcrumbs} />
       <main className="max-w-5xl mx-auto px-4 space-y-6">
         <CarGallery title={title} photos={photos} />
 
