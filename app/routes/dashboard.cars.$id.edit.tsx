@@ -549,7 +549,7 @@ export default function EditCarPage() {
                                 </div>
 
                                 <div className="mt-4">
-                                    <h4 className="block text-xs font-medium text-gray-500 mb-1">Seasonal Pricing Matrix</h4>
+                                    <h4 className="block text-sm text-gray-500 mb-1">Seasonal Pricing Matrix</h4>
                                     <div className="overflow-hidden">
                                         <div className="border border-gray-200 rounded-3xl overflow-hidden bg-white">
                                             <div className="overflow-x-auto sm:mx-0">

@@ -326,8 +326,8 @@ export default function PublicCarPage() {
 
   const title = `${car.brandName || "Car"} ${car.modelName || `#${car.id}`}`;
   const breadcrumbs = [
-    { label: "Главная", to: "/" },
-    { label: "Автомобили", to: "/cars" },
+    { label: "Home", to: "/" },
+    { label: "Cars", to: "/cars" },
     { label: title },
   ];
   const pickupDistrict = car.districtName || car.locationName || car.companyName;

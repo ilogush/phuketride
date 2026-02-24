@@ -318,7 +318,7 @@ export default function BookingDetailsPage() {
 
                         <div className="space-y-4">
                             <div>
-                                <h3 className="text-sm font-medium text-gray-500">Car</h3>
+                                <h3 className="text-sm text-gray-500">Car</h3>
                                 <p className="text-base text-gray-900">
                                     {booking.companyCar.template?.brand?.name} {booking.companyCar.template?.model?.name} {booking.companyCar.year}
                                 </p>
@@ -329,13 +329,13 @@ export default function BookingDetailsPage() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <h3 className="text-sm font-medium text-gray-500">Start Date</h3>
+                                    <h3 className="text-sm text-gray-500">Start Date</h3>
                                     <p className="text-base text-gray-900">
                                         {format(new Date(booking.startDate), "MMM dd, yyyy")}
                                     </p>
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-medium text-gray-500">End Date</h3>
+                                    <h3 className="text-sm text-gray-500">End Date</h3>
                                     <p className="text-base text-gray-900">
                                         {format(new Date(booking.endDate), "MMM dd, yyyy")}
                                     </p>
@@ -343,7 +343,7 @@ export default function BookingDetailsPage() {
                             </div>
 
                             <div>
-                                <h3 className="text-sm font-medium text-gray-500">Client</h3>
+                                <h3 className="text-sm text-gray-500">Client</h3>
                                 <p className="text-base text-gray-900">
                                     {booking.clientName} {booking.clientSurname}
                                 </p>
@@ -359,7 +359,7 @@ export default function BookingDetailsPage() {
 
                             {(booking.pickupDistrictId || booking.pickupHotel) && (
                                 <div>
-                                    <h3 className="text-sm font-medium text-gray-500">Pickup</h3>
+                                    <h3 className="text-sm text-gray-500">Pickup</h3>
                                     <p className="text-sm text-gray-900">
                                         {booking.pickupDistrict?.name}
                                         {booking.pickupHotel && ` • ${booking.pickupHotel}`}
@@ -370,7 +370,7 @@ export default function BookingDetailsPage() {
 
                             {(booking.returnDistrictId || booking.returnHotel) && (
                                 <div>
-                                    <h3 className="text-sm font-medium text-gray-500">Return</h3>
+                                    <h3 className="text-sm text-gray-500">Return</h3>
                                     <p className="text-sm text-gray-900">
                                         {booking.returnDistrict?.name}
                                         {booking.returnHotel && ` • ${booking.returnHotel}`}
@@ -381,7 +381,7 @@ export default function BookingDetailsPage() {
 
                             {booking.notes && (
                                 <div>
-                                    <h3 className="text-sm font-medium text-gray-500">Notes</h3>
+                                    <h3 className="text-sm text-gray-500">Notes</h3>
                                     <p className="text-sm text-gray-900">{booking.notes}</p>
                                 </div>
                             )}

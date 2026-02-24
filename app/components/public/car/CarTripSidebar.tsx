@@ -93,7 +93,7 @@ export default function CarTripSidebar({
               onChange={setTrip}
               compactStartLabel="Trip start"
               compactEndLabel="Trip end"
-              compactLabelClassName="text-xs font-medium text-gray-500"
+              compactLabelClassName="text-sm text-gray-500"
               compactDateBorder
               compactCalendarIconClassName="h-4 w-4"
               compactShowChevron
@@ -140,7 +140,7 @@ export default function CarTripSidebar({
             <p className="text-base text-gray-800">{money(baseTotal)}</p>
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-            <p className="text-base font-semibold text-gray-800">Total</p>
+            <p className="text-xl font-semibold text-gray-800">Total</p>
             <p className="text-xl font-semibold text-gray-800">{money(finalTotal)}</p>
           </div>
           <p className="text-xs text-gray-500">Before taxes</p>

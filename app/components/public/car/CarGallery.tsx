@@ -20,7 +20,7 @@ export default function CarGallery({ title, photos }: CarGalleryProps) {
 
   if (!galleryPhotos.length) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-gray-100 h-[420px] flex items-center justify-center text-gray-500">
+      <div className="rounded-2xl border border-gray-200 bg-gray-100 aspect-[4/3] flex items-center justify-center text-gray-500">
         No photos uploaded
       </div>
     );
@@ -38,16 +38,16 @@ export default function CarGallery({ title, photos }: CarGalleryProps) {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 rounded-2xl overflow-hidden border border-gray-200">
+        <div className="md:col-span-2 rounded-2xl overflow-hidden border border-gray-200 aspect-[4/3]">
           <button type="button" onClick={() => openModal(0)} className="block w-full h-full text-left leading-none">
-            <img src={mainPhoto} alt={title} className="block w-full h-[300px] md:h-[420px] object-cover" />
+            <img src={mainPhoto} alt={title} className="block w-full h-full object-cover" />
           </button>
         </div>
 
         <div className="space-y-6">
-          <div className="relative rounded-2xl overflow-hidden border border-gray-200">
+          <div className="relative rounded-2xl overflow-hidden border border-gray-200 aspect-[4/3]">
             <button type="button" onClick={() => openModal(1)} className="block w-full h-full text-left leading-none">
-              <img src={secondPhoto} alt={`${title} 2`} className="block w-full h-[140px] md:h-[200px] object-cover" />
+              <img src={secondPhoto} alt={`${title} 2`} className="block w-full h-full object-cover" />
             </button>
             <Button
               type="button"
@@ -57,9 +57,9 @@ export default function CarGallery({ title, photos }: CarGalleryProps) {
             </Button>
           </div>
 
-          <div className="relative rounded-2xl overflow-hidden border border-gray-200">
+          <div className="relative rounded-2xl overflow-hidden border border-gray-200 aspect-[4/3]">
             <button type="button" onClick={() => openModal(2)} className="block w-full h-full text-left leading-none">
-              <img src={thirdPhoto} alt={`${title} 3`} className="block w-full h-[140px] md:h-[200px] object-cover" />
+              <img src={thirdPhoto} alt={`${title} 3`} className="block w-full h-full object-cover" />
             </button>
             <Button
               type="button"

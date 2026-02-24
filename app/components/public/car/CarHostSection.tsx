@@ -62,7 +62,7 @@ export default function CarHostSection({
         <div className="pt-4 border-t border-gray-200 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
-            <span className="text-xl text-gray-500">{year ?? ""}</span>
+            <span className="text-xl font-semibold text-gray-500">{year ?? ""}</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-gray-800">
             <div>

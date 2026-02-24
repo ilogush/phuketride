@@ -316,7 +316,7 @@ export default function CreateCarPage() {
 
                     {selectedTemplate && (
                         <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                            <p className="text-xs font-medium text-gray-500 mb-2">Template Details:</p>
+                            <p className="text-sm text-gray-500 mb-2">Template Details:</p>
                             <div className="grid grid-cols-2 gap-2 text-xs">
                                 <div><span className="text-gray-500">Body Type:</span> <span className="font-medium">{selectedTemplate.bodyType?.name || 'N/A'}</span></div>
                                 <div><span className="text-gray-500">Transmission:</span> <span className="font-medium capitalize">{selectedTemplate.transmission || 'N/A'}</span></div>
@@ -334,7 +334,7 @@ export default function CreateCarPage() {
                     <input type="hidden" name="photos" value={JSON.stringify(photos)} />
 
                     <div className="space-y-2">
-                        <h4 className="block text-xs font-medium text-gray-500 mb-1">Car Photos (max 12)</h4>
+                        <h4 className="block text-sm text-gray-500 mb-1">Car Photos (max 12)</h4>
                         <CarPhotosUpload
                             currentPhotos={[]}
                             onPhotosChange={setPhotos}
@@ -419,7 +419,7 @@ export default function CreateCarPage() {
 
                         <div className="mt-4">
                             <div>
-                                <h4 className="block text-xs font-medium text-gray-500 mb-1">Seasonal Pricing Matrix</h4>
+                                <h4 className="block text-sm text-gray-500 mb-1">Seasonal Pricing Matrix</h4>
                                 <div className="overflow-hidden">
                                     <div className="border border-gray-200 rounded-3xl overflow-hidden bg-white">
                                         <div className="overflow-x-auto sm:mx-0">
@@ -527,7 +527,7 @@ export default function CreateCarPage() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Full Insurance</label>
+                                <label className="block text-sm text-gray-500 mb-1">Full Insurance</label>
                                 <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
                                     <span className="text-sm text-gray-900">{fullInsuranceEnabled ? "Enabled" : "Disabled"}</span>
                                     <Toggle enabled={fullInsuranceEnabled} onChange={setFullInsuranceEnabled} />
@@ -571,7 +571,7 @@ export default function CreateCarPage() {
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                             <div className="space-y-2">
-                                <h4 className="block text-xs font-medium text-gray-500 mb-1">Green Book / Blue Book Photos (max 3)</h4>
+                                <h4 className="block text-sm text-gray-500 mb-1">Green Book / Blue Book Photos (max 3)</h4>
                                 <DocumentPhotosUpload
                                     currentPhotos={[]}
                                     onPhotosChange={setGreenBookPhotos}
@@ -579,7 +579,7 @@ export default function CreateCarPage() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <h4 className="block text-xs font-medium text-gray-500 mb-1">Insurance Photos (max 3)</h4>
+                                <h4 className="block text-sm text-gray-500 mb-1">Insurance Photos (max 3)</h4>
                                 <DocumentPhotosUpload
                                     currentPhotos={[]}
                                     onPhotosChange={setInsurancePhotos}
@@ -587,7 +587,7 @@ export default function CreateCarPage() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <h4 className="block text-xs font-medium text-gray-500 mb-1">Tax Road Photos (max 3)</h4>
+                                <h4 className="block text-sm text-gray-500 mb-1">Tax Road Photos (max 3)</h4>
                                 <DocumentPhotosUpload
                                     currentPhotos={[]}
                                     onPhotosChange={setTaxRoadPhotos}

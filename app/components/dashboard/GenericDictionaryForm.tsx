@@ -200,7 +200,7 @@ export function GenericDictionaryForm({
                             className="h-4 w-4 text-gray-900 border-gray-200 rounded focus:ring-0 focus:ring-offset-0"
                             disabled={field.disabled}
                         />
-                        <label htmlFor={field.name} className="text-sm font-medium text-gray-500">
+                        <label htmlFor={field.name} className="text-sm text-gray-500">
                             {field.label}
                         </label>
                         {field.helpText && (
@@ -212,7 +212,7 @@ export function GenericDictionaryForm({
             case 'toggle':
                 return (
                     <div className={`flex items-center justify-between ${field.className || ''}`}>
-                        <label htmlFor={field.name} className="block text-sm font-medium text-gray-500">
+                        <label htmlFor={field.name} className="block text-sm text-gray-500">
                             {field.label} {field.helpText && <span className="text-xs">({field.helpText})</span>}
                         </label>
                         <Toggle

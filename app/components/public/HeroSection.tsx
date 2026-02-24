@@ -99,7 +99,7 @@ export default function HeroSection({ districts }: HeroSectionProps) {
                   compact
                   dropdownFullWidth
                   portalTargetId="hero-search-shell"
-                  compactLabelClassName="text-xs font-medium text-gray-500"
+                  compactLabelClassName="text-sm text-gray-500"
                   compactCalendarIconClassName="h-4 w-4"
                   compactShowChevron
                   compactShowTime

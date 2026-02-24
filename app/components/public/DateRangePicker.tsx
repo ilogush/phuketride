@@ -100,7 +100,7 @@ export default function DateRangePicker({
   onOpenChange,
   compactStartLabel = "Start date",
   compactEndLabel = "End date",
-  compactLabelClassName = "text-xs font-medium text-gray-500",
+  compactLabelClassName = "text-sm text-gray-500",
   compactDateBorder = false,
   compactCalendarIconClassName = "h-4 w-4",
   compactShowChevron = false,
@@ -208,7 +208,7 @@ export default function DateRangePicker({
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-left">
         <div className="space-y-1">
-          <p className="text-xs font-medium text-gray-500">Start date</p>
+          <p className="text-sm text-gray-500">Start date</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="relative">
               <input type="date" value={model.startDate} onChange={(event) => update({ startDate: event.target.value }, true)} className={inputClass} />
@@ -220,7 +220,7 @@ export default function DateRangePicker({
           </div>
         </div>
         <div className="space-y-1">
-          <p className="text-xs font-medium text-gray-500">End date</p>
+          <p className="text-sm text-gray-500">End date</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="relative">
               <input type="date" value={model.endDate} onChange={(event) => update({ endDate: event.target.value }, true)} className={inputClass} />

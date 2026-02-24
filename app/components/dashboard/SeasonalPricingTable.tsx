@@ -149,7 +149,7 @@ export default function SeasonalPricingTable({
     if (loading) {
         return (
             <div>
-                <h4 className="block text-xs font-medium text-gray-500 mb-1">Seasonal Pricing Matrix</h4>
+                <h4 className="block text-sm text-gray-500 mb-1">Seasonal Pricing Matrix</h4>
                 <div className="flex justify-center items-center py-8">
                     <Loader />
                 </div>
@@ -160,7 +160,7 @@ export default function SeasonalPricingTable({
     if (durations.length === 0) {
         return (
             <div>
-                <h4 className="block text-xs font-medium text-gray-500 mb-1">Seasonal Pricing Matrix</h4>
+                <h4 className="block text-sm text-gray-500 mb-1">Seasonal Pricing Matrix</h4>
                 <div className="text-center py-8 text-gray-400">
                     <p>No pricing data available</p>
                     <p className="text-xs mt-1">Configure rental durations to display pricing matrix</p>
@@ -219,7 +219,7 @@ export default function SeasonalPricingTable({
 
     return (
         <div>
-            <h4 className="block text-xs font-medium text-gray-500 mb-1">Seasonal Pricing Matrix</h4>
+            <h4 className="block text-sm text-gray-500 mb-1">Seasonal Pricing Matrix</h4>
 
             <DataTable
                 columns={columns}

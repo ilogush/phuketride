@@ -403,7 +403,7 @@ export default function CompanyDetailPage() {
                         <div className="bg-white rounded-2xl border border-gray-200 p-5">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500">Total Vehicles</p>
+                                    <p className="text-sm text-gray-500">Total Vehicles</p>
                                     <p className="text-3xl font-bold text-gray-900 mt-1">
                                         {stats.totalVehicles}
                                     </p>
@@ -421,7 +421,7 @@ export default function CompanyDetailPage() {
                         <div className="bg-white rounded-2xl border border-gray-200 p-5">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500">Active Bookings</p>
+                                    <p className="text-sm text-gray-500">Active Bookings</p>
                                     <p className="text-3xl font-bold text-gray-900 mt-1">
                                         {stats.activeBookings}
                                     </p>
@@ -439,7 +439,7 @@ export default function CompanyDetailPage() {
                         <div className="bg-white rounded-2xl border border-gray-200 p-5">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500">Revenue</p>
+                                    <p className="text-sm text-gray-500">Revenue</p>
                                     <p className="text-3xl font-bold text-gray-900 mt-1">
                                         ฿{stats.totalRevenue.toLocaleString()}
                                     </p>
@@ -457,7 +457,7 @@ export default function CompanyDetailPage() {
                         <div className="bg-white rounded-2xl border border-gray-200 p-5">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500">Customers</p>
+                                    <p className="text-sm text-gray-500">Customers</p>
                                     <p className="text-3xl font-bold text-gray-900 mt-1">
                                         {stats.totalCustomers}
                                     </p>
