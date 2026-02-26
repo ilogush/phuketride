@@ -425,7 +425,8 @@ export default function SettingsPage() {
     const activeTab = searchParams.get("tab") || "general";
     const modCompanyId = searchParams.get("modCompanyId");
     const settingsActionUrl = modCompanyId ? `/settings?modCompanyId=${modCompanyId}` : "/settings";
-    const [selectedLocationId, setSelectedLocationId] = useState(company.locationId);
+    const initialLocationId = Number(company.locationId ?? locations[0]?.id ?? 0);
+    const [selectedLocationId, setSelectedLocationId] = useState(initialLocationId);
     const [weeklySchedule, setWeeklySchedule] = useState(company.weeklySchedule || "");
     const [holidays, setHolidays] = useState(company.holidays || "");
     const shownToastsRef = useRef<Set<string>>(new Set());
@@ -477,7 +478,8 @@ export default function SettingsPage() {
         { id: "currencies", label: "Currencies" },
     ];
 
-    const filteredDistricts = districts.filter(d => d.locationId === selectedLocationId);
+    const filteredDistricts = districts.filter((d) => Number(d.locationId) === Number(selectedLocationId));
+    const selectedDistrictId = Number(company.districtId ?? filteredDistricts[0]?.id ?? 0);
 
     const handleTabChange = (tabId: string | number) => {
         const nextParams = new URLSearchParams(searchParams);
@@ -629,15 +631,15 @@ export default function SettingsPage() {
                                 <Select
                                     label="Location"
                                     name="locationId"
-                                    value={selectedLocationId.toString()}
-                                    onChange={(e) => setSelectedLocationId(Number(e.target.value))}
+                                    value={String(selectedLocationId || "")}
+                                    onChange={(e) => setSelectedLocationId(Number(e.target.value) || 0)}
                                     options={locations}
                                     required
                                 />
                                 <Select
                                     label="District"
                                     name="districtId"
-                                    defaultValue={company.districtId.toString()}
+                                    defaultValue={String(selectedDistrictId || "")}
                                     options={filteredDistricts}
                                     required
                                 />

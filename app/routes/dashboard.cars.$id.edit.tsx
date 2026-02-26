@@ -74,8 +74,32 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             engineVolume: t.engine_volume,
         }))),
         context.cloudflare.env.DB.prepare("SELECT * FROM colors LIMIT 100").all().then((r: any) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT * FROM seasons LIMIT 10").all().then((r: any) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT * FROM rental_durations LIMIT 10").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare(`
+            SELECT
+                id,
+                season_name AS seasonName,
+                start_month AS startMonth,
+                start_day AS startDay,
+                end_month AS endMonth,
+                end_day AS endDay,
+                price_multiplier AS priceMultiplier,
+                discount_label AS discountLabel
+            FROM seasons
+            ORDER BY price_multiplier DESC
+            LIMIT 10
+        `).all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare(`
+            SELECT
+                id,
+                range_name AS rangeName,
+                min_days AS minDays,
+                max_days AS maxDays,
+                price_multiplier AS priceMultiplier,
+                discount_label AS discountLabel
+            FROM rental_durations
+            ORDER BY min_days ASC
+            LIMIT 10
+        `).all().then((r: any) => r.results || []),
         context.cloudflare.env.DB.prepare("SELECT * FROM fuel_types LIMIT 20").all().then((r: any) => r.results || []),
     ]);
 

@@ -4,6 +4,8 @@ import { requireAuth } from "~/lib/auth.server";
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const carId = Number(params.id);
+    const url = new URL(request.url);
+    const modCompanyId = url.searchParams.get("modCompanyId");
 
     const car = await context.cloudflare.env.DB
         .prepare("SELECT id, company_id AS companyId FROM company_cars WHERE id = ? LIMIT 1")
@@ -18,7 +20,10 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
         throw new Response("Access denied", { status: 403 });
     }
 
-    return redirect(`/cars/${carId}/edit`);
+    const editUrl = modCompanyId
+        ? `/dashboard/cars/${carId}/edit?modCompanyId=${modCompanyId}`
+        : `/dashboard/cars/${carId}/edit`;
+    return redirect(editUrl);
 }
 
 export default function CarDetailsRedirectPage() {

@@ -106,6 +106,7 @@ export default function CarsPage() {
     ];
 
     const filteredCars = cars.filter(car => car.status === activeTab);
+    const modCompanyId = searchParams.get("modCompanyId");
 
     const columns: Column<typeof cars[0]>[] = [
         { 
@@ -114,9 +115,12 @@ export default function CarsPage() {
             render: (car) => {
                 const photos = car.photos ? JSON.parse(car.photos as string) : [];
                 const firstPhoto = photos[0];
+                const editPath = modCompanyId
+                    ? `/dashboard/cars/${car.id}/edit?modCompanyId=${modCompanyId}`
+                    : `/dashboard/cars/${car.id}/edit`;
                 
                 return (
-                    <Link to={`/dashboard/cars/${car.id}`} className="block hover:opacity-70 transition-opacity">
+                    <Link to={editPath} className="block hover:opacity-70 transition-opacity">
                         {firstPhoto ? (
                             <img 
                                 src={firstPhoto} 
