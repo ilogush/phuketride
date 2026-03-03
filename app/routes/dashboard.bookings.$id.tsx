@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, Link } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
@@ -8,6 +7,7 @@ import Button from "~/components/dashboard/Button";
 import Card from "~/components/dashboard/Card";
 import { format } from "date-fns";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { formatContactPhone } from "~/lib/phone";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -38,7 +38,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             LIMIT 1
         `)
         .bind(bookingId)
-        .first<any>();
+        .first() as any;
     const booking = bookingRaw
         ? {
             ...bookingRaw,
@@ -103,7 +103,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 LIMIT 1
             `)
             .bind(bookingId)
-            .first<any>();
+            .first() as any;
 
         if (!booking) {
             return { error: "Booking not found" };
@@ -146,7 +146,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 const existingClient = await context.cloudflare.env.DB
                     .prepare("SELECT id FROM users WHERE passport_number = ? LIMIT 1")
                     .bind(booking.clientPassport)
-                    .first<any>();
+                    .first() as any;
 
                 if (existingClient) {
                     clientId = existingClient.id;
@@ -349,7 +349,7 @@ export default function BookingDetailsPage() {
                                     {booking.clientName} {booking.clientSurname}
                                 </p>
                                 <p className="text-sm text-gray-600">
-                                    {booking.clientPhone} {booking.clientEmail && `• ${booking.clientEmail}`}
+                                    {formatContactPhone(booking.clientPhone)} {booking.clientEmail && `• ${booking.clientEmail}`}
                                 </p>
                                 {booking.clientPassport && (
                                     <p className="text-sm text-gray-600">

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useNavigate, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
@@ -15,7 +14,9 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
 import { useLatinValidation } from "~/lib/useLatinValidation";
+import { useDateMasking } from "~/lib/useDateMasking";
 import { useToast } from "~/lib/toast";
+import { parseDateFromDisplay } from "~/lib/formatters";
 import { contractSchema } from "~/schemas/contract";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { createContractEvents } from "~/lib/calendar-events.server";
@@ -62,7 +63,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             .then((r: any) => r.results || []),
     ]);
 
-    return { 
+    return {
         cars: cars.map((car: any) => ({
             id: car.id,
             name: `${car.brandName || ""} ${car.modelName || ""} - ${car.licensePlate}`,
@@ -109,7 +110,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             whatsapp: String(formData.get("client_whatsapp") || "").trim(),
             telegram: String(formData.get("client_telegram") || "").trim(),
             gender: String(formData.get("client_gender") || "").trim(),
-            dateOfBirth: formData.get("date_of_birth") ? new Date(String(formData.get("date_of_birth"))) : null,
+            dateOfBirth: formData.get("date_of_birth") ? new Date(parseDateFromDisplay(String(formData.get("date_of_birth")))) : null,
             citizenship: String(formData.get("citizenship") || "").trim(),
         };
         if (!clientData.name || !clientData.surname || !clientData.phone) {
@@ -127,11 +128,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 LIMIT 1
             `)
             .bind(passportNumber)
-            .first<any>();
+            .first() as any;
 
         if (existingClient) {
             // Check if all data matches
-            const dataMatches = 
+            const dataMatches =
                 existingClient.name === clientData.name &&
                 existingClient.surname === clientData.surname &&
                 (!clientData.email || existingClient.email === clientData.email) &&
@@ -217,8 +218,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         // Parse contract data
         const companyCarId = Number(formData.get("company_car_id"));
-        const startDate = new Date(String(formData.get("start_date")));
-        const endDate = new Date(String(formData.get("end_date")));
+
+        // Use a more flexible parser for DD/MM/YYYY HH:mm
+        const parseDateTime = (val: string) => {
+            const parts = val.split(/[\s/:]/);
+            if (parts.length < 3) return new Date(val);
+            const [d, m, y, h, min] = parts.map(Number);
+            return new Date(y, m - 1, d, h || 0, min || 0);
+        };
+
+        const startDate = parseDateTime(String(formData.get("start_date")));
+        const endDate = parseDateTime(String(formData.get("end_date")));
         const totalAmount = Number(formData.get("total_amount"));
         const depositAmount = Number(formData.get("deposit_amount")) || 0;
         const totalCurrency = "THB";
@@ -245,12 +255,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 LIMIT 1
             `)
             .bind(companyCarId, user.companyId)
-            .first<any>();
-        
+            .first() as any;
+
         if (!car) {
             throw new Error("Car not found or doesn't belong to your company");
         }
-        
+
         if (car.status !== 'available') {
             throw new Error("Car is not available for rent");
         }
@@ -277,7 +287,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 startDate.toISOString(),
                 endDate.toISOString()
             )
-            .first<any>();
+            .first() as any;
 
         if (overlapping) {
             throw new Error("Car is already booked for these dates");
@@ -420,6 +430,7 @@ export default function NewContract() {
     const [searchParams] = useSearchParams();
     const toast = useToast();
     const { validateLatinInput } = useLatinValidation();
+    const { maskDateInput, maskDateTimeInput } = useDateMasking();
 
     const [startDate, setStartDate] = useState(new Date());
     const [endDate, setEndDate] = useState(new Date(Date.now() + 86400000));
@@ -467,9 +478,23 @@ export default function NewContract() {
             <PageHeader
                 title="New Contract"
                 leftActions={<BackButton />}
+                rightActions={
+                    <div className="flex gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => navigate("/contracts")}
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="submit" variant="primary" form="new-contract-form">
+                            Create Contract
+                        </Button>
+                    </div>
+                }
             />
 
-            <Form method="post" className="space-y-4">
+            <Form id="new-contract-form" method="post" className="space-y-4">
                 <input type="hidden" name="passportPhotos" value={JSON.stringify(passportPhotos)} />
                 <input type="hidden" name="driverLicensePhotos" value={JSON.stringify(driverLicensePhotos)} />
                 <input type="hidden" name="photos" value={JSON.stringify(carPhotos.map((p) => p.base64))} />
@@ -533,11 +558,11 @@ export default function NewContract() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Input
                             label="Start Date & Time"
-                            type="datetime-local"
+                            type="text"
                             name="start_date"
                             required
-                            defaultValue={startDate.toISOString().slice(0, 16)}
-                            onChange={(e) => setStartDate(new Date(e.target.value))}
+                            placeholder="DD/MM/YYYY HH:mm"
+                            onChange={maskDateTimeInput}
                         />
                         <FormSelect
                             label="Pickup District"
@@ -558,11 +583,11 @@ export default function NewContract() {
                         />
                         <Input
                             label="End Date & Time"
-                            type="datetime-local"
+                            type="text"
                             name="end_date"
                             required
-                            defaultValue={endDate.toISOString().slice(0, 16)}
-                            onChange={(e) => setEndDate(new Date(e.target.value))}
+                            placeholder="DD/MM/YYYY HH:mm"
+                            onChange={maskDateTimeInput}
                         />
                         <FormSelect
                             label="Return District"
@@ -631,8 +656,9 @@ export default function NewContract() {
                         <FormInput
                             label="Birth Date"
                             name="date_of_birth"
-                            type="date"
-                            placeholder="DD-MM-YYYY"
+                            type="text"
+                            placeholder="DD/MM/YYYY"
+                            onChange={maskDateInput}
                         />
                         <div />
                         <FormInput
@@ -709,7 +735,7 @@ export default function NewContract() {
                     icon={<BanknotesIcon className="w-6 h-6" />}
                 >
                     <div className="space-y-4">
-                        {paymentTemplates.map((template, index) => (
+                        {paymentTemplates.map((template: { id: number; name: string; sign?: string | null }, index: number) => (
                             <div key={template.id} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
                                 <div className="flex items-center">
                                     <input
@@ -718,9 +744,9 @@ export default function NewContract() {
                                         className="w-4 h-4 text-gray-800 border-gray-300 rounded focus:ring-gray-800"
                                         onChange={(e) => {
                                             if (e.target.checked) {
-                                                setSelectedPayments([...selectedPayments, { 
-                                                    templateId: template.id, 
-                                                    amount: 0, 
+                                                setSelectedPayments([...selectedPayments, {
+                                                    templateId: template.id,
+                                                    amount: 0,
                                                     currencyId: currencies[0]?.id || 1,
                                                     method: 'cash'
                                                 }]);
@@ -743,7 +769,7 @@ export default function NewContract() {
                                 <FormSelect
                                     label="Currency"
                                     name={`payment_${index}_currency`}
-                                    options={currencies.map(c => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
+                                    options={currencies.map((c: { id: number; code: string; symbol: string }) => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
                                     disabled={!selectedPayments.find(p => p.templateId === template.id)}
                                 />
                                 <FormSelect
@@ -820,19 +846,6 @@ export default function NewContract() {
                     />
                 </FormSection>
 
-                {/* Actions */}
-                <div className="flex justify-end gap-3 pt-4">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => navigate("/contracts")}
-                    >
-                        Cancel
-                    </Button>
-                    <Button type="submit" variant="primary">
-                        Create Contract
-                    </Button>
-                </div>
             </Form>
         </div>
     );

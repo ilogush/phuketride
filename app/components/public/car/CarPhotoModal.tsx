@@ -82,10 +82,10 @@ export default function CarPhotoModal({
       <div className="mx-auto h-full max-w-7xl rounded-2xl bg-white p-3 sm:p-4 flex flex-col">
         <div className="flex items-center justify-between gap-3 border-b border-gray-200 pb-3">
           <div className="min-w-0 flex-1 text-center text-lg sm:text-xl font-semibold text-gray-800 truncate">
-            {title} • 5 <StarIcon className="inline-block w-5 h-5 text-indigo-600 align-text-bottom" />
+            {title} • 5 <StarIcon className="inline-block w-5 h-5 text-green-600 align-text-bottom" />
           </div>
           <div className="flex items-center gap-2">
-            <Button type="button" className="w-10 h-10 rounded-xl border border-indigo-600 text-indigo-600 bg-white">
+            <Button type="button" className="w-10 h-10 rounded-xl border border-green-600 text-green-600 bg-white">
               <HeartIcon className="w-5 h-5" />
             </Button>
             <Button type="button" className="w-9 h-9 rounded-full border border-gray-200 text-gray-800 bg-white">

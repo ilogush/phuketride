@@ -81,7 +81,7 @@ export default function BecomeAHost() {
               <p className="text-gray-300 mb-6">
                 Join Phuket Ride today and become part of our growing community of hosts
               </p>
-              <button className="bg-white text-gray-900 px-8 py-4 rounded-full font-semibold hover:bg-indigo-100 transition-colors">
+              <button className="bg-white text-gray-900 px-8 py-4 rounded-full font-semibold hover:bg-green-100 transition-colors">
                 List your car
               </button>
             </div>

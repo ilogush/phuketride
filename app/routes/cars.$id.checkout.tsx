@@ -5,13 +5,15 @@ import Header from "~/components/public/Header";
 import Footer from "~/components/public/Footer";
 import Breadcrumbs from "~/components/public/Breadcrumbs";
 import {
-  ArrowLeftIcon,
+  ChevronLeftIcon,
+} from "@heroicons/react/24/solid";
+import {
   CalendarDaysIcon,
   MapPinIcon,
 } from "@heroicons/react/24/outline";
 
 const textInputClass =
-  "w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-base text-gray-700 placeholder:text-gray-400 focus:border-indigo-600 focus:outline-none";
+  "w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-base text-gray-700 placeholder:text-gray-400 focus:border-green-600 focus:outline-none";
 const money = (value: number) => `฿${Math.round(value).toLocaleString()}`;
 
 const monthDay = new Intl.DateTimeFormat("en-US", {
@@ -188,112 +190,112 @@ function SummaryCard({
         <img src={photoUrl} alt={carName} className="h-48 w-full object-cover" />
       </div>
       <div className="p-4">
-      <div className="border-b border-gray-200 pb-4">
-        <h2 className="text-xl font-semibold text-gray-800">{carName}</h2>
-        <p className="mt-1 text-base text-gray-800">
-          {year} · {rating}
-          <span className="text-indigo-600">★</span> ({trips} trip{trips === 1 ? "" : "s"})
-        </p>
-      </div>
-
-      <div className="mt-6 space-y-2 text-base text-gray-800">
-        <div className="flex items-start gap-3">
-          <CalendarDaysIcon className="mt-0.5 h-4 w-4 text-gray-800" />
-          <div>
-            <p>{renderTripDate(pickupAt)}</p>
-            <p>{renderTripDate(returnAt)}</p>
-          </div>
+        <div className="border-b border-gray-200 pb-4">
+          <h2 className="text-xl font-semibold text-gray-800">{carName}</h2>
+          <p className="mt-1 text-base text-gray-800">
+            {year} · {rating}
+            <span className="text-green-600">★</span> ({trips} trip{trips === 1 ? "" : "s"})
+          </p>
         </div>
-        <div className="flex items-start gap-3">
-          <MapPinIcon className="mt-0.5 h-4 w-4 text-gray-800" />
-          <div>
-            <p><span className="text-gray-500">Pickup:</span> {address}</p>
-            <p><span className="text-gray-500">Return:</span> {address}</p>
-          </div>
-        </div>
-      </div>
 
-      <div className="mt-6 border-t border-gray-200 pt-6">
-        <div className="space-y-4 text-base">
-          <div className="flex items-center justify-between">
-            <span>Delivery fee</span>
-            <span>${deliveryFee.toFixed(2)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Return fee</span>
-            <span>${returnFee.toFixed(2)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Extras</span>
-            <span>${extrasTotal.toFixed(2)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Insurance</span>
-            <span>${insuranceTotal.toFixed(2)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <button type="button" className="underline decoration-1 underline-offset-2">
-              Subtotal
-            </button>
-            <span>${subtotal.toFixed(2)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <button type="button" className="underline decoration-1 underline-offset-2">
-              Sales tax
-            </button>
-            <span>${salesTax.toFixed(2)}</span>
-          </div>
-          <div className="flex items-start justify-between gap-4">
+        <div className="mt-6 space-y-2 text-base text-gray-800">
+          <div className="flex items-start gap-3">
+            <CalendarDaysIcon className="mt-0.5 h-4 w-4 text-gray-800" />
             <div>
-              <p>Distance included</p>
-              <p className="text-sm text-gray-600">
-                $0.27 / mile fee will be charged for miles driven over this allotment.
-              </p>
+              <p>{renderTripDate(pickupAt)}</p>
+              <p>{renderTripDate(returnAt)}</p>
             </div>
-            <span>{includedDistance} miles</span>
+          </div>
+          <div className="flex items-start gap-3">
+            <MapPinIcon className="mt-0.5 h-4 w-4 text-gray-800" />
+            <div>
+              <p><span className="text-gray-500">Pickup:</span> {address}</p>
+              <p><span className="text-gray-500">Return:</span> {address}</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="mt-6 border-t border-gray-200 pt-6">
-        <h3 className="text-xl font-semibold text-gray-900">Promo code</h3>
-        <div className="mt-3 flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Enter code"
-            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:border-indigo-600 focus:outline-none"
-          />
-          <button
-            type="button"
-            className="rounded-xl border border-indigo-600 px-3 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50"
-          >
-            Apply
-          </button>
+        <div className="mt-6 border-t border-gray-200 pt-6">
+          <div className="space-y-4 text-base">
+            <div className="flex items-center justify-between">
+              <span>Delivery fee</span>
+              <span>${deliveryFee.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Return fee</span>
+              <span>${returnFee.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Extras</span>
+              <span>${extrasTotal.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Insurance</span>
+              <span>${insuranceTotal.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <button type="button" className="underline decoration-1 underline-offset-2">
+                Subtotal
+              </button>
+              <span>${subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <button type="button" className="underline decoration-1 underline-offset-2">
+                Sales tax
+              </button>
+              <span>${salesTax.toFixed(2)}</span>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p>Distance included</p>
+                <p className="text-sm text-gray-600">
+                  $0.27 / mile fee will be charged for miles driven over this allotment.
+                </p>
+              </div>
+              <span>{includedDistance} miles</span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="mt-6 border-y border-gray-200 py-6">
-        <div className="flex items-center justify-between">
-          <p className="text-xl font-semibold text-gray-900">Trip total</p>
-          <p className="text-xl font-semibold text-gray-900">${tripTotal.toFixed(2)}</p>
+        <div className="mt-6 border-t border-gray-200 pt-6">
+          <h3 className="text-xl font-semibold text-gray-900">Promo code</h3>
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Enter code"
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:border-green-600 focus:outline-none"
+            />
+            <button
+              type="button"
+              className="rounded-xl border border-green-600 px-3 py-2 text-sm font-semibold text-green-600 hover:bg-green-50"
+            >
+              Apply
+            </button>
+          </div>
         </div>
-      </div>
 
-      <p className="mt-4 text-sm text-gray-700">
-        Payment is made directly to the vehicle owner at pickup.
-      </p>
+        <div className="mt-6 border-y border-gray-200 py-6">
+          <div className="flex items-center justify-between">
+            <p className="text-xl font-semibold text-gray-900">Trip total</p>
+            <p className="text-xl font-semibold text-gray-900">${tripTotal.toFixed(2)}</p>
+          </div>
+        </div>
 
-      <div className="mt-4 flex items-center justify-between text-base text-gray-900">
-        <p className="font-semibold">Deposit</p>
-        <p className="font-semibold">{money(depositTotal)}</p>
-      </div>
+        <p className="mt-4 text-sm text-gray-700">
+          Payment is made directly to the vehicle owner at pickup.
+        </p>
 
-      <button
-        type="button"
-        className="mt-4 w-full rounded-xl bg-indigo-600 px-4 py-3 text-base font-semibold text-white hover:bg-indigo-700"
-      >
-        Submit request
-      </button>
+        <div className="mt-4 flex items-center justify-between text-base text-gray-900">
+          <p className="font-semibold">Deposit</p>
+          <p className="font-semibold">{money(depositTotal)}</p>
+        </div>
+
+        <button
+          type="button"
+          className="mt-4 w-full rounded-xl bg-green-600 px-4 py-3 text-base font-semibold text-white hover:bg-green-700"
+        >
+          Submit request
+        </button>
       </div>
     </aside>
   );
@@ -327,7 +329,7 @@ export default function CheckoutPage() {
                   <h2 className="text-xl font-semibold text-gray-800">Primary driver</h2>
                   <button
                     type="button"
-                    className="rounded-xl border border-indigo-600 px-5 py-2 text-base font-semibold text-indigo-600"
+                    className="rounded-xl border border-green-600 px-5 py-2 text-base font-semibold text-green-600"
                   >
                     Log in
                   </button>
@@ -358,7 +360,7 @@ export default function CheckoutPage() {
               </section>
 
               <div className={`grid gap-4 ${hasFullInsurance ? "md:grid-cols-2" : "md:grid-cols-1"}`}>
-                <section className={`rounded-2xl border border-gray-200 p-4 ${!withFullInsurance ? "bg-indigo-100" : "bg-white"}`}>
+                <section className={`rounded-2xl border border-gray-200 p-4 ${!withFullInsurance ? "bg-green-100" : "bg-white"}`}>
                   <h2 className="text-xl font-semibold text-gray-800">Standard insurance</h2>
                   <p className="mt-1 text-sm text-gray-700">
                     {data.minInsurancePrice && data.maxInsurancePrice
@@ -374,7 +376,7 @@ export default function CheckoutPage() {
                 </section>
 
                 {hasFullInsurance ? (
-                  <section className={`rounded-2xl border border-gray-200 p-4 ${withFullInsurance ? "bg-indigo-100" : "bg-white"}`}>
+                  <section className={`rounded-2xl border border-gray-200 p-4 ${withFullInsurance ? "bg-green-100" : "bg-white"}`}>
                     <div className="flex items-center justify-between gap-3">
                       <h2 className="text-xl font-semibold text-gray-800">Full insurance</h2>
                       <button
@@ -382,7 +384,7 @@ export default function CheckoutPage() {
                         role="switch"
                         aria-checked={withFullInsurance}
                         onClick={() => setWithFullInsurance((v) => !v)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${withFullInsurance ? "bg-indigo-600" : "bg-gray-300"}`}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${withFullInsurance ? "bg-green-600" : "bg-gray-300"}`}
                       >
                         <span
                           className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${withFullInsurance ? "translate-x-5" : "translate-x-0.5"}`}
@@ -409,35 +411,35 @@ export default function CheckoutPage() {
               <div className="pt-1">
                 <Link
                   to={`/cars/${data.carId}`}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
+                  className="inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"
                 >
-                  <ArrowLeftIcon className="h-4 w-4" />
+                  <ChevronLeftIcon className="w-5 h-5" />
                   Back
                 </Link>
               </div>
             </div>
           </section>
 
-        <SummaryCard
-          carName={data.carName}
-          photoUrl={data.photoUrl}
-          year={data.year}
-          rating={data.rating}
-          trips={data.trips}
-          pickupAt={data.pickupAt}
-          returnAt={data.returnAt}
-          address={data.address}
-          deliveryFee={data.deliveryFee}
-          returnFee={data.returnFee}
-          extrasTotal={data.extrasTotal}
-          insuranceTotal={selectedInsurance}
-          depositTotal={effectiveDeposit}
-          subtotal={data.subtotal}
-          salesTax={data.salesTax}
-          includedDistance={data.includedDistance}
-          tripTotal={data.tripTotal}
-        />
-      </div>
+          <SummaryCard
+            carName={data.carName}
+            photoUrl={data.photoUrl}
+            year={data.year}
+            rating={data.rating}
+            trips={data.trips}
+            pickupAt={data.pickupAt}
+            returnAt={data.returnAt}
+            address={data.address}
+            deliveryFee={data.deliveryFee}
+            returnFee={data.returnFee}
+            extrasTotal={data.extrasTotal}
+            insuranceTotal={selectedInsurance}
+            depositTotal={effectiveDeposit}
+            subtotal={data.subtotal}
+            salesTax={data.salesTax}
+            includedDistance={data.includedDistance}
+            tripTotal={data.tripTotal}
+          />
+        </div>
       </main>
       <Footer />
     </div>

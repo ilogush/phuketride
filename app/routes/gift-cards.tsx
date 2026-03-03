@@ -36,16 +36,16 @@ export default function GiftCards() {
                 Choose your amount
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <button className="bg-white text-gray-900 py-4 rounded-xl font-bold hover:bg-indigo-100 transition-colors">
+                <button className="bg-white text-gray-900 py-4 rounded-xl font-bold hover:bg-green-100 transition-colors">
                   ฿1,000
                 </button>
-                <button className="bg-white text-gray-900 py-4 rounded-xl font-bold hover:bg-indigo-100 transition-colors">
+                <button className="bg-white text-gray-900 py-4 rounded-xl font-bold hover:bg-green-100 transition-colors">
                   ฿2,500
                 </button>
-                <button className="bg-white text-gray-900 py-4 rounded-xl font-bold hover:bg-indigo-100 transition-colors">
+                <button className="bg-white text-gray-900 py-4 rounded-xl font-bold hover:bg-green-100 transition-colors">
                   ฿5,000
                 </button>
-                <button className="bg-white text-gray-900 py-4 rounded-xl font-bold hover:bg-indigo-100 transition-colors">
+                <button className="bg-white text-gray-900 py-4 rounded-xl font-bold hover:bg-green-100 transition-colors">
                   ฿10,000
                 </button>
               </div>

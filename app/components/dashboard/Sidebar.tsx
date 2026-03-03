@@ -45,8 +45,8 @@ const getMenuItems = (role: UserRole) => {
         label: string;
         end?: boolean;
     }> = [
-        { to: "/dashboard", icon: Squares2X2Icon, label: "Dashboard", end: true },
-    ];
+            { to: "/dashboard", icon: Squares2X2Icon, label: "Dashboard", end: true },
+        ];
 
     if (role === "admin") {
         return [
@@ -101,7 +101,7 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
     const location = useLocation();
     const navigate = useNavigate();
     const [hoveredItem, setHoveredItem] = useState<{ label: string; top: number } | null>(null);
-    
+
     // В режиме модерации используем меню партнёра
     const effectiveRole = isModMode ? "partner" : user.role;
     const menuItems = getMenuItems(effectiveRole);
@@ -137,17 +137,12 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
                     className={`h-16 flex items-center flex-shrink-0 transition-all ${isOpen ? "px-4 justify-between" : "justify-center"
                         }`}
                 >
-                    <NavLink to="/" className="flex items-center group">
+                    <NavLink to="/" className={`flex items-center group ${isOpen ? "w-full" : ""}`}>
                         <img
                             src="/android-chrome-192x192.png"
                             alt="Phuket Ride"
-                            className={`transition-all rounded-xl ${isOpen ? "h-10 w-10" : "h-8 w-8"}`}
+                            className={`transition-all rounded-xl ${isOpen ? "h-11 w-11" : "h-8 w-8"}`}
                         />
-                        {isOpen && (
-                            <span className="ml-3 font-black text-xl tracking-tight text-black group-hover:scale-105 transition-transform hidden md:block">
-                                Phuket Ride
-                            </span>
-                        )}
                     </NavLink>
 
                     {isOpen && (

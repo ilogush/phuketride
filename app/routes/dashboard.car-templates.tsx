@@ -291,7 +291,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         {
             key: 'id',
             label: 'ID',
-            render: (brand: any) => <IdBadge>#{brand.id}</IdBadge>,
+            render: (brand: any) => <IdBadge>#{String(brand.id).padStart(3, "0")}</IdBadge>,
         },
         {
             key: 'name',
@@ -306,7 +306,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         {
             key: 'id',
             label: 'ID',
-            render: (model: any) => <IdBadge>#{model.id}</IdBadge>,
+            render: (model: any) => <IdBadge>#{String(model.id).padStart(3, "0")}</IdBadge>,
         },
         {
             key: 'brand',
@@ -330,7 +330,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
             label: 'ID',
             render: (template: any) => (
                 <Link to={`/car-templates/${template.id}`} className="hover:opacity-70 transition-opacity">
-                    <IdBadge>#{template.id}</IdBadge>
+                    <IdBadge>#{String(template.id).padStart(3, "0")}</IdBadge>
                 </Link>
             ),
         },

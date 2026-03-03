@@ -28,7 +28,7 @@ export default function CarReviewsSection({ rating, reviews }: CarReviewsSection
         <>
           <div className="flex items-end gap-2">
             <span className="text-4xl font-semibold text-gray-800">{rating.totalRating.toFixed(2)}</span>
-            <StarIcon className="w-6 h-6 text-indigo-600 mb-1" />
+            <StarIcon className="w-6 h-6 text-green-600 mb-1" />
           </div>
           <p className="text-sm text-gray-500">({rating.totalRatings} ratings)</p>
           <div className="space-y-3 pt-2">
@@ -36,7 +36,7 @@ export default function CarReviewsSection({ rating, reviews }: CarReviewsSection
               <div key={label} className="grid grid-cols-[160px_1fr_50px] items-center gap-3">
                 <span className="text-sm text-gray-800">{label}</span>
                 <div className="h-3 rounded-full bg-gray-200 overflow-hidden">
-                  <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${(score / 5) * 100}%` }} />
+                  <div className="h-full bg-green-600 rounded-full" style={{ width: `${(score / 5) * 100}%` }} />
                 </div>
                 <span className="text-sm text-gray-800">{score.toFixed(1)}</span>
               </div>
@@ -66,7 +66,7 @@ export default function CarReviewsSection({ rating, reviews }: CarReviewsSection
                     {Array.from({ length: 5 }).map((_, idx) => (
                       <StarIcon
                         key={`${review.id}-${idx}`}
-                        className={`w-4 h-4 ${idx < review.rating ? "text-indigo-600" : "text-gray-300"}`}
+                        className={`w-4 h-4 ${idx < review.rating ? "text-green-600" : "text-gray-300"}`}
                       />
                     ))}
                   </div>
@@ -82,7 +82,7 @@ export default function CarReviewsSection({ rating, reviews }: CarReviewsSection
           <div className="pt-2">
             <Button
               type="button"
-              className="inline-flex items-center justify-center rounded-xl bg-indigo-600 text-white px-5 py-3 text-base font-medium hover:bg-indigo-700 gap-2"
+              className="inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"
             >
               See more
               <ChevronDownIcon className="w-5 h-5" />

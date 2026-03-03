@@ -131,7 +131,7 @@ export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: stri
                     }}
                     className="hover:opacity-70 transition-opacity"
                 >
-                    <IdBadge>{item.id.toString().padStart(4, '0')}</IdBadge>
+                    <IdBadge>{item.id.toString().padStart(3, '0')}</IdBadge>
                 </Button>
             )
         },
@@ -159,7 +159,7 @@ export default function PaymentsTable({ searchQuery = '' }: { searchQuery?: stri
             render: (item) => (
                 <div className="flex flex-col">
                     <span className="text-sm font-medium text-gray-900">
-                        #{item.contracts?.id?.toString().padStart(4, '0') || 'N/A'}
+                        #{item.contracts?.id?.toString().padStart(3, '0') || 'N/A'}
                     </span>
                     <span className="text-xs text-gray-500">
                         {item.contracts?.client ? `${item.contracts.client.name} ${item.contracts.client.surname}` : 'Unknown User'}

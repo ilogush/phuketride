@@ -1,19 +1,42 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useActionData, Link } from "react-router";
+import { useState } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { Input } from "~/components/dashboard/Input";
+import { Select } from "~/components/dashboard/Select";
 import Button from "~/components/dashboard/Button";
 import BackButton from "~/components/dashboard/BackButton";
 import FormSection from "~/components/dashboard/FormSection";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { z } from "zod";
 
+interface LocationRow {
+    id: number;
+    name: string;
+}
+
+interface DistrictRow {
+    id: number;
+    name: string;
+    locationId: number;
+}
+
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const companyId = parseInt(params.companyId || "0");
 
     let company: any = null;
+    const [locationsList, districtsList] = await Promise.all([
+        context.cloudflare.env.DB
+            .prepare("SELECT id, name FROM locations ORDER BY name ASC LIMIT 100")
+            .all()
+            .then((r: { results?: LocationRow[] }) => r.results || []),
+        context.cloudflare.env.DB
+            .prepare("SELECT id, name, location_id AS locationId FROM districts ORDER BY name ASC LIMIT 200")
+            .all()
+            .then((r: { results?: DistrictRow[] }) => r.results || []),
+    ]);
 
     try {
         const companyData = await context.cloudflare.env.DB
@@ -29,7 +52,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     } catch {
     }
 
-    return { user, company };
+    return { user, company, locations: locationsList, districts: districtsList };
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
@@ -41,9 +64,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         email: z.string().trim().email("Invalid email format"),
         phone: z.string().trim().min(1, "Phone is required"),
         telegram: z.string().trim().optional(),
-        street: z.string().trim().optional(),
-        houseNumber: z.string().trim().optional(),
-        address: z.string().trim().optional(),
+        locationId: z.coerce.number().int().positive("Location is required"),
+        districtId: z.coerce.number().int().positive("District is required"),
+        street: z.string().trim().min(1, "Street is required"),
+        houseNumber: z.string().trim().min(1, "House number is required"),
         bankName: z.string().trim().optional(),
         accountNumber: z.string().trim().optional(),
         accountName: z.string().trim().optional(),
@@ -56,9 +80,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         email: formData.get("email"),
         phone: formData.get("phone"),
         telegram: formData.get("telegram"),
+        locationId: formData.get("locationId"),
+        districtId: formData.get("districtId"),
         street: formData.get("street"),
         houseNumber: formData.get("houseNumber"),
-        address: formData.get("address"),
         bankName: formData.get("bankName"),
         accountNumber: formData.get("accountNumber"),
         accountName: formData.get("accountName"),
@@ -74,9 +99,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         email,
         phone,
         telegram,
+        locationId,
+        districtId,
         street,
         houseNumber,
-        address,
         bankName,
         accountNumber,
         accountName,
@@ -95,9 +121,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                     email = ?,
                     phone = ?,
                     telegram = ?,
+                    location_id = ?,
+                    district_id = ?,
                     street = ?,
                     house_number = ?,
-                    address = ?,
                     bank_name = ?,
                     account_number = ?,
                     account_name = ?,
@@ -113,9 +140,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 email,
                 phone,
                 telegram,
+                locationId,
+                districtId,
                 street,
                 houseNumber,
-                address,
                 bankName,
                 accountNumber,
                 accountName,
@@ -134,10 +162,15 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 }
 
 export default function CompanyEditPage() {
-    const { company } = useLoaderData<typeof loader>();
+    const { company, locations, districts } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const errors: Record<string, string> = (actionData as { errors?: Record<string, string> } | undefined)?.errors || {};
     const { validateLatinInput } = useLatinValidation();
+    const initialLocationId = Number(company?.location_id ?? 0) || Number(locations[0]?.id ?? 0);
+    const initialDistrictId = Number(company?.district_id ?? 0);
+    const [selectedLocationId, setSelectedLocationId] = useState(initialLocationId);
+    const [selectedDistrictId, setSelectedDistrictId] = useState(initialDistrictId);
+    const filteredDistricts = districts.filter((district: DistrictRow) => district.locationId === selectedLocationId);
 
     if (!company) {
         return (
@@ -162,10 +195,22 @@ export default function CompanyEditPage() {
                         <BackButton />
                     </Link>
                 }
+                rightActions={
+                    <div className="flex gap-2">
+                        <Link to="/companies">
+                            <Button variant="secondary" type="button">
+                                Cancel
+                            </Button>
+                        </Link>
+                        <Button variant="primary" type="submit" form="edit-company-form">
+                            Save
+                        </Button>
+                    </div>
+                }
             />
 
-            <Form method="post">
-                <div className="bg-white rounded-3xl border border-gray-200 p-6">
+            <Form id="edit-company-form" method="post">
+                <div className="py-6 space-y-4">
                     {errors.form && (
                         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
                             {errors.form}
@@ -219,11 +264,36 @@ export default function CompanyEditPage() {
 
                     <FormSection title="Address">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <Select
+                                label="Location"
+                                name="locationId"
+                                required
+                                value={selectedLocationId ? selectedLocationId.toString() : ""}
+                                onChange={(e) => {
+                                    const nextLocationId = Number(e.target.value);
+                                    setSelectedLocationId(nextLocationId);
+                                    const nextDistrict = districts.find((district: DistrictRow) => district.locationId === nextLocationId);
+                                    setSelectedDistrictId(nextDistrict ? Number(nextDistrict.id) : 0);
+                                }}
+                                options={locations}
+                            />
+
+                            <Select
+                                label="District"
+                                name="districtId"
+                                required
+                                value={selectedDistrictId ? String(selectedDistrictId) : ""}
+                                onChange={(e) => setSelectedDistrictId(Number(e.target.value))}
+                                options={filteredDistricts}
+                                placeholder="Select District"
+                            />
+
                             <Input
                                 label="Street"
                                 name="street"
                                 type="text"
                                 placeholder="Enter street name"
+                                required
                                 defaultValue={company.street}
                                 onChange={(e) => validateLatinInput(e, 'Street')}
                             />
@@ -233,16 +303,8 @@ export default function CompanyEditPage() {
                                 name="houseNumber"
                                 type="text"
                                 placeholder="Enter house number"
-                                defaultValue={company.houseNumber}
-                            />
-
-                            <Input
-                                label="Full Address"
-                                name="address"
-                                type="text"
-                                placeholder="Enter full address"
-                                defaultValue={company.address}
-                                onChange={(e) => validateLatinInput(e, 'Address')}
+                                required
+                                defaultValue={company.house_number}
                             />
                         </div>
                     </FormSection>
@@ -304,16 +366,6 @@ export default function CompanyEditPage() {
                         </div>
                     </FormSection>
 
-                    <div className="flex justify-end gap-4 pt-6 mt-6 border-t border-gray-100">
-                        <Link to="/companies">
-                            <Button variant="secondary" type="button">
-                                Cancel
-                            </Button>
-                        </Link>
-                        <Button variant="primary" type="submit">
-                            Save
-                        </Button>
-                    </div>
                 </div>
             </Form>
         </div>

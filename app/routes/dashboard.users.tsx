@@ -10,6 +10,7 @@ import Button from "~/components/dashboard/Button";
 import { UserGroupIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
+import { formatContactPhone } from "~/lib/phone";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -78,7 +79,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function UsersPage() {
     const { user, users: usersList, roleCounts, isModMode } = useLoaderData<typeof loader>();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const toast = useToast();
     const isPartner = user.role === "partner" || isModMode;
     
@@ -94,7 +95,13 @@ export default function UsersPage() {
         if (error) {
             toast.error(error, 3000);
         }
-    }, [searchParams, toast]);
+        if (success || error) {
+            const next = new URLSearchParams(searchParams);
+            next.delete("success");
+            next.delete("error");
+            setSearchParams(next, { replace: true });
+        }
+    }, [searchParams, setSearchParams, toast]);
 
     const tabs = isPartner
         ? [
@@ -136,7 +143,7 @@ export default function UsersPage() {
         {
             key: "phone",
             label: "Phone",
-            render: (user) => user.phone || "-"
+            render: (user) => formatContactPhone(user.phone)
         },
         {
             key: "role",

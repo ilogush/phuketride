@@ -15,6 +15,7 @@ import { useToast } from "~/lib/toast";
 import { companySchema } from "~/schemas/company";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { useLatinValidation } from "~/lib/useLatinValidation";
+import { formatContactPhone } from "~/lib/phone";
 import {
     BuildingOfficeIcon,
     BanknotesIcon,
@@ -503,7 +504,7 @@ export default function CreateCompanyPage() {
                                     <ReadOnlyField label="Name" value={selectedManager.name} />
                                     <ReadOnlyField label="Surname" value={selectedManager.surname} />
                                     <ReadOnlyField label="Email" value={selectedManager.email} />
-                                    <ReadOnlyField label="Phone" value={selectedManager.phone} />
+                                    <ReadOnlyField label="Phone" value={formatContactPhone(selectedManager.phone)} />
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <ReadOnlyField label="Role" value={selectedManager.role} capitalize />

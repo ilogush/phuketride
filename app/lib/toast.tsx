@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useId, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react'
 import ToastContainer from '~/components/dashboard/ToastContainer'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
@@ -22,32 +22,59 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined)
 
 export function ToastProvider({ children }: { children: ReactNode }) {
     const [toasts, setToasts] = useState<Toast[]>([])
+    const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+    const clearToastTimer = useCallback((id: string) => {
+        const timer = timersRef.current.get(id)
+        if (timer) {
+            clearTimeout(timer)
+            timersRef.current.delete(id)
+        }
+    }, [])
 
     const removeToast = useCallback((id: string) => {
+        clearToastTimer(id)
         setToasts((prev) => prev.filter((toast) => toast.id !== id))
+    }, [clearToastTimer])
+
+    useEffect(() => {
+        return () => {
+            for (const timer of timersRef.current.values()) {
+                clearTimeout(timer)
+            }
+            timersRef.current.clear()
+        }
     }, [])
 
     const showToast = useCallback(
         async (message: string, type: ToastType = 'info', duration: number = 5000) => {
-            const id = `toast-${Date.now()}-${Math.random()}`
-            
-            // Check if toast with same message already exists
+            const newId = `toast-${Date.now()}-${Math.random()}`
+            let targetId = newId
+
+            let isDuplicate = false
+            // Keep one toast per message+type.
             setToasts((prev) => {
-                const exists = prev.some(toast => toast.message === message && toast.type === type)
-                if (exists) return prev
-                
-                const newToast: Toast = { id, message, type, duration }
+                const existing = prev.find((toast) => toast.message === message && toast.type === type)
+                if (existing) {
+                    targetId = existing.id
+                    isDuplicate = true
+                    return prev
+                }
+
+                const newToast: Toast = { id: newId, message, type, duration }
                 return [...prev, newToast]
             })
 
             // Set timeout to remove toast
-            if (duration > 0) {
-                setTimeout(() => {
-                    removeToast(id)
+            if (!isDuplicate && duration > 0) {
+                clearToastTimer(targetId)
+                const timer = setTimeout(() => {
+                    removeToast(targetId)
                 }, duration)
+                timersRef.current.set(targetId, timer)
             }
         },
-        [removeToast]
+        [clearToastTimer, removeToast]
     )
 
     const success = useCallback(

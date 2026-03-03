@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { redirect } from 'react-router'
 import type { Route } from './+types/dashboard.car-templates.$id.edit'
 import { requireAuth } from '~/lib/auth.server'
@@ -6,6 +5,29 @@ import { CarTemplateForm } from '~/components/dashboard/CarTemplateForm'
 import PageHeader from '~/components/dashboard/PageHeader'
 import BackButton from '~/components/dashboard/BackButton'
 import Button from '~/components/dashboard/Button'
+
+interface CarTemplateRow {
+    id: number
+    brand_id: number
+    model_id: number
+    transmission: 'automatic' | 'manual' | null
+    engine_volume: number | null
+    body_type_id: number | null
+    seats: number | null
+    doors: number | null
+    fuel_type_id: number | null
+    description: string | null
+    photos: string | null
+}
+
+interface DictionaryRow {
+    id: number
+    name: string
+}
+
+interface ModelRow extends DictionaryRow {
+    brand_id: number
+}
 
 export async function loader({ request, context, params }: Route.LoaderArgs) {
     const user = await requireAuth(request)
@@ -16,26 +38,31 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
 
     const templateId = Number(params.id)
 
-    const template = await context.cloudflare.env.DB
+    const template = (await context.cloudflare.env.DB
         .prepare("SELECT * FROM car_templates WHERE id = ? LIMIT 1")
         .bind(templateId)
-        .first<any>()
+        .first()) as CarTemplateRow | null
 
     if (!template) {
         throw new Response('Template not found', { status: 404 })
     }
 
     const [brands, models, bodyTypes, fuelTypes] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM car_brands ORDER BY name ASC LIMIT 100").all().then((r: any) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT id, name, brand_id FROM car_models ORDER BY name ASC LIMIT 500").all().then((r: any) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM body_types ORDER BY name ASC").all().then((r: any) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM fuel_types ORDER BY name ASC").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM car_brands ORDER BY name ASC LIMIT 100").all().then((r) => ((r.results || []) as unknown) as DictionaryRow[]),
+        context.cloudflare.env.DB.prepare("SELECT id, name, brand_id FROM car_models ORDER BY name ASC LIMIT 500").all().then((r) => ((r.results || []) as unknown) as ModelRow[]),
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM body_types ORDER BY name ASC").all().then((r) => ((r.results || []) as unknown) as DictionaryRow[]),
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM fuel_types ORDER BY name ASC").all().then((r) => ((r.results || []) as unknown) as DictionaryRow[]),
     ])
 
     return { template, brands, models, bodyTypes, fuelTypes }
 }
 
 export async function action({ request, context, params }: Route.ActionArgs) {
+    const user = await requireAuth(request)
+    if (user.role !== 'admin') {
+        throw new Response('Forbidden', { status: 403 })
+    }
+
     const formData = await request.formData()
     const templateId = Number(params.id)
 
@@ -79,17 +106,28 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         )
         .run()
 
-    return redirect(`/car-templates/${templateId}`)
+    return redirect(`/car-templates/${templateId}/edit?success=Template%20updated`)
 }
 
 export default function EditCarTemplatePage({ loaderData }: Route.ComponentProps) {
     const { template, brands, models, bodyTypes, fuelTypes } = loaderData
+    const formTemplate = {
+        ...template,
+        transmission: template.transmission || undefined,
+        engine_volume: template.engine_volume ?? undefined,
+        body_type_id: template.body_type_id ?? undefined,
+        seats: template.seats ?? undefined,
+        doors: template.doors ?? undefined,
+        fuel_type_id: template.fuel_type_id ?? undefined,
+        description: template.description ?? undefined,
+        photos: template.photos ?? undefined,
+    }
 
     return (
         <div className="space-y-4">
             <PageHeader
                 title="Edit"
-                leftActions={<BackButton to={`/car-templates/${template.id}`} />}
+                leftActions={<BackButton to="/car-templates" />}
                 rightActions={
                     <Button type="submit" variant="primary" form="car-template-form">
                         Save
@@ -98,22 +136,11 @@ export default function EditCarTemplatePage({ loaderData }: Route.ComponentProps
             />
 
             <CarTemplateForm
+                template={formTemplate}
                 brands={brands}
                 models={models}
                 bodyTypes={bodyTypes}
                 fuelTypes={fuelTypes}
-                defaultValues={{
-                    brand_id: template.brand_id,
-                    model_id: template.model_id,
-                    transmission: template.transmission,
-                    engine_volume: template.engine_volume,
-                    body_type: template.body_type_id,
-                    seats: template.seats,
-                    doors: template.doors,
-                    fuel_type: template.fuel_type_id,
-                    description: template.description,
-                    photos: template.photos,
-                }}
             />
         </div>
     )

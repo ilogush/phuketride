@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
@@ -27,6 +26,49 @@ import { companySchema } from "~/schemas/company";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { getAdminModCompanyId, getEffectiveCompanyId } from "~/lib/mod-mode.server";
+
+type CompanySettings = {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+    telegram: string | null;
+    locationId: number | null;
+    districtId: number | null;
+    street: string;
+    houseNumber: string;
+    bankName: string | null;
+    accountNumber: string | null;
+    accountName: string | null;
+    swiftCode: string | null;
+    preparationTime: number | null;
+    deliveryFeeAfterHours: number | null;
+    islandTripPrice: number | null;
+    krabiTripPrice: number | null;
+    babySeatPricePerDay: number | null;
+    weeklySchedule: string | null;
+    holidays: string | null;
+};
+type ListItem = { id: number; name: string; [key: string]: unknown };
+type PaymentType = {
+    id: number;
+    name: string;
+    sign: "+" | "-";
+    description: string | null;
+    showOnCreate: boolean | number | null;
+    showOnClose: boolean | number | null;
+    isActive?: boolean | number | null;
+    isSystem?: boolean | number | null;
+    companyId?: number | null;
+};
+type Currency = {
+    id: number;
+    name: string;
+    code: string;
+    symbol: string;
+    companyId: number | null;
+    isActive?: boolean | number | null;
+};
 
 const normalizeCompanyRow = (row: Record<string, unknown>) => ({
     ...row,
@@ -61,7 +103,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     // NOTE: In remote-preview mode (remote bindings), concurrent D1 requests can intermittently fail.
     // Keep these queries sequential to reduce flakiness during dev.
     const [companyRow, locations, districts, paymentTypes, currencies] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT * FROM companies WHERE id = ? LIMIT 1").bind(companyId).first<any>(),
+        context.cloudflare.env.DB.prepare("SELECT * FROM companies WHERE id = ? LIMIT 1").bind(companyId).first() as any,
         context.cloudflare.env.DB.prepare("SELECT * FROM locations LIMIT 100").all().then((r: any) => r.results || []),
         context.cloudflare.env.DB.prepare("SELECT * FROM districts LIMIT 200").all().then((r: any) => r.results || []),
         context.cloudflare.env.DB
@@ -75,9 +117,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     if (!companyRow) {
         throw new Response("Company not found", { status: 404 });
     }
-    const company = normalizeCompanyRow(companyRow as Record<string, unknown>);
+    const company = normalizeCompanyRow(companyRow as Record<string, unknown>) as CompanySettings;
 
-    return { user, company, locations, districts, paymentTypes, currencies };
+    return {
+        user,
+        company,
+        locations: locations as ListItem[],
+        districts: districts as ListItem[],
+        paymentTypes: paymentTypes as PaymentType[],
+        currencies: currencies as Currency[],
+    };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -102,7 +151,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const currentCompanyRow = await context.cloudflare.env.DB
         .prepare("SELECT * FROM companies WHERE id = ? LIMIT 1")
         .bind(companyId)
-        .first<any>();
+        .first() as any;
     const currentCompany = currentCompanyRow ? normalizeCompanyRow(currentCompanyRow) : null;
 
     if (intent === "updateGeneral") {
@@ -348,7 +397,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             const template = await context.cloudflare.env.DB
                 .prepare("SELECT * FROM payment_types WHERE id = ? LIMIT 1")
                 .bind(id)
-                .first<any>();
+                .first() as any;
             
             if (!template) {
                 return redirect(withMode("/settings?error=Payment template not found"));
@@ -416,7 +465,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             const template = await context.cloudflare.env.DB
                 .prepare("SELECT * FROM payment_types WHERE id = ? LIMIT 1")
                 .bind(id)
-                .first<any>();
+                .first() as any;
             
             if (!template) {
                 return redirect(withMode("/settings?error=Payment template not found"));
@@ -530,7 +579,7 @@ export default function SettingsPage() {
     };
 
     const handleTogglePaymentTemplate = (id: number, field: 'showOnCreate' | 'showOnClose' | 'isActive', currentValue: boolean | null) => {
-        const template = paymentTypes.find(t => t.id === id);
+        const template = paymentTypes.find((t) => t.id === id);
         if (!template) return;
 
         postWithReload({
@@ -549,7 +598,7 @@ export default function SettingsPage() {
                 currencyId: String(id),
             });
         } else {
-            const target = currencies.find(c => c.id === id);
+            const target = currencies.find((c) => c.id === id);
             if (!target) return;
 
             postWithReload({
@@ -815,7 +864,7 @@ export default function SettingsPage() {
                                             <tr key={template.id} className="group hover:bg-white transition-all">
                                                 <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                                                     <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
-                                                        {String(template.id).padStart(4, '0')}
+                                                        {String(template.id).padStart(3, '0')}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-full">
@@ -841,14 +890,14 @@ export default function SettingsPage() {
                                                     <Toggle
                                                         size="sm"
                                                         enabled={Boolean(template.showOnCreate)}
-                                                        onChange={() => handleTogglePaymentTemplate(template.id, 'showOnCreate', template.showOnCreate ?? false)}
+                                                        onChange={() => handleTogglePaymentTemplate(template.id, 'showOnCreate', Boolean(template.showOnCreate))}
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
                                                     <Toggle
                                                         size="sm"
                                                         enabled={Boolean(template.showOnClose)}
-                                                        onChange={() => handleTogglePaymentTemplate(template.id, 'showOnClose', template.showOnClose ?? false)}
+                                                        onChange={() => handleTogglePaymentTemplate(template.id, 'showOnClose', Boolean(template.showOnClose))}
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
@@ -862,8 +911,8 @@ export default function SettingsPage() {
                                                                     name: template.name,
                                                                     sign: template.sign ?? "+",
                                                                     description: template.description || "",
-                                                                    showOnCreate: template.showOnCreate ?? false,
-                                                                    showOnClose: template.showOnClose ?? false,
+                                                                    showOnCreate: Boolean(template.showOnCreate),
+                                                                    showOnClose: Boolean(template.showOnClose),
                                                                 });
                                                                 setEditingPaymentTemplate(template);
                                                                 setIsPaymentModalOpen(true);
@@ -990,7 +1039,7 @@ export default function SettingsPage() {
                                             <tr key={currency.id} className="group hover:bg-white transition-all">
                                                 <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                                                     <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
-                                                        {String(currency.id).padStart(4, '0')}
+                                                        {String(currency.id).padStart(3, '0')}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">

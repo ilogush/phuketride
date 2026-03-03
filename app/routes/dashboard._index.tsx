@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
@@ -65,7 +64,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             const company = await context.cloudflare.env.DB
                 .prepare("SELECT bank_name AS bankName, account_number AS accountNumber, account_name AS accountName FROM companies WHERE id = ? LIMIT 1")
                 .bind(effectiveCompanyId)
-                .first<any>();
+                .first() as any;
 
             const managersCount = await context.cloudflare.env.DB
                 .prepare(`
@@ -74,14 +73,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     WHERE company_id = ? AND is_active = 1
                 `)
                 .bind(effectiveCompanyId)
-                .first<any>();
+                .first() as any;
 
             const onlineUsers = 0; // Online tracking not implemented
 
             const carsCount = await context.cloudflare.env.DB
                 .prepare("SELECT COUNT(*) AS count FROM company_cars WHERE company_id = ?")
                 .bind(effectiveCompanyId)
-                .first<any>();
+                .first() as any;
 
             const contractsCount = await context.cloudflare.env.DB
                 .prepare(`
@@ -91,7 +90,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     WHERE cc.company_id = ?
                 `)
                 .bind(effectiveCompanyId)
-                .first<any>();
+                .first() as any;
 
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
@@ -105,7 +104,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     WHERE cc.company_id = ? AND c.created_at >= ?
                 `)
                 .bind(effectiveCompanyId, startOfMonth.toISOString())
-                .first<any>();
+                .first() as any;
 
             statCards = [
                 {
@@ -176,15 +175,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         } else if (user.role === "admin") {
             // Admin stats
             const [companiesCount, usersCount] = await Promise.all([
-                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM companies").first<any>(),
-                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM users").first<any>(),
+                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM companies").first() as any,
+                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM users").first() as any,
             ]);
 
             const onlineUsers = 0; // Online tracking not implemented
 
             const carsCount = await context.cloudflare.env.DB
                 .prepare("SELECT COUNT(*) AS count FROM company_cars")
-                .first<any>();
+                .first() as any;
 
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
@@ -193,7 +192,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             const contractsThisMonth = await context.cloudflare.env.DB
                 .prepare("SELECT COUNT(*) AS count FROM contracts WHERE created_at >= ?")
                 .bind(startOfMonth.toISOString())
-                .first<any>();
+                .first() as any;
 
             statCards = [
                 {
@@ -250,17 +249,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             const userContractsCount = await context.cloudflare.env.DB
                 .prepare("SELECT COUNT(*) AS count FROM contracts WHERE client_id = ?")
                 .bind(user.id)
-                .first<any>();
+                .first() as any;
 
             const [activeContractsCount, upcomingContractsCount] = await Promise.all([
                 context.cloudflare.env.DB
                     .prepare("SELECT COUNT(*) AS count FROM contracts WHERE client_id = ? AND status = 'active'")
                     .bind(user.id)
-                    .first<any>(),
+                    .first() as any,
                 context.cloudflare.env.DB
                     .prepare("SELECT COUNT(*) AS count FROM contracts WHERE client_id = ? AND status = 'active' AND start_date >= ?")
                     .bind(user.id, new Date().toISOString())
-                    .first<any>(),
+                    .first() as any,
             ]);
 
             statCards = [

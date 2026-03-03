@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, Link } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
@@ -11,7 +10,9 @@ import FormSelect from "~/components/dashboard/FormSelect";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import { useLatinValidation } from "~/lib/useLatinValidation";
+import { useDateMasking } from "~/lib/useDateMasking";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { parseDateFromDisplay } from "~/lib/formatters";
 
 const bookingSchema = z.object({
     carId: z.string().min(1, "Car is required"),
@@ -72,7 +73,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             .then((r: any) => r.results || []),
     ]);
 
-    return { 
+    return {
         cars: carsRaw.map((car: any) => ({
             id: car.id,
             name: `${car.brandName || ""} ${car.modelName || ""} ${car.year || ""} - ${car.licensePlate}`,
@@ -95,9 +96,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     const { carId, startDate, endDate, clientName, clientSurname, clientPhone, clientEmail,
-            clientPassport, depositAmount, depositPaid, depositPaymentMethod,
-            pickupDistrictId, pickupHotel, pickupRoom, returnDistrictId, returnHotel, 
-            returnRoom, fullInsurance, babySeat, islandTrip, krabiTrip, notes } = result.data;
+        clientPassport, depositAmount, depositPaid, depositPaymentMethod,
+        pickupDistrictId, pickupHotel, pickupRoom, returnDistrictId, returnHotel,
+        returnRoom, fullInsurance, babySeat, islandTrip, krabiTrip, notes } = result.data;
 
     try {
         // Get car details
@@ -109,15 +110,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 LIMIT 1
             `)
             .bind(Number(carId), user.companyId)
-            .first<any>();
+            .first() as any;
 
         if (!car) {
             return { error: "Car not found" };
         }
 
         // Calculate days and amount
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        const start = new Date(parseDateFromDisplay(startDate));
+        const end = new Date(parseDateFromDisplay(endDate));
         const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
         if (car.pricePerDay === null) {
             return { error: "Car price per day is not set" };
@@ -136,14 +137,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
             const district = await context.cloudflare.env.DB
                 .prepare("SELECT delivery_price AS deliveryPrice FROM districts WHERE id = ? LIMIT 1")
                 .bind(Number(pickupDistrictId))
-                .first<any>();
+                .first() as any;
             if (district) estimatedAmount += district.deliveryPrice || 0;
         }
         if (returnDistrictId) {
             const district = await context.cloudflare.env.DB
                 .prepare("SELECT delivery_price AS deliveryPrice FROM districts WHERE id = ? LIMIT 1")
                 .bind(Number(returnDistrictId))
-                .first<any>();
+                .first() as any;
             if (district) estimatedAmount += district.deliveryPrice || 0;
         }
 
@@ -222,15 +223,28 @@ export async function action({ request, context }: ActionFunctionArgs) {
 export default function CreateBookingPage() {
     const { cars, districts, user } = useLoaderData<typeof loader>();
     const { validateLatinInput } = useLatinValidation();
+    const { maskDateInput } = useDateMasking();
 
     return (
         <div className="space-y-6">
             <PageHeader
                 title="Create Booking"
                 leftActions={<BackButton to="/dashboard/bookings" />}
+                rightActions={
+                    <div className="flex gap-2">
+                        <Link to="/dashboard/bookings">
+                            <Button type="button" variant="secondary">
+                                Cancel
+                            </Button>
+                        </Link>
+                        <Button type="submit" variant="primary" form="create-booking-form">
+                            Create Booking
+                        </Button>
+                    </div>
+                }
             />
 
-            <Form method="post" className="space-y-6">
+            <Form id="create-booking-form" method="post" className="space-y-6">
                 <FormSection title="Car Selection" icon={<ArrowLeftIcon className="w-5 h-5" />}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <FormSelect
@@ -238,33 +252,33 @@ export default function CreateBookingPage() {
                             label="Car"
                             required
                             className="col-span-full"
-                            options={cars.map((car) => ({ id: car.id, name: `${car.name} - ${car.pricePerDay} THB/day` }))}
+                            options={cars.map((car: { id: number; name: string; pricePerDay: number }) => ({ id: car.id, name: `${car.name} - ${car.pricePerDay} THB/day` }))}
                             placeholder="Select car"
                         />
-                        <FormInput type="date" name="startDate" label="Start Date" required />
-                        <FormInput type="date" name="endDate" label="End Date" required />
+                        <FormInput type="text" name="startDate" label="Start Date" placeholder="DD/MM/YYYY" required onChange={maskDateInput} />
+                        <FormInput type="text" name="endDate" label="End Date" placeholder="DD/MM/YYYY" required onChange={maskDateInput} />
                     </div>
                 </FormSection>
 
                 <FormSection title="Client Information">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormInput 
-                            name="clientName" 
-                            label="First Name" 
-                            required 
+                        <FormInput
+                            name="clientName"
+                            label="First Name"
+                            required
                             onChange={(e) => validateLatinInput(e, 'First Name')}
                         />
-                        <FormInput 
-                            name="clientSurname" 
-                            label="Last Name" 
-                            required 
+                        <FormInput
+                            name="clientSurname"
+                            label="Last Name"
+                            required
                             onChange={(e) => validateLatinInput(e, 'Last Name')}
                         />
                         <FormInput name="clientPhone" label="Phone" required />
                         <FormInput type="email" name="clientEmail" label="Email" />
-                        <FormInput 
-                            name="clientPassport" 
-                            label="Passport Number" 
+                        <FormInput
+                            name="clientPassport"
+                            label="Passport Number"
                             onChange={(e) => validateLatinInput(e, 'Passport')}
                         />
                     </div>
@@ -298,7 +312,7 @@ export default function CreateBookingPage() {
                             name="pickupDistrictId"
                             label="District"
                             placeholder="Select district"
-                            options={districts.map((d) => ({ id: d.id, name: d.name }))}
+                            options={districts.map((d: { id: number; name: string }) => ({ id: d.id, name: d.name }))}
                         />
                         <FormInput name="pickupHotel" label="Hotel" />
                         <FormInput name="pickupRoom" label="Room" />
@@ -311,7 +325,7 @@ export default function CreateBookingPage() {
                             name="returnDistrictId"
                             label="District"
                             placeholder="Select district"
-                            options={districts.map((d) => ({ id: d.id, name: d.name }))}
+                            options={districts.map((d: { id: number; name: string }) => ({ id: d.id, name: d.name }))}
                         />
                         <FormInput name="returnHotel" label="Hotel" />
                         <FormInput name="returnRoom" label="Room" />
@@ -336,16 +350,6 @@ export default function CreateBookingPage() {
                     />
                 </FormSection>
 
-                <div className="flex gap-4">
-                    <Button type="submit" variant="primary">
-                        Create Booking
-                    </Button>
-                    <Link to="/dashboard/bookings">
-                        <Button type="button" variant="secondary">
-                            Cancel
-                        </Button>
-                    </Link>
-                </div>
             </Form>
         </div>
     );

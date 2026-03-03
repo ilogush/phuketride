@@ -305,7 +305,7 @@ export default function DateRangePicker({
                             {idx === 0 ? (
                               <button
                                 type="button"
-                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-indigo-100 rounded-full"
+                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-green-100 rounded-full"
                                 onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
                               >
                                 <ChevronLeftIcon className="size-4" />
@@ -323,7 +323,7 @@ export default function DateRangePicker({
                             {idx === 1 ? (
                               <button
                                 type="button"
-                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-indigo-100 rounded-full"
+                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-green-100 rounded-full"
                                 onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
                               >
                                 <ChevronRightIcon className="size-4" />
@@ -351,16 +351,16 @@ export default function DateRangePicker({
                             const selectedEnd = isSameDay(day, endDateObj);
                             const inRange = isInRange(day);
                             return (
-                              <div key={day.toISOString()} className={`flex justify-center ${inRange ? "bg-indigo-100/70" : ""} ${selectedStart ? "rounded-l-full" : ""} ${selectedEnd ? "rounded-r-full" : ""}`}>
+                              <div key={day.toISOString()} className={`flex justify-center ${inRange ? "bg-green-100/70" : ""} ${selectedStart ? "rounded-l-full" : ""} ${selectedEnd ? "rounded-r-full" : ""}`}>
                                 <button
                                   type="button"
                                   disabled={disabled}
                                   onClick={() => handleDaySelect(day)}
                                   className={`m-px size-10 sm:size-11 flex justify-center items-center border-[1.5px] text-base rounded-full disabled:pointer-events-none ${selectedStart || selectedEnd
-                                    ? "bg-indigo-600 text-white border-transparent"
+                                    ? "bg-green-600 text-white border-transparent"
                                     : disabled
                                       ? "border-transparent text-gray-500"
-                                      : "border-transparent text-gray-800 hover:border-indigo-700 hover:text-indigo-700"
+                                      : "border-transparent text-gray-800 hover:border-green-700 hover:text-green-700"
                                     }`}
                                 >
                                   {day.getDate()}
@@ -381,7 +381,7 @@ export default function DateRangePicker({
                       <select
                         value={draft.startTime}
                         onChange={(event) => update({ startTime: event.target.value })}
-                        className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-indigo-600 focus:outline-none"
+                        className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-green-600 focus:outline-none"
                       >
                         {timeOptions.map((time) => (
                           <option key={`draft-start-${time.value}`} value={time.value}>{time.label}</option>
@@ -393,7 +393,7 @@ export default function DateRangePicker({
                       <select
                         value={draft.endTime}
                         onChange={(event) => update({ endTime: event.target.value })}
-                        className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-indigo-600 focus:outline-none"
+                        className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-green-600 focus:outline-none"
                       >
                         {timeOptions.map((time) => (
                           <option key={`draft-end-${time.value}`} value={time.value}>{time.label}</option>
@@ -403,10 +403,10 @@ export default function DateRangePicker({
                   </div>
 
                   <div className="flex items-center md:justify-end gap-x-2">
-                    <button type="button" onClick={cancelDraft} className="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-800 hover:bg-indigo-100">
+                    <button type="button" onClick={cancelDraft} className="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-800 hover:bg-green-100">
                       Cancel
                     </button>
-                    <button type="button" onClick={applyDraft} className="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-xs font-medium rounded-lg border border-transparent bg-indigo-600 text-white hover:bg-indigo-700">
+                    <button type="button" onClick={applyDraft} className="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-xs font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700">
                       Apply
                     </button>
                   </div>
@@ -433,7 +433,7 @@ export default function DateRangePicker({
                             {idx === 0 ? (
                               <button
                                 type="button"
-                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-indigo-100 rounded-full"
+                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-green-100 rounded-full"
                                 onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
                               >
                                 <ChevronLeftIcon className="size-4" />
@@ -451,7 +451,7 @@ export default function DateRangePicker({
                             {idx === 1 ? (
                               <button
                                 type="button"
-                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-indigo-100 rounded-full"
+                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-green-100 rounded-full"
                                 onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
                               >
                                 <ChevronRightIcon className="size-4" />
@@ -479,16 +479,16 @@ export default function DateRangePicker({
                             const selectedEnd = isSameDay(day, endDateObj);
                             const inRange = isInRange(day);
                             return (
-                              <div key={day.toISOString()} className={`${inRange ? "bg-indigo-100/70" : ""} ${selectedStart ? "rounded-l-full" : ""} ${selectedEnd ? "rounded-r-full" : ""}`}>
+                              <div key={day.toISOString()} className={`${inRange ? "bg-green-100/70" : ""} ${selectedStart ? "rounded-l-full" : ""} ${selectedEnd ? "rounded-r-full" : ""}`}>
                                 <button
                                   type="button"
                                   disabled={disabled}
                                   onClick={() => handleDaySelect(day)}
                                   className={`m-px size-10 sm:size-11 flex justify-center items-center border-[1.5px] text-base rounded-full disabled:pointer-events-none ${selectedStart || selectedEnd
-                                    ? "bg-indigo-600 text-white border-transparent"
+                                    ? "bg-green-600 text-white border-transparent"
                                     : disabled
                                       ? "border-transparent text-gray-500"
-                                      : "border-transparent text-gray-800 hover:border-indigo-700 hover:text-indigo-700"
+                                      : "border-transparent text-gray-800 hover:border-green-700 hover:text-green-700"
                                     }`}
                                 >
                                   {day.getDate()}
@@ -509,7 +509,7 @@ export default function DateRangePicker({
                       <select
                         value={draft.startTime}
                         onChange={(event) => update({ startTime: event.target.value })}
-                        className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-indigo-600 focus:outline-none"
+                        className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-green-600 focus:outline-none"
                       >
                         {timeOptions.map((time) => (
                           <option key={`draft2-start-${time.value}`} value={time.value}>{time.label}</option>
@@ -521,7 +521,7 @@ export default function DateRangePicker({
                       <select
                         value={draft.endTime}
                         onChange={(event) => update({ endTime: event.target.value })}
-                        className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-indigo-600 focus:outline-none"
+                        className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-green-600 focus:outline-none"
                       >
                         {timeOptions.map((time) => (
                           <option key={`draft2-end-${time.value}`} value={time.value}>{time.label}</option>
@@ -531,10 +531,10 @@ export default function DateRangePicker({
                   </div>
 
                   <div className="flex items-center md:justify-end gap-x-2">
-                    <button type="button" onClick={cancelDraft} className="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-800 hover:bg-indigo-100">
+                    <button type="button" onClick={cancelDraft} className="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-800 hover:bg-green-100">
                       Cancel
                     </button>
-                    <button type="button" onClick={applyDraft} className="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-xs font-medium rounded-lg border border-transparent bg-indigo-600 text-white hover:bg-indigo-700">
+                    <button type="button" onClick={applyDraft} className="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-xs font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700">
                       Apply
                     </button>
                   </div>

@@ -7,12 +7,14 @@ import { Select } from "~/components/dashboard/Select";
 import Button from "~/components/dashboard/Button";
 import BackButton from "~/components/dashboard/BackButton";
 import FormSection from "~/components/dashboard/FormSection";
-import { UserIcon, BuildingOfficeIcon, DocumentTextIcon, LockClosedIcon } from "@heroicons/react/24/outline";
+import { UserIcon, BuildingOfficeIcon, DocumentTextIcon, LockClosedIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { useEffect } from "react";
 import { userSchema } from "~/schemas/user";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { useLatinValidation } from "~/lib/useLatinValidation";
+import { useDateMasking } from "~/lib/useDateMasking";
+import { formatDateForDisplay } from "~/lib/formatters";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
 
 interface EditableUserRow {
@@ -84,6 +86,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     }
 
     const formData = await request.formData();
+    const intent = formData.get("intent");
 
     const userId = params.userId;
     if (!userId) {
@@ -105,6 +108,42 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         .first()) as EditableUserRow | null;
     if (!currentUser) {
         throw new Response("User not found", { status: 404 });
+    }
+
+    if (intent === "deleteUser") {
+        if (currentUser.id === sessionUser.id) {
+            return redirect(`/users/${userId}/edit?error=${encodeURIComponent("You cannot delete your own account")}`);
+        }
+
+        try {
+            await context.cloudflare.env.DB
+                .prepare("DELETE FROM managers WHERE user_id = ?")
+                .bind(userId)
+                .run();
+
+            await context.cloudflare.env.DB
+                .prepare("DELETE FROM users WHERE id = ?")
+                .bind(userId)
+                .run();
+
+            const metadata = getRequestMetadata(request);
+            quickAudit({
+                db: context.cloudflare.env.DB,
+                userId: sessionUser.id,
+                role: sessionUser.role,
+                companyId: sessionUser.companyId,
+                entityType: "user",
+                entityId: userId,
+                action: "delete",
+                beforeState: currentUser,
+                afterState: { id: userId, deleted: true },
+                ...metadata,
+            });
+
+            return redirect(`/users?success=${encodeURIComponent("User deleted successfully")}`);
+        } catch {
+            return redirect(`/users/${userId}/edit?error=${encodeURIComponent("Failed to delete user (record is linked to other data)")}`);
+        }
     }
 
     // Parse form data
@@ -216,6 +255,7 @@ export default function EditUserPage() {
     const [searchParams] = useSearchParams();
     const toast = useToast();
     const { validateLatinInput } = useLatinValidation();
+    const { maskDateInput } = useDateMasking();
 
     // Toast notifications
     useEffect(() => {
@@ -234,9 +274,17 @@ export default function EditUserPage() {
                     <BackButton to="/users" />
                     <PageHeader title="Edit User" />
                 </div>
-                <Button type="submit" variant="primary" form="user-form">
-                    Save
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button type="submit" variant="primary" form="user-form">
+                        Save
+                    </Button>
+                    <Form method="post">
+                        <input type="hidden" name="intent" value="deleteUser" />
+                        <Button type="submit" variant="secondary" title="Delete user">
+                            <TrashIcon className="w-5 h-5" />
+                        </Button>
+                    </Form>
+                </div>
             </div>
 
             {/* Profile Photo Section */}
@@ -285,8 +333,10 @@ export default function EditUserPage() {
                         <Input
                             label="Date of Birth"
                             name="dateOfBirth"
-                            type="date"
-                            defaultValue={user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : ""}
+                            type="text"
+                            placeholder="DD/MM/YYYY"
+                            defaultValue={formatDateForDisplay(user.dateOfBirth)}
+                            onChange={maskDateInput}
                         />
                     </div>
 

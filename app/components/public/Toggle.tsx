@@ -16,7 +16,7 @@ export default function Toggle({ checked, onChange, label, size = "md" }: Public
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex ${sizeClass.root} items-center rounded-full transition-colors ${checked ? "bg-indigo-600" : "bg-gray-300"}`}
+      className={`relative inline-flex ${sizeClass.root} items-center rounded-full transition-colors ${checked ? "bg-green-600" : "bg-gray-300"}`}
       aria-pressed={checked}
       aria-label={label || "Toggle"}
     >

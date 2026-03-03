@@ -87,50 +87,50 @@ export default function CarTripSidebar({
 
         <div className={`${showPricePerDay ? "pt-4 border-t border-gray-200" : ""} space-y-3`}>
           <h3 className="text-xl font-semibold text-gray-800">Your trip</h3>
-            <DateRangePicker
-              compact
-              value={trip}
-              onChange={setTrip}
-              compactStartLabel="Trip start"
-              compactEndLabel="Trip end"
-              compactLabelClassName="text-sm text-gray-500"
-              compactDateBorder
-              compactCalendarIconClassName="h-4 w-4"
-              compactShowChevron
-              compactShowTime
-              compactVertical
-            />
-          </div>
+          <DateRangePicker
+            compact
+            value={trip}
+            onChange={setTrip}
+            compactStartLabel="Trip start"
+            compactEndLabel="Trip end"
+            compactLabelClassName="text-sm text-gray-500"
+            compactDateBorder
+            compactCalendarIconClassName="h-4 w-4"
+            compactShowChevron
+            compactShowTime
+            compactVertical
+          />
+        </div>
 
         <div className="pt-4 border-t border-gray-200 space-y-2">
           <div>
-              <h3 className="text-xl font-semibold text-gray-800">Pickup & return location</h3>
-              <p className="text-sm text-gray-500">Pickup district</p>
-              <div className="relative mt-1">
-                <select
-                  value={pickupDistrictValue}
-                  onChange={(event) => setPickupDistrictValue(event.target.value)}
-                  className="w-full appearance-none  rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800 focus:border-indigo-600 focus:outline-none"
-                >
-                  {locationOptions.map((district) => (
-                    <option key={`pickup-${district}`} value={district}>{district}</option>
-                  ))}
-                </select>
-                <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
-              </div>
-              <p className="mt-2 text-sm text-gray-500">Return district</p>
-              <div className="relative mt-1">
-                <select
-                  value={returnDistrict}
-                  onChange={(event) => setReturnDistrict(event.target.value)}
-                  className="w-full appearance-none  rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800 focus:border-indigo-600 focus:outline-none"
-                >
-                  {locationOptions.map((district) => (
-                    <option key={district} value={district}>{district}</option>
-                  ))}
-                </select>
-                <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
-              </div>
+            <h3 className="text-xl font-semibold text-gray-800">Pickup & return location</h3>
+            <p className="text-sm text-gray-500">Pickup district</p>
+            <div className="relative mt-1">
+              <select
+                value={pickupDistrictValue}
+                onChange={(event) => setPickupDistrictValue(event.target.value)}
+                className="w-full appearance-none  rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800 focus:border-green-600 focus:outline-none"
+              >
+                {locationOptions.map((district) => (
+                  <option key={`pickup-${district}`} value={district}>{district}</option>
+                ))}
+              </select>
+              <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
+            </div>
+            <p className="mt-2 text-sm text-gray-500">Return district</p>
+            <div className="relative mt-1">
+              <select
+                value={returnDistrict}
+                onChange={(event) => setReturnDistrict(event.target.value)}
+                className="w-full appearance-none  rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800 focus:border-green-600 focus:outline-none"
+              >
+                {locationOptions.map((district) => (
+                  <option key={district} value={district}>{district}</option>
+                ))}
+              </select>
+              <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
+            </div>
           </div>
         </div>
 
@@ -148,7 +148,7 @@ export default function CarTripSidebar({
 
         <Link
           to={`/cars/${carId}/checkout`}
-          className="w-full inline-flex items-center justify-center rounded-xl bg-indigo-600 text-white px-5 py-3 text-base font-medium hover:bg-indigo-700 gap-2"
+          className="w-full inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"
         >
           Continue
           <ArrowRightIcon className="w-5 h-5" />
@@ -156,11 +156,11 @@ export default function CarTripSidebar({
 
         <div className="pt-4 border-t border-gray-200">
           <div className="flex items-center gap-3">
-            <Button type="button" className="flex-1 inline-flex items-center justify-center rounded-xl border border-indigo-600 text-indigo-600 px-5 py-3 text-base font-medium bg-white hover:bg-indigo-50 gap-2">
+            <Button type="button" className="flex-1 inline-flex items-center justify-center rounded-xl border border-green-600 text-green-600 px-5 py-3 text-base font-medium bg-white hover:bg-green-50 gap-2">
               <HeartIcon className="w-5 h-5" />
               Favorites
             </Button>
-            <Button type="button" className="flex-1 inline-flex items-center justify-center rounded-xl border border-indigo-600 text-indigo-600 px-5 py-3 text-base font-medium bg-white hover:bg-indigo-50 gap-2">
+            <Button type="button" className="flex-1 inline-flex items-center justify-center rounded-xl border border-green-600 text-green-600 px-5 py-3 text-base font-medium bg-white hover:bg-green-50 gap-2">
               <ChatBubbleBottomCenterTextIcon className="w-5 h-5" />
               Chat
             </Button>

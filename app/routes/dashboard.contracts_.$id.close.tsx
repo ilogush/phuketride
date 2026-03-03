@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useNavigate, useParams } from "react-router";
 import { useState } from "react";
@@ -36,7 +35,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             LIMIT 1
         `)
         .bind(contractId)
-        .first<any>();
+        .first() as any;
 
     if (!contract) {
         throw new Response("Contract not found", { status: 404 });
@@ -102,11 +101,11 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
         const contract = await context.cloudflare.env.DB
             .prepare("SELECT id, status, company_car_id AS companyCarId FROM contracts WHERE id = ? LIMIT 1")
             .bind(contractId)
-            .first<any>();
+            .first() as any;
         const carCompany = await context.cloudflare.env.DB
             .prepare("SELECT company_id AS companyId FROM company_cars WHERE id = ? LIMIT 1")
             .bind(contract?.companyCarId || 0)
-            .first<any>();
+            .first() as any;
 
         if (!contract) {
             return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
@@ -292,7 +291,7 @@ export default function CloseContract() {
                     icon={<BanknotesIcon className="w-6 h-6" />}
                 >
                     <div className="space-y-3">
-                        {paymentTemplates.map((template, index) => (
+                        {paymentTemplates.map((template: { id: number; name: string; sign?: string | null }, index: number) => (
                             <div key={template.id} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
                                 <div className="flex items-center">
                                     <input
@@ -326,7 +325,7 @@ export default function CloseContract() {
                                 <FormSelect
                                     label="Currency"
                                     name={`payment_${index}_currency`}
-                                    options={currencies.map(c => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
+                                    options={currencies.map((c: { id: number; code: string; symbol: string }) => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
                                     disabled={!selectedPayments.find(p => p.templateId === template.id)}
                                 />
                                 <FormSelect

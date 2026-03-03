@@ -46,7 +46,7 @@ export default function CarHostSection({
             </div>
           )}
           <div className="absolute -bottom-2 left-2 bg-white rounded-full px-2 py-1 border border-gray-200 text-sm font-medium text-gray-800 flex items-center gap-1">
-            5.0 <StarIcon className="w-4 h-4 text-indigo-600" />
+            5.0 <StarIcon className="w-4 h-4 text-green-600" />
           </div>
         </div>
         <div>

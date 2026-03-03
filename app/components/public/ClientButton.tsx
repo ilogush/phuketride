@@ -46,7 +46,7 @@ export default function ClientButton({
       type={type}
       onClick={handleClick}
       disabled={isDisabled}
-      className={`flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 transition text-white px-6 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+      className={`flex items-center justify-center bg-green-600 hover:bg-green-700 transition text-white px-6 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
       {...rest}
     >
       {(loading || isProcessing) ? (

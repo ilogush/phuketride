@@ -124,7 +124,7 @@ export default function ColorsPage() {
             label: "ID",
             render: (item) => (
                 <span className="font-mono text-xs bg-gray-800 text-white px-2 py-1 rounded-xl">
-                    {String(item.id).padStart(4, "0")}
+                    {String(item.id).padStart(3, "0")}
                 </span>
             ),
         },

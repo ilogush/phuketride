@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
@@ -234,7 +233,7 @@ export default function CreateCarPage() {
     
     // Template selection state
     const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
-    const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+    const selectedTemplate = templates.find((t: { id: number }) => t.id === selectedTemplateId);
 
     // Toast notifications
     useEffect(() => {
@@ -291,7 +290,7 @@ export default function CreateCarPage() {
                                 label="Car Template"
                                 name="templateId"
                                 required
-                                options={templates.map(t => ({
+                                options={templates.map((t: { id: number }) => ({
                                     id: t.id,
                                     name: getTemplateName(t)
                                 }))}
@@ -454,7 +453,7 @@ export default function CreateCarPage() {
                                                         <th scope="col" className="pl-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
                                                             <span>Season</span>
                                                         </th>
-                                                        {durations.map((duration) => (
+                                                        {durations.map((duration: { id: number; rangeName: string }) => (
                                                             <th
                                                                 key={duration.id}
                                                                 scope="col"
@@ -466,7 +465,7 @@ export default function CreateCarPage() {
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-100">
-                                                    {seasons.map((season) => (
+                                                    {seasons.map((season: { id: number; seasonName: string; startMonth: number; startDay: number; endMonth: number; endDay: number; priceMultiplier: number; discountLabel?: string | null }) => (
                                                         <tr key={season.id} className="group hover:bg-white transition-all">
                                                             <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                                                                 <div className="flex flex-col">
@@ -479,7 +478,7 @@ export default function CreateCarPage() {
                                                                     </span>
                                                                 </div>
                                                             </td>
-                                                            {durations.map((duration) => {
+                                                            {durations.map((duration: { id: number; minDays: number; maxDays: number | null; priceMultiplier: number; rangeName: string; discountLabel: string | null }) => {
                                                                 const avgDays = getAverageDays(duration);
                                                                 const { dailyPrice, totalPrice } = calculateSeasonalPrice(
                                                                     pricePerDay,

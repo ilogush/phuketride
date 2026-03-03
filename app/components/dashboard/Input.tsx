@@ -1,8 +1,7 @@
 import React, { forwardRef, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import { inputBaseStyles, inputErrorStyles } from '~/lib/styles/input'
+
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
-import Button from '~/components/dashboard/Button'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string
@@ -71,19 +70,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
         ? (!isFocused && !hasUserInput && (!value || value === '' || value === '0' || value === '0.00'))
         : true
 
-    const baseStyle = error ? inputErrorStyles : inputBaseStyles
-    
-    // Build rounded classes based on addons
-    let roundedClass = ''
-    if (addonLeft && (isPassword || addonRight)) {
-        roundedClass = 'rounded-none'
-    } else if (addonLeft) {
-        roundedClass = 'rounded-l-none'
-    } else if (isPassword || addonRight) {
-        roundedClass = 'rounded-r-none'
-    }
-    
-    const inputClasses = `${baseStyle} ${roundedClass}`.trim()
+
+    // Inner input classes - always used now
+    const innerInputClasses = `
+        block w-full border-0 focus:ring-0 bg-transparent text-sm py-2.5 h-full 
+        placeholder:text-gray-400 focus:outline-none transition-colors
+        ${addonLeft ? 'pl-2' : 'pl-4'}
+        ${(isPassword || addonRight) ? 'pr-2' : 'pr-4'}
+        ${disabled ? 'cursor-not-allowed opacity-50' : ''}
+    `.trim()
 
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
 
@@ -94,9 +89,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     {label} {required && <span className="text-gray-500">*</span>}
                 </label>
             )}
-            <div className={`${(addonLeft || addonRight || isPassword) ? 'flex' : ''} rounded-3xl`}>
+            <div className={`
+                flex items-center border rounded-xl bg-white transition-colors h-10 overflow-hidden
+                ${error ? 'border-red-500' : 'border-gray-300 focus-within:border-gray-500'}
+                ${disabled ? 'bg-gray-50' : 'bg-white'}
+            `}>
                 {addonLeft && (
-                    <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-gray-200 bg-gray-50 text-gray-500 sm:text-sm">
+                    <span className="inline-flex items-center pl-3 text-gray-500 sm:text-sm">
                         {addonLeft}
                     </span>
                 )}
@@ -106,7 +105,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     name={name}
                     type={inputType}
                     disabled={disabled}
-                    className={inputClasses}
+                    className={innerInputClasses}
                     placeholder={shouldShowPlaceholder ? placeholder : ''}
                     {...(value !== undefined ? { value } : {})}
                     onChange={handleChange}
@@ -115,27 +114,27 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     {...props}
                 />
                 {isPassword && (
-                    <Button
+                    <button
                         type="button"
-                        variant="unstyled"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="inline-flex items-center px-3 rounded-r-xl border border-l-0 border-gray-200 bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors"
+                        className="inline-flex items-center px-3 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+                        disabled={disabled}
                     >
                         {showPassword ? (
                             <EyeSlashIcon className="w-5 h-5" />
                         ) : (
                             <EyeIcon className="w-5 h-5" />
                         )}
-                    </Button>
+                    </button>
                 )}
                 {!isPassword && addonRight && (
-                    <span className="inline-flex items-center px-4 rounded-r-xl border border-l-0 border-gray-200 bg-gray-50 text-gray-500 sm:text-sm">
+                    <span className="inline-flex items-center pr-3 text-gray-500 sm:text-sm">
                         {addonRight}
                     </span>
                 )}
             </div>
             {error && (
-                <p className="mt-1 text-sm text-gray-700 font-medium">{error}</p>
+                <p className="mt-1 text-sm text-red-600 font-medium">{error}</p>
             )}
         </div>
     )

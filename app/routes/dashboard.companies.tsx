@@ -80,7 +80,7 @@ export default function CompaniesPage() {
             label: "ID",
             render: (company) => (
                 <Link to={`/companies/${company.id}/edit`} className="font-mono text-xs bg-gray-800 text-white px-2 py-1 rounded-full hover:bg-gray-700">
-                    {String(company.id).padStart(4, '0')}
+                    {String(company.id).padStart(3, '0')}
                 </Link>
             ),
         },

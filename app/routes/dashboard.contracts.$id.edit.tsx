@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useNavigate } from "react-router";
 import { useState } from "react";
@@ -57,7 +56,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
             LIMIT 1
         `)
         .bind(contractId)
-        .first<any>();
+        .first() as any;
     const contract = contractRaw
         ? {
             ...contractRaw,
@@ -141,7 +140,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             LIMIT 1
         `)
         .bind(contractId)
-        .first<any>();
+        .first() as any;
 
     if (!existingContract) {
         return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
@@ -183,7 +182,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             LIMIT 1
         `)
         .bind(contractId)
-        .first<any>();
+        .first() as any;
 
     if (!contract) {
         return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
@@ -353,7 +352,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const carRow = await context.cloudflare.env.DB
         .prepare("SELECT company_id AS companyId FROM company_cars WHERE id = ? LIMIT 1")
         .bind(newCompanyCarId)
-        .first<any>();
+        .first() as any;
 
     if (carRow?.companyId) {
         await context.cloudflare.env.DB
@@ -443,9 +442,23 @@ export default function EditContract() {
             <PageHeader
                 title={`Edit Contract #${contract.id}`}
                 leftActions={<BackButton to="/contracts" />}
+                rightActions={
+                    <div className="flex gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => navigate("/contracts")}
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="submit" variant="primary" form="edit-contract-form">
+                            Save
+                        </Button>
+                    </div>
+                }
             />
 
-            <Form method="post" className="space-y-4">
+            <Form id="edit-contract-form" method="post" className="space-y-4">
                 <input type="hidden" name="passportPhotos" value={JSON.stringify(passportPhotos)} />
                 <input type="hidden" name="driverLicensePhotos" value={JSON.stringify(driverLicensePhotos)} />
                 <input
@@ -763,19 +776,6 @@ export default function EditContract() {
                     />
                 </FormSection>
 
-                {/* Actions */}
-                <div className="flex justify-end gap-3 pt-4">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => navigate("/contracts")}
-                    >
-                        Cancel
-                    </Button>
-                    <Button type="submit" variant="primary">
-                        Save
-                    </Button>
-                </div>
             </Form>
         </div>
     );

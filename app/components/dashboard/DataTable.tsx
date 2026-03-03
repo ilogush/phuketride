@@ -4,6 +4,7 @@ import EmptyState from './EmptyState'
 import Loader from './Loader'
 import Tabs from './Tabs'
 import { Pagination } from './Pagination'
+import { formatContactPhone } from '~/lib/phone'
 
 export interface Column<T> {
     key: string
@@ -296,13 +297,15 @@ export default function DataTable<T>({
                                                 ? col.render(item, idx, page, pageSize)
                                                 : (item as any)[col.key];
 
-                                            // Auto-format ID columns
+                                            // Auto-format ID and contact columns
                                             const formattedValue = !col.render && col.key === 'id' && typeof cellValue === 'number'
                                                 ? (
                                                     <span className="font-mono text-xs bg-gray-800 text-white px-2 py-1 rounded-full">
-                                                        {String(cellValue).padStart(4, '0')}
+                                                        {String(cellValue).padStart(3, '0')}
                                                     </span>
                                                 )
+                                                : !col.render && (col.key === 'phone' || col.key === 'whatsapp')
+                                                    ? formatContactPhone(typeof cellValue === 'string' ? cellValue : null)
                                                 : cellValue;
 
                                             return (

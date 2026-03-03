@@ -149,7 +149,7 @@ export default function InsuranceProtection() {
               <p className="text-gray-300 mb-6">
                 Our team can help you understand your protection options
               </p>
-              <a href="/contact-support" className="bg-white text-gray-900 px-8 py-4 rounded-full font-semibold hover:bg-indigo-100 transition-colors inline-block">
+              <a href="/contact-support" className="bg-white text-gray-900 px-8 py-4 rounded-full font-semibold hover:bg-green-100 transition-colors inline-block">
                 Contact Support
               </a>
             </div>

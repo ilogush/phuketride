@@ -70,7 +70,7 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                           [districtTitle]: Math.max(0, currentPage - 1),
                         }))
                       }
-                      className="w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-800 hover:bg-indigo-100 disabled:opacity-40"
+                      className="w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-800 hover:bg-green-100 disabled:opacity-40"
                     >
                       <ChevronLeftIcon className="w-4 h-4" />
                     </Button>
@@ -83,7 +83,7 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                           [districtTitle]: Math.min(maxPage, currentPage + 1),
                         }))
                       }
-                      className="w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-800 hover:bg-indigo-100 disabled:opacity-40"
+                      className="w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-800 hover:bg-green-100 disabled:opacity-40"
                     >
                       <ChevronRightIcon className="w-4 h-4" />
                     </Button>
@@ -166,7 +166,7 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                           <div className="flex items-center justify-between">
                             <p className="text-sm text-gray-500">
                               {car.rating?.toFixed(2) || "N/A"}{" "}
-                              <StarIcon className="inline w-4 h-4 pb-1 text-indigo-600 align-middle" />{" "}
+                              <StarIcon className="inline w-4 h-4 pb-1 text-green-600 align-middle" />{" "}
                               ({car.totalRatings || 0})
                             </p>
                             <p className="text-base font-semibold text-gray-800">

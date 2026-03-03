@@ -23,10 +23,43 @@ export function formatRole(role: string): string {
 /**
  * Format date to ISO date string (YYYY-MM-DD)
  */
-export function formatDateForInput(date: Date | string | null): string {
-    if (!date) return "";
-    const dateObj = typeof date === "string" ? new Date(date) : date;
+export function formatDateForInput(date: Date | string | number | null | undefined): string {
+    if (date === null || date === undefined || date === "") return "";
+
+    let dateObj: Date;
+    if (date instanceof Date) {
+        dateObj = date;
+    } else if (typeof date === "number") {
+        // Support unix timestamps (seconds or milliseconds)
+        dateObj = new Date(date < 1e12 ? date * 1000 : date);
+    } else if (typeof date === "string") {
+        dateObj = new Date(date);
+    } else {
+        return "";
+    }
+
+    if (Number.isNaN(dateObj.getTime())) return "";
     return dateObj.toISOString().split("T")[0];
+}
+
+/**
+ * Format date for display in DD/MM/YYYY format
+ */
+export function formatDateForDisplay(date: Date | string | number | null | undefined): string {
+    const iso = formatDateForInput(date);
+    if (!iso) return "";
+    return iso.split("-").reverse().join("/");
+}
+
+/**
+ * Convert DD/MM/YYYY to YYYY-MM-DD for database
+ */
+export function parseDateFromDisplay(displayDate: string | null): string {
+    if (!displayDate) return "";
+    const parts = displayDate.split("/");
+    if (parts.length !== 3) return displayDate;
+    const [day, month, year] = parts;
+    return `${year}-${month}-${day}`;
 }
 
 /**

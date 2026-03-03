@@ -57,21 +57,21 @@ export default function HostTools() {
                             Host resources
                         </h2>
                         <ul className="space-y-4 mb-8">
-                            <li className="flex items-start gap-4 p-4 border border-gray-100 rounded-xl hover:bg-indigo-100 transition-colors">
+                            <li className="flex items-start gap-4 p-4 border border-gray-100 rounded-xl hover:bg-green-100 transition-colors">
                                 <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0 text-white">1</div>
                                 <div>
                                     <h4 className="font-bold text-gray-900">Host Handbook</h4>
                                     <p className="text-gray-600 text-sm">A comprehensive guide to becoming a top-rated host on Phuket Ride.</p>
                                 </div>
                             </li>
-                            <li className="flex items-start gap-4 p-4 border border-gray-100 rounded-xl hover:bg-indigo-100 transition-colors">
+                            <li className="flex items-start gap-4 p-4 border border-gray-100 rounded-xl hover:bg-green-100 transition-colors">
                                 <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0 text-white">2</div>
                                 <div>
                                     <h4 className="font-bold text-gray-900">Photography Guide</h4>
                                     <p className="text-gray-600 text-sm">Learn how to take stunning photos that make your car stand out in search results.</p>
                                 </div>
                             </li>
-                            <li className="flex items-start gap-4 p-4 border border-gray-100 rounded-xl hover:bg-indigo-100 transition-colors">
+                            <li className="flex items-start gap-4 p-4 border border-gray-100 rounded-xl hover:bg-green-100 transition-colors">
                                 <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0 text-white">3</div>
                                 <div>
                                     <h4 className="font-bold text-gray-900">Cleaning & Safety Standards</h4>
@@ -87,7 +87,7 @@ export default function HostTools() {
                             <p className="text-gray-300 mb-6">
                                 Connect with other hosts, share tips, and grow your business together.
                             </p>
-                            <button className="bg-white text-gray-900 px-8 py-4 rounded-full font-semibold hover:bg-indigo-100 transition-colors">
+                            <button className="bg-white text-gray-900 px-8 py-4 rounded-full font-semibold hover:bg-green-100 transition-colors">
                                 Access Host Dashboard
                             </button>
                         </div>

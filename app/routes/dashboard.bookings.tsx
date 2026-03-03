@@ -6,6 +6,7 @@ import Button from "~/components/dashboard/Button";
 import { PlusIcon, BookmarkIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import SimplePagination from "~/components/dashboard/SimplePagination";
+import { formatContactPhone } from "~/lib/phone";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -197,7 +198,7 @@ export default function BookingsPage() {
                                                 Client: {booking.clientName} {booking.clientSurname}
                                             </p>
                                             <p className="text-sm text-gray-600">
-                                                Phone: {booking.clientPhone} {booking.clientEmail && `• ${booking.clientEmail}`}
+                                                Phone: {formatContactPhone(booking.clientPhone)} {booking.clientEmail && `• ${booking.clientEmail}`}
                                             </p>
                                             <p className="text-sm text-gray-600">
                                                 Car: {booking.carLicensePlate}

@@ -9,8 +9,10 @@ import ProfileHeader from "~/components/dashboard/ProfileHeader";
 import FormInput from "~/components/dashboard/FormInput";
 import FormSelect from "~/components/dashboard/FormSelect";
 import { UserIcon, BuildingOfficeIcon, DocumentTextIcon, LockClosedIcon } from "@heroicons/react/24/outline";
-import { getInitials, formatDateForInput, parseJSON, formatRole } from "~/lib/formatters";
+import { getInitials, formatDateForInput, parseJSON, formatRole, formatDateForDisplay } from "~/lib/formatters";
 import { useLatinValidation } from "~/lib/useLatinValidation";
+import { formatContactPhone } from "~/lib/phone";
+import { useDateMasking } from "~/lib/useDateMasking";
 
 // Типизации
 interface Country {
@@ -114,6 +116,7 @@ function ProfileForm({
     const [avatarFileName, setAvatarFileName] = useState<string | null>(null);
     const [removeAvatar, setRemoveAvatar] = useState(false);
     const { validateLatinInput } = useLatinValidation();
+    const { maskDateInput } = useDateMasking();
 
     // Check if current user is admin
     const isAdmin = currentUserRole === "admin";
@@ -189,9 +192,11 @@ function ProfileForm({
                         isEdit={isEdit}
                         label="Date of Birth"
                         name="dateOfBirth"
-                        type="date"
-                        value={isEdit ? undefined : formattedDateOfBirth}
-                        defaultValue={isEdit ? formattedDateOfBirth : undefined}
+                        type="text"
+                        placeholder="DD/MM/YYYY"
+                        value={isEdit ? undefined : formatDateForDisplay(user.dateOfBirth)}
+                        defaultValue={isEdit ? formatDateForDisplay(user.dateOfBirth) : undefined}
+                        onChange={isEdit ? maskDateInput : undefined}
                     />
                 </div>
 
@@ -222,7 +227,7 @@ function ProfileForm({
                         isEdit={isEdit}
                         label="Phone"
                         name="phone"
-                        value={isEdit ? undefined : (user.phone || "")}
+                        value={isEdit ? undefined : formatContactPhone(user.phone)}
                         defaultValue={isEdit ? user.phone : undefined}
                         placeholder="+66415484865"
                     />
@@ -230,9 +235,9 @@ function ProfileForm({
                         isEdit={isEdit}
                         label="WhatsApp"
                         name="whatsapp"
-                        value={isEdit ? undefined : (user.whatsapp || "")}
+                        value={isEdit ? undefined : formatContactPhone(user.whatsapp)}
                         defaultValue={isEdit ? user.whatsapp : undefined}
-                        placeholder="+66 83 881 7057"
+                        placeholder="+66415484865"
                     />
                     <FormInput
                         isEdit={isEdit}

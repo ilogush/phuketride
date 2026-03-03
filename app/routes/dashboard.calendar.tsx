@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Outlet, Link, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
@@ -9,6 +8,10 @@ import Card from "~/components/dashboard/Card";
 import { useToast } from "~/lib/toast";
 import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
+
+type CalendarEvent = { id: number; title: string; startDate: string; color?: string | null };
+type CalendarContract = { id: number; endDate: string };
+type CalendarBooking = { id: number; startDate: string };
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -62,9 +65,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             .bind(effectiveCompanyId, firstDay.toISOString(), lastDay.toISOString())
             .all(),
     ]);
-    const events = (eventsResult as any).results || [];
-    const contracts = (contractsResult as any).results || [];
-    const bookings = (bookingsResult as any).results || [];
+    const events = ((eventsResult as { results?: unknown[] }).results || []) as CalendarEvent[];
+    const contracts = ((contractsResult as { results?: unknown[] }).results || []) as CalendarContract[];
+    const bookings = ((bookingsResult as { results?: unknown[] }).results || []) as CalendarBooking[];
 
     return { 
         user, 
@@ -122,17 +125,17 @@ export default function CalendarPage() {
         const dayStart = new Date(dayDate.setHours(0, 0, 0, 0));
         const dayEnd = new Date(dayDate.setHours(23, 59, 59, 999));
 
-        const dayEvents = events.filter(event => {
+        const dayEvents = events.filter((event) => {
             const eventDate = new Date(event.startDate);
             return eventDate >= dayStart && eventDate <= dayEnd;
         });
 
-        const dayContracts = contracts.filter(contract => {
+        const dayContracts = contracts.filter((contract) => {
             const endDate = new Date(contract.endDate);
             return endDate >= dayStart && endDate <= dayEnd;
         });
 
-        const dayBookings = bookings.filter(booking => {
+        const dayBookings = bookings.filter((booking) => {
             const startDate = new Date(booking.startDate);
             return startDate >= dayStart && startDate <= dayEnd;
         });
@@ -205,7 +208,7 @@ export default function CalendarPage() {
                                             {day}
                                         </span>
                                         <div className="mt-1 space-y-1">
-                                            {dayEvents.map(event => {
+                                            {dayEvents.map((event) => {
                                                 const color = event.color ?? '#6B7280'
                                                 return (
                                                 <div 
@@ -218,7 +221,7 @@ export default function CalendarPage() {
                                                 </div>
                                                 )
                                             })}
-                                            {dayContracts.map(contract => (
+                                            {dayContracts.map((contract) => (
                                                 <div 
                                                     key={contract.id} 
                                                     className="text-[10px] sm:text-xs px-1 py-0.5 rounded truncate bg-red-50 text-red-600"
@@ -227,7 +230,7 @@ export default function CalendarPage() {
                                                     End: #{contract.id}
                                                 </div>
                                             ))}
-                                            {dayBookings.map(booking => (
+                                            {dayBookings.map((booking) => (
                                                 <div 
                                                     key={booking.id} 
                                                     className="text-[10px] sm:text-xs px-1 py-0.5 rounded truncate bg-blue-50 text-blue-600"

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
@@ -42,7 +41,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             LIMIT 1
         `)
         .bind(carId)
-        .first<any>();
+        .first() as any;
 
     if (!carRaw) {
         throw new Response("Car not found", { status: 404 });
@@ -144,7 +143,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const car = await context.cloudflare.env.DB
         .prepare("SELECT * FROM company_cars WHERE id = ? LIMIT 1")
         .bind(carId)
-        .first<any>();
+        .first() as any;
 
     if (!car) {
         return redirect(`/cars?error=Car not found`);
@@ -292,7 +291,7 @@ export default function EditCarPage() {
     const [currentMileage, setCurrentMileage] = useState(car.mileage || 0);
     const [nextOilChange, setNextOilChange] = useState(car.nextOilChangeMileage || 0);
     const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(car.templateId);
-    const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+    const selectedTemplate = templates.find((t: { id: number }) => t.id === selectedTemplateId);
     const [photos, setPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [fullInsuranceEnabled, setFullInsuranceEnabled] = useState(
         Boolean((car.minInsurancePrice ?? 0) > 0 || (car.maxInsurancePrice ?? 0) > 0)
@@ -373,7 +372,7 @@ export default function EditCarPage() {
                                         label="Car Template"
                                         name="templateId"
                                         required
-                                        options={templates.map(t => ({
+                                        options={templates.map((t: { id: number }) => ({
                                             id: t.id,
                                             name: getTemplateName(t)
                                         }))}
@@ -584,7 +583,7 @@ export default function EditCarPage() {
                                                             <th scope="col" className="pl-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
                                                                 <span>Season</span>
                                                             </th>
-                                                            {durations.map((duration) => (
+                                                            {durations.map((duration: { id: number; rangeName: string }) => (
                                                                 <th
                                                                     key={duration.id}
                                                                     scope="col"
@@ -596,7 +595,7 @@ export default function EditCarPage() {
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-100">
-                                                        {seasons.map((season) => (
+                                                        {seasons.map((season: { id: number; seasonName: string; startMonth: number; startDay: number; endMonth: number; endDay: number; priceMultiplier: number; discountLabel?: string | null }) => (
                                                             <tr key={season.id} className="group hover:bg-white transition-all">
                                                                 <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                                                                     <div className="flex flex-col">
@@ -609,7 +608,7 @@ export default function EditCarPage() {
                                                                         </span>
                                                                     </div>
                                                                 </td>
-                                                                {durations.map((duration) => {
+                                                                {durations.map((duration: { id: number; minDays: number; maxDays: number | null; priceMultiplier: number; rangeName: string; discountLabel: string | null }) => {
                                                                     const avgDays = getAverageDays(duration);
                                                                     const { dailyPrice, totalPrice } = calculateSeasonalPrice(
                                                                         pricePerDay,

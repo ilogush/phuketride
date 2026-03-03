@@ -117,7 +117,7 @@ export default function PaymentsPage() {
             label: "ID",
             render: (payment) => (
                 <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
-                    {String(payment.id).padStart(4, '0')}
+                    {String(payment.id).padStart(3, '0')}
                 </span>
             )
         },
@@ -129,7 +129,7 @@ export default function PaymentsPage() {
         {
             key: "contract",
             label: "Contract",
-            render: (payment) => payment.contract ? `#${String(payment.contract.id).padStart(4, '0')}` : "-"
+            render: (payment) => payment.contract ? `#${String(payment.contract.id).padStart(3, '0')}` : "-"
         },
         {
             key: "type",
