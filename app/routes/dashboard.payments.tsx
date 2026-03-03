@@ -112,8 +112,8 @@ export default function PaymentsPage() {
     const filteredPayments = paymentsList.filter(payment => payment.status === activeTab);
 
     const columns: Column<typeof paymentsList[0]>[] = [
-        { 
-            key: "id", 
+        {
+            key: "id",
             label: "ID",
             render: (payment) => (
                 <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
@@ -138,7 +138,7 @@ export default function PaymentsPage() {
                 if (!payment.paymentType) return "-";
                 const sign = payment.paymentType.sign === "+" ? "+" : "-";
                 return (
-                    <span className={payment.paymentType.sign === "+" ? "text-green-600" : "text-red-600"}>
+                    <span className="text-gray-500">
                         {sign} {payment.paymentType.name}
                     </span>
                 );
