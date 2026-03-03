@@ -17,7 +17,6 @@ export const contractSchema = z.object({
     clientPhone: z.string().min(9, "Phone must contain at least 9 digits").max(20, "Phone is too long"),
     clientEmail: z.string().email("Invalid email format").optional().nullable(),
     clientPassport: z.string().max(50, "Passport number is too long").optional().nullable(),
-    clientCitizenship: z.string().max(100, "Citizenship is too long").optional().nullable(),
     // Delivery
     deliveryLocationId: z.number().int().positive("Delivery location is required").optional().nullable(),
     deliveryDistrictId: z.number().int().positive("Delivery district is required").optional().nullable(),

@@ -22,8 +22,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             `
             SELECT
               id, email, role, name, surname, phone, whatsapp, telegram,
-              passport_number AS passportNumber, citizenship, city, country_id AS countryId,
-              date_of_birth AS dateOfBirth, gender, passport_photos AS passportPhotos,
+              passport_number AS passportNumber, country_id AS countryId,
+              date_of_birth AS dateOfBirth, passport_photos AS passportPhotos,
               driver_license_photos AS driverLicensePhotos, avatar_url AS avatarUrl,
               hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
               district_id AS districtId, address, is_first_login AS isFirstLogin,

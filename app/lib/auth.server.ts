@@ -44,11 +44,8 @@ interface LoginUser {
     whatsapp: string | null;
     telegram: string | null;
     passportNumber: string | null;
-    citizenship: string | null;
-    city: string | null;
     countryId: number | null;
     dateOfBirth: string | null;
-    gender: string | null;
     passportPhotos: string | null;
     driverLicensePhotos: string | null;
     passwordHash: string | null;
@@ -149,11 +146,8 @@ export async function login(
                 whatsapp: rawUser.whatsapp,
                 telegram: rawUser.telegram,
                 passportNumber: rawUser.passport_number,
-                citizenship: rawUser.citizenship,
-                city: rawUser.city,
                 countryId: rawUser.country_id,
                 dateOfBirth: rawUser.date_of_birth,
-                gender: rawUser.gender,
                 passportPhotos: rawUser.passport_photos,
                 driverLicensePhotos: rawUser.driver_license_photos,
                 passwordHash: rawUser.password_hash,

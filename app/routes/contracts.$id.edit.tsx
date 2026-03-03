@@ -47,8 +47,6 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
                 u.whatsapp AS clientWhatsapp,
                 u.telegram AS clientTelegram,
                 u.passport_number AS clientPassport,
-                u.citizenship AS clientCitizenship,
-                u.gender AS clientGender,
                 u.date_of_birth AS clientDateOfBirth,
                 u.passport_photos AS clientPassportPhotos,
                 u.driver_license_photos AS clientDriverLicensePhotos
@@ -60,6 +58,17 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         `)
         .bind(contractId)
         .first() as any;
+    const extrasResult = await context.cloudflare.env.DB
+        .prepare(`
+            SELECT id, extra_type AS extraType, extra_price AS extraPrice, amount, payment_type_id AS paymentTypeId,
+                   currency, currency_id AS currencyId, payment_method AS paymentMethod, status, notes
+            FROM payments
+            WHERE contract_id = ? AND extra_type IS NOT NULL
+        `)
+        .bind(contractId)
+        .all() as any;
+    const extrasRows = (extrasResult?.results || []) as Array<any>;
+    const extrasMap = Object.fromEntries(extrasRows.map((row) => [row.extraType, row])) as Record<string, any>;
     const contract = contractRaw
         ? {
             ...contractRaw,
@@ -78,14 +87,14 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
             depositPaymentMethod: contractRaw.deposit_payment_method,
             totalAmount: contractRaw.total_amount,
             fuelLevel: contractRaw.fuel_level,
-            fullInsuranceEnabled: !!contractRaw.full_insurance_enabled,
-            babySeatEnabled: !!contractRaw.baby_seat_enabled,
-            islandTripEnabled: !!contractRaw.island_trip_enabled,
-            krabiTripEnabled: !!contractRaw.krabi_trip_enabled,
-            fullInsurancePrice: contractRaw.full_insurance_price,
-            babySeatPrice: contractRaw.baby_seat_price,
-            islandTripPrice: contractRaw.island_trip_price,
-            krabiTripPrice: contractRaw.krabi_trip_price,
+            fullInsuranceEnabled: !!extrasMap.full_insurance,
+            babySeatEnabled: !!extrasMap.baby_seat,
+            islandTripEnabled: !!extrasMap.island_trip,
+            krabiTripEnabled: !!extrasMap.krabi_trip,
+            fullInsurancePrice: extrasMap.full_insurance?.extraPrice ?? extrasMap.full_insurance?.amount ?? 0,
+            babySeatPrice: extrasMap.baby_seat?.extraPrice ?? extrasMap.baby_seat?.amount ?? 0,
+            islandTripPrice: extrasMap.island_trip?.extraPrice ?? extrasMap.island_trip?.amount ?? 0,
+            krabiTripPrice: extrasMap.krabi_trip?.extraPrice ?? extrasMap.krabi_trip?.amount ?? 0,
             startMileage: contractRaw.start_mileage,
             companyCar: { id: contractRaw.carId, companyId: contractRaw.companyId, licensePlate: contractRaw.licensePlate },
             client: {
@@ -97,8 +106,6 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
                 whatsapp: contractRaw.clientWhatsapp,
                 telegram: contractRaw.clientTelegram,
                 passportNumber: contractRaw.clientPassport,
-                citizenship: contractRaw.clientCitizenship,
-                gender: contractRaw.clientGender,
                 dateOfBirth: contractRaw.clientDateOfBirth,
                 passportPhotos: contractRaw.clientPassportPhotos,
                 driverLicensePhotos: contractRaw.clientDriverLicensePhotos,
@@ -193,7 +200,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
         }
 
-        if (user.role !== "admin" && contract.companyCar.companyId !== user.companyId) {
+        if (user.role !== "admin" && contract.companyId !== user.companyId) {
             return redirect(`/contracts?error=${encodeURIComponent("Access denied")}`);
         }
 
@@ -208,8 +215,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             whatsapp: String(formData.get("client_whatsapp") || "").trim() || null,
             telegram: String(formData.get("client_telegram") || "").trim() || null,
             passportNumber: String(formData.get("client_passport") || "").trim() || null,
-            citizenship: String(formData.get("citizenship") || "").trim() || null,
-            gender: (String(formData.get("client_gender") || "").trim() as any) || null,
             dateOfBirth: formData.get("date_of_birth") ? new Date(parseDateFromDisplay(String(formData.get("date_of_birth")))) : null,
             updatedAt: new Date(),
         };
@@ -228,8 +233,8 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         await context.cloudflare.env.DB
             .prepare(`
             UPDATE users
-            SET name = ?, surname = ?, phone = ?, whatsapp = ?, telegram = ?, passport_number = ?, citizenship = ?,
-                gender = ?, date_of_birth = ?, email = COALESCE(?, email), passport_photos = COALESCE(?, passport_photos),
+            SET name = ?, surname = ?, phone = ?, whatsapp = ?, telegram = ?, passport_number = ?,
+                date_of_birth = ?, email = COALESCE(?, email), passport_photos = COALESCE(?, passport_photos),
                 driver_license_photos = COALESCE(?, driver_license_photos), updated_at = ?
             WHERE id = ?
         `)
@@ -240,8 +245,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 clientUpdate.whatsapp,
                 clientUpdate.telegram,
                 clientUpdate.passportNumber,
-                clientUpdate.citizenship,
-                clientUpdate.gender,
                 (clientUpdate.dateOfBirth as Date | null)?.toISOString?.() ?? null,
                 (clientUpdate.email as string | undefined) ?? null,
                 (clientUpdate.passportPhotos as string | undefined) ?? null,
@@ -251,18 +254,12 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             )
             .run();
 
-        const getValidDate = (value: FormDataEntryValue | null, fallback: Date) => {
-            if (typeof value !== "string" || !value) return fallback;
-            const d = new Date(value);
-            return isNaN(d.getTime()) ? fallback : d;
-        };
-
         // Parse contract data
-        const newCompanyCarId = Number(formData.get("company_car_id")) || existingContract.companyCarId;
+        const newCompanyCarId = Number(formData.get("company_car_id")) || existingContract.company_car_id;
         const startDateRaw = formData.get("start_date");
-        const startDate = startDateRaw ? new Date(parseDateTimeFromDisplay(String(startDateRaw))) : new Date(existingContract.startDate);
+        const startDate = startDateRaw ? new Date(parseDateTimeFromDisplay(String(startDateRaw))) : new Date(existingContract.start_date);
         const endDateRaw = formData.get("end_date");
-        const endDate = endDateRaw ? new Date(parseDateTimeFromDisplay(String(endDateRaw))) : new Date(existingContract.endDate);
+        const endDate = endDateRaw ? new Date(parseDateTimeFromDisplay(String(endDateRaw))) : new Date(existingContract.end_date);
         const photosValue = parsePhotoList(formData.get("photos"));
 
         const pickupDistrictIdRaw = formData.get("pickup_district_id");
@@ -285,19 +282,14 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             returnCost: Number(formData.get("return_cost")) || 0,
             depositAmount: Number(formData.get("deposit_amount")) || 0,
             depositPaymentMethod: (formData.get("deposit_payment_method") as any) || null,
-            totalAmount: Number(formData.get("total_amount")) || existingContract.totalAmount,
-            fuelLevel: String(formData.get("fuel_level") || existingContract.fuelLevel || "Full"),
+            totalAmount: Number(formData.get("total_amount")) || existingContract.total_amount,
+            fuelLevel: String(formData.get("fuel_level") || existingContract.fuel_level || "Full"),
             cleanliness: String(formData.get("cleanliness") || existingContract.cleanliness || "Clean"),
-            startMileage: Number(formData.get("start_mileage")) || existingContract.startMileage || 0,
+            startMileage: Number(formData.get("start_mileage")) || existingContract.start_mileage || 0,
             fullInsuranceEnabled: formData.get("fullInsurance") === "true",
             babySeatEnabled: formData.get("babySeat") === "true",
             islandTripEnabled: formData.get("islandTrip") === "true",
             krabiTripEnabled: formData.get("krabiTrip") === "true",
-            // prices are not editable in this form yet, keep current values
-            fullInsurancePrice: existingContract.fullInsurancePrice ?? 0,
-            babySeatPrice: existingContract.babySeatPrice ?? 0,
-            islandTripPrice: existingContract.islandTripPrice ?? 0,
-            krabiTripPrice: existingContract.krabiTripPrice ?? 0,
             notes: (formData.get("notes") as string) || null,
             updatedAt: new Date(),
         };
@@ -312,8 +304,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             SET company_car_id = ?, start_date = ?, end_date = ?, pickup_district_id = ?, pickup_hotel = ?, pickup_room = ?,
                 delivery_cost = ?, return_district_id = ?, return_hotel = ?, return_room = ?, return_cost = ?, deposit_amount = ?,
                 deposit_payment_method = ?, total_amount = ?, fuel_level = ?, cleanliness = ?, start_mileage = ?,
-                full_insurance_enabled = ?, baby_seat_enabled = ?, island_trip_enabled = ?, krabi_trip_enabled = ?,
-                full_insurance_price = ?, baby_seat_price = ?, island_trip_price = ?, krabi_trip_price = ?, notes = ?,
+                notes = ?,
                 photos = COALESCE(?, photos), updated_at = ?
             WHERE id = ?
         `)
@@ -335,14 +326,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 updatePayload.fuelLevel,
                 updatePayload.cleanliness,
                 updatePayload.startMileage,
-                updatePayload.fullInsuranceEnabled ? 1 : 0,
-                updatePayload.babySeatEnabled ? 1 : 0,
-                updatePayload.islandTripEnabled ? 1 : 0,
-                updatePayload.krabiTripEnabled ? 1 : 0,
-                updatePayload.fullInsurancePrice,
-                updatePayload.babySeatPrice,
-                updatePayload.islandTripPrice,
-                updatePayload.krabiTripPrice,
                 updatePayload.notes,
                 (updatePayload.photos as string | undefined) ?? null,
                 new Date().toISOString(),
@@ -350,7 +333,70 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             )
             .run();
 
-        if (newCompanyCarId !== existingContract.companyCarId) {
+        const extraTypes = ["full_insurance", "baby_seat", "island_trip", "krabi_trip"] as const;
+        const extraEnabledByType: Record<(typeof extraTypes)[number], boolean> = {
+            full_insurance: Boolean(updatePayload.fullInsuranceEnabled),
+            baby_seat: Boolean(updatePayload.babySeatEnabled),
+            island_trip: Boolean(updatePayload.islandTripEnabled),
+            krabi_trip: Boolean(updatePayload.krabiTripEnabled),
+        };
+
+        const existingExtrasResult = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT id, extra_type AS extraType, extra_price AS extraPrice, amount, currency, currency_id AS currencyId,
+                       payment_type_id AS paymentTypeId, payment_method AS paymentMethod, status, notes
+                FROM payments
+                WHERE contract_id = ? AND extra_type IS NOT NULL
+            `)
+            .bind(contractId)
+            .all() as any;
+        const existingExtras = (existingExtrasResult?.results || []) as Array<any>;
+        const existingByType = new Map(existingExtras.map((row) => [String(row.extraType), row]));
+        const extraStmts: D1PreparedStatement[] = [];
+
+        for (const extraType of extraTypes) {
+            const existingExtra = existingByType.get(extraType);
+            if (!extraEnabledByType[extraType]) {
+                if (existingExtra?.id) {
+                    extraStmts.push(
+                        context.cloudflare.env.DB
+                            .prepare("DELETE FROM payments WHERE id = ?")
+                            .bind(existingExtra.id)
+                    );
+                }
+                continue;
+            }
+
+            if (existingExtra?.id) {
+                extraStmts.push(
+                    context.cloudflare.env.DB
+                        .prepare(`
+                            UPDATE payments
+                            SET extra_enabled = 1, extra_price = COALESCE(extra_price, amount, 0), updated_at = ?
+                            WHERE id = ?
+                        `)
+                        .bind(new Date().toISOString(), existingExtra.id)
+                );
+                continue;
+            }
+
+            extraStmts.push(
+                context.cloudflare.env.DB
+                    .prepare(`
+                        INSERT INTO payments (
+                            contract_id, payment_type_id, amount, currency, currency_id, payment_method, status, notes, created_by, created_at, updated_at,
+                            extra_type, extra_enabled, extra_price
+                        ) VALUES (?, NULL, 0, 'THB', NULL, NULL, 'completed', NULL, ?, ?, ?, ?, 1, 0)
+                    `)
+                    .bind(contractId, user.id, new Date().toISOString(), new Date().toISOString(), extraType)
+            );
+        }
+
+        if (extraStmts.length > 0) {
+            await context.cloudflare.env.DB.batch(extraStmts);
+        }
+
+        if (newCompanyCarId !== existingContract.company_car_id) {
             const { updateCarStatus } = await import("~/lib/contract-helpers.server");
             await updateCarStatus(context.cloudflare.env.DB, existingContract.company_car_id, 'available', 'Contract car changed');
             await updateCarStatus(context.cloudflare.env.DB, newCompanyCarId, 'rented', 'Contract car changed');
@@ -628,25 +674,6 @@ export default function EditContract() {
                             defaultValue={client?.surname}
                             placeholder="Doe"
                             required
-                        />
-                        <FormInput
-                            label="Citizenship"
-                            name="citizenship"
-                            defaultValue={client?.citizenship}
-                            placeholder="Type to search citizenship..."
-                        />
-                        <FormInput
-                            label="City"
-                            name="city"
-                            defaultValue={client?.city}
-                            placeholder="Type to search city..."
-                        />
-                        <FormSelect
-                            label="Gender"
-                            name="client_gender"
-                            options={genderOptions}
-                            defaultValue={client?.gender}
-                            placeholder="Select gender"
                         />
                         <FormInput
                             label="Birth Date"

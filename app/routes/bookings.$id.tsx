@@ -92,9 +92,11 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 SELECT
                     id, status, company_car_id AS companyCarId, client_id AS clientId, start_date AS startDate, end_date AS endDate,
                     estimated_amount AS estimatedAmount, currency, deposit_amount AS depositAmount, deposit_payment_method AS depositPaymentMethod,
-                    full_insurance_enabled AS fullInsuranceEnabled, full_insurance_price AS fullInsurancePrice, baby_seat_enabled AS babySeatEnabled,
-                    baby_seat_price AS babySeatPrice, island_trip_enabled AS islandTripEnabled, island_trip_price AS islandTripPrice,
-                    krabi_trip_enabled AS krabiTripEnabled, krabi_trip_price AS krabiTripPrice, pickup_district_id AS pickupDistrictId,
+                    full_insurance_enabled AS fullInsuranceEnabled, full_insurance_price AS fullInsurancePrice,
+                    baby_seat_enabled AS babySeatEnabled, baby_seat_price AS babySeatPrice,
+                    island_trip_enabled AS islandTripEnabled, island_trip_price AS islandTripPrice,
+                    krabi_trip_enabled AS krabiTripEnabled, krabi_trip_price AS krabiTripPrice,
+                    pickup_district_id AS pickupDistrictId,
                     pickup_hotel AS pickupHotel, pickup_room AS pickupRoom, delivery_cost AS deliveryCost, return_district_id AS returnDistrictId,
                     return_hotel AS returnHotel, return_room AS returnRoom, return_cost AS returnCost, notes, client_name AS clientName,
                     client_surname AS clientSurname, client_phone AS clientPhone, client_email AS clientEmail, client_passport AS clientPassport
@@ -179,11 +181,10 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 .prepare(`
                     INSERT INTO contracts (
                         company_car_id, client_id, manager_id, booking_id, start_date, end_date, total_amount, total_currency,
-                        deposit_amount, deposit_currency, deposit_payment_method, full_insurance_enabled, full_insurance_price,
-                        baby_seat_enabled, baby_seat_price, island_trip_enabled, island_trip_price, krabi_trip_enabled, krabi_trip_price,
+                        deposit_amount, deposit_currency, deposit_payment_method,
                         pickup_district_id, pickup_hotel, pickup_room, delivery_cost, return_district_id, return_hotel, return_room, return_cost,
                         status, notes, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
                 `)
                 .bind(
                     booking.companyCarId,
@@ -197,14 +198,6 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                     booking.depositAmount,
                     booking.currency,
                     booking.depositPaymentMethod,
-                    booking.fullInsuranceEnabled ? 1 : 0,
-                    booking.fullInsurancePrice || 0,
-                    booking.babySeatEnabled ? 1 : 0,
-                    booking.babySeatPrice || 0,
-                    booking.islandTripEnabled ? 1 : 0,
-                    booking.islandTripPrice || 0,
-                    booking.krabiTripEnabled ? 1 : 0,
-                    booking.krabiTripPrice || 0,
                     booking.pickupDistrictId,
                     booking.pickupHotel,
                     booking.pickupRoom,
@@ -219,6 +212,37 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 )
                 .run();
             const contract = { id: Number(insertContractResult.meta.last_row_id) };
+
+            const extraRows = [
+                { type: "full_insurance", enabled: Boolean(booking.fullInsuranceEnabled), price: Number(booking.fullInsurancePrice || 0) },
+                { type: "baby_seat", enabled: Boolean(booking.babySeatEnabled), price: Number(booking.babySeatPrice || 0) },
+                { type: "island_trip", enabled: Boolean(booking.islandTripEnabled), price: Number(booking.islandTripPrice || 0) },
+                { type: "krabi_trip", enabled: Boolean(booking.krabiTripEnabled), price: Number(booking.krabiTripPrice || 0) },
+            ] as const;
+            const extraStmts = extraRows
+                .filter((row) => row.enabled)
+                .map((row) =>
+                    context.cloudflare.env.DB
+                        .prepare(`
+                            INSERT INTO payments (
+                                contract_id, payment_type_id, amount, currency, payment_method, status, notes, created_by, created_at, updated_at,
+                                extra_type, extra_enabled, extra_price
+                            ) VALUES (?, NULL, ?, ?, NULL, 'completed', NULL, ?, ?, ?, ?, 1, ?)
+                        `)
+                        .bind(
+                            contract.id,
+                            row.price,
+                            booking.currency || "THB",
+                            user.id,
+                            new Date().toISOString(),
+                            new Date().toISOString(),
+                            row.type,
+                            row.price
+                        )
+                );
+            if (extraStmts.length > 0) {
+                await context.cloudflare.env.DB.batch(extraStmts);
+            }
 
             // Update booking status to converted
             await context.cloudflare.env.DB

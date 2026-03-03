@@ -24,8 +24,7 @@ export default function SimplePagination({ currentPage, totalPages, onPageChange
                     variant="secondary"
                     size="sm"
                 >
-                    <ChevronLeftIcon className="w-4 h-4 mr-1" />
-                    Previous
+                    <ChevronLeftIcon className="w-4 h-4" />
                 </Button>
                 <Button
                     onClick={() => onPageChange(currentPage + 1)}
@@ -33,8 +32,7 @@ export default function SimplePagination({ currentPage, totalPages, onPageChange
                     variant="secondary"
                     size="sm"
                 >
-                    Next
-                    <ChevronRightIcon className="w-4 h-4 ml-1" />
+                    <ChevronRightIcon className="w-4 h-4" />
                 </Button>
             </div>
         </div>

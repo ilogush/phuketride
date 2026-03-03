@@ -29,7 +29,8 @@ import {
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const [cars, districtsList, paymentTemplates, currencies] = await Promise.all([
+    const companyId = user.companyId ?? null;
+    const [cars, districtsList, currencies] = await Promise.all([
         context.cloudflare.env.DB
             .prepare(`
                 SELECT
@@ -45,18 +46,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 LEFT JOIN car_models cm ON cm.id = ct.model_id
                 WHERE cc.company_id = ? AND cc.status = 'available' AND cc.archived_at IS NULL
             `)
-            .bind(user.companyId)
+            .bind(companyId)
             .all()
             .then((r: any) => r.results || []),
         context.cloudflare.env.DB.prepare("SELECT * FROM districts WHERE is_active = 1").all().then((r: any) => r.results || []),
         context.cloudflare.env.DB
-            .prepare("SELECT * FROM payment_types WHERE is_active = 1 AND show_on_create = 1 AND (company_id IS NULL OR company_id = ?)")
-            .bind(user.companyId ?? null)
-            .all()
-            .then((r: any) => r.results || []),
-        context.cloudflare.env.DB
             .prepare("SELECT * FROM currencies WHERE is_active = 1 AND (company_id IS NULL OR company_id = ?)")
-            .bind(user.companyId ?? null)
+            .bind(companyId)
             .all()
             .then((r: any) => r.results || []),
     ]);
@@ -69,7 +65,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             deposit: car.deposit,
         })),
         districts: districtsList.map((d: any) => ({ id: d.id, name: d.name_en || d.name })),
-        paymentTemplates,
         currencies,
     };
 }
@@ -107,9 +102,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             phone: String(formData.get("client_phone") || "").trim(),
             whatsapp: String(formData.get("client_whatsapp") || "").trim(),
             telegram: String(formData.get("client_telegram") || "").trim(),
-            gender: String(formData.get("client_gender") || "").trim(),
             dateOfBirth: formData.get("date_of_birth") ? new Date(parseDateFromDisplay(String(formData.get("date_of_birth")))) : null,
-            citizenship: String(formData.get("citizenship") || "").trim(),
         };
         if (!clientData.name || !clientData.surname || !clientData.phone) {
             throw new Error("Client name, surname and phone are required");
@@ -119,7 +112,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         let clientId: string;
         const existingClient = await context.cloudflare.env.DB
             .prepare(`
-                SELECT id, email, name, surname, phone, citizenship, passport_photos AS passportPhotos,
+                SELECT id, email, name, surname, phone, passport_photos AS passportPhotos,
                        driver_license_photos AS driverLicensePhotos
                 FROM users
                 WHERE passport_number = ?
@@ -135,8 +128,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 existingClient.name === clientData.name &&
                 existingClient.surname === clientData.surname &&
                 (!clientData.email || existingClient.email === clientData.email) &&
-                existingClient.phone === clientData.phone &&
-                (!clientData.citizenship || existingClient.citizenship === clientData.citizenship);
+                existingClient.phone === clientData.phone;
 
             if (!dataMatches || passportPhotosValue.length > 0 || driverLicensePhotosValue.length > 0) {
                 userStmts.push(
@@ -160,9 +152,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 context.cloudflare.env.DB
                     .prepare(`
                         INSERT INTO users (
-                            id, email, role, name, surname, phone, whatsapp, telegram, gender, passport_number, citizenship,
+                            id, email, role, name, surname, phone, whatsapp, telegram, passport_number,
                             date_of_birth, passport_photos, driver_license_photos, created_at, updated_at
-                        ) VALUES (?, ?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     `)
                     .bind(
                         clientId,
@@ -172,9 +164,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                         clientData.phone,
                         clientData.whatsapp || null,
                         clientData.telegram || null,
-                        clientData.gender || null,
                         passportNumber,
-                        clientData.citizenship || null,
                         clientData.dateOfBirth ? clientData.dateOfBirth.toISOString() : null,
                         passportPhotosValue.length > 0 ? JSON.stringify(passportPhotosValue) : null,
                         driverLicensePhotosValue.length > 0 ? JSON.stringify(driverLicensePhotosValue) : null,
@@ -287,17 +277,22 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const fuelLevel = String(formData.get("fuel_level") || "Full");
         const cleanliness = String(formData.get("cleanliness") || "Clean");
         const startMileage = Number(formData.get("start_mileage")) || 0;
+        const extraFlags = {
+            full_insurance: formData.get("fullInsurance") === "true",
+            baby_seat: formData.get("babySeat") === "true",
+            island_trip: formData.get("islandTrip") === "true",
+            krabi_trip: formData.get("krabiTrip") === "true",
+        } as const;
 
         // Create contract
         const contractInsert = await context.cloudflare.env.DB
             .prepare(`
                 INSERT INTO contracts (
                     company_car_id, client_id, manager_id, start_date, end_date, total_amount, total_currency,
-                    deposit_amount, deposit_currency, deposit_payment_method, full_insurance_enabled, full_insurance_price,
-                    baby_seat_enabled, baby_seat_price, island_trip_enabled, island_trip_price, krabi_trip_enabled, krabi_trip_price,
+                    deposit_amount, deposit_currency, deposit_payment_method,
                     pickup_district_id, pickup_hotel, pickup_room, delivery_cost, return_district_id, return_hotel, return_room, return_cost,
                     start_mileage, fuel_level, cleanliness, status, notes, photos, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
             `)
             .bind(
                 companyCarId,
@@ -310,14 +305,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 depositAmount,
                 totalCurrency,
                 (formData.get("deposit_payment_method") as string) || null,
-                formData.get("fullInsurance") === "true" ? 1 : 0,
-                0,
-                formData.get("babySeat") === "true" ? 1 : 0,
-                0,
-                formData.get("islandTrip") === "true" ? 1 : 0,
-                0,
-                formData.get("krabiTrip") === "true" ? 1 : 0,
-                0,
                 pickupDistrictId,
                 (formData.get("pickup_hotel") as string) || null,
                 (formData.get("pickup_room") as string) || null,
@@ -337,29 +324,44 @@ export async function action({ request, context }: ActionFunctionArgs) {
             .run();
 
         const contractId = Number(contractInsert.meta.last_row_id);
+        const currenciesResult = await context.cloudflare.env.DB
+            .prepare("SELECT id, code FROM currencies WHERE is_active = 1")
+            .all() as any;
+        const currencyCodeById = new Map<number, string>(
+            ((currenciesResult?.results || []) as Array<{ id: number; code: string }>).map((row) => [Number(row.id), row.code])
+        );
 
         // Prep batch 2: Payments, Car Status, Calendar Events
         const finalStmts: D1PreparedStatement[] = [];
 
-        // Create payments
-        const paymentCount = Number(formData.get("paymentCount")) || 0;
-        for (let i = 0; i < paymentCount; i++) {
-            const paymentTypeId = Number(formData.get(`payment_${i}_type`));
-            const amount = Number(formData.get(`payment_${i}_amount`));
-            const currencyId = Number(formData.get(`payment_${i}_currency`));
-            const paymentMethod = formData.get(`payment_${i}_method`) as string;
-
-            if (paymentTypeId && amount > 0) {
-                finalStmts.push(
-                    context.cloudflare.env.DB
-                        .prepare(`
-                            INSERT INTO payments (
-                                contract_id, payment_type_id, amount, currency_id, payment_method, status, created_by, created_at, updated_at
-                            ) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?)
-                        `)
-                        .bind(contractId, paymentTypeId, amount, currencyId || null, paymentMethod || null, user.id, new Date().toISOString(), new Date().toISOString())
-                );
-            }
+        // Create extra services as payment records
+        for (const [extraType, enabled] of Object.entries(extraFlags)) {
+            if (!enabled) continue;
+            const amount = Number(formData.get(`extra_${extraType}_amount`)) || 0;
+            const currencyId = Number(formData.get(`extra_${extraType}_currency`)) || null;
+            const paymentMethod = (formData.get(`extra_${extraType}_method`) as string) || null;
+            const currencyCode = (currencyId ? currencyCodeById.get(currencyId) : null) || "THB";
+            finalStmts.push(
+                context.cloudflare.env.DB
+                    .prepare(`
+                        INSERT INTO payments (
+                            contract_id, amount, currency, currency_id, payment_method, status, created_by, created_at, updated_at,
+                            extra_type, extra_enabled, extra_price
+                        ) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, 1, ?)
+                    `)
+                    .bind(
+                        contractId,
+                        amount,
+                        currencyCode,
+                        currencyId,
+                        paymentMethod,
+                        user.id,
+                        new Date().toISOString(),
+                        new Date().toISOString(),
+                        extraType,
+                        amount
+                    )
+            );
         }
 
         // Update car status to 'rented'
@@ -403,7 +405,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function NewContract() {
-    const { cars, districts, paymentTemplates, currencies } = useLoaderData<typeof loader>();
+    const { cars, districts, currencies } = useLoaderData<typeof loader>();
     const navigate = useNavigate();
     useUrlToast();
     const { validateLatinInput } = useLatinValidation();
@@ -418,7 +420,6 @@ export default function NewContract() {
     const [carPhotos, setCarPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [passportPhotos, setPassportPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [driverLicensePhotos, setDriverLicensePhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
-    const [selectedPayments, setSelectedPayments] = useState<Array<{ templateId: number; amount: number; currencyId: number; method: string }>>([]);
 
     const fuelLevels = [
         { id: "Full", name: "Full (8/8)" },
@@ -463,358 +464,384 @@ export default function NewContract() {
                 }
             />
 
-            <Form id="new-contract-form" method="post" className="space-y-4">
-                <input type="hidden" name="passportPhotos" value={JSON.stringify(passportPhotos)} />
-                <input type="hidden" name="driverLicensePhotos" value={JSON.stringify(driverLicensePhotos)} />
-                <input type="hidden" name="photos" value={JSON.stringify(carPhotos.map((p) => p.base64))} />
-                <input type="hidden" name="fullInsurance" value={fullInsurance ? "true" : "false"} />
-                <input type="hidden" name="islandTrip" value={islandTrip ? "true" : "false"} />
-                <input type="hidden" name="krabiTrip" value={krabiTrip ? "true" : "false"} />
-                <input type="hidden" name="babySeat" value={babySeat ? "true" : "false"} />
-                {/* Car Details */}
-                <FormSection
-                    title="Car Details"
-                    icon={<TruckIcon className="w-6 h-6" />}
-                >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormSelect
-                            label="Car"
-                            name="company_car_id"
-                            options={cars}
-                            placeholder="Select car"
-                            required
-                        />
-                        <FormSelect
-                            label="Fuel Level"
-                            name="fuel_level"
-                            options={fuelLevels}
-                            defaultValue="Full"
-                            required
-                        />
-                        <FormSelect
-                            label="Cleanliness"
-                            name="cleanliness"
-                            options={cleanlinessOptions}
-                            defaultValue="Clean"
-                            required
-                        />
-                        <FormInput
-                            label="Start Mileage"
-                            name="start_mileage"
-                            type="number"
-                            required
-                        />
-                    </div>
-                </FormSection>
-
-                {/* Car Photos */}
-                <div className="bg-white rounded-3xl border border-gray-200 p-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Car Photos (max 12)
-                    </label>
-                    <CarPhotosUpload
-                        onPhotosChange={setCarPhotos}
-                        maxPhotos={12}
-                    />
-                </div>
-
-                {/* Rental Details */}
-                <FormSection
-                    title="Rental Details"
-                    icon={<CalendarIcon className="w-6 h-6" />}
-                >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <Input
-                            label="Start Date & Time"
-                            type="text"
-                            name="start_date"
-                            required
-                            placeholder="DD/MM/YYYY HH:mm"
-                            onChange={maskDateTimeInput}
-                        />
-                        <FormSelect
-                            label="Pickup District"
-                            name="pickup_district_id"
-                            options={districts}
-                            placeholder="Select district"
-                            required
-                        />
-                        <FormInput
-                            label="Hotel"
-                            name="pickup_hotel"
-                            placeholder="Type or select hotel..."
-                        />
-                        <FormInput
-                            label="Room Number"
-                            name="pickup_room"
-                            placeholder="Room..."
-                        />
-                        <Input
-                            label="End Date & Time"
-                            type="text"
-                            name="end_date"
-                            required
-                            placeholder="DD/MM/YYYY HH:mm"
-                            onChange={maskDateTimeInput}
-                        />
-                        <FormSelect
-                            label="Return District"
-                            name="return_district_id"
-                            options={districts}
-                            placeholder="Select district"
-                            required
-                        />
-                        <FormInput
-                            label="Return Hotel"
-                            name="return_hotel"
-                            placeholder="Type or select return hotel..."
-                        />
-                        <FormInput
-                            label="Return Room Number"
-                            name="return_room"
-                            placeholder="Room..."
-                        />
-                    </div>
-                </FormSection>
-
-                {/* User Details */}
-                <FormSection
-                    title="User Details"
-                    icon={<UserIcon className="w-6 h-6" />}
-                >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormInput
-                            label="Passport Number"
-                            name="client_passport"
-                            placeholder="Passport ID"
-                            required
-                        />
-                        <FormInput
-                            label="First Name"
-                            name="client_name"
-                            placeholder="John"
-                            pattern="[a-zA-Z\s\-']+"
-                            onChange={(e) => validateLatinInput(e, 'First Name')}
-                            required
-                        />
-                        <FormInput
-                            label="Last Name"
-                            name="client_surname"
-                            placeholder="Doe"
-                            pattern="[a-zA-Z\s\-']+"
-                            onChange={(e) => validateLatinInput(e, 'Last Name')}
-                            required
-                        />
-                        <FormInput
-                            label="Citizenship"
-                            name="citizenship"
-                            placeholder="Type to search citizenship..."
-                        />
-                        <FormInput
-                            label="City"
-                            name="city"
-                            placeholder="Type to search city..."
-                        />
-                        <FormSelect
-                            label="Gender"
-                            name="client_gender"
-                            options={genderOptions}
-                            placeholder="Select gender"
-                        />
-                        <FormInput
-                            label="Birth Date"
-                            name="date_of_birth"
-                            type="text"
-                            placeholder="DD/MM/YYYY"
-                            onChange={maskDateInput}
-                        />
-                        <div />
-                        <FormInput
-                            label="Phone"
-                            name="client_phone"
-                            placeholder="+123456789"
-                            required
-                        />
-                        <FormInput
-                            label="WhatsApp"
-                            name="client_whatsapp"
-                            placeholder="+123456789"
-                        />
-                        <FormInput
-                            label="Telegram"
-                            name="client_telegram"
-                            placeholder="@username"
-                        />
-                        <FormInput
-                            label="Email"
-                            name="client_email"
-                            type="email"
-                            placeholder="client@example.com"
-                        />
-                    </div>
-                </FormSection>
-
-                {/* Document Photos */}
-                <div className="bg-white rounded-3xl border border-gray-200 p-4">
-                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
-                        <DocumentPhotosUpload
-                            currentPhotos={passportPhotos.map((p) => p.base64)}
-                            onPhotosChange={setPassportPhotos}
-                            maxPhotos={3}
-                            label="Passport"
-                        />
-                        <DocumentPhotosUpload
-                            currentPhotos={driverLicensePhotos.map((p) => p.base64)}
-                            onPhotosChange={setDriverLicensePhotos}
-                            maxPhotos={3}
-                            label="Driver License"
-                        />
-                    </div>
-                </div>
-
-                {/* Extras */}
-                <FormSection
-                    title="Extras"
-                    icon={<CubeIcon className="w-6 h-6" />}
-                >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                            <span className="text-sm font-medium text-gray-700">Full Insurance</span>
-                            <Toggle enabled={fullInsurance} onChange={setFullInsurance} />
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                            <span className="text-sm font-medium text-gray-700">Island Trip</span>
-                            <Toggle enabled={islandTrip} onChange={setIslandTrip} />
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                            <span className="text-sm font-medium text-gray-700">Krabi Trip</span>
-                            <Toggle enabled={krabiTrip} onChange={setKrabiTrip} />
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                            <span className="text-sm font-medium text-gray-700">Baby Seat</span>
-                            <Toggle enabled={babySeat} onChange={setBabySeat} />
-                        </div>
-                    </div>
-                </FormSection>
-
-                {/* Payments */}
-                <FormSection
-                    title="Payments"
-                    icon={<BanknotesIcon className="w-6 h-6" />}
-                >
-                    <div className="space-y-4">
-                        {paymentTemplates.map((template: { id: number; name: string; sign?: string | null }, index: number) => (
-                            <div key={template.id} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                                <div className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        id={`payment_${index}`}
-                                        className="w-4 h-4 text-gray-800 border-gray-300 rounded focus:ring-gray-800"
-                                        onChange={(e) => {
-                                            if (e.target.checked) {
-                                                setSelectedPayments([...selectedPayments, {
-                                                    templateId: template.id,
-                                                    amount: 0,
-                                                    currencyId: currencies[0]?.id || 1,
-                                                    method: 'cash'
-                                                }]);
-                                            } else {
-                                                setSelectedPayments(selectedPayments.filter(p => p.templateId !== template.id));
-                                            }
-                                        }}
-                                    />
-                                    <label htmlFor={`payment_${index}`} className="ml-2 text-sm font-medium text-gray-700">
-                                        {template.name} ({template.sign})
-                                    </label>
-                                </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Main Form - Left Side */}
+                <div className="lg:col-span-2 space-y-4">
+                    <Form id="new-contract-form" method="post" className="space-y-4">
+                        <input type="hidden" name="passportPhotos" value={JSON.stringify(passportPhotos)} />
+                        <input type="hidden" name="driverLicensePhotos" value={JSON.stringify(driverLicensePhotos)} />
+                        <input type="hidden" name="photos" value={JSON.stringify(carPhotos.map((p) => p.base64))} />
+                        <input type="hidden" name="fullInsurance" value={fullInsurance ? "true" : "false"} />
+                        <input type="hidden" name="islandTrip" value={islandTrip ? "true" : "false"} />
+                        <input type="hidden" name="krabiTrip" value={krabiTrip ? "true" : "false"} />
+                        <input type="hidden" name="babySeat" value={babySeat ? "true" : "false"} />
+                        
+                        {/* Car Details */}
+                        <FormSection
+                            title="Car Details"
+                            icon={<TruckIcon className="w-6 h-6" />}
+                        >
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <FormSelect
+                                    label="Car"
+                                    name="company_car_id"
+                                    options={cars}
+                                    placeholder="Select car"
+                                    required
+                                />
                                 <FormInput
-                                    label="Amount"
-                                    name={`payment_${index}_amount`}
+                                    label="Start Mileage"
+                                    name="start_mileage"
                                     type="number"
-                                    placeholder="0.00"
-                                    disabled={!selectedPayments.find(p => p.templateId === template.id)}
+                                    required
                                 />
                                 <FormSelect
-                                    label="Currency"
-                                    name={`payment_${index}_currency`}
-                                    options={currencies.map((c: { id: number; code: string; symbol: string }) => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
-                                    disabled={!selectedPayments.find(p => p.templateId === template.id)}
+                                    label="Fuel Level"
+                                    name="fuel_level"
+                                    options={fuelLevels}
+                                    defaultValue="Full"
+                                    required
                                 />
                                 <FormSelect
-                                    label="Method"
-                                    name={`payment_${index}_method`}
-                                    options={[
-                                        { id: 'cash', name: 'Cash' },
-                                        { id: 'bank_transfer', name: 'Bank Transfer' },
-                                        { id: 'card', name: 'Card' },
-                                    ]}
-                                    disabled={!selectedPayments.find(p => p.templateId === template.id)}
+                                    label="Cleanliness"
+                                    name="cleanliness"
+                                    options={cleanlinessOptions}
+                                    defaultValue="Clean"
+                                    required
                                 />
-                                <input type="hidden" name={`payment_${index}_type`} value={template.id} />
                             </div>
-                        ))}
-                        <input type="hidden" name="paymentCount" value={paymentTemplates.length} />
+                        </FormSection>
+
+                        {/* Rental Details */}
+                        <FormSection
+                            title="Rental Details"
+                            icon={<CalendarIcon className="w-6 h-6" />}
+                        >
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <Input
+                                    label="Start Date & Time"
+                                    type="text"
+                                    name="start_date"
+                                    required
+                                    placeholder="DD/MM/YYYY HH:mm"
+                                    onChange={maskDateTimeInput}
+                                />
+                                <FormSelect
+                                    label="Pickup District"
+                                    name="pickup_district_id"
+                                    options={districts}
+                                    placeholder="Select district"
+                                    required
+                                />
+                                <FormInput
+                                    label="Hotel"
+                                    name="pickup_hotel"
+                                    placeholder="Type or select hotel..."
+                                />
+                                <FormInput
+                                    label="Room Number"
+                                    name="pickup_room"
+                                    placeholder="Room..."
+                                />
+                                <Input
+                                    label="End Date & Time"
+                                    type="text"
+                                    name="end_date"
+                                    required
+                                    placeholder="DD/MM/YYYY HH:mm"
+                                    onChange={maskDateTimeInput}
+                                />
+                                <FormSelect
+                                    label="Return District"
+                                    name="return_district_id"
+                                    options={districts}
+                                    placeholder="Select district"
+                                    required
+                                />
+                                <FormInput
+                                    label="Return Hotel"
+                                    name="return_hotel"
+                                    placeholder="Type or select return hotel..."
+                                />
+                                <FormInput
+                                    label="Return Room Number"
+                                    name="return_room"
+                                    placeholder="Room..."
+                                />
+                            </div>
+                        </FormSection>
+
+                        {/* User Details */}
+                        <FormSection
+                            title="User Details"
+                            icon={<UserIcon className="w-6 h-6" />}
+                        >
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <FormInput
+                                    label="Passport Number"
+                                    name="client_passport"
+                                    placeholder="Passport ID"
+                                    required
+                                />
+                                <FormInput
+                                    label="First Name"
+                                    name="client_name"
+                                    placeholder="John"
+                                    pattern="[a-zA-Z\s\-']+"
+                                    onChange={(e) => validateLatinInput(e, 'First Name')}
+                                    required
+                                />
+                                <FormInput
+                                    label="Last Name"
+                                    name="client_surname"
+                                    placeholder="Doe"
+                                    pattern="[a-zA-Z\s\-']+"
+                                    onChange={(e) => validateLatinInput(e, 'Last Name')}
+                                    required
+                                />
+                                <FormInput
+                                    label="Birth Date"
+                                    name="date_of_birth"
+                                    type="text"
+                                    placeholder="DD/MM/YYYY"
+                                    onChange={maskDateInput}
+                                />
+                                <FormInput
+                                    label="Phone"
+                                    name="client_phone"
+                                    placeholder="+123456789"
+                                    required
+                                />
+                                <FormInput
+                                    label="WhatsApp"
+                                    name="client_whatsapp"
+                                    placeholder="+123456789"
+                                />
+                                <FormInput
+                                    label="Telegram"
+                                    name="client_telegram"
+                                    placeholder="@username"
+                                />
+                                <FormInput
+                                    label="Email"
+                                    name="client_email"
+                                    type="email"
+                                    placeholder="client@example.com"
+                                />
+                            </div>
+                        </FormSection>
+
+                        {/* Payments */}
+                        <FormSection
+                            title="Payments"
+                            icon={<BanknotesIcon className="w-6 h-6" />}
+                        >
+                            <div className="space-y-4">
+                                <div className="space-y-3">
+                                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-medium text-gray-700">Full Insurance</span>
+                                            <Toggle enabled={fullInsurance} onChange={setFullInsurance} />
+                                        </div>
+                                        {fullInsurance && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                                                <FormInput label="Amount" name="extra_full_insurance_amount" type="number" placeholder="0.00" />
+                                                <FormSelect
+                                                    label="Currency"
+                                                    name="extra_full_insurance_currency"
+                                                    options={currencies.map((c: { id: number; code: string; symbol: string }) => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
+                                                    placeholder="Select Currency"
+                                                />
+                                                <FormSelect
+                                                    label="Method"
+                                                    name="extra_full_insurance_method"
+                                                    options={[
+                                                        { id: "cash", name: "Cash" },
+                                                        { id: "bank_transfer", name: "Bank Transfer" },
+                                                        { id: "card", name: "Card" },
+                                                    ]}
+                                                    placeholder="Select Method"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-medium text-gray-700">Island Trip</span>
+                                            <Toggle enabled={islandTrip} onChange={setIslandTrip} />
+                                        </div>
+                                        {islandTrip && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                                                <FormInput label="Amount" name="extra_island_trip_amount" type="number" placeholder="0.00" />
+                                                <FormSelect
+                                                    label="Currency"
+                                                    name="extra_island_trip_currency"
+                                                    options={currencies.map((c: { id: number; code: string; symbol: string }) => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
+                                                    placeholder="Select Currency"
+                                                />
+                                                <FormSelect
+                                                    label="Method"
+                                                    name="extra_island_trip_method"
+                                                    options={[
+                                                        { id: "cash", name: "Cash" },
+                                                        { id: "bank_transfer", name: "Bank Transfer" },
+                                                        { id: "card", name: "Card" },
+                                                    ]}
+                                                    placeholder="Select Method"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-medium text-gray-700">Krabi Trip</span>
+                                            <Toggle enabled={krabiTrip} onChange={setKrabiTrip} />
+                                        </div>
+                                        {krabiTrip && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                                                <FormInput label="Amount" name="extra_krabi_trip_amount" type="number" placeholder="0.00" />
+                                                <FormSelect
+                                                    label="Currency"
+                                                    name="extra_krabi_trip_currency"
+                                                    options={currencies.map((c: { id: number; code: string; symbol: string }) => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
+                                                    placeholder="Select Currency"
+                                                />
+                                                <FormSelect
+                                                    label="Method"
+                                                    name="extra_krabi_trip_method"
+                                                    options={[
+                                                        { id: "cash", name: "Cash" },
+                                                        { id: "bank_transfer", name: "Bank Transfer" },
+                                                        { id: "card", name: "Card" },
+                                                    ]}
+                                                    placeholder="Select Method"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-medium text-gray-700">Baby Seat</span>
+                                            <Toggle enabled={babySeat} onChange={setBabySeat} />
+                                        </div>
+                                        {babySeat && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                                                <FormInput label="Amount" name="extra_baby_seat_amount" type="number" placeholder="0.00" />
+                                                <FormSelect
+                                                    label="Currency"
+                                                    name="extra_baby_seat_currency"
+                                                    options={currencies.map((c: { id: number; code: string; symbol: string }) => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
+                                                    placeholder="Select Currency"
+                                                />
+                                                <FormSelect
+                                                    label="Method"
+                                                    name="extra_baby_seat_method"
+                                                    options={[
+                                                        { id: "cash", name: "Cash" },
+                                                        { id: "bank_transfer", name: "Bank Transfer" },
+                                                        { id: "card", name: "Card" },
+                                                    ]}
+                                                    placeholder="Select Method"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </FormSection>
+                    </Form>
+                </div>
+
+                {/* Right Sidebar */}
+                <div className="lg:col-span-1 space-y-4">
+                    {/* Financial Summary */}
+                    <div className="bg-white rounded-3xl border border-gray-200 p-4">
+                        <h3 className="text-sm font-medium text-gray-700 mb-3">Financial Summary</h3>
+                        <div className="space-y-3">
+                            <FormInput
+                                label="Delivery Price"
+                                name="delivery_cost"
+                                type="number"
+                                placeholder="0.00"
+                            />
+                            <FormInput
+                                label="Return Price"
+                                name="return_cost"
+                                type="number"
+                                placeholder="0.00"
+                            />
+                            <FormInput
+                                label="Deposit Payment"
+                                name="deposit_amount"
+                                type="number"
+                                placeholder="0.00"
+                            />
+                            <FormSelect
+                                label="Deposit Method"
+                                name="deposit_payment_method"
+                                options={[
+                                    { id: "cash", name: "Cash" },
+                                    { id: "bank_transfer", name: "Bank Transfer" },
+                                    { id: "card", name: "Card" },
+                                ]}
+                                placeholder="Select method"
+                            />
+                            <FormInput
+                                label="Total Rental Cost"
+                                name="total_amount"
+                                type="number"
+                                placeholder="0.00"
+                                required
+                            />
+                        </div>
                     </div>
-                </FormSection>
 
-                {/* Financial Summary */}
-                <FormSection
-                    title="Financial Summary"
-                    icon={<BanknotesIcon className="w-6 h-6" />}
-                >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormInput
-                            label="Delivery Price"
-                            name="delivery_cost"
-                            type="number"
-                            placeholder="0.00"
-                        />
-                        <FormInput
-                            label="Return Price"
-                            name="return_cost"
-                            type="number"
-                            placeholder="0.00"
-                        />
-                        <FormInput
-                            label="Deposit Payment"
-                            name="deposit_amount"
-                            type="number"
-                            placeholder="0.00"
-                        />
-                        <FormSelect
-                            label="Deposit Method"
-                            name="deposit_payment_method"
-                            options={[
-                                { id: "cash", name: "Cash" },
-                                { id: "bank_transfer", name: "Bank Transfer" },
-                                { id: "card", name: "Card" },
-                            ]}
-                            placeholder="Select method"
-                        />
-                        <FormInput
-                            label="Total Rental Cost"
-                            name="total_amount"
-                            type="number"
-                            placeholder="0.00"
-                            required
+                    {/* Car Photos */}
+                    <div className="bg-white rounded-3xl border border-gray-200 p-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-3">
+                            Car Photos (max 12)
+                        </label>
+                        <CarPhotosUpload
+                            onPhotosChange={setCarPhotos}
+                            maxPhotos={12}
                         />
                     </div>
-                </FormSection>
 
-                {/* Notes */}
-                <FormSection
-                    title="Notes & Terms"
-                    icon={<DocumentTextIcon className="w-6 h-6" />}
-                >
-                    <Textarea
-                        label="Contract Notes"
-                        name="notes"
-                        rows={4}
-                        placeholder="Add any extra information (flight info, car condition, etc.)"
-                    />
-                </FormSection>
+                    {/* Document Photos */}
+                    <div className="bg-white rounded-3xl border border-gray-200 p-4">
+                        <h3 className="text-sm font-medium text-gray-700 mb-3">Document Photos</h3>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <DocumentPhotosUpload
+                                currentPhotos={passportPhotos.map((p) => p.base64)}
+                                onPhotosChange={setPassportPhotos}
+                                maxPhotos={3}
+                                label="Passport"
+                            />
+                            <DocumentPhotosUpload
+                                currentPhotos={driverLicensePhotos.map((p) => p.base64)}
+                                onPhotosChange={setDriverLicensePhotos}
+                                maxPhotos={3}
+                                label="Driver License"
+                            />
+                        </div>
+                    </div>
 
-            </Form>
+                    {/* Notes & Terms */}
+                    <div className="bg-white rounded-3xl border border-gray-200 p-4">
+                        <h3 className="text-sm font-medium text-gray-700 mb-3">Notes & Terms</h3>
+                        <Textarea
+                            label="Contract Notes"
+                            name="notes"
+                            rows={4}
+                            placeholder="Add any extra information (flight info, car condition, etc.)"
+                        />
+                    </div>
+
+                </div>
+            </div>
         </div>
     );
 }

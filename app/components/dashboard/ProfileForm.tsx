@@ -44,11 +44,8 @@ interface User {
     whatsapp: string | null;
     telegram: string | null;
     passportNumber: string | null;
-    citizenship: string | null;
-    city: string | null;
     countryId: number | null;
     dateOfBirth: Date | null;
-    gender: "male" | "female" | "other" | null;
     hotelId: number | null;
     roomNumber: string | null;
     locationId: number | null;
@@ -175,19 +172,6 @@ function ProfileForm({
                         onChange={isEdit ? (e) => validateLatinInput(e, 'Last Name') : undefined}
                         required
                     />
-                    <FormSelect
-                        isEdit={isEdit}
-                        label="Gender"
-                        name="gender"
-                        value={isEdit ? undefined : (user.gender || "")}
-                        defaultValue={isEdit ? (user.gender || "") : undefined}
-                        options={[
-                            { id: "male", name: "Male" },
-                            { id: "female", name: "Female" },
-                            { id: "other", name: "Other" }
-                        ]}
-                        placeholder="Select Gender"
-                    />
                     <FormInput
                         isEdit={isEdit}
                         label="Date of Birth"
@@ -275,14 +259,6 @@ function ProfileForm({
                             value={country?.name || ""}
                         />
                     )}
-                    <FormInput
-                        isEdit={isEdit}
-                        label="City"
-                        name="city"
-                        value={isEdit ? undefined : (user.city || "")}
-                        defaultValue={isEdit ? user.city : undefined}
-                        placeholder="Moscow"
-                    />
                     <FormInput
                         isEdit={isEdit}
                         label="Passport / ID Number"

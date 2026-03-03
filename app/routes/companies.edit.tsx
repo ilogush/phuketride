@@ -11,6 +11,12 @@ import FormSection from "~/components/dashboard/FormSection";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { z } from "zod";
+import { 
+    BuildingOfficeIcon, 
+    MapPinIcon, 
+    BanknotesIcon, 
+    SparklesIcon 
+} from "@heroicons/react/24/outline";
 
 interface LocationRow {
     id: number;
@@ -232,7 +238,7 @@ export default function CompanyEditPage() {
 
                     <input type="hidden" name="companyId" value={company.id} />
 
-                    <FormSection title="Basic Information">
+                    <FormSection title="Basic Information" icon={<BuildingOfficeIcon className="w-5 h-5" />}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input
                                 label="Company Name"
@@ -275,7 +281,7 @@ export default function CompanyEditPage() {
                         </div>
                     </FormSection>
 
-                    <FormSection title="Address">
+                    <FormSection title="Address" icon={<MapPinIcon className="w-5 h-5" />}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Select
                                 label="Location"
@@ -322,7 +328,7 @@ export default function CompanyEditPage() {
                         </div>
                     </FormSection>
 
-                    <FormSection title="Bank Details">
+                    <FormSection title="Bank Details" icon={<BanknotesIcon className="w-5 h-5" />}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input
                                 label="Bank Name"
@@ -358,7 +364,7 @@ export default function CompanyEditPage() {
                         </div>
                     </FormSection>
 
-                    <FormSection title="Extras">
+                    <FormSection title="Extras" icon={<SparklesIcon className="w-5 h-5" />}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input
                                 label="Delivery Fee After Hours"

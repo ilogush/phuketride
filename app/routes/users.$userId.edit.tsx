@@ -26,11 +26,8 @@ interface EditableUserRow {
     whatsapp: string | null;
     telegram: string | null;
     passportNumber: string | null;
-    citizenship: string | null;
-    city: string | null;
     countryId: number | null;
     dateOfBirth: string | null;
-    gender: "male" | "female" | "other" | null;
     avatarUrl?: string | null;
     hotelId: number | null;
     roomNumber: string | null;
@@ -53,8 +50,8 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = (await context.cloudflare.env.DB
         .prepare(`
             SELECT id, email, role, name, surname, phone, whatsapp, telegram,
-                   passport_number AS passportNumber, citizenship, city, country_id AS countryId,
-                   date_of_birth AS dateOfBirth, gender, avatar_url AS avatarUrl,
+                   passport_number AS passportNumber, country_id AS countryId,
+                   date_of_birth AS dateOfBirth, avatar_url AS avatarUrl,
                    hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
                    district_id AS districtId, address
             FROM users
@@ -96,8 +93,8 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const currentUser = (await context.cloudflare.env.DB
         .prepare(`
             SELECT id, email, role, name, surname, phone, whatsapp, telegram,
-                   passport_number AS passportNumber, citizenship, city, country_id AS countryId,
-                   date_of_birth AS dateOfBirth, gender, hotel_id AS hotelId, room_number AS roomNumber,
+                   passport_number AS passportNumber, country_id AS countryId,
+                   date_of_birth AS dateOfBirth, hotel_id AS hotelId, room_number AS roomNumber,
                    location_id AS locationId, district_id AS districtId, address
             FROM users
             WHERE id = ?
@@ -155,11 +152,8 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         whatsapp: (formData.get("whatsapp") as string) || null,
         telegram: (formData.get("telegram") as string) || null,
         passportNumber: (formData.get("passportNumber") as string) || null,
-        citizenship: (formData.get("citizenship") as string) || null,
-        city: (formData.get("city") as string) || null,
         countryId: formData.get("countryId") ? parseInt(formData.get("countryId") as string) : null,
         dateOfBirth: (formData.get("dateOfBirth") as string) || null,
-        gender: (formData.get("gender") as "male" | "female" | "other") || null,
         hotelId: formData.get("hotelId") ? parseInt(formData.get("hotelId") as string) : null,
         roomNumber: (formData.get("roomNumber") as string) || null,
         locationId: formData.get("locationId") ? parseInt(formData.get("locationId") as string) : null,
@@ -198,8 +192,8 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             .prepare(`
                 UPDATE users
                 SET email = ?, role = ?, name = ?, surname = ?, phone = ?, whatsapp = ?, telegram = ?,
-                    passport_number = ?, citizenship = ?, city = ?, country_id = ?, date_of_birth = ?,
-                    gender = ?, hotel_id = ?, room_number = ?, location_id = ?, district_id = ?, address = ?,
+                    passport_number = ?, country_id = ?, date_of_birth = ?,
+                    hotel_id = ?, room_number = ?, location_id = ?, district_id = ?, address = ?,
                     password_hash = COALESCE(?, password_hash), updated_at = ?
                 WHERE id = ?
             `)
@@ -212,11 +206,8 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 validData.whatsapp,
                 validData.telegram,
                 validData.passportNumber,
-                validData.citizenship,
-                validData.city,
                 validData.countryId,
                 dateOfBirth,
-                validData.gender,
                 validData.hotelId,
                 validData.roomNumber,
                 validData.locationId,
@@ -310,17 +301,6 @@ export default function EditUserPage() {
                             required
                             onChange={(e) => validateLatinInput(e, 'Last Name')}
                         />
-                        <Select
-                            label="Gender"
-                            name="gender"
-                            defaultValue={user.gender || ""}
-                            options={[
-                                { id: "male", name: "Male" },
-                                { id: "female", name: "Female" },
-                                { id: "other", name: "Other" }
-                            ]}
-                            placeholder="Select Gender"
-                        />
                         <Input
                             label="Date of Birth"
                             name="dateOfBirth"
@@ -381,12 +361,6 @@ export default function EditUserPage() {
                             placeholder="Select Country"
                         />
                         <Input
-                            label="City"
-                            name="city"
-                            defaultValue={user.city || ""}
-                            placeholder="Moscow"
-                        />
-                        <Input
                             label="Passport / ID Number"
                             name="passportNumber"
                             defaultValue={user.passportNumber || ""}
@@ -399,6 +373,20 @@ export default function EditUserPage() {
                 <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Select
+                            label="Location"
+                            name="locationId"
+                            defaultValue={user.locationId || ""}
+                            options={locations}
+                            placeholder="Select Location"
+                        />
+                        <Select
+                            label="District"
+                            name="districtId"
+                            defaultValue={user.districtId || ""}
+                            options={districts}
+                            placeholder="Select District"
+                        />
+                        <Select
                             label="Hotel"
                             name="hotelId"
                             defaultValue={user.hotelId || ""}
@@ -410,13 +398,6 @@ export default function EditUserPage() {
                             name="roomNumber"
                             defaultValue={user.roomNumber || ""}
                             placeholder="900"
-                        />
-                        <Select
-                            label="Location"
-                            name="locationId"
-                            defaultValue={user.locationId || ""}
-                            options={locations}
-                            placeholder="Select Location"
                         />
                     </div>
                 </FormSection>

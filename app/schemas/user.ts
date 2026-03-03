@@ -11,13 +11,8 @@ export const userSchema = z.object({
     whatsapp: z.string().max(20, "WhatsApp is too long").optional().nullable(),
     telegram: z.string().max(100, "Telegram is too long").optional().nullable(),
     passportNumber: z.string().max(50, "Passport number is too long").optional().nullable(),
-    citizenship: z.string().max(100, "Citizenship is too long").optional().nullable(),
-    city: z.string().max(100, "City is too long").optional().nullable(),
     countryId: z.number().int().positive("Country is required").optional().nullable(),
     dateOfBirth: z.string().optional().nullable(),
-    gender: z.enum(["male", "female", "other"], { 
-        errorMap: () => ({ message: "Invalid gender" }) 
-    }).optional().nullable(),
     hotelId: z.number().int().positive("Hotel is required").optional().nullable(),
     roomNumber: z.string().max(20, "Room number is too long").optional().nullable(),
     locationId: z.number().int().positive("Location is required").optional().nullable(),

@@ -45,11 +45,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
         whatsapp: (formData.get("whatsapp") as string) || null,
         telegram: (formData.get("telegram") as string) || null,
         passportNumber: (formData.get("passportNumber") as string) || null,
-        citizenship: (formData.get("citizenship") as string) || null,
-        city: (formData.get("city") as string) || null,
         countryId: formData.get("countryId") ? parseInt(formData.get("countryId") as string) : null,
         dateOfBirth: (formData.get("dateOfBirth") as string) || null,
-        gender: (formData.get("gender") as "male" | "female" | "other") || null,
         hotelId: formData.get("hotelId") ? parseInt(formData.get("hotelId") as string) : null,
         roomNumber: (formData.get("roomNumber") as string) || null,
         locationId: formData.get("locationId") ? parseInt(formData.get("locationId") as string) : null,
@@ -89,11 +86,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
             .prepare(`
                 INSERT INTO users (
                     id, email, role, name, surname, phone, whatsapp, telegram,
-                    passport_number, citizenship, city, country_id, date_of_birth, gender,
+                    passport_number, country_id, date_of_birth,
                     hotel_id, room_number, location_id, district_id, address,
                     avatar_url, passport_photos, driver_license_photos, password_hash,
                     is_first_login, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `)
             .bind(
                 id,
@@ -105,11 +102,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 validData.whatsapp,
                 validData.telegram,
                 validData.passportNumber,
-                validData.citizenship,
-                validData.city,
                 validData.countryId,
                 dateOfBirth,
-                validData.gender,
                 validData.hotelId,
                 validData.roomNumber,
                 validData.locationId,
@@ -160,11 +154,8 @@ export default function CreateUserPage() {
         whatsapp: null,
         telegram: null,
         passportNumber: null,
-        citizenship: null,
-        city: null,
         countryId: null,
         dateOfBirth: null,
-        gender: null as "male" | "female" | "other" | null,
         hotelId: null,
         roomNumber: null,
         locationId: null,

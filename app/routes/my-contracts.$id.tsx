@@ -17,14 +17,6 @@ interface ContractDetailsRow {
     depositAmount: number | null;
     depositCurrency: string | null;
     depositPaymentMethod: string | null;
-    fullInsuranceEnabled: number;
-    fullInsurancePrice: number | null;
-    babySeatEnabled: number;
-    babySeatPrice: number | null;
-    islandTripEnabled: number;
-    islandTripPrice: number | null;
-    krabiTripEnabled: number;
-    krabiTripPrice: number | null;
     pickupHotel: string | null;
     pickupRoom: string | null;
     deliveryCost: number | null;
@@ -59,8 +51,11 @@ interface ContractPaymentRow {
     status: string | null;
     notes: string | null;
     createdAt: string;
-    paymentTypeName: string;
-    paymentTypeSign: "+" | "-";
+    paymentTypeName: string | null;
+    paymentTypeSign: "+" | "-" | null;
+    extraType: "full_insurance" | "baby_seat" | "island_trip" | "krabi_trip" | null;
+    extraEnabled: number | null;
+    extraPrice: number | null;
 }
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
@@ -83,14 +78,6 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
                 c.deposit_amount AS depositAmount,
                 c.deposit_currency AS depositCurrency,
                 c.deposit_payment_method AS depositPaymentMethod,
-                c.full_insurance_enabled AS fullInsuranceEnabled,
-                c.full_insurance_price AS fullInsurancePrice,
-                c.baby_seat_enabled AS babySeatEnabled,
-                c.baby_seat_price AS babySeatPrice,
-                c.island_trip_enabled AS islandTripEnabled,
-                c.island_trip_price AS islandTripPrice,
-                c.krabi_trip_enabled AS krabiTripEnabled,
-                c.krabi_trip_price AS krabiTripPrice,
                 c.pickup_hotel AS pickupHotel,
                 c.pickup_room AS pickupRoom,
                 c.delivery_cost AS deliveryCost,
@@ -144,10 +131,13 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
                 p.status,
                 p.notes,
                 p.created_at AS createdAt,
+                p.extra_type AS extraType,
+                p.extra_enabled AS extraEnabled,
+                p.extra_price AS extraPrice,
                 pt.name AS paymentTypeName,
                 pt.sign AS paymentTypeSign
             FROM payments p
-            JOIN payment_types pt ON pt.id = p.payment_type_id
+            LEFT JOIN payment_types pt ON pt.id = p.payment_type_id
             WHERE p.contract_id = ?
             ORDER BY p.created_at ASC
         `)
@@ -160,9 +150,16 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 
 export default function ContractDetails() {
     const { contract, payments } = useLoaderData<typeof loader>();
+    const extraNameMap: Record<string, string> = {
+        full_insurance: "Full Insurance",
+        baby_seat: "Baby Seat",
+        island_trip: "Island Trip",
+        krabi_trip: "Krabi Trip",
+    };
 
     const carPhotos = contract.carPhotos ? JSON.parse(contract.carPhotos) : [];
     const contractPhotos = contract.photos ? JSON.parse(contract.photos) : [];
+    const extras = payments.filter((p: ContractPaymentRow) => p.extraType && (p.extraEnabled ?? 0) === 1);
 
     const getStatusVariant = (status: string | null) => {
         switch (status) {
@@ -268,18 +265,14 @@ export default function ContractDetails() {
                             </span>
                         </div>
                     )}
-                    {contract.fullInsuranceEnabled && (
-                        <div className="flex justify-between">
-                            <span className="text-gray-600">Full Insurance</span>
-                            <span className="font-semibold">฿{contract.fullInsurancePrice}</span>
+                    {extras.map((extra: ContractPaymentRow) => (
+                        <div key={`extra-${extra.id}`} className="flex justify-between">
+                            <span className="text-gray-600">{extraNameMap[String(extra.extraType)] || extra.extraType}</span>
+                            <span className="font-semibold">
+                                {extra.currency || contract.totalCurrency} {Number(extra.extraPrice ?? extra.amount ?? 0)}
+                            </span>
                         </div>
-                    )}
-                    {contract.babySeatEnabled && (
-                        <div className="flex justify-between">
-                            <span className="text-gray-600">Baby Seat</span>
-                            <span className="font-semibold">฿{contract.babySeatPrice}</span>
-                        </div>
-                    )}
+                    ))}
                     {(contract.deliveryCost ?? 0) > 0 && (
                         <div className="flex justify-between">
                             <span className="text-gray-600">Delivery Fee</span>
@@ -297,14 +290,16 @@ export default function ContractDetails() {
                         {payments.map((payment: ContractPaymentRow) => (
                             <div key={payment.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
                                 <div>
-                                    <p className="font-medium">{payment.paymentTypeName}</p>
+                                    <p className="font-medium">
+                                        {payment.extraType ? (extraNameMap[String(payment.extraType)] || payment.extraType) : (payment.paymentTypeName || "Payment")}
+                                    </p>
                                     <p className="text-sm text-gray-500">
                                         {format(new Date(payment.createdAt), "MMM dd, yyyy HH:mm")}
                                     </p>
                                 </div>
                                 <div className="text-right">
-                                    <p className={`font-semibold ${payment.paymentTypeSign === '+' ? 'text-green-600' : 'text-red-600'}`}>
-                                        {payment.paymentTypeSign}{payment.currency} {payment.amount}
+                                    <p className={`font-semibold ${payment.paymentTypeSign === '-' ? 'text-red-600' : 'text-green-600'}`}>
+                                        {(payment.paymentTypeSign || '+')}{payment.currency} {payment.amount}
                                     </p>
                                     <p className="text-sm text-gray-500">{payment.paymentMethod}</p>
                                 </div>

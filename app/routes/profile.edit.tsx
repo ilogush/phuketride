@@ -25,8 +25,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const rawUser = (await context.cloudflare.env.DB
         .prepare(`
             SELECT id, email, role, name, surname, phone, whatsapp, telegram,
-                   passport_number AS passportNumber, citizenship, city, country_id AS countryId,
-                   date_of_birth AS dateOfBirth, gender, passport_photos AS passportPhotos,
+                   passport_number AS passportNumber, country_id AS countryId,
+                   date_of_birth AS dateOfBirth, passport_photos AS passportPhotos,
                    driver_license_photos AS driverLicensePhotos, avatar_url AS avatarUrl,
                    hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
                    district_id AS districtId, address
@@ -68,8 +68,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const currentUser = (await context.cloudflare.env.DB
         .prepare(`
             SELECT id, email, role, name, surname, phone, whatsapp, telegram,
-                   passport_number AS passportNumber, citizenship, city, country_id AS countryId,
-                   date_of_birth AS dateOfBirth, gender, avatar_url AS avatarUrl,
+                   passport_number AS passportNumber, country_id AS countryId,
+                   date_of_birth AS dateOfBirth, avatar_url AS avatarUrl,
                    hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
                    district_id AS districtId, address
             FROM users
@@ -121,11 +121,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
         whatsapp: (formData.get("whatsapp") as string) || null,
         telegram: (formData.get("telegram") as string) || null,
         passportNumber: (formData.get("passportNumber") as string) || null,
-        citizenship: (formData.get("citizenship") as string) || null,
-        city: (formData.get("city") as string) || null,
         countryId: formData.get("countryId") ? parseInt(formData.get("countryId") as string) : null,
         dateOfBirth: (formData.get("dateOfBirth") as string) || null,
-        gender: (formData.get("gender") as "male" | "female" | "other") || null,
         hotelId: formData.get("hotelId") ? parseInt(formData.get("hotelId") as string) : null,
         roomNumber: (formData.get("roomNumber") as string) || null,
         locationId: formData.get("locationId") ? parseInt(formData.get("locationId") as string) : null,
@@ -188,8 +185,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
             .prepare(`
                 UPDATE users
                 SET role = ?, name = ?, surname = ?, phone = ?, whatsapp = ?, telegram = ?,
-                    passport_number = ?, citizenship = ?, city = ?, country_id = ?, date_of_birth = ?,
-                    gender = ?, avatar_url = ?, passport_photos = ?, driver_license_photos = ?,
+                    passport_number = ?, country_id = ?, date_of_birth = ?,
+                    avatar_url = ?, passport_photos = ?, driver_license_photos = ?,
                     hotel_id = ?, room_number = ?, location_id = ?, district_id = ?, address = ?,
                     password_hash = COALESCE(?, password_hash),
                     updated_at = ?
@@ -203,11 +200,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 validData.whatsapp,
                 validData.telegram,
                 validData.passportNumber,
-                validData.citizenship,
-                validData.city,
                 validData.countryId,
                 dateOfBirth,
-                validData.gender,
                 avatarUrl,
                 passportPhotos,
                 driverLicensePhotos,
