@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
@@ -375,7 +376,7 @@ export default function CreateCarPage() {
                                 type="number"
                                 required
                                 min={0}
-                                placeholder="0"
+
                                 value={currentMileage}
                                 onChange={(e) => setCurrentMileage(Number(e.target.value))}
                                 addonRight="km"

@@ -7,6 +7,62 @@ import BackButton from "~/components/dashboard/BackButton";
 import Card from "~/components/dashboard/Card";
 import StatusBadge from "~/components/dashboard/StatusBadge";
 
+interface ContractDetailsRow {
+    id: number;
+    startDate: string;
+    endDate: string;
+    actualEndDate: string | null;
+    totalAmount: number;
+    totalCurrency: string;
+    depositAmount: number | null;
+    depositCurrency: string | null;
+    depositPaymentMethod: string | null;
+    fullInsuranceEnabled: number;
+    fullInsurancePrice: number | null;
+    babySeatEnabled: number;
+    babySeatPrice: number | null;
+    islandTripEnabled: number;
+    islandTripPrice: number | null;
+    krabiTripEnabled: number;
+    krabiTripPrice: number | null;
+    pickupHotel: string | null;
+    pickupRoom: string | null;
+    deliveryCost: number | null;
+    returnHotel: string | null;
+    returnRoom: string | null;
+    returnCost: number | null;
+    startMileage: number | null;
+    endMileage: number | null;
+    fuelLevel: string | null;
+    cleanliness: string | null;
+    status: string | null;
+    photos: string | null;
+    notes: string | null;
+    createdAt: string;
+    carId: number;
+    carLicensePlate: string;
+    carYear: number;
+    carTransmission: string | null;
+    carPhotos: string | null;
+    brandName: string | null;
+    modelName: string | null;
+    colorName: string | null;
+    pickupDistrictName: string | null;
+    returnDistrictName: string | null;
+}
+
+interface ContractPaymentRow {
+    id: number;
+    amount: number;
+    currency: string;
+    paymentMethod: string | null;
+    status: string | null;
+    notes: string | null;
+    createdAt: string;
+    paymentTypeName: string;
+    paymentTypeSign: "+" | "-";
+}
+
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const { id } = params;
@@ -15,7 +71,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         throw new Response("Contract ID is required", { status: 400 });
     }
 
-    const contract = await context.cloudflare.env.DB
+    const contract = (await context.cloudflare.env.DB
         .prepare(`
             SELECT
                 c.id,
@@ -71,14 +127,14 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
             LIMIT 1
         `)
         .bind(Number(id), user.id)
-        .first<any>();
+        .first()) as ContractDetailsRow | null;
 
     if (!contract) {
         throw new Response("Contract not found", { status: 404 });
     }
 
     // Get payments for this contract
-    const paymentsResult = await context.cloudflare.env.DB
+    const paymentsResult = (await context.cloudflare.env.DB
         .prepare(`
             SELECT
                 p.id,
@@ -96,7 +152,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
             ORDER BY p.created_at ASC
         `)
         .bind(Number(id))
-        .all() as { results?: any[] };
+        .all()) as { results?: ContractPaymentRow[] };
     const payments = paymentsResult.results || [];
 
     return { contract, payments };
@@ -238,7 +294,7 @@ export default function ContractDetails() {
                 <h2 className="text-lg font-semibold mb-4">Payment History</h2>
                 {payments.length > 0 ? (
                     <div className="space-y-3">
-                        {payments.map((payment) => (
+                        {payments.map((payment: ContractPaymentRow) => (
                             <div key={payment.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
                                 <div>
                                     <p className="font-medium">{payment.paymentTypeName}</p>

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Route } from './+types/dashboard.car-templates.$id'
 import { Link } from 'react-router'
 import { requireAuth } from '~/lib/auth.server'

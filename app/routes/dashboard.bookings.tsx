@@ -9,6 +9,30 @@ import SimplePagination from "~/components/dashboard/SimplePagination";
 
 const ITEMS_PER_PAGE = 20;
 
+interface CountRow {
+    count: number;
+}
+
+interface BookingRow {
+    id: number;
+    startDate: string;
+    endDate: string;
+    estimatedAmount: number;
+    currency: string;
+    depositAmount: number | null;
+    depositPaid: number;
+    status: "pending" | "confirmed" | "converted" | "cancelled";
+    createdAt: string;
+    clientName: string;
+    clientSurname: string;
+    clientPhone: string;
+    clientEmail: string | null;
+    carLicensePlate: string;
+    carYear: number;
+    brandName: string | null;
+    modelName: string | null;
+}
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     
@@ -32,8 +56,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         ${whereSql}
     `;
     const countResult = status === "all"
-        ? await context.cloudflare.env.DB.prepare(countSql).bind(user.companyId).first<any>()
-        : await context.cloudflare.env.DB.prepare(countSql).bind(user.companyId, status).first<any>();
+        ? ((await context.cloudflare.env.DB.prepare(countSql).bind(user.companyId).first()) as CountRow | null)
+        : ((await context.cloudflare.env.DB.prepare(countSql).bind(user.companyId, status).first()) as CountRow | null);
     const totalItems = Number(countResult?.count || 0);
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
@@ -68,7 +92,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const bookingsResult = status === "all"
         ? await context.cloudflare.env.DB.prepare(bookingsSql).bind(user.companyId, ITEMS_PER_PAGE, offset).all()
         : await context.cloudflare.env.DB.prepare(bookingsSql).bind(user.companyId, status, ITEMS_PER_PAGE, offset).all();
-    const bookings = (bookingsResult as any).results || [];
+    const bookings = (bookingsResult.results ?? []) as BookingRow[];
 
     return { bookings, totalPages, currentPage: page, status };
 }
@@ -147,7 +171,7 @@ export default function BookingsPage() {
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 {bookings.length > 0 ? (
                     <div className="divide-y divide-gray-200">
-                        {bookings.map((booking) => (
+                        {bookings.map((booking: BookingRow) => (
                             <Link
                                 key={booking.id}
                                 to={`/dashboard/bookings/${booking.id}`}

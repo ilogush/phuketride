@@ -6,9 +6,17 @@ export default [
     route("register", "routes/register.tsx"),
     route("register-partner", "routes/register-partner.tsx"),
     route("logout", "routes/logout.tsx"),
-    
+
     // R2 assets route
     route("assets/*", "routes/assets.$.tsx"),
+    route("become-a-host", "routes/become-a-host.tsx"),
+    route("why-choose-phuket-ride", "routes/why-choose-phuket-ride.tsx"),
+    route("gift-cards", "routes/gift-cards.tsx"),
+    route("contact-support", "routes/contact-support.tsx"),
+    route("legal", "routes/legal.tsx"),
+    route("insurance-protection", "routes/insurance-protection.tsx"),
+    route("host-tools", "routes/host-tools.tsx"),
+    route("carculator", "routes/carculator.tsx"),
 
     // Company standalone dashboard (Phuket Ride Co.)
     route("companies/:companyId", "routes/companies.$companyId.tsx"),

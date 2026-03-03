@@ -1,10 +1,12 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
 import { Form, Link, useActionData, useSearchParams } from "react-router";
 import { getUserFromSession, login } from "~/lib/auth.server";
+import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 import { useState, useEffect } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import Button from "~/components/dashboard/Button";
+import { loginSchema } from "~/schemas/user";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     try {
@@ -21,13 +23,25 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
     try {
-        const formData = await request.formData();
-        const email = formData.get("email") as string;
-        const password = formData.get("password") as string;
-
-        if (!email || !password) {
-            return { error: "Email and password are required" };
+        const identifier = getClientIdentifier(request);
+        const rateLimit = await checkRateLimit(
+            (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
+            identifier,
+            "login"
+        );
+        if (!rateLimit.allowed) {
+            return { error: "Too many login attempts. Try again later." };
         }
+
+        const formData = await request.formData();
+        const parsed = loginSchema.safeParse({
+            email: formData.get("email"),
+            password: formData.get("password"),
+        });
+        if (!parsed.success) {
+            return { error: parsed.error.errors[0]?.message || "Validation failed" };
+        }
+        const { email, password } = parsed.data;
 
         if (!context.cloudflare.env.DB) {
             return { error: "Database is not configured" };

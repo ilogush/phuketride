@@ -4,26 +4,12 @@ const PBKDF2_ITERATIONS = 100_000;
 const DK_LEN_BYTES = 32;
 
 function bytesToBase64(bytes: Uint8Array): string {
-    // Node (dev) path
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (typeof Buffer !== "undefined") {
-        return Buffer.from(bytes).toString("base64");
-    }
-
-    // Worker path
     let bin = "";
     for (const b of bytes) bin += String.fromCharCode(b);
-    // eslint-disable-next-line no-undef
     return btoa(bin);
 }
 
 function base64ToBytes(b64: string): Uint8Array {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (typeof Buffer !== "undefined") {
-        return new Uint8Array(Buffer.from(b64, "base64"));
-    }
-
-    // eslint-disable-next-line no-undef
     const bin = atob(b64);
     const out = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
@@ -47,8 +33,12 @@ async function deriveKey(password: string, salt: Uint8Array, iterations: number)
         ["deriveBits"]
     );
 
+    // Make salt a plain ArrayBuffer-backed view compatible with BufferSource typing.
+    const saltBuffer = new ArrayBuffer(salt.byteLength);
+    new Uint8Array(saltBuffer).set(salt);
+
     const bits = await crypto.subtle.deriveBits(
-        { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+        { name: "PBKDF2", salt: new Uint8Array(saltBuffer), iterations, hash: "SHA-256" },
         keyMaterial,
         DK_LEN_BYTES * 8
     );

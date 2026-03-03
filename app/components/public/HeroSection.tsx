@@ -78,7 +78,7 @@ export default function HeroSection({ districts }: HeroSectionProps) {
                           type="button"
                           onClick={() => handleLocationSelect(district)}
                           aria-selected={selectedDistrict === district}
-                          className={`w-full px-4 py-3 text-left transition-colors text-base flex items-center justify-between ${selectedDistrict === district ? "bg-indigo-50 text-indigo-700" : "text-gray-800 hover:bg-gray-50"}`}
+                          className={`w-full px-4 py-3 text-left transition-colors text-base flex items-center justify-between ${selectedDistrict === district ? "bg-indigo-50 text-indigo-700" : "text-gray-800 hover:bg-indigo-100"}`}
                         >
                           <span className="inline-flex items-center gap-2">
                             <MapPinIcon className="h-4 w-4 shrink-0" />

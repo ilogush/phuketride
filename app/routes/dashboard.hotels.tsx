@@ -11,6 +11,7 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
+import { getRequestMetadata, quickAudit } from "~/lib/audit-logger";
 
 interface Hotel {
     id: number;
@@ -55,9 +56,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    await requireAuth(request);
+    const user = await requireAuth(request);
     const formData = await request.formData();
     const intent = formData.get("intent");
+    const metadata = getRequestMetadata(request);
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));
@@ -66,6 +68,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 .prepare("DELETE FROM hotels WHERE id = ?")
                 .bind(id)
                 .run();
+            quickAudit({
+                db: context.cloudflare.env.DB,
+                userId: user.id,
+                role: user.role,
+                companyId: user.companyId,
+                entityType: "hotel",
+                entityId: id,
+                action: "delete",
+                ...metadata,
+            });
             return redirect("/hotels?success=Hotel deleted successfully");
         } catch {
             return redirect("/hotels?error=Failed to delete hotel");
@@ -83,6 +95,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 .prepare("INSERT INTO hotels (name, location_id, district_id, address) VALUES (?, ?, ?, ?)")
                 .bind(name, locationId, districtId, address || null)
                 .run();
+            quickAudit({
+                db: context.cloudflare.env.DB,
+                userId: user.id,
+                role: user.role,
+                companyId: user.companyId,
+                entityType: "hotel",
+                action: "create",
+                afterState: { name, locationId, districtId, address: address || null },
+                ...metadata,
+            });
             return redirect("/hotels?success=Hotel created successfully");
         } catch {
             return redirect("/hotels?error=Failed to create hotel");
@@ -101,6 +123,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 .prepare("UPDATE hotels SET name = ?, location_id = ?, district_id = ?, address = ? WHERE id = ?")
                 .bind(name, locationId, districtId, address || null, id)
                 .run();
+            quickAudit({
+                db: context.cloudflare.env.DB,
+                userId: user.id,
+                role: user.role,
+                companyId: user.companyId,
+                entityType: "hotel",
+                entityId: id,
+                action: "update",
+                afterState: { name, locationId, districtId, address: address || null },
+                ...metadata,
+            });
             return redirect("/hotels?success=Hotel updated successfully");
         } catch {
             return redirect("/hotels?error=Failed to update hotel");

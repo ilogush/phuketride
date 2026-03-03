@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useNavigate, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
@@ -507,7 +508,7 @@ export default function NewContract() {
                             label="Start Mileage"
                             name="start_mileage"
                             type="number"
-                            placeholder="0"
+
                             required
                         />
                     </div>

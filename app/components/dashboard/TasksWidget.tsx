@@ -43,11 +43,11 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
         if (!entity) return null
         
         const urlMap = {
-            contract: `/contracts/${entity.id}`,
-            car: `/cars/${entity.id}`,
+            contract: `/contracts/${entity.id}/edit`,
+            car: `/cars/${entity.id}/edit`,
             payment: `/payments/${entity.id}`,
-            user: `/users/${entity.id}`,
-            company: `/companies/${entity.id}`,
+            user: `/users/${entity.id}/edit`,
+            company: `/companies/${entity.id}/edit`,
         }
         
         return urlMap[entity.type]

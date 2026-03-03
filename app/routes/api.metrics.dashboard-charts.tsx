@@ -1,6 +1,10 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 
+interface CountRow {
+    count: number;
+}
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     try {
         await requireAuth(request);
@@ -17,10 +21,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             const nextDate = new Date(date);
             nextDate.setDate(nextDate.getDate() + 1);
 
-            const result = await d1
+            const result = (await d1
                 .prepare("SELECT count(*) AS count FROM contracts WHERE created_at >= ? AND created_at < ?")
                 .bind(date.getTime(), nextDate.getTime())
-                .first<{ count: number }>();
+                .first()) as CountRow | null;
 
             activityByDay.push({
                 date: dateStr,
@@ -42,16 +46,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         const companiesByLocation = companiesByLocationRaw.results as Array<{ location: string; count: number }>;
 
         // Contract stats
-        const activeResult = await d1
+        const activeResult = (await d1
             .prepare("SELECT count(*) AS count FROM contracts WHERE status = 'active'")
-            .first<{ count: number }>();
-        const closedResult = await d1
+            .first()) as CountRow | null;
+        const closedResult = (await d1
             .prepare("SELECT count(*) AS count FROM contracts WHERE status = 'closed'")
-            .first<{ count: number }>();
-        const closedTodayResult = await d1
+            .first()) as CountRow | null;
+        const closedTodayResult = (await d1
             .prepare("SELECT count(*) AS count FROM contracts WHERE status = 'closed' AND updated_at >= ?")
             .bind(new Date(new Date().setHours(0, 0, 0, 0)).getTime())
-            .first<{ count: number }>();
+            .first()) as CountRow | null;
 
         const contractStats = {
             active: activeResult?.count || 0,

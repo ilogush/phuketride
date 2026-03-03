@@ -19,16 +19,8 @@ async function main() {
     console.log(hash);
     console.log();
     
-    console.log("📝 SQL command to update the user:");
-    console.log("─".repeat(80));
-    console.log(`wrangler d1 execute phuketride-bd --remote --command "UPDATE users SET password_hash = '${hash}' WHERE email = '${EMAIL}';"`);
-    console.log("─".repeat(80));
-    console.log();
-    
-    console.log("Or run this SQL in Wrangler Studio:");
-    console.log("─".repeat(80));
-    console.log(`UPDATE users SET password_hash = '${hash}' WHERE email = '${EMAIL}';`);
-    console.log("─".repeat(80));
+    console.log("Use parameterized update via your secure admin flow or migration script.");
+    console.log("Avoid building SQL with string interpolation for email/hash values.");
 }
 
 main().catch((error) => {

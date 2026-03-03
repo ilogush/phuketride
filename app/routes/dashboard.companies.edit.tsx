@@ -7,6 +7,7 @@ import Button from "~/components/dashboard/Button";
 import BackButton from "~/components/dashboard/BackButton";
 import FormSection from "~/components/dashboard/FormSection";
 import { useLatinValidation } from "~/lib/useLatinValidation";
+import { z } from "zod";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -35,30 +36,54 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     await requireAuth(request);
     const companyId = parseInt(params.companyId || "0");
     const formData = await request.formData();
-
-    const name = formData.get("name") as string;
-    const email = formData.get("email") as string;
-    const phone = formData.get("phone") as string;
-    const telegram = formData.get("telegram") as string;
-    const street = formData.get("street") as string;
-    const houseNumber = formData.get("houseNumber") as string;
-    const address = formData.get("address") as string;
-    const bankName = formData.get("bankName") as string;
-    const accountNumber = formData.get("accountNumber") as string;
-    const accountName = formData.get("accountName") as string;
-    const swiftCode = formData.get("swiftCode") as string;
-    const preparationTime = parseInt(formData.get("preparationTime") as string) || 30;
-    const deliveryFeeAfterHours = parseFloat(formData.get("deliveryFeeAfterHours") as string) || 0;
-
-    const errors: Record<string, string> = {};
-
-    if (!name) errors.name = "Company name is required";
-    if (!email) errors.email = "Email is required";
-    if (!phone) errors.phone = "Phone is required";
-
-    if (Object.keys(errors).length > 0) {
-        return { errors };
+    const editCompanySchema = z.object({
+        name: z.string().trim().min(1, "Company name is required"),
+        email: z.string().trim().email("Invalid email format"),
+        phone: z.string().trim().min(1, "Phone is required"),
+        telegram: z.string().trim().optional(),
+        street: z.string().trim().optional(),
+        houseNumber: z.string().trim().optional(),
+        address: z.string().trim().optional(),
+        bankName: z.string().trim().optional(),
+        accountNumber: z.string().trim().optional(),
+        accountName: z.string().trim().optional(),
+        swiftCode: z.string().trim().optional(),
+        preparationTime: z.coerce.number().int().min(0).max(1440).default(30),
+        deliveryFeeAfterHours: z.coerce.number().min(0).default(0),
+    });
+    const parsed = editCompanySchema.safeParse({
+        name: formData.get("name"),
+        email: formData.get("email"),
+        phone: formData.get("phone"),
+        telegram: formData.get("telegram"),
+        street: formData.get("street"),
+        houseNumber: formData.get("houseNumber"),
+        address: formData.get("address"),
+        bankName: formData.get("bankName"),
+        accountNumber: formData.get("accountNumber"),
+        accountName: formData.get("accountName"),
+        swiftCode: formData.get("swiftCode"),
+        preparationTime: formData.get("preparationTime") || 30,
+        deliveryFeeAfterHours: formData.get("deliveryFeeAfterHours") || 0,
+    });
+    if (!parsed.success) {
+        return { errors: { form: parsed.error.errors[0]?.message || "Validation failed" } };
     }
+    const {
+        name,
+        email,
+        phone,
+        telegram,
+        street,
+        houseNumber,
+        address,
+        bankName,
+        accountNumber,
+        accountName,
+        swiftCode,
+        preparationTime,
+        deliveryFeeAfterHours,
+    } = parsed.data;
 
     try {
         await context.cloudflare.env.DB
@@ -102,7 +127,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             )
             .run();
 
-        return redirect(`/companies/${companyId}?success=Company updated successfully`);
+        return redirect(`/companies/${companyId}/edit?success=Company updated successfully`);
     } catch {
         return redirect(`/companies/${companyId}/edit?error=Failed to update company`);
     }
@@ -111,7 +136,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 export default function CompanyEditPage() {
     const { company } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
-    const errors = actionData?.errors || {};
+    const errors: Record<string, string> = (actionData as { errors?: Record<string, string> } | undefined)?.errors || {};
     const { validateLatinInput } = useLatinValidation();
 
     if (!company) {
@@ -133,7 +158,7 @@ export default function CompanyEditPage() {
             <PageHeader
                 title={`Edit: ${company.name}`}
                 leftActions={
-                    <Link to={`/companies/${company.id}`}>
+                    <Link to="/companies">
                         <BackButton />
                     </Link>
                 }
@@ -273,14 +298,14 @@ export default function CompanyEditPage() {
                                 name="deliveryFeeAfterHours"
                                 type="number"
                                 step="0.01"
-                                placeholder="0"
+
                                 defaultValue={company.deliveryFeeAfterHours || 0}
                             />
                         </div>
                     </FormSection>
 
                     <div className="flex justify-end gap-4 pt-6 mt-6 border-t border-gray-100">
-                        <Link to={`/companies/${company.id}`}>
+                        <Link to="/companies">
                             <Button variant="secondary" type="button">
                                 Cancel
                             </Button>

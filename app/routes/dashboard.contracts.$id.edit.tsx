@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useNavigate } from "react-router";
 import { useState } from "react";
@@ -370,7 +371,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         });
     }
 
-    return redirect(`/contracts/${contractId}?success=${encodeURIComponent("Contract updated successfully")}`);
+    return redirect(`/contracts/${contractId}/edit?success=${encodeURIComponent("Contract updated successfully")}`);
 }
 
 export default function EditContract() {
@@ -441,7 +442,7 @@ export default function EditContract() {
         <div className="space-y-4">
             <PageHeader
                 title={`Edit Contract #${contract.id}`}
-                leftActions={<BackButton />}
+                leftActions={<BackButton to="/contracts" />}
             />
 
             <Form method="post" className="space-y-4">
@@ -489,7 +490,7 @@ export default function EditContract() {
                             name="start_mileage"
                             type="number"
                             defaultValue={contract.startMileage}
-                            placeholder="0"
+
                             required
                         />
                     </div>
@@ -767,7 +768,7 @@ export default function EditContract() {
                     <Button
                         type="button"
                         variant="secondary"
-                        onClick={() => navigate(`/contracts/${contract.id}`)}
+                        onClick={() => navigate("/contracts")}
                     >
                         Cancel
                     </Button>

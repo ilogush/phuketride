@@ -11,6 +11,18 @@ export const sessionCookie = createCookie("session", {
     path: "/",
 });
 
+export async function serializeSession(
+    request: Request,
+    data: SessionUser | null,
+    options?: { maxAge?: number }
+) {
+    const isSecureRequest = request.url.startsWith("https://");
+    return sessionCookie.serialize(data, {
+        secure: isSecureRequest,
+        ...(options?.maxAge !== undefined ? { maxAge: options.maxAge } : {}),
+    });
+}
+
 export type UserRole = "admin" | "partner" | "manager" | "user";
 
 export interface SessionUser {
@@ -248,11 +260,7 @@ export async function login(
 
 // Logout user
 export async function logout(request: Request): Promise<string> {
-    const isSecureRequest = request.url.startsWith("https://");
-    return await sessionCookie.serialize(null, {
-        maxAge: 0,
-        secure: isSecureRequest,
-    });
+    return serializeSession(request, null, { maxAge: 0 });
 }
 
 // Get company ID for current user (for multi-tenancy)

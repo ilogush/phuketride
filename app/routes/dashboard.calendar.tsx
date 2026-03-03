@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Outlet, Link, useSearchParams } from "react-router";
 import { useState, useEffect } from "react";

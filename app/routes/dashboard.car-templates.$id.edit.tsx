@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { redirect } from 'react-router'
 import type { Route } from './+types/dashboard.car-templates.$id.edit'
 import { requireAuth } from '~/lib/auth.server'

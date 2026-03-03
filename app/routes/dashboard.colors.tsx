@@ -7,6 +7,7 @@ import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon, SwatchIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
+import { getRequestMetadata, quickAudit } from "~/lib/audit-logger";
 
 interface Color {
     id: number;
@@ -25,9 +26,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    await requireAuth(request);
+    const user = await requireAuth(request);
     const formData = await request.formData();
     const intent = formData.get("intent");
+    const metadata = getRequestMetadata(request);
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));
@@ -37,6 +39,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 .prepare("DELETE FROM colors WHERE id = ?")
                 .bind(id)
                 .run();
+            quickAudit({
+                db: context.cloudflare.env.DB,
+                userId: user.id,
+                role: user.role,
+                companyId: user.companyId,
+                entityType: "color",
+                entityId: id,
+                action: "delete",
+                ...metadata,
+            });
 
             return redirect("/colors?success=Color deleted successfully");
         } catch {
@@ -69,6 +81,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
                     .bind(color.name, color.hexCode)
                     .run();
             }
+            quickAudit({
+                db: context.cloudflare.env.DB,
+                userId: user.id,
+                role: user.role,
+                companyId: user.companyId,
+                entityType: "color",
+                action: "create",
+                afterState: { count: defaultColors.length, source: "seed" },
+                ...metadata,
+            });
             return redirect("/colors?success=Default colors created successfully");
         } catch {
             return redirect("/colors?error=Failed to create default colors");

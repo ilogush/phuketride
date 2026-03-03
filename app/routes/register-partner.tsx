@@ -6,7 +6,9 @@ import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
+import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 import Button from "~/components/dashboard/Button";
+import { z } from "zod";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     // If already logged in, redirect to dashboard
@@ -32,56 +34,57 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
+    const identifier = getClientIdentifier(request);
+    const rateLimit = await checkRateLimit(
+        (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
+        identifier,
+        "register"
+    );
+    if (!rateLimit.allowed) {
+        return { error: "Too many registration attempts. Try again later." };
+    }
+
     const formData = await request.formData();
-    
-    // User data
-    const email = (formData.get("email") as string)?.trim();
-    const password = formData.get("password") as string;
-    const name = (formData.get("name") as string)?.trim();
-    const surname = (formData.get("surname") as string)?.trim();
-    const phone = (formData.get("phone") as string)?.trim();
-    const telegram = (formData.get("telegram") as string)?.trim() || null;
-    
-    // Company data
-    const companyName = (formData.get("companyName") as string)?.trim();
-    const districtId = formData.get("districtId") as string;
-    const street = (formData.get("street") as string)?.trim();
-    const houseNumber = (formData.get("houseNumber") as string)?.trim();
-
-    // Required fields validation
-    if (!email || !password || !name || !surname || !phone) {
-        return { error: "All required fields must be filled" };
-    }
-
-    if (!companyName || !districtId || !street || !houseNumber) {
-        return { error: "All company fields are required" };
-    }
-
-    // Password length validation
-    if (password.length < PASSWORD_MIN_LENGTH) {
-        return { error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters` };
-    }
-
-    // Latin characters validation
     const latinRegex = /^[a-zA-Z\s\-']+$/;
-    if (!latinRegex.test(name)) {
-        return { error: "Only Latin characters allowed in first name" };
+    const registerPartnerSchema = z.object({
+        email: z.string().trim().email("Invalid email format"),
+        password: z.string().min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`),
+        name: z.string().trim().min(1, "First name is required").regex(latinRegex, "Only Latin characters allowed in first name"),
+        surname: z.string().trim().min(1, "Last name is required").regex(latinRegex, "Only Latin characters allowed in last name"),
+        phone: z.string().trim().refine((value) => /^\+?[0-9]{10,15}$/.test(value.replace(/[\s\-()]/g, "")), "Invalid phone number format"),
+        telegram: z.string().trim().optional(),
+        companyName: z.string().trim().min(1, "Company name is required"),
+        districtId: z.coerce.number().int().positive("District is required"),
+        street: z.string().trim().min(1, "Street is required"),
+        houseNumber: z.string().trim().min(1, "House number is required"),
+    });
+    const parsed = registerPartnerSchema.safeParse({
+        email: formData.get("email"),
+        password: formData.get("password"),
+        name: formData.get("name"),
+        surname: formData.get("surname"),
+        phone: formData.get("phone"),
+        telegram: formData.get("telegram"),
+        companyName: formData.get("companyName"),
+        districtId: formData.get("districtId"),
+        street: formData.get("street"),
+        houseNumber: formData.get("houseNumber"),
+    });
+    if (!parsed.success) {
+        return { error: parsed.error.errors[0]?.message || "Validation failed" };
     }
-    if (!latinRegex.test(surname)) {
-        return { error: "Only Latin characters allowed in last name" };
-    }
-
-    // Email format validation
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(email)) {
-        return { error: "Invalid email format" };
-    }
-
-    // Phone validation
-    const phoneRegex = /^\+?[0-9]{10,15}$/;
-    if (!phoneRegex.test(phone.replace(/[\s\-()]/g, ''))) {
-        return { error: "Invalid phone number format" };
-    }
+    const {
+        email,
+        password,
+        name,
+        surname,
+        phone,
+        telegram,
+        companyName,
+        districtId,
+        street,
+        houseNumber,
+    } = parsed.data;
 
     // Check if email already exists
     const existingUser = await context.cloudflare.env.DB
@@ -108,7 +111,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             context.cloudflare.env.DB.prepare(
                 `INSERT INTO companies (name, owner_id, email, phone, telegram, location_id, district_id, street, house_number, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`
-            ).bind(companyName, userId, email, phone, telegram, parseInt(districtId), street, houseNumber, Date.now(), Date.now())
+            ).bind(companyName, userId, email, phone, telegram || null, districtId, street, houseNumber, Date.now(), Date.now())
         ]);
 
         // Get company ID
@@ -127,8 +130,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
             companyId: companyResult?.id,
         };
 
-        const { sessionCookie } = await import("~/lib/auth.server");
-        const cookie = await sessionCookie.serialize(sessionUser);
+        const { serializeSession } = await import("~/lib/auth.server");
+        const cookie = await serializeSession(request, sessionUser);
 
         return redirect("/dashboard?login=success", {
             headers: {
@@ -344,12 +347,6 @@ export default function RegisterPartnerPage() {
                                 />
                             </div>
                         </div>
-
-                        {actionData?.error && (
-                            <div className="p-4 rounded-xl bg-red-50 border border-red-200">
-                                <p className="text-sm font-medium text-red-600">{actionData.error}</p>
-                            </div>
-                        )}
 
                         <Button
                             type="submit"

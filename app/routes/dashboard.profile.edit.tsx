@@ -17,9 +17,13 @@ import { userSchema } from "~/schemas/user";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
 
+type ProfileUserRow = Parameters<typeof ProfileForm>[0]["user"] & {
+    dateOfBirth: string | Date | null;
+};
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);
-    const fullUser = await context.cloudflare.env.DB
+    const rawUser = (await context.cloudflare.env.DB
         .prepare(`
             SELECT id, email, role, name, surname, phone, whatsapp, telegram,
                    passport_number AS passportNumber, citizenship, city, country_id AS countryId,
@@ -32,8 +36,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             LIMIT 1
         `)
         .bind(sessionUser.id)
-        .first<any>();
-    if (!fullUser) throw new Response("User not found", { status: 404 });
+        .first()) as ProfileUserRow | null;
+    if (!rawUser) throw new Response("User not found", { status: 404 });
+    const fullUser: ProfileUserRow = {
+        ...rawUser,
+        dateOfBirth: rawUser.dateOfBirth ? new Date(rawUser.dateOfBirth) : null,
+    };
 
     // Load reference data
     const [countries, hotels, locations, districts] = await Promise.all([
@@ -58,7 +66,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
 
     // Get current user data
-    const currentUser = await context.cloudflare.env.DB
+    const currentUser = (await context.cloudflare.env.DB
         .prepare(`
             SELECT id, email, role, name, surname, phone, whatsapp, telegram,
                    passport_number AS passportNumber, citizenship, city, country_id AS countryId,
@@ -70,7 +78,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             LIMIT 1
         `)
         .bind(user.id)
-        .first<any>();
+        .first()) as ProfileUserRow | null;
     if (!currentUser) throw new Response("User not found", { status: 404 });
 
     let avatarUrl = currentUser.avatarUrl;

@@ -8,6 +8,24 @@ import Button from "~/components/dashboard/Button";
 
 const ITEMS_PER_PAGE = 20;
 
+interface CountRow {
+    count: number;
+}
+
+interface MyContractRow {
+    id: number;
+    startDate: string;
+    endDate: string;
+    totalAmount: number;
+    totalCurrency: string;
+    status: "active" | "closed";
+    createdAt: string;
+    carLicensePlate: string;
+    carYear: number;
+    brandName: string | null;
+    modelName: string | null;
+}
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     
@@ -20,8 +38,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const whereSql = status === "all" ? "WHERE c.client_id = ?" : "WHERE c.client_id = ? AND c.status = ?";
     const countSql = `SELECT COUNT(*) AS count FROM contracts c ${whereSql}`;
     const countResult = status === "all"
-        ? await context.cloudflare.env.DB.prepare(countSql).bind(user.id).first<any>()
-        : await context.cloudflare.env.DB.prepare(countSql).bind(user.id, status).first<any>();
+        ? ((await context.cloudflare.env.DB.prepare(countSql).bind(user.id).first()) as CountRow | null)
+        : ((await context.cloudflare.env.DB.prepare(countSql).bind(user.id, status).first()) as CountRow | null);
 
     const totalItems = Number(countResult?.count || 0);
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
@@ -51,7 +69,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const contractsResult = status === "all"
         ? await context.cloudflare.env.DB.prepare(contractsSql).bind(user.id, ITEMS_PER_PAGE, offset).all()
         : await context.cloudflare.env.DB.prepare(contractsSql).bind(user.id, status, ITEMS_PER_PAGE, offset).all();
-    const contracts = (contractsResult as any).results || [];
+    const contracts = (contractsResult.results ?? []) as MyContractRow[];
 
     return { contracts, totalPages, currentPage: page, status };
 }
@@ -114,7 +132,7 @@ export default function MyContractsPage() {
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 {contracts.length > 0 ? (
                     <div className="divide-y divide-gray-200">
-                        {contracts.map((contract) => (
+                        {contracts.map((contract: MyContractRow) => (
                             <Link
                                 key={contract.id}
                                 to={`/dashboard/my-contracts/${contract.id}`}

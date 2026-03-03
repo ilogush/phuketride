@@ -287,142 +287,11 @@ export default function DateRangePicker({
           <div className="fixed inset-0 z-40" onClick={cancelDraft} />
           {(portalTargetId && portalTarget
             ? createPortal(
-                <div
-                  className={`absolute top-full mt-2 z-50 flex flex-col bg-white border border-transparent shadow-lg rounded-xl overflow-hidden ${
-                    dropdownFullWidth
-                      ? "!left-0 !right-0 w-auto max-w-none"
-                      : "left-0 right-0 w-auto max-w-none"
-                  }`}
-                >
-                  <div className="sm:flex sm:justify-center sm:gap-6 sm:px-6 md:px-8">
-                    {[monthOne, monthTwo].map((month, idx) => {
-                      const days = buildCalendar(month);
-                      const currentMonth = month.getMonth();
-
-                      return (
-                        <div key={month.toISOString()} className="p-4 sm:p-5 space-y-1 flex flex-col flex-1 min-w-[18rem] sm:max-w-[22rem]">
-                          <div className="grid grid-cols-5 items-center gap-x-3 mx-1.5 pb-3">
-                            <div className="col-span-1">
-                              {idx === 0 ? (
-                                <button
-                                  type="button"
-                                  className="size-8 flex justify-center items-center text-gray-800 hover:bg-gray-100 rounded-full"
-                                  onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
-                                >
-                                  <ChevronLeftIcon className="size-4" />
-                                </button>
-                              ) : (
-                                <div className="size-8" />
-                              )}
-                            </div>
-
-                            <div className="col-span-3 flex justify-center items-center gap-x-1 text-base font-medium text-gray-800">
-                              {monthLabel(month)}
-                            </div>
-
-                            <div className="col-span-1 flex justify-end">
-                              {idx === 1 ? (
-                                <button
-                                  type="button"
-                                  className="size-8 flex justify-center items-center text-gray-800 hover:bg-gray-100 rounded-full"
-                                  onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
-                                >
-                                  <ChevronRightIcon className="size-4" />
-                                </button>
-                              ) : (
-                                <div className="size-8" />
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-7 pb-1.5">
-                            {weekDays.map((day) => (
-                              <span key={day} className="m-px block text-center text-sm sm:text-base text-gray-500">{day}</span>
-                            ))}
-                          </div>
-
-                          <div className="grid grid-cols-7">
-                            {days.map((day, index) => {
-                              if (!day) {
-                                return <div key={`empty-${index}`} className="m-px h-10 sm:h-11" />;
-                              }
-
-                              const disabled = day.getMonth() !== currentMonth || isPastDay(day);
-                              const selectedStart = isSameDay(day, startDateObj);
-                              const selectedEnd = isSameDay(day, endDateObj);
-                              const inRange = isInRange(day);
-                              return (
-                                <div key={day.toISOString()} className={`flex justify-center ${inRange ? "bg-indigo-100/70" : ""}`}>
-                                  <button
-                                    type="button"
-                                    disabled={disabled}
-                                    onClick={() => handleDaySelect(day)}
-                                    className={`m-px size-10 sm:size-11 flex justify-center items-center border-[1.5px] text-base rounded-full disabled:pointer-events-none ${
-                                      selectedStart || selectedEnd
-                                        ? "bg-indigo-600 text-white border-transparent"
-                                        : disabled
-                                          ? "border-transparent text-gray-500"
-                                          : "border-transparent text-gray-800 hover:border-indigo-700 hover:text-indigo-700"
-                                    }`}
-                                  >
-                                    {day.getDate()}
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 py-3 px-4 border-t border-gray-200">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1">
-                        <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.startDate)} />
-                        <select
-                          value={draft.startTime}
-                          onChange={(event) => update({ startTime: event.target.value })}
-                          className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-indigo-600 focus:outline-none"
-                        >
-                          {timeOptions.map((time) => (
-                            <option key={`draft-start-${time.value}`} value={time.value}>{time.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.endDate)} />
-                        <select
-                          value={draft.endTime}
-                          onChange={(event) => update({ endTime: event.target.value })}
-                          className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-indigo-600 focus:outline-none"
-                        >
-                          {timeOptions.map((time) => (
-                            <option key={`draft-end-${time.value}`} value={time.value}>{time.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center md:justify-end gap-x-2">
-                      <button type="button" onClick={cancelDraft} className="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-800 hover:bg-gray-50">
-                        Cancel
-                      </button>
-                      <button type="button" onClick={applyDraft} className="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-xs font-medium rounded-lg border border-transparent bg-indigo-600 text-white hover:bg-indigo-700">
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                </div>,
-                portalTarget
-              )
-            : (
               <div
-                className={`absolute top-full mt-2 z-50 flex flex-col bg-white border border-transparent shadow-lg rounded-xl overflow-hidden ${
-                  dropdownFullWidth
-                    ? "!left-0 !right-0 w-auto max-w-none"
-                    : "right-0 w-full sm:w-[46rem] max-w-[95vw]"
-                }`}
+                className={`absolute top-full mt-2 z-50 flex flex-col bg-white border border-transparent shadow-lg rounded-xl overflow-hidden ${dropdownFullWidth
+                  ? "!left-0 !right-0 w-auto max-w-none"
+                  : "left-0 right-0 w-auto max-w-none"
+                  }`}
               >
                 <div className="sm:flex sm:justify-center sm:gap-6 sm:px-6 md:px-8">
                   {[monthOne, monthTwo].map((month, idx) => {
@@ -436,7 +305,7 @@ export default function DateRangePicker({
                             {idx === 0 ? (
                               <button
                                 type="button"
-                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-gray-100 rounded-full"
+                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-indigo-100 rounded-full"
                                 onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
                               >
                                 <ChevronLeftIcon className="size-4" />
@@ -454,7 +323,135 @@ export default function DateRangePicker({
                             {idx === 1 ? (
                               <button
                                 type="button"
-                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-gray-100 rounded-full"
+                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-indigo-100 rounded-full"
+                                onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
+                              >
+                                <ChevronRightIcon className="size-4" />
+                              </button>
+                            ) : (
+                              <div className="size-8" />
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-7 pb-1.5">
+                          {weekDays.map((day) => (
+                            <span key={day} className="m-px block text-center text-sm sm:text-base text-gray-500">{day}</span>
+                          ))}
+                        </div>
+
+                        <div className="grid grid-cols-7">
+                          {days.map((day, index) => {
+                            if (!day) {
+                              return <div key={`empty-${index}`} className="m-px h-10 sm:h-11" />;
+                            }
+
+                            const disabled = day.getMonth() !== currentMonth || isPastDay(day);
+                            const selectedStart = isSameDay(day, startDateObj);
+                            const selectedEnd = isSameDay(day, endDateObj);
+                            const inRange = isInRange(day);
+                            return (
+                              <div key={day.toISOString()} className={`flex justify-center ${inRange ? "bg-indigo-100/70" : ""} ${selectedStart ? "rounded-l-full" : ""} ${selectedEnd ? "rounded-r-full" : ""}`}>
+                                <button
+                                  type="button"
+                                  disabled={disabled}
+                                  onClick={() => handleDaySelect(day)}
+                                  className={`m-px size-10 sm:size-11 flex justify-center items-center border-[1.5px] text-base rounded-full disabled:pointer-events-none ${selectedStart || selectedEnd
+                                    ? "bg-indigo-600 text-white border-transparent"
+                                    : disabled
+                                      ? "border-transparent text-gray-500"
+                                      : "border-transparent text-gray-800 hover:border-indigo-700 hover:text-indigo-700"
+                                    }`}
+                                >
+                                  {day.getDate()}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 py-3 px-4 border-t border-gray-200">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1">
+                      <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.startDate)} />
+                      <select
+                        value={draft.startTime}
+                        onChange={(event) => update({ startTime: event.target.value })}
+                        className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-indigo-600 focus:outline-none"
+                      >
+                        {timeOptions.map((time) => (
+                          <option key={`draft-start-${time.value}`} value={time.value}>{time.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.endDate)} />
+                      <select
+                        value={draft.endTime}
+                        onChange={(event) => update({ endTime: event.target.value })}
+                        className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-indigo-600 focus:outline-none"
+                      >
+                        {timeOptions.map((time) => (
+                          <option key={`draft-end-${time.value}`} value={time.value}>{time.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center md:justify-end gap-x-2">
+                    <button type="button" onClick={cancelDraft} className="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-800 hover:bg-indigo-100">
+                      Cancel
+                    </button>
+                    <button type="button" onClick={applyDraft} className="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-xs font-medium rounded-lg border border-transparent bg-indigo-600 text-white hover:bg-indigo-700">
+                      Apply
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              portalTarget
+            )
+            : (
+              <div
+                className={`absolute top-full mt-2 z-50 flex flex-col bg-white border border-transparent shadow-lg rounded-xl overflow-hidden ${dropdownFullWidth
+                  ? "!left-0 !right-0 w-auto max-w-none"
+                  : "right-0 w-full sm:w-[46rem] max-w-[95vw]"
+                  }`}
+              >
+                <div className="sm:flex sm:justify-center sm:gap-6 sm:px-6 md:px-8">
+                  {[monthOne, monthTwo].map((month, idx) => {
+                    const days = buildCalendar(month);
+                    const currentMonth = month.getMonth();
+
+                    return (
+                      <div key={month.toISOString()} className="p-4 sm:p-5 space-y-1 flex flex-col flex-1 min-w-[18rem] sm:max-w-[22rem]">
+                        <div className="grid grid-cols-5 items-center gap-x-3 mx-1.5 pb-3">
+                          <div className="col-span-1">
+                            {idx === 0 ? (
+                              <button
+                                type="button"
+                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-indigo-100 rounded-full"
+                                onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
+                              >
+                                <ChevronLeftIcon className="size-4" />
+                              </button>
+                            ) : (
+                              <div className="size-8" />
+                            )}
+                          </div>
+
+                          <div className="col-span-3 flex justify-center items-center gap-x-1 text-base font-medium text-gray-800">
+                            {monthLabel(month)}
+                          </div>
+
+                          <div className="col-span-1 flex justify-end">
+                            {idx === 1 ? (
+                              <button
+                                type="button"
+                                className="size-8 flex justify-center items-center text-gray-800 hover:bg-indigo-100 rounded-full"
                                 onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
                               >
                                 <ChevronRightIcon className="size-4" />
@@ -482,18 +479,17 @@ export default function DateRangePicker({
                             const selectedEnd = isSameDay(day, endDateObj);
                             const inRange = isInRange(day);
                             return (
-                              <div key={day.toISOString()} className={inRange ? "bg-indigo-100/70" : ""}>
+                              <div key={day.toISOString()} className={`${inRange ? "bg-indigo-100/70" : ""} ${selectedStart ? "rounded-l-full" : ""} ${selectedEnd ? "rounded-r-full" : ""}`}>
                                 <button
                                   type="button"
                                   disabled={disabled}
                                   onClick={() => handleDaySelect(day)}
-                                  className={`m-px size-10 sm:size-11 flex justify-center items-center border-[1.5px] text-base rounded-full disabled:pointer-events-none ${
-                                    selectedStart || selectedEnd
-                                      ? "bg-indigo-600 text-white border-transparent"
-                                      : disabled
-                                        ? "border-transparent text-gray-500"
-                                        : "border-transparent text-gray-800 hover:border-indigo-700 hover:text-indigo-700"
-                                  }`}
+                                  className={`m-px size-10 sm:size-11 flex justify-center items-center border-[1.5px] text-base rounded-full disabled:pointer-events-none ${selectedStart || selectedEnd
+                                    ? "bg-indigo-600 text-white border-transparent"
+                                    : disabled
+                                      ? "border-transparent text-gray-500"
+                                      : "border-transparent text-gray-800 hover:border-indigo-700 hover:text-indigo-700"
+                                    }`}
                                 >
                                   {day.getDate()}
                                 </button>
@@ -535,7 +531,7 @@ export default function DateRangePicker({
                   </div>
 
                   <div className="flex items-center md:justify-end gap-x-2">
-                    <button type="button" onClick={cancelDraft} className="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-800 hover:bg-gray-50">
+                    <button type="button" onClick={cancelDraft} className="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-800 hover:bg-indigo-100">
                       Cancel
                     </button>
                     <button type="button" onClick={applyDraft} className="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-xs font-medium rounded-lg border border-transparent bg-indigo-600 text-white hover:bg-indigo-700">

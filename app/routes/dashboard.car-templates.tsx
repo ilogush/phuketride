@@ -12,6 +12,7 @@ import { PlusIcon, TruckIcon, TagIcon, CubeIcon } from '@heroicons/react/24/outl
 import { GenericDictionaryForm, type FieldConfig } from '~/components/dashboard/GenericDictionaryForm'
 import { useState } from 'react'
 import { useToast } from '~/lib/toast'
+import { getRequestMetadata, quickAudit } from '~/lib/audit-logger'
 
 export async function loader({ request, context }: Route.LoaderArgs) {
     const user = await requireAuth(request)
@@ -73,8 +74,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
+    const user = await requireAuth(request)
+    if (user.role !== 'admin') {
+        throw new Response('Forbidden', { status: 403 })
+    }
+
     const formData = await request.formData()
     const intent = formData.get('intent')
+    const metadata = getRequestMetadata(request)
     // Brand actions
     if (intent === 'create_brand') {
         const name = formData.get('name') as string
@@ -85,6 +92,16 @@ export async function action({ request, context }: Route.ActionArgs) {
             .prepare("INSERT INTO car_brands (name, created_at, updated_at) VALUES (?, ?, ?)")
             .bind(name, new Date().toISOString(), new Date().toISOString())
             .run()
+        quickAudit({
+            db: context.cloudflare.env.DB,
+            userId: user.id,
+            role: user.role,
+            companyId: user.companyId,
+            entityType: 'brand',
+            action: 'create',
+            afterState: { name },
+            ...metadata,
+        })
         return { success: true, message: 'Brand created successfully' }
     }
 
@@ -93,7 +110,18 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (!id) {
             return { error: 'Brand ID is required' }
         }
-        await context.cloudflare.env.DB.prepare("DELETE FROM car_brands WHERE id = ?").bind(Number(id)).run()
+        const brandId = Number(id)
+        await context.cloudflare.env.DB.prepare("DELETE FROM car_brands WHERE id = ?").bind(brandId).run()
+        quickAudit({
+            db: context.cloudflare.env.DB,
+            userId: user.id,
+            role: user.role,
+            companyId: user.companyId,
+            entityType: 'brand',
+            entityId: brandId,
+            action: 'delete',
+            ...metadata,
+        })
         return { success: true, message: 'Brand deleted successfully' }
     }
 
@@ -108,6 +136,16 @@ export async function action({ request, context }: Route.ActionArgs) {
             .prepare("INSERT INTO car_models (name, brand_id, created_at, updated_at) VALUES (?, ?, ?, ?)")
             .bind(name, Number(brand_id), new Date().toISOString(), new Date().toISOString())
             .run()
+        quickAudit({
+            db: context.cloudflare.env.DB,
+            userId: user.id,
+            role: user.role,
+            companyId: user.companyId,
+            entityType: 'model',
+            action: 'create',
+            afterState: { name, brandId: Number(brand_id) },
+            ...metadata,
+        })
         return { success: true, message: 'Model created successfully' }
     }
 
@@ -116,7 +154,18 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (!id) {
             return { error: 'Model ID is required' }
         }
-        await context.cloudflare.env.DB.prepare("DELETE FROM car_models WHERE id = ?").bind(Number(id)).run()
+        const modelId = Number(id)
+        await context.cloudflare.env.DB.prepare("DELETE FROM car_models WHERE id = ?").bind(modelId).run()
+        quickAudit({
+            db: context.cloudflare.env.DB,
+            userId: user.id,
+            role: user.role,
+            companyId: user.companyId,
+            entityType: 'model',
+            entityId: modelId,
+            action: 'delete',
+            ...metadata,
+        })
         return { success: true, message: 'Model deleted successfully' }
     }
 
@@ -126,7 +175,18 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (!id) {
             return { error: 'Template ID is required' }
         }
-        await context.cloudflare.env.DB.prepare("DELETE FROM car_templates WHERE id = ?").bind(Number(id)).run()
+        const templateId = Number(id)
+        await context.cloudflare.env.DB.prepare("DELETE FROM car_templates WHERE id = ?").bind(templateId).run()
+        quickAudit({
+            db: context.cloudflare.env.DB,
+            userId: user.id,
+            role: user.role,
+            companyId: user.companyId,
+            entityType: 'car_template',
+            entityId: templateId,
+            action: 'delete',
+            ...metadata,
+        })
         return { success: true, message: 'Template deleted successfully' }
     }
 
@@ -161,7 +221,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
             label: 'Brand',
             type: 'select',
             required: true,
-            options: brands.map(b => ({ id: b.id, name: b.name })),
+            options: brands.map((b: { id: number; name: string }) => ({ id: b.id, name: b.name })),
             className: 'col-span-2'
         },
         {

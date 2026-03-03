@@ -12,6 +12,26 @@ import Button from "~/components/dashboard/Button";
 
 const ITEMS_PER_PAGE = 20;
 
+interface CountRow {
+    count: number;
+}
+
+interface PaymentRow {
+    id: number;
+    amount: number;
+    currency: string;
+    paymentMethod: string | null;
+    status: string | null;
+    notes: string | null;
+    createdAt: string;
+    contractId: number;
+    paymentTypeName: string;
+    paymentTypeSign: "+" | "-";
+    carLicensePlate: string;
+    brandName: string | null;
+    modelName: string | null;
+}
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     
@@ -31,8 +51,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         ${whereSql}
     `;
     const countResult = status === "all"
-        ? await context.cloudflare.env.DB.prepare(countSql).bind(user.id).first<any>()
-        : await context.cloudflare.env.DB.prepare(countSql).bind(user.id, status).first<any>();
+        ? ((await context.cloudflare.env.DB.prepare(countSql).bind(user.id).first()) as CountRow | null)
+        : ((await context.cloudflare.env.DB.prepare(countSql).bind(user.id, status).first()) as CountRow | null);
 
     const totalItems = Number(countResult?.count || 0);
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
@@ -66,7 +86,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const paymentsResult = status === "all"
         ? await context.cloudflare.env.DB.prepare(paymentsSql).bind(user.id, ITEMS_PER_PAGE, offset).all()
         : await context.cloudflare.env.DB.prepare(paymentsSql).bind(user.id, status, ITEMS_PER_PAGE, offset).all();
-    const payments = (paymentsResult as any).results || [];
+    const payments = (paymentsResult.results ?? []) as PaymentRow[];
 
     return { payments, totalPages, currentPage: page, status };
 }
@@ -129,7 +149,7 @@ export default function MyPayments() {
             <Card className="shadow-sm overflow-hidden">
                 {payments.length > 0 ? (
                     <div className="divide-y divide-gray-200">
-                        {payments.map((payment) => (
+                        {payments.map((payment: PaymentRow) => (
                             <div key={payment.id} className="p-6 hover:bg-gray-50 transition-colors">
                                 <div className="flex items-center justify-between">
                                     <div className="flex-1">

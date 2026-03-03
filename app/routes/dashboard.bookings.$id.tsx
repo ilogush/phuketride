@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form, Link } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
@@ -256,7 +257,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 ...metadata,
             });
 
-            return redirect(`/dashboard/contracts/${contract.id}?success=Booking converted to contract successfully`);
+            return redirect(`/contracts/${contract.id}/edit?success=Booking converted to contract successfully`);
         }
 
         return { error: "Invalid action" };

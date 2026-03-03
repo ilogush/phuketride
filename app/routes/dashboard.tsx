@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { type LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useLocation, useParams, useSearchParams } from "react-router";
+import { Outlet, useLoaderData, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { addDays } from "date-fns";
 import Sidebar from "~/components/dashboard/Sidebar";
@@ -73,6 +73,7 @@ export default function Layout() {
     const location = useLocation();
     const params = useParams();
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const toast = useToast();
 
@@ -81,9 +82,21 @@ export default function Layout() {
 
     useEffect(() => {
         if (loginState === "success") {
+            const welcomeKey = `welcome-shown:${user.id}`;
+            if (sessionStorage.getItem(welcomeKey) === "1") {
+                return;
+            }
+            sessionStorage.setItem(welcomeKey, "1");
             toast.success(`Welcome back, ${user.name || user.email}!`);
+
+            const nextParams = new URLSearchParams(searchParams);
+            nextParams.delete("login");
+            navigate(
+                `${location.pathname}${nextParams.toString() ? `?${nextParams.toString()}` : ""}`,
+                { replace: true }
+            );
         }
-    }, [loginState, user.name, user.email, toast]);
+    }, [loginState, user.id, user.name, user.email, toast, searchParams, navigate, location.pathname]);
 
     // Detect mod mode from URL (direct /companies/:id or persisted query param)
     const pathCompanyId = location.pathname.startsWith("/companies/") && params.companyId

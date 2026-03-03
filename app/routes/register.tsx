@@ -6,7 +6,11 @@ import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import Button from "~/components/dashboard/Button";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
-import { sessionCookie } from "~/lib/auth.server";
+import { serializeSession } from "~/lib/auth.server";
+import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
+import { useToast } from "~/lib/toast";
+import { useEffect } from "react";
+import { z } from "zod";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     // If already logged in, redirect to dashboard
@@ -18,20 +22,35 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
+    const identifier = getClientIdentifier(request);
+    const rateLimit = await checkRateLimit(
+        (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
+        identifier,
+        "register"
+    );
+    if (!rateLimit.allowed) {
+        return { error: "Too many registration attempts. Try again later." };
+    }
+
     const formData = await request.formData();
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-    const firstName = (formData.get("firstName") as string)?.trim();
-    const lastName = (formData.get("lastName") as string)?.trim();
-    const phone = formData.get("phone") as string;
-
-    if (!email || !password || !firstName || !lastName || !phone) {
-        return { error: "All required fields must be filled" };
+    const registerInputSchema = z.object({
+        email: z.string().email("Invalid email format"),
+        password: z.string().min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`),
+        firstName: z.string().trim().min(1, "First name is required"),
+        lastName: z.string().trim().min(1, "Last name is required"),
+        phone: z.string().trim().min(1, "Phone is required"),
+    });
+    const parsed = registerInputSchema.safeParse({
+        email: formData.get("email"),
+        password: formData.get("password"),
+        firstName: formData.get("firstName"),
+        lastName: formData.get("lastName"),
+        phone: formData.get("phone"),
+    });
+    if (!parsed.success) {
+        return { error: parsed.error.errors[0]?.message || "Validation failed" };
     }
-
-    if (password.length < PASSWORD_MIN_LENGTH) {
-        return { error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters` };
-    }
+    const { email, password, firstName, lastName, phone } = parsed.data;
 
     const d1 = context.cloudflare.env.DB;
     const existing = await d1
@@ -57,7 +76,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         .bind(id, email, firstName, lastName, phone, passwordHash, Date.now(), Date.now())
         .run();
 
-    const cookie = await sessionCookie.serialize({
+    const cookie = await serializeSession(request, {
         id,
         email,
         role: "user",
@@ -74,6 +93,13 @@ export default function RegisterPage() {
     const actionData = useActionData<typeof action>();
     const [showPassword, setShowPassword] = useState(false);
     const { validateLatinInput } = useLatinValidation();
+    const toast = useToast();
+
+    useEffect(() => {
+        if (actionData?.error) {
+            toast.error(actionData.error);
+        }
+    }, [actionData?.error, toast]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -181,12 +207,6 @@ export default function RegisterPage() {
                                 </Button>
                             </div>
                         </div>
-
-                        {actionData?.error && (
-                            <div className="p-4 rounded-xl bg-red-50 border border-red-200">
-                                <p className="text-sm font-medium text-red-600">{actionData.error}</p>
-                            </div>
-                        )}
 
                         <Button
                             type="submit"

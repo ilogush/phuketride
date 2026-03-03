@@ -5,10 +5,19 @@ import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import ProfileForm from "~/components/dashboard/ProfileForm";
 
+type ProfileUser = Parameters<typeof ProfileForm>[0]["user"] & {
+    id: string;
+    dateOfBirth: string | Date | null;
+    isFirstLogin: number | null;
+    archivedAt: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+};
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);
     const d1 = context.cloudflare.env.DB;
-    const fullUser = await d1
+    const rawUser = (await d1
         .prepare(
             `
             SELECT
@@ -25,9 +34,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             `
         )
         .bind(sessionUser.id)
-        .first<Record<string, unknown>>();
+        .first()) as ProfileUser | null;
 
-    if (!fullUser) throw new Response("User not found", { status: 404 });
+    if (!rawUser) throw new Response("User not found", { status: 404 });
+
+    const fullUser: ProfileUser = {
+        ...rawUser,
+        dateOfBirth: rawUser.dateOfBirth ? new Date(rawUser.dateOfBirth) : null,
+    };
 
     // Load reference data in parallel
     const [country, hotel, location] = await Promise.all([

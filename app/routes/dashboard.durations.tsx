@@ -459,7 +459,7 @@ export default function DurationsPage() {
                         type="number"
                         value={formData.maxDays}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, maxDays: e.target.value })}
-                        placeholder="0"
+
                     />
 
                     <Input

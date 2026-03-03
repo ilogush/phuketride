@@ -22,14 +22,35 @@ import {
     UserIcon,
 } from "@heroicons/react/24/outline";
 
+interface LocationRow {
+    id: number;
+    name: string;
+}
+
+interface DistrictRow {
+    id: number;
+    name: string;
+    locationId: number;
+    deliveryPrice?: number | null;
+}
+
+interface UserRow {
+    id: string;
+    email: string;
+    name: string | null;
+    surname: string | null;
+    role: string;
+    phone: string | null;
+}
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     if (user.role !== "admin") {
         throw new Response("Forbidden", { status: 403 });
     }
     const [locationsList, districtsList, usersList] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT * FROM locations ORDER BY name ASC LIMIT 100").all().then((r: any) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT * FROM districts ORDER BY name ASC LIMIT 200").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM locations ORDER BY name ASC LIMIT 100").all().then((r: { results?: LocationRow[] }) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT * FROM districts ORDER BY name ASC LIMIT 200").all().then((r: { results?: DistrictRow[] }) => r.results || []),
         context.cloudflare.env.DB
             .prepare(`
                 SELECT id, email, name, surname, role, phone
@@ -39,7 +60,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 LIMIT 200
             `)
             .all()
-            .then((r: any) => r.results || []),
+            .then((r: { results?: UserRow[] }) => r.results || []),
     ]);
 
     return { locations: locationsList, districts: districtsList, users: usersList };
@@ -148,14 +169,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
 
         // Create delivery settings for all districts in the location
-        const allDistrictsResult = await context.cloudflare.env.DB
+        const allDistrictsResult = (await context.cloudflare.env.DB
             .prepare("SELECT id, delivery_price AS deliveryPrice FROM districts WHERE location_id = ?")
             .bind(validData.locationId)
-            .all() as { results?: any[] };
+            .all()) as { results?: DistrictRow[] };
         const allDistricts = allDistrictsResult.results || [];
         
         await Promise.all(
-            allDistricts.map(district =>
+            allDistricts.map((district: DistrictRow) =>
                 context.cloudflare.env.DB
                     .prepare(`
                         INSERT INTO company_delivery_settings (
@@ -247,9 +268,9 @@ export default function CreateCompanyPage() {
         }
     }, [searchParams, toast]);
 
-    const filteredDistricts = districts.filter(d => d.locationId === selectedLocationId);
+    const filteredDistricts = districts.filter((d: DistrictRow) => d.locationId === selectedLocationId);
 
-    const filteredUsers = users.filter(user => {
+    const filteredUsers = users.filter((user: UserRow) => {
         if (!searchQuery) return false;
         if (selectedManager?.id === user.id) return false;
 
@@ -261,7 +282,7 @@ export default function CreateCompanyPage() {
         );
     });
 
-    const handleSelectManager = (user: typeof users[0]) => {
+    const handleSelectManager = (user: UserRow) => {
         setSelectedManager(user);
         setSearchQuery("");
         setShowSuggestions(false);
@@ -389,7 +410,7 @@ export default function CreateCompanyPage() {
                             name="deliveryFeeAfterHours"
                             type="number"
                             step="0.01"
-                            placeholder="0"
+
                             addonLeft="฿"
                         />
                         <Input
@@ -397,7 +418,7 @@ export default function CreateCompanyPage() {
                             name="islandTripPrice"
                             type="number"
                             step="0.01"
-                            placeholder="0"
+
                             addonLeft="฿"
                         />
                         <Input
@@ -405,7 +426,7 @@ export default function CreateCompanyPage() {
                             name="krabiTripPrice"
                             type="number"
                             step="0.01"
-                            placeholder="0"
+
                             addonLeft="฿"
                         />
                     </div>
@@ -416,7 +437,7 @@ export default function CreateCompanyPage() {
                                 type="number"
                                 step="1"
                                 min={0}
-                                placeholder="0"
+
                                 addonLeft="฿"
                             />
                     </div>
@@ -443,7 +464,7 @@ export default function CreateCompanyPage() {
 
                                     {showSuggestions && searchQuery && filteredUsers.length > 0 && (
                                         <div className="absolute z-10 w-full mt-1 bg-white rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                                            {filteredUsers.slice(0, 10).map((user) => (
+                                            {filteredUsers.slice(0, 10).map((user: UserRow) => (
                                                 <Button
                                                     key={user.id}
                                                     type="button"

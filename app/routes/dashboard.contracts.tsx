@@ -110,19 +110,14 @@ export default function ContractsPage() {
             label: "Actions",
             render: (contract) => (
                 <div className="flex gap-2">
-                    <Link to={`/contracts/${contract.id}`}>
-                        <Button variant="secondary" size="sm">View</Button>
-                    </Link>
                     {contract.status === "active" && (
                         <Link to={`/contracts/${contract.id}/close`}>
                             <Button variant="primary" size="sm">Close</Button>
                         </Link>
                     )}
-                    {contract.status !== "closed" && (
-                        <Link to={`/contracts/${contract.id}/edit`}>
-                            <Button variant="secondary" size="sm">Edit</Button>
-                        </Link>
-                    )}
+                    <Link to={`/contracts/${contract.id}/edit`}>
+                        <Button variant="secondary" size="sm">{contract.status === "closed" ? "View/Edit" : "Edit"}</Button>
+                    </Link>
                 </div>
             )
         },

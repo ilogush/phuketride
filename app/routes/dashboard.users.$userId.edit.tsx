@@ -15,6 +15,29 @@ import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
 
+interface EditableUserRow {
+    id: string;
+    email: string;
+    role: "admin" | "partner" | "manager" | "user";
+    name: string | null;
+    surname: string | null;
+    phone: string | null;
+    whatsapp: string | null;
+    telegram: string | null;
+    passportNumber: string | null;
+    citizenship: string | null;
+    city: string | null;
+    countryId: number | null;
+    dateOfBirth: string | null;
+    gender: "male" | "female" | "other" | null;
+    avatarUrl?: string | null;
+    hotelId: number | null;
+    roomNumber: string | null;
+    locationId: number | null;
+    districtId: number | null;
+    address: string | null;
+}
+
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);
     if (sessionUser.role !== "admin") {
@@ -26,7 +49,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         throw new Response("User ID is required", { status: 400 });
     }
 
-    const user = await context.cloudflare.env.DB
+    const user = (await context.cloudflare.env.DB
         .prepare(`
             SELECT id, email, role, name, surname, phone, whatsapp, telegram,
                    passport_number AS passportNumber, citizenship, city, country_id AS countryId,
@@ -38,7 +61,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
             LIMIT 1
         `)
         .bind(userId)
-        .first<any>();
+        .first()) as EditableUserRow | null;
     if (!user) {
         throw new Response("User not found", { status: 404 });
     }
@@ -68,7 +91,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     }
 
     // Get current user state for audit log
-    const currentUser = await context.cloudflare.env.DB
+    const currentUser = (await context.cloudflare.env.DB
         .prepare(`
             SELECT id, email, role, name, surname, phone, whatsapp, telegram,
                    passport_number AS passportNumber, citizenship, city, country_id AS countryId,
@@ -79,7 +102,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             LIMIT 1
         `)
         .bind(userId)
-        .first<any>();
+        .first()) as EditableUserRow | null;
     if (!currentUser) {
         throw new Response("User not found", { status: 404 });
     }
@@ -182,7 +205,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             ...metadata,
         });
 
-        return redirect(`/users/${userId}?success=${encodeURIComponent("User updated successfully")}`);
+        return redirect(`/users/${userId}/edit?success=${encodeURIComponent("User updated successfully")}`);
     } catch {
         return redirect(`/users/${userId}/edit?error=${encodeURIComponent("Failed to update user")}`);
     }
@@ -208,7 +231,7 @@ export default function EditUserPage() {
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <BackButton to={`/users/${user.id}`} />
+                    <BackButton to="/users" />
                     <PageHeader title="Edit User" />
                 </div>
                 <Button type="submit" variant="primary" form="user-form">
