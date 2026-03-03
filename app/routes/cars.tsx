@@ -1,0 +1,205 @@
+import { type LoaderFunctionArgs } from "react-router";
+import { useLoaderData, Link, useSearchParams } from "react-router";
+import { useState } from "react";
+import { requireAuth } from "~/lib/auth.server";
+import PageHeader from "~/components/dashboard/PageHeader";
+import Tabs from "~/components/dashboard/Tabs";
+import DataTable, { type Column } from "~/components/dashboard/DataTable";
+import StatusBadge from "~/components/dashboard/StatusBadge";
+import Button from "~/components/dashboard/Button";
+import { TruckIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { useUrlToast } from "~/lib/useUrlToast";
+import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
+
+export async function loader({ request, context }: LoaderFunctionArgs) {
+    const user = await requireAuth(request);
+    const effectiveCompanyId = getEffectiveCompanyId(request, user);
+
+    let cars: any[] = [];
+    let statusCounts = { all: 0, available: 0, rented: 0, maintenance: 0, booked: 0 };
+
+    try {
+        const query = effectiveCompanyId
+            ? context.cloudflare.env.DB.prepare(`
+                SELECT
+                    cc.*,
+                    cb.name AS brandName,
+                    cm.name AS modelName,
+                    bt.name AS bodyTypeName,
+                    cl.name AS colorName
+                FROM company_cars cc
+                LEFT JOIN car_templates ct ON ct.id = cc.template_id
+                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+                LEFT JOIN car_models cm ON cm.id = ct.model_id
+                LEFT JOIN body_types bt ON bt.id = ct.body_type_id
+                LEFT JOIN colors cl ON cl.id = cc.color_id
+                WHERE cc.company_id = ?
+                ORDER BY cc.created_at DESC
+                LIMIT 50
+            `).bind(effectiveCompanyId)
+            : context.cloudflare.env.DB.prepare(`
+                SELECT
+                    cc.*,
+                    cb.name AS brandName,
+                    cm.name AS modelName,
+                    bt.name AS bodyTypeName,
+                    cl.name AS colorName
+                FROM company_cars cc
+                LEFT JOIN car_templates ct ON ct.id = cc.template_id
+                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+                LEFT JOIN car_models cm ON cm.id = ct.model_id
+                LEFT JOIN body_types bt ON bt.id = ct.body_type_id
+                LEFT JOIN colors cl ON cl.id = cc.color_id
+                ORDER BY cc.created_at DESC
+                LIMIT 50
+            `);
+        const result = await query.all() as { results?: any[] };
+        cars = (result.results || []).map((car) => ({
+            ...car,
+            licensePlate: car.license_plate,
+            pricePerDay: car.price_per_day,
+            insuranceType: car.insurance_type,
+            template: {
+                brand: { name: car.brandName },
+                model: { name: car.modelName },
+                bodyType: { name: car.bodyTypeName },
+                engineVolume: car.engine_volume,
+            },
+            color: { name: car.colorName },
+        }));
+
+        statusCounts.all = cars.length;
+        statusCounts.available = cars.filter(c => c.status === "available").length;
+        statusCounts.rented = cars.filter(c => c.status === "rented").length;
+        statusCounts.maintenance = cars.filter(c => c.status === "maintenance").length;
+        statusCounts.booked = cars.filter(c => c.status === "booked").length;
+    } catch {
+        cars = [];
+    }
+
+    return { user, cars, statusCounts };
+}
+
+export default function CarsPage() {
+    const { cars, statusCounts } = useLoaderData<typeof loader>();
+    useUrlToast();
+    const [activeTab, setActiveTab] = useState<string>("available");
+
+    const tabs = [
+        { id: "available", label: "Available" },
+        { id: "rented", label: "Rented" },
+        { id: "maintenance", label: "Maintenance" },
+        { id: "booked", label: "Booked" },
+    ];
+
+    const filteredCars = cars.filter(car => car.status === activeTab);
+    const [searchParams] = useSearchParams();
+    const modCompanyId = searchParams.get("modCompanyId");
+
+    const columns: Column<typeof cars[0]>[] = [
+        {
+            key: "photo",
+            label: "Photo",
+            render: (car) => {
+                const photos = car.photos ? JSON.parse(car.photos as string) : [];
+                const firstPhoto = photos[0];
+                const editPath = modCompanyId
+                    ? `/dashboard/cars/${car.id}/edit?modCompanyId=${modCompanyId}`
+                    : `/dashboard/cars/${car.id}/edit`;
+
+                return (
+                    <Link to={editPath} className="block hover:opacity-70 transition-opacity">
+                        {firstPhoto ? (
+                            <img
+                                src={firstPhoto}
+                                alt={`${car.template?.brand?.name} ${car.template?.model?.name}`}
+                                className="w-10 h-10 object-cover rounded-lg"
+                            />
+                        ) : (
+                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <TruckIcon className="w-6 h-6 text-gray-400" />
+                            </div>
+                        )}
+                    </Link>
+                );
+            }
+        },
+        { key: "licensePlate", label: "License Plate" },
+        {
+            key: "car",
+            label: "Car",
+            render: (car) => (
+                <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-900">{car.template?.brand?.name || "-"}</span>
+                    <span className="text-xs text-gray-500">{car.template?.model?.name || "-"}</span>
+                </div>
+            )
+        },
+        {
+            key: "engine",
+            label: "Engine",
+            render: (car) => car.template?.engineVolume ? `${car.template.engineVolume}L` : "-"
+        },
+        {
+            key: "bodyType",
+            label: "Body Type",
+            render: (car) => car.template?.bodyType?.name || "-"
+        },
+        {
+            key: "color",
+            label: "Color",
+            render: (car) => car.color?.name || "-"
+        },
+        {
+            key: "mileage",
+            label: "Mileage",
+            render: (car) => car.mileage ? `${car.mileage.toLocaleString('en-US')} km` : "-"
+        },
+        {
+            key: "insuranceType",
+            label: "Insurance Type",
+            render: (car) => car.insuranceType || "-"
+        },
+        {
+            key: "pricePerDay",
+            label: "Price per Day",
+            render: (car) => `${Number(car.pricePerDay || 0).toLocaleString("en-US")} THB`
+        },
+        {
+            key: "deposit",
+            label: "Deposit",
+            render: (car) => `${Number(car.deposit || 0).toLocaleString("en-US")} THB`
+        },
+        {
+            key: "status",
+            label: "Status",
+            render: (car) => <StatusBadge variant={car.status === "available" ? "success" : "neutral"}>{car.status}</StatusBadge>
+        },
+    ];
+
+    return (
+        <div className="space-y-4">
+            <PageHeader
+                title="Cars"
+                rightActions={
+                    <Link to="/dashboard/cars/create">
+                        <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                            Add
+                        </Button>
+                    </Link>
+                }
+            />
+
+            <Tabs tabs={tabs} activeTab={activeTab} onTabChange={(id) => setActiveTab(id as string)} />
+
+            <DataTable
+                data={filteredCars}
+                columns={columns}
+                totalCount={filteredCars.length}
+                emptyTitle="No cars found"
+                emptyDescription={`No cars with status "${activeTab}"`}
+                emptyIcon={<TruckIcon className="w-10 h-10" />}
+            />
+        </div>
+    );
+}

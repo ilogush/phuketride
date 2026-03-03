@@ -46,35 +46,26 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         }
     }, [])
 
-    const showToast = useCallback(
-        async (message: string, type: ToastType = 'info', duration: number = 5000) => {
-            const newId = `toast-${Date.now()}-${Math.random()}`
-            let targetId = newId
-
-            let isDuplicate = false
-            // Keep one toast per message+type.
-            setToasts((prev) => {
-                const existing = prev.find((toast) => toast.message === message && toast.type === type)
-                if (existing) {
-                    targetId = existing.id
-                    isDuplicate = true
-                    return prev
-                }
-
-                const newToast: Toast = { id: newId, message, type, duration }
-                return [...prev, newToast]
-            })
-
-            // Set timeout to remove toast
-            if (!isDuplicate && duration > 0) {
-                clearToastTimer(targetId)
+    // Resilient timer management: watches the toasts array and sets timers for any new toast
+    useEffect(() => {
+        toasts.forEach((toast) => {
+            if (toast.duration && toast.duration > 0 && !timersRef.current.has(toast.id)) {
                 const timer = setTimeout(() => {
-                    removeToast(targetId)
-                }, duration)
-                timersRef.current.set(targetId, timer)
+                    removeToast(toast.id)
+                }, toast.duration)
+                timersRef.current.set(toast.id, timer)
             }
+        })
+    }, [toasts, removeToast])
+
+    const showToast = useCallback(
+        async (message: string, type: ToastType = 'info', duration: number = 3000) => {
+            const newId = `toast-${Date.now()}-${Math.random()}`
+            const newToast: Toast = { id: newId, message, type, duration }
+
+            setToasts((prev) => [...prev, newToast])
         },
-        [clearToastTimer, removeToast]
+        []
     )
 
     const success = useCallback(

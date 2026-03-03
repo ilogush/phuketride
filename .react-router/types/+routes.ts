@@ -327,224 +327,224 @@ type RouteFiles = {
     id: "routes/cars.$id.checkout";
     page: "/cars/:id/checkout";
   };
-  "routes/dashboard.redirect.tsx": {
-    id: "routes/dashboard.redirect";
+  "routes/legacy-redirect.tsx": {
+    id: "routes/legacy-redirect";
     page: "/dashboard/*";
   };
-  "routes/dashboard.tsx": {
-    id: "routes/dashboard";
+  "routes/app-layout.tsx": {
+    id: "routes/app-layout";
     page: "/dashboard" | "/companies" | "/companies/create" | "/companies/:companyId" | "/companies/:companyId/edit" | "/users" | "/users/create" | "/users/:userId" | "/users/:userId/edit" | "/cars" | "/cars/create" | "/cars/:id" | "/cars/:id/edit" | "/brands" | "/brands/create" | "/models" | "/models/create" | "/car-templates" | "/car-templates/create" | "/car-templates/:id" | "/car-templates/:id/edit" | "/payments" | "/payments/create" | "/payment-statuses" | "/locations" | "/districts" | "/hotels" | "/durations" | "/seasons" | "/colors" | "/colors/new" | "/colors/:colorId/edit" | "/reports" | "/logs" | "/contracts" | "/contracts/:id/close" | "/contracts/new" | "/contracts/:id" | "/contracts/:id/edit" | "/calendar" | "/calendar/new" | "/settings" | "/bookings" | "/bookings/create" | "/bookings/:id" | "/profile" | "/profile/edit" | "/search-cars" | "/my-bookings" | "/my-contracts" | "/my-contracts/:id" | "/my-payments" | "/notifications";
   };
-  "routes/dashboard._index.tsx": {
-    id: "routes/dashboard._index";
+  "routes/dashboard-home.tsx": {
+    id: "routes/dashboard-home";
     page: "/dashboard";
   };
-  "routes/dashboard.companies.tsx": {
-    id: "routes/dashboard.companies";
+  "routes/companies.tsx": {
+    id: "routes/companies";
     page: "/companies";
   };
-  "routes/dashboard.companies.create.tsx": {
-    id: "routes/dashboard.companies.create";
+  "routes/companies.create.tsx": {
+    id: "routes/companies.create";
     page: "/companies/create";
   };
-  "routes/dashboard.companies.$companyId.tsx": {
-    id: "routes/dashboard.companies.$companyId";
+  "routes/admin-companies.$companyId.tsx": {
+    id: "routes/admin-companies.$companyId";
     page: "/companies/:companyId";
   };
-  "routes/dashboard.companies.edit.tsx": {
-    id: "routes/dashboard.companies.edit";
+  "routes/companies.edit.tsx": {
+    id: "routes/companies.edit";
     page: "/companies/:companyId/edit";
   };
-  "routes/dashboard.users.tsx": {
-    id: "routes/dashboard.users";
+  "routes/users.tsx": {
+    id: "routes/users";
     page: "/users";
   };
-  "routes/dashboard.users.create.tsx": {
-    id: "routes/dashboard.users.create";
+  "routes/users.create.tsx": {
+    id: "routes/users.create";
     page: "/users/create";
   };
-  "routes/dashboard.users.$userId.tsx": {
-    id: "routes/dashboard.users.$userId";
+  "routes/users.$userId.tsx": {
+    id: "routes/users.$userId";
     page: "/users/:userId";
   };
-  "routes/dashboard.users.$userId.edit.tsx": {
-    id: "routes/dashboard.users.$userId.edit";
+  "routes/users.$userId.edit.tsx": {
+    id: "routes/users.$userId.edit";
     page: "/users/:userId/edit";
   };
-  "routes/dashboard.cars.tsx": {
-    id: "routes/dashboard.cars";
+  "routes/cars.tsx": {
+    id: "routes/cars";
     page: "/cars";
   };
-  "routes/dashboard.cars.create.tsx": {
-    id: "routes/dashboard.cars.create";
+  "routes/cars.create.tsx": {
+    id: "routes/cars.create";
     page: "/cars/create";
   };
-  "routes/dashboard.cars.$id.tsx": {
-    id: "routes/dashboard.cars.$id";
+  "routes/admin-cars.$id.tsx": {
+    id: "routes/admin-cars.$id";
     page: "/cars/:id";
   };
-  "routes/dashboard.cars.$id.edit.tsx": {
-    id: "routes/dashboard.cars.$id.edit";
+  "routes/cars.$id.edit.tsx": {
+    id: "routes/cars.$id.edit";
     page: "/cars/:id/edit";
   };
-  "routes/dashboard.brands.tsx": {
-    id: "routes/dashboard.brands";
+  "routes/brands.tsx": {
+    id: "routes/brands";
     page: "/brands";
   };
-  "routes/dashboard.brands.create.tsx": {
-    id: "routes/dashboard.brands.create";
+  "routes/brands.create.tsx": {
+    id: "routes/brands.create";
     page: "/brands/create";
   };
-  "routes/dashboard.models.tsx": {
-    id: "routes/dashboard.models";
+  "routes/models.tsx": {
+    id: "routes/models";
     page: "/models";
   };
-  "routes/dashboard.models.create.tsx": {
-    id: "routes/dashboard.models.create";
+  "routes/models.create.tsx": {
+    id: "routes/models.create";
     page: "/models/create";
   };
-  "routes/dashboard.car-templates.tsx": {
-    id: "routes/dashboard.car-templates";
+  "routes/car-templates.tsx": {
+    id: "routes/car-templates";
     page: "/car-templates";
   };
-  "routes/dashboard.car-templates.create.tsx": {
-    id: "routes/dashboard.car-templates.create";
+  "routes/car-templates.create.tsx": {
+    id: "routes/car-templates.create";
     page: "/car-templates/create";
   };
-  "routes/dashboard.car-templates.$id.tsx": {
-    id: "routes/dashboard.car-templates.$id";
+  "routes/car-templates.$id.tsx": {
+    id: "routes/car-templates.$id";
     page: "/car-templates/:id";
   };
-  "routes/dashboard.car-templates.$id.edit.tsx": {
-    id: "routes/dashboard.car-templates.$id.edit";
+  "routes/car-templates.$id.edit.tsx": {
+    id: "routes/car-templates.$id.edit";
     page: "/car-templates/:id/edit";
   };
-  "routes/dashboard.payments.tsx": {
-    id: "routes/dashboard.payments";
+  "routes/payments.tsx": {
+    id: "routes/payments";
     page: "/payments";
   };
-  "routes/dashboard.payments.create.tsx": {
-    id: "routes/dashboard.payments.create";
+  "routes/payments.create.tsx": {
+    id: "routes/payments.create";
     page: "/payments/create";
   };
-  "routes/dashboard.payment-statuses.tsx": {
-    id: "routes/dashboard.payment-statuses";
+  "routes/payment-statuses.tsx": {
+    id: "routes/payment-statuses";
     page: "/payment-statuses";
   };
-  "routes/dashboard.locations.tsx": {
-    id: "routes/dashboard.locations";
+  "routes/locations.tsx": {
+    id: "routes/locations";
     page: "/locations";
   };
-  "routes/dashboard.districts.tsx": {
-    id: "routes/dashboard.districts";
+  "routes/districts.tsx": {
+    id: "routes/districts";
     page: "/districts";
   };
-  "routes/dashboard.hotels.tsx": {
-    id: "routes/dashboard.hotels";
+  "routes/hotels.tsx": {
+    id: "routes/hotels";
     page: "/hotels";
   };
-  "routes/dashboard.durations.tsx": {
-    id: "routes/dashboard.durations";
+  "routes/durations.tsx": {
+    id: "routes/durations";
     page: "/durations";
   };
-  "routes/dashboard.seasons.tsx": {
-    id: "routes/dashboard.seasons";
+  "routes/seasons.tsx": {
+    id: "routes/seasons";
     page: "/seasons";
   };
-  "routes/dashboard.colors.tsx": {
-    id: "routes/dashboard.colors";
+  "routes/colors.tsx": {
+    id: "routes/colors";
     page: "/colors" | "/colors/new" | "/colors/:colorId/edit";
   };
-  "routes/dashboard.colors_.new.tsx": {
-    id: "routes/dashboard.colors_.new";
+  "routes/colors_.new.tsx": {
+    id: "routes/colors_.new";
     page: "/colors/new";
   };
-  "routes/dashboard.colors_.$colorId.edit.tsx": {
-    id: "routes/dashboard.colors_.$colorId.edit";
+  "routes/colors_.$colorId.edit.tsx": {
+    id: "routes/colors_.$colorId.edit";
     page: "/colors/:colorId/edit";
   };
-  "routes/dashboard.reports.tsx": {
-    id: "routes/dashboard.reports";
+  "routes/reports.tsx": {
+    id: "routes/reports";
     page: "/reports";
   };
-  "routes/dashboard.logs.tsx": {
-    id: "routes/dashboard.logs";
+  "routes/logs.tsx": {
+    id: "routes/logs";
     page: "/logs";
   };
-  "routes/dashboard.contracts.tsx": {
-    id: "routes/dashboard.contracts";
+  "routes/contracts.tsx": {
+    id: "routes/contracts";
     page: "/contracts" | "/contracts/:id/close";
   };
-  "routes/dashboard.contracts_.$id.close.tsx": {
-    id: "routes/dashboard.contracts_.$id.close";
+  "routes/contracts_.$id.close.tsx": {
+    id: "routes/contracts_.$id.close";
     page: "/contracts/:id/close";
   };
-  "routes/dashboard.contracts.new.tsx": {
-    id: "routes/dashboard.contracts.new";
+  "routes/contracts.new.tsx": {
+    id: "routes/contracts.new";
     page: "/contracts/new";
   };
-  "routes/dashboard.contracts.$id.tsx": {
-    id: "routes/dashboard.contracts.$id";
+  "routes/contracts.$id.tsx": {
+    id: "routes/contracts.$id";
     page: "/contracts/:id";
   };
-  "routes/dashboard.contracts.$id.edit.tsx": {
-    id: "routes/dashboard.contracts.$id.edit";
+  "routes/contracts.$id.edit.tsx": {
+    id: "routes/contracts.$id.edit";
     page: "/contracts/:id/edit";
   };
-  "routes/dashboard.calendar.tsx": {
-    id: "routes/dashboard.calendar";
+  "routes/calendar.tsx": {
+    id: "routes/calendar";
     page: "/calendar" | "/calendar/new";
   };
-  "routes/dashboard.calendar.new.tsx": {
-    id: "routes/dashboard.calendar.new";
+  "routes/calendar.new.tsx": {
+    id: "routes/calendar.new";
     page: "/calendar/new";
   };
-  "routes/dashboard.settings.tsx": {
-    id: "routes/dashboard.settings";
+  "routes/settings.tsx": {
+    id: "routes/settings";
     page: "/settings";
   };
-  "routes/dashboard.bookings.tsx": {
-    id: "routes/dashboard.bookings";
+  "routes/bookings.tsx": {
+    id: "routes/bookings";
     page: "/bookings";
   };
-  "routes/dashboard.bookings.create.tsx": {
-    id: "routes/dashboard.bookings.create";
+  "routes/bookings.create.tsx": {
+    id: "routes/bookings.create";
     page: "/bookings/create";
   };
-  "routes/dashboard.bookings.$id.tsx": {
-    id: "routes/dashboard.bookings.$id";
+  "routes/bookings.$id.tsx": {
+    id: "routes/bookings.$id";
     page: "/bookings/:id";
   };
-  "routes/dashboard.profile.tsx": {
-    id: "routes/dashboard.profile";
+  "routes/profile.tsx": {
+    id: "routes/profile";
     page: "/profile";
   };
-  "routes/dashboard.profile.edit.tsx": {
-    id: "routes/dashboard.profile.edit";
+  "routes/profile.edit.tsx": {
+    id: "routes/profile.edit";
     page: "/profile/edit";
   };
-  "routes/dashboard.search-cars.tsx": {
-    id: "routes/dashboard.search-cars";
+  "routes/search-cars.tsx": {
+    id: "routes/search-cars";
     page: "/search-cars";
   };
-  "routes/dashboard.my-bookings.tsx": {
-    id: "routes/dashboard.my-bookings";
+  "routes/my-bookings.tsx": {
+    id: "routes/my-bookings";
     page: "/my-bookings";
   };
-  "routes/dashboard.my-contracts.tsx": {
-    id: "routes/dashboard.my-contracts";
+  "routes/my-contracts.tsx": {
+    id: "routes/my-contracts";
     page: "/my-contracts";
   };
-  "routes/dashboard.my-contracts.$id.tsx": {
-    id: "routes/dashboard.my-contracts.$id";
+  "routes/my-contracts.$id.tsx": {
+    id: "routes/my-contracts.$id";
     page: "/my-contracts/:id";
   };
-  "routes/dashboard.my-payments.tsx": {
-    id: "routes/dashboard.my-payments";
+  "routes/my-payments.tsx": {
+    id: "routes/my-payments";
     page: "/my-payments";
   };
-  "routes/dashboard.notifications.tsx": {
-    id: "routes/dashboard.notifications";
+  "routes/notifications.tsx": {
+    id: "routes/notifications";
     page: "/notifications";
   };
 };
@@ -568,59 +568,59 @@ type RouteModules = {
   "routes/companies.$companyId": typeof import("./app/routes/companies.$companyId.tsx");
   "routes/cars.$id": typeof import("./app/routes/cars.$id.tsx");
   "routes/cars.$id.checkout": typeof import("./app/routes/cars.$id.checkout.tsx");
-  "routes/dashboard.redirect": typeof import("./app/routes/dashboard.redirect.tsx");
-  "routes/dashboard": typeof import("./app/routes/dashboard.tsx");
-  "routes/dashboard._index": typeof import("./app/routes/dashboard._index.tsx");
-  "routes/dashboard.companies": typeof import("./app/routes/dashboard.companies.tsx");
-  "routes/dashboard.companies.create": typeof import("./app/routes/dashboard.companies.create.tsx");
-  "routes/dashboard.companies.$companyId": typeof import("./app/routes/dashboard.companies.$companyId.tsx");
-  "routes/dashboard.companies.edit": typeof import("./app/routes/dashboard.companies.edit.tsx");
-  "routes/dashboard.users": typeof import("./app/routes/dashboard.users.tsx");
-  "routes/dashboard.users.create": typeof import("./app/routes/dashboard.users.create.tsx");
-  "routes/dashboard.users.$userId": typeof import("./app/routes/dashboard.users.$userId.tsx");
-  "routes/dashboard.users.$userId.edit": typeof import("./app/routes/dashboard.users.$userId.edit.tsx");
-  "routes/dashboard.cars": typeof import("./app/routes/dashboard.cars.tsx");
-  "routes/dashboard.cars.create": typeof import("./app/routes/dashboard.cars.create.tsx");
-  "routes/dashboard.cars.$id": typeof import("./app/routes/dashboard.cars.$id.tsx");
-  "routes/dashboard.cars.$id.edit": typeof import("./app/routes/dashboard.cars.$id.edit.tsx");
-  "routes/dashboard.brands": typeof import("./app/routes/dashboard.brands.tsx");
-  "routes/dashboard.brands.create": typeof import("./app/routes/dashboard.brands.create.tsx");
-  "routes/dashboard.models": typeof import("./app/routes/dashboard.models.tsx");
-  "routes/dashboard.models.create": typeof import("./app/routes/dashboard.models.create.tsx");
-  "routes/dashboard.car-templates": typeof import("./app/routes/dashboard.car-templates.tsx");
-  "routes/dashboard.car-templates.create": typeof import("./app/routes/dashboard.car-templates.create.tsx");
-  "routes/dashboard.car-templates.$id": typeof import("./app/routes/dashboard.car-templates.$id.tsx");
-  "routes/dashboard.car-templates.$id.edit": typeof import("./app/routes/dashboard.car-templates.$id.edit.tsx");
-  "routes/dashboard.payments": typeof import("./app/routes/dashboard.payments.tsx");
-  "routes/dashboard.payments.create": typeof import("./app/routes/dashboard.payments.create.tsx");
-  "routes/dashboard.payment-statuses": typeof import("./app/routes/dashboard.payment-statuses.tsx");
-  "routes/dashboard.locations": typeof import("./app/routes/dashboard.locations.tsx");
-  "routes/dashboard.districts": typeof import("./app/routes/dashboard.districts.tsx");
-  "routes/dashboard.hotels": typeof import("./app/routes/dashboard.hotels.tsx");
-  "routes/dashboard.durations": typeof import("./app/routes/dashboard.durations.tsx");
-  "routes/dashboard.seasons": typeof import("./app/routes/dashboard.seasons.tsx");
-  "routes/dashboard.colors": typeof import("./app/routes/dashboard.colors.tsx");
-  "routes/dashboard.colors_.new": typeof import("./app/routes/dashboard.colors_.new.tsx");
-  "routes/dashboard.colors_.$colorId.edit": typeof import("./app/routes/dashboard.colors_.$colorId.edit.tsx");
-  "routes/dashboard.reports": typeof import("./app/routes/dashboard.reports.tsx");
-  "routes/dashboard.logs": typeof import("./app/routes/dashboard.logs.tsx");
-  "routes/dashboard.contracts": typeof import("./app/routes/dashboard.contracts.tsx");
-  "routes/dashboard.contracts_.$id.close": typeof import("./app/routes/dashboard.contracts_.$id.close.tsx");
-  "routes/dashboard.contracts.new": typeof import("./app/routes/dashboard.contracts.new.tsx");
-  "routes/dashboard.contracts.$id": typeof import("./app/routes/dashboard.contracts.$id.tsx");
-  "routes/dashboard.contracts.$id.edit": typeof import("./app/routes/dashboard.contracts.$id.edit.tsx");
-  "routes/dashboard.calendar": typeof import("./app/routes/dashboard.calendar.tsx");
-  "routes/dashboard.calendar.new": typeof import("./app/routes/dashboard.calendar.new.tsx");
-  "routes/dashboard.settings": typeof import("./app/routes/dashboard.settings.tsx");
-  "routes/dashboard.bookings": typeof import("./app/routes/dashboard.bookings.tsx");
-  "routes/dashboard.bookings.create": typeof import("./app/routes/dashboard.bookings.create.tsx");
-  "routes/dashboard.bookings.$id": typeof import("./app/routes/dashboard.bookings.$id.tsx");
-  "routes/dashboard.profile": typeof import("./app/routes/dashboard.profile.tsx");
-  "routes/dashboard.profile.edit": typeof import("./app/routes/dashboard.profile.edit.tsx");
-  "routes/dashboard.search-cars": typeof import("./app/routes/dashboard.search-cars.tsx");
-  "routes/dashboard.my-bookings": typeof import("./app/routes/dashboard.my-bookings.tsx");
-  "routes/dashboard.my-contracts": typeof import("./app/routes/dashboard.my-contracts.tsx");
-  "routes/dashboard.my-contracts.$id": typeof import("./app/routes/dashboard.my-contracts.$id.tsx");
-  "routes/dashboard.my-payments": typeof import("./app/routes/dashboard.my-payments.tsx");
-  "routes/dashboard.notifications": typeof import("./app/routes/dashboard.notifications.tsx");
+  "routes/legacy-redirect": typeof import("./app/routes/legacy-redirect.tsx");
+  "routes/app-layout": typeof import("./app/routes/app-layout.tsx");
+  "routes/dashboard-home": typeof import("./app/routes/dashboard-home.tsx");
+  "routes/companies": typeof import("./app/routes/companies.tsx");
+  "routes/companies.create": typeof import("./app/routes/companies.create.tsx");
+  "routes/admin-companies.$companyId": typeof import("./app/routes/admin-companies.$companyId.tsx");
+  "routes/companies.edit": typeof import("./app/routes/companies.edit.tsx");
+  "routes/users": typeof import("./app/routes/users.tsx");
+  "routes/users.create": typeof import("./app/routes/users.create.tsx");
+  "routes/users.$userId": typeof import("./app/routes/users.$userId.tsx");
+  "routes/users.$userId.edit": typeof import("./app/routes/users.$userId.edit.tsx");
+  "routes/cars": typeof import("./app/routes/cars.tsx");
+  "routes/cars.create": typeof import("./app/routes/cars.create.tsx");
+  "routes/admin-cars.$id": typeof import("./app/routes/admin-cars.$id.tsx");
+  "routes/cars.$id.edit": typeof import("./app/routes/cars.$id.edit.tsx");
+  "routes/brands": typeof import("./app/routes/brands.tsx");
+  "routes/brands.create": typeof import("./app/routes/brands.create.tsx");
+  "routes/models": typeof import("./app/routes/models.tsx");
+  "routes/models.create": typeof import("./app/routes/models.create.tsx");
+  "routes/car-templates": typeof import("./app/routes/car-templates.tsx");
+  "routes/car-templates.create": typeof import("./app/routes/car-templates.create.tsx");
+  "routes/car-templates.$id": typeof import("./app/routes/car-templates.$id.tsx");
+  "routes/car-templates.$id.edit": typeof import("./app/routes/car-templates.$id.edit.tsx");
+  "routes/payments": typeof import("./app/routes/payments.tsx");
+  "routes/payments.create": typeof import("./app/routes/payments.create.tsx");
+  "routes/payment-statuses": typeof import("./app/routes/payment-statuses.tsx");
+  "routes/locations": typeof import("./app/routes/locations.tsx");
+  "routes/districts": typeof import("./app/routes/districts.tsx");
+  "routes/hotels": typeof import("./app/routes/hotels.tsx");
+  "routes/durations": typeof import("./app/routes/durations.tsx");
+  "routes/seasons": typeof import("./app/routes/seasons.tsx");
+  "routes/colors": typeof import("./app/routes/colors.tsx");
+  "routes/colors_.new": typeof import("./app/routes/colors_.new.tsx");
+  "routes/colors_.$colorId.edit": typeof import("./app/routes/colors_.$colorId.edit.tsx");
+  "routes/reports": typeof import("./app/routes/reports.tsx");
+  "routes/logs": typeof import("./app/routes/logs.tsx");
+  "routes/contracts": typeof import("./app/routes/contracts.tsx");
+  "routes/contracts_.$id.close": typeof import("./app/routes/contracts_.$id.close.tsx");
+  "routes/contracts.new": typeof import("./app/routes/contracts.new.tsx");
+  "routes/contracts.$id": typeof import("./app/routes/contracts.$id.tsx");
+  "routes/contracts.$id.edit": typeof import("./app/routes/contracts.$id.edit.tsx");
+  "routes/calendar": typeof import("./app/routes/calendar.tsx");
+  "routes/calendar.new": typeof import("./app/routes/calendar.new.tsx");
+  "routes/settings": typeof import("./app/routes/settings.tsx");
+  "routes/bookings": typeof import("./app/routes/bookings.tsx");
+  "routes/bookings.create": typeof import("./app/routes/bookings.create.tsx");
+  "routes/bookings.$id": typeof import("./app/routes/bookings.$id.tsx");
+  "routes/profile": typeof import("./app/routes/profile.tsx");
+  "routes/profile.edit": typeof import("./app/routes/profile.edit.tsx");
+  "routes/search-cars": typeof import("./app/routes/search-cars.tsx");
+  "routes/my-bookings": typeof import("./app/routes/my-bookings.tsx");
+  "routes/my-contracts": typeof import("./app/routes/my-contracts.tsx");
+  "routes/my-contracts.$id": typeof import("./app/routes/my-contracts.$id.tsx");
+  "routes/my-payments": typeof import("./app/routes/my-payments.tsx");
+  "routes/notifications": typeof import("./app/routes/notifications.tsx");
 };

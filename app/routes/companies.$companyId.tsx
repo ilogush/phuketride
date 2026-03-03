@@ -280,13 +280,13 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         // Keep page resilient and show empty states if partial loading fails
     }
 
-    return { 
-        user, 
-        company, 
-        stats, 
-        vehicles, 
+    return {
+        user,
+        company,
+        stats,
+        vehicles,
         teamMembers,
-        recentActivity 
+        recentActivity
     };
 }
 
@@ -330,7 +330,7 @@ export default function CompanyDetailPage() {
             key: "id",
             label: "ID",
             render: (vehicle: Vehicle) => (
-                <span className="font-mono text-xs bg-gray-800 text-white px-2 py-1 rounded-full">
+                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold font-mono bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
                     {String(vehicle.id).padStart(3, "0")}
                 </span>
             ),
@@ -368,9 +368,9 @@ export default function CompanyDetailPage() {
             label: "Status",
             render: (vehicle: Vehicle) => {
                 const status = vehicle.status || "available";
-                const variant = status === "available" ? "success" : 
-                    status === "rented" ? "warning" : 
-                    status === "maintenance" ? "error" : "neutral";
+                const variant = status === "available" ? "success" :
+                    status === "rented" ? "warning" :
+                        status === "maintenance" ? "error" : "neutral";
                 return <StatusBadge variant={variant}>{status}</StatusBadge>;
             },
         },
@@ -382,10 +382,10 @@ export default function CompanyDetailPage() {
             label: "Member",
             render: (member: TeamMember) => (
                 <div className="flex items-center gap-3">
-                    <Avatar 
-                        src={member.avatarUrl} 
-                        initials={`${member.name?.[0] || ""}${member.surname?.[0] || ""}`} 
-                        size="sm" 
+                    <Avatar
+                        src={member.avatarUrl}
+                        initials={`${member.name?.[0] || ""}${member.surname?.[0] || ""}`}
+                        size="sm"
                     />
                     <div>
                         <p className="font-medium text-gray-900">{member.name} {member.surname}</p>
@@ -422,8 +422,8 @@ export default function CompanyDetailPage() {
                 <main className="p-4">
                     <div className="space-y-6">
                         {/* Back button */}
-                        <Link 
-                            to="/dashboard/companies" 
+                        <Link
+                            to="/dashboard/companies"
                             className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors"
                         >
                             <ArrowLeftIcon className="w-5 h-5" />
@@ -449,10 +449,10 @@ export default function CompanyDetailPage() {
 
                             {/* Tabs */}
                             <div className="mt-6 border-b border-gray-200">
-                                <Tabs 
-                                    tabs={tabs} 
-                                    activeTab={activeTab} 
-                                    onTabChange={(id) => setActiveTab(id as string)} 
+                                <Tabs
+                                    tabs={tabs}
+                                    activeTab={activeTab}
+                                    onTabChange={(id) => setActiveTab(id as string)}
                                 />
                             </div>
                         </div>
