@@ -18,6 +18,16 @@ import { useDateMasking } from "~/lib/useDateMasking";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { parseDateFromDisplay } from "~/lib/formatters";
 import { getRequestMetadata } from "~/lib/audit-logger";
+import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
+import { getCreateContractEventsStmts } from "~/lib/calendar-events.server";
+import { getQuickAuditStmt } from "~/lib/audit-logger";
+import {
+    EXTRA_TYPES,
+    getCreateExtraPaymentStmt,
+    getCurrencyCodeById,
+    getExtraFlagsFromFormData,
+    getExtraInputFromFormData,
+} from "~/lib/contract-extras.server";
 import {
     TruckIcon,
     CalendarIcon,
@@ -277,12 +287,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const fuelLevel = String(formData.get("fuel_level") || "Full");
         const cleanliness = String(formData.get("cleanliness") || "Clean");
         const startMileage = Number(formData.get("start_mileage")) || 0;
-        const extraFlags = {
-            full_insurance: formData.get("fullInsurance") === "true",
-            baby_seat: formData.get("babySeat") === "true",
-            island_trip: formData.get("islandTrip") === "true",
-            krabi_trip: formData.get("krabiTrip") === "true",
-        } as const;
+        const extraFlags = getExtraFlagsFromFormData(formData);
 
         // Create contract
         const contractInsert = await context.cloudflare.env.DB
@@ -324,52 +329,33 @@ export async function action({ request, context }: ActionFunctionArgs) {
             .run();
 
         const contractId = Number(contractInsert.meta.last_row_id);
-        const currenciesResult = await context.cloudflare.env.DB
-            .prepare("SELECT id, code FROM currencies WHERE is_active = 1")
-            .all() as any;
-        const currencyCodeById = new Map<number, string>(
-            ((currenciesResult?.results || []) as Array<{ id: number; code: string }>).map((row) => [Number(row.id), row.code])
-        );
+        const currencyCodeById = await getCurrencyCodeById(context.cloudflare.env.DB);
 
         // Prep batch 2: Payments, Car Status, Calendar Events
         const finalStmts: D1PreparedStatement[] = [];
 
         // Create extra services as payment records
-        for (const [extraType, enabled] of Object.entries(extraFlags)) {
+        for (const extraType of EXTRA_TYPES) {
+            const enabled = extraFlags[extraType];
             if (!enabled) continue;
-            const amount = Number(formData.get(`extra_${extraType}_amount`)) || 0;
-            const currencyId = Number(formData.get(`extra_${extraType}_currency`)) || null;
-            const paymentMethod = (formData.get(`extra_${extraType}_method`) as string) || null;
+            const { amount, currencyId, paymentMethod } = getExtraInputFromFormData(formData, extraType);
             const currencyCode = (currencyId ? currencyCodeById.get(currencyId) : null) || "THB";
-            finalStmts.push(
-                context.cloudflare.env.DB
-                    .prepare(`
-                        INSERT INTO payments (
-                            contract_id, amount, currency, currency_id, payment_method, status, created_by, created_at, updated_at,
-                            extra_type, extra_enabled, extra_price
-                        ) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, 1, ?)
-                    `)
-                    .bind(
-                        contractId,
-                        amount,
-                        currencyCode,
-                        currencyId,
-                        paymentMethod,
-                        user.id,
-                        new Date().toISOString(),
-                        new Date().toISOString(),
-                        extraType,
-                        amount
-                    )
-            );
+            finalStmts.push(getCreateExtraPaymentStmt({
+                db: context.cloudflare.env.DB,
+                contractId,
+                userId: user.id,
+                extraType,
+                amount,
+                currency: currencyCode,
+                currencyId,
+                paymentMethod,
+            }));
         }
 
         // Update car status to 'rented'
-        const { getUpdateCarStatusStmt } = await import("~/lib/contract-helpers.server");
         finalStmts.push(getUpdateCarStatusStmt(context.cloudflare.env.DB, companyCarId, 'rented'));
 
         // Create calendar events
-        const { getCreateContractEventsStmts } = await import("~/lib/calendar-events.server");
         finalStmts.push(...getCreateContractEventsStmts({
             db: context.cloudflare.env.DB,
             companyId: user.companyId!,
@@ -383,7 +369,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
         await context.cloudflare.env.DB.batch(finalStmts);
 
         // Audit log (immediate execution)
-        const { getQuickAuditStmt } = await import("~/lib/audit-logger");
         const metadata = getRequestMetadata(request);
         await getQuickAuditStmt({
             db: context.cloudflare.env.DB,

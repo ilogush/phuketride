@@ -17,6 +17,7 @@ import { createContractEvents } from "~/lib/calendar-events.server";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { parseDateFromDisplay, parseDateTimeFromDisplay, formatDateForDisplay } from "~/lib/formatters";
+import { EXTRA_TYPES, getCreateExtraPaymentStmt, getExtraFlagsFromFormData, mapExtrasByType } from "~/lib/contract-extras.server";
 import {
     TruckIcon,
     CalendarIcon,
@@ -68,7 +69,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         .bind(contractId)
         .all() as any;
     const extrasRows = (extrasResult?.results || []) as Array<any>;
-    const extrasMap = Object.fromEntries(extrasRows.map((row) => [row.extraType, row])) as Record<string, any>;
+    const extrasMap = mapExtrasByType(extrasRows);
     const contract = contractRaw
         ? {
             ...contractRaw,
@@ -268,6 +269,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         const pickupDistrictId = pickupDistrictIdRaw ? Number(pickupDistrictIdRaw) : null;
         const returnDistrictId = returnDistrictIdRaw ? Number(returnDistrictIdRaw) : null;
 
+        const extraFlags = getExtraFlagsFromFormData(formData);
         const updatePayload: Record<string, unknown> = {
             companyCarId: newCompanyCarId,
             startDate,
@@ -286,10 +288,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             fuelLevel: String(formData.get("fuel_level") || existingContract.fuel_level || "Full"),
             cleanliness: String(formData.get("cleanliness") || existingContract.cleanliness || "Clean"),
             startMileage: Number(formData.get("start_mileage")) || existingContract.start_mileage || 0,
-            fullInsuranceEnabled: formData.get("fullInsurance") === "true",
-            babySeatEnabled: formData.get("babySeat") === "true",
-            islandTripEnabled: formData.get("islandTrip") === "true",
-            krabiTripEnabled: formData.get("krabiTrip") === "true",
+            fullInsuranceEnabled: extraFlags.full_insurance,
+            babySeatEnabled: extraFlags.baby_seat,
+            islandTripEnabled: extraFlags.island_trip,
+            krabiTripEnabled: extraFlags.krabi_trip,
             notes: (formData.get("notes") as string) || null,
             updatedAt: new Date(),
         };
@@ -333,8 +335,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             )
             .run();
 
-        const extraTypes = ["full_insurance", "baby_seat", "island_trip", "krabi_trip"] as const;
-        const extraEnabledByType: Record<(typeof extraTypes)[number], boolean> = {
+        const extraEnabledByType: Record<(typeof EXTRA_TYPES)[number], boolean> = {
             full_insurance: Boolean(updatePayload.fullInsuranceEnabled),
             baby_seat: Boolean(updatePayload.babySeatEnabled),
             island_trip: Boolean(updatePayload.islandTripEnabled),
@@ -354,7 +355,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         const existingByType = new Map(existingExtras.map((row) => [String(row.extraType), row]));
         const extraStmts: D1PreparedStatement[] = [];
 
-        for (const extraType of extraTypes) {
+        for (const extraType of EXTRA_TYPES) {
             const existingExtra = existingByType.get(extraType);
             if (!extraEnabledByType[extraType]) {
                 if (existingExtra?.id) {
@@ -380,16 +381,14 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 continue;
             }
 
-            extraStmts.push(
-                context.cloudflare.env.DB
-                    .prepare(`
-                        INSERT INTO payments (
-                            contract_id, payment_type_id, amount, currency, currency_id, payment_method, status, notes, created_by, created_at, updated_at,
-                            extra_type, extra_enabled, extra_price
-                        ) VALUES (?, NULL, 0, 'THB', NULL, NULL, 'completed', NULL, ?, ?, ?, ?, 1, 0)
-                    `)
-                    .bind(contractId, user.id, new Date().toISOString(), new Date().toISOString(), extraType)
-            );
+            extraStmts.push(getCreateExtraPaymentStmt({
+                db: context.cloudflare.env.DB,
+                contractId,
+                userId: user.id,
+                extraType,
+                amount: 0,
+                currency: "THB",
+            }));
         }
 
         if (extraStmts.length > 0) {

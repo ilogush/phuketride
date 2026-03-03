@@ -8,6 +8,7 @@ import Card from "~/components/dashboard/Card";
 import { format } from "date-fns";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { formatContactPhone } from "~/lib/phone";
+import { EXTRA_TYPES, getCreateExtraPaymentStmt } from "~/lib/contract-extras.server";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -213,32 +214,29 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 .run();
             const contract = { id: Number(insertContractResult.meta.last_row_id) };
 
-            const extraRows = [
-                { type: "full_insurance", enabled: Boolean(booking.fullInsuranceEnabled), price: Number(booking.fullInsurancePrice || 0) },
-                { type: "baby_seat", enabled: Boolean(booking.babySeatEnabled), price: Number(booking.babySeatPrice || 0) },
-                { type: "island_trip", enabled: Boolean(booking.islandTripEnabled), price: Number(booking.islandTripPrice || 0) },
-                { type: "krabi_trip", enabled: Boolean(booking.krabiTripEnabled), price: Number(booking.krabiTripPrice || 0) },
-            ] as const;
-            const extraStmts = extraRows
-                .filter((row) => row.enabled)
-                .map((row) =>
-                    context.cloudflare.env.DB
-                        .prepare(`
-                            INSERT INTO payments (
-                                contract_id, payment_type_id, amount, currency, payment_method, status, notes, created_by, created_at, updated_at,
-                                extra_type, extra_enabled, extra_price
-                            ) VALUES (?, NULL, ?, ?, NULL, 'completed', NULL, ?, ?, ?, ?, 1, ?)
-                        `)
-                        .bind(
-                            contract.id,
-                            row.price,
-                            booking.currency || "THB",
-                            user.id,
-                            new Date().toISOString(),
-                            new Date().toISOString(),
-                            row.type,
-                            row.price
-                        )
+            const extraPriceByType = {
+                full_insurance: Number(booking.fullInsurancePrice || 0),
+                baby_seat: Number(booking.babySeatPrice || 0),
+                island_trip: Number(booking.islandTripPrice || 0),
+                krabi_trip: Number(booking.krabiTripPrice || 0),
+            } as const;
+            const extraEnabledByType = {
+                full_insurance: Boolean(booking.fullInsuranceEnabled),
+                baby_seat: Boolean(booking.babySeatEnabled),
+                island_trip: Boolean(booking.islandTripEnabled),
+                krabi_trip: Boolean(booking.krabiTripEnabled),
+            } as const;
+            const extraStmts = EXTRA_TYPES
+                .filter((extraType) => extraEnabledByType[extraType])
+                .map((extraType) =>
+                    getCreateExtraPaymentStmt({
+                        db: context.cloudflare.env.DB,
+                        contractId: contract.id,
+                        userId: user.id,
+                        extraType,
+                        amount: extraPriceByType[extraType],
+                        currency: booking.currency || "THB",
+                    })
                 );
             if (extraStmts.length > 0) {
                 await context.cloudflare.env.DB.batch(extraStmts);
