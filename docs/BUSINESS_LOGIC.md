@@ -131,6 +131,12 @@ daily_price = base_price × season_multiplier × duration_multiplier
 total_price = daily_price × days
 ```
 
+### Множители (Multipliers)
+1. **Сезонный (Season)**: Зависит от даты начала аренды.
+2. **Длительности (Duration)**: Зависит от общего количества дней. Применяется к базовой цене за день.
+
+**Файл**: [app/lib/pricing.ts](../app/lib/pricing.ts)
+
 ### Сезоны (Seasons)
 
 Период + множитель цены.
@@ -165,25 +171,18 @@ total_price = daily_price × days
 
 ## Multi-tenancy
 
-### Изоляция данных
+### Идентификация компании
 
-Фильтрация по company_id через company_car_id.
+Для Multi-tenancy используется `company_id`. 
 
-### Проверки безопасности
+1. **Партнеры/Менеджеры**: `company_id` берется из данных сессии пользователя.
+2. **Администраторы (MOD Mode)**: Админ может просматривать интерфейс от лица любой компании. 
+   - `modCompanyId` передается через Query Params.
+   - Используется `getEffectiveCompanyId` для получения актуального ID.
 
-```typescript
-// ВСЕГДА проверять company_id
-const car = await db.select()
-  .from(companyCars)
-  .where(
-    and(
-      eq(companyCars.id, carId),
-      eq(companyCars.companyId, currentCompanyId)
-    )
-  );
-```
-
-**Файл**: [app/lib/auth.server.ts](../app/lib/auth.server.ts)
+**Файлы**: 
+- [app/lib/auth.server.ts](../app/lib/auth.server.ts)
+- [app/lib/mod-mode.server.ts](../app/lib/mod-mode.server.ts)
 
 ## Audit Logging
 
