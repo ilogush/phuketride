@@ -5,6 +5,8 @@ import FormField from '~/components/dashboard/FormField'
 import { Input } from '~/components/dashboard/Input'
 import { Textarea } from '~/components/dashboard/Textarea'
 import { useToast } from '~/lib/toast'
+import { useDateMasking } from '~/lib/useDateMasking'
+import { formatDateTimeForDisplay, parseDateTimeFromDisplay } from '~/lib/formatters'
 
 interface MaintenanceFormProps {
     carId: number
@@ -31,6 +33,7 @@ export default function MaintenanceForm({
 }: MaintenanceFormProps) {
     const navigate = useNavigate()
     const toast = useToast()
+    const { maskDateTimeInput } = useDateMasking()
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [formData, setFormData] = useState({
         daily_mileage_limit: '',
@@ -39,7 +42,7 @@ export default function MaintenanceForm({
         mileage: currentMileage.toString(),
         cost: '',
         notes: '',
-        performed_at: new Date().toISOString().slice(0, 16),
+        performed_at: formatDateTimeForDisplay(new Date()),
         next_maintenance_date: ''
     })
 
@@ -92,9 +95,9 @@ export default function MaintenanceForm({
                     mileage: parseInt(formData.mileage),
                     cost: formData.cost ? parseFloat(formData.cost) : undefined,
                     notes: formData.notes || undefined,
-                    performed_at: new Date(formData.performed_at).toISOString(),
+                    performed_at: parseDateTimeFromDisplay(formData.performed_at),
                     next_maintenance_date: formData.next_maintenance_date
-                        ? new Date(formData.next_maintenance_date).toISOString()
+                        ? parseDateTimeFromDisplay(formData.next_maintenance_date)
                         : undefined
                 })
             })
@@ -181,9 +184,13 @@ export default function MaintenanceForm({
                 <div className="col-span-2">
                     <FormField label="Performed At" required>
                         <Input
-                            type="datetime-local"
+                            type="text"
                             value={formData.performed_at}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('performed_at', e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                maskDateTimeInput(e)
+                                handleChange('performed_at', e.target.value)
+                            }}
+                            placeholder="DD/MM/YYYY HH:mm"
                         />
                     </FormField>
                 </div>
@@ -191,9 +198,13 @@ export default function MaintenanceForm({
                 <div className="col-span-2">
                     <FormField label="Next Maintenance Date">
                         <Input
-                            type="datetime-local"
+                            type="text"
                             value={formData.next_maintenance_date}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('next_maintenance_date', e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                maskDateTimeInput(e)
+                                handleChange('next_maintenance_date', e.target.value)
+                            }}
+                            placeholder="DD/MM/YYYY HH:mm"
                         />
                     </FormField>
                 </div>

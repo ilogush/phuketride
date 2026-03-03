@@ -3,12 +3,12 @@ import { useSearchParams } from 'react-router'
 import EmptyState from './EmptyState'
 import Loader from './Loader'
 import Tabs from './Tabs'
-import { Pagination } from './Pagination'
+import SimplePagination from './SimplePagination'
 import { formatContactPhone } from '~/lib/phone'
 
 export interface Column<T> {
     key: string
-    label: string
+    label: React.ReactNode
     sortable?: boolean
     render?: (item: T, index: number, page: number, pageSize: number) => React.ReactNode
     wrap?: boolean
@@ -100,14 +100,14 @@ export default function DataTable<T>({
     useEffect(() => {
         const urlPage = searchParams.get('page')
         const urlPageSize = searchParams.get('pageSize')
-        
+
         if (urlPage) {
             const parsedPage = parseInt(urlPage)
             if (!isNaN(parsedPage) && parsedPage !== page) {
                 setPage(parsedPage)
             }
         }
-        
+
         if (urlPageSize) {
             const parsedPageSize = parseInt(urlPageSize)
             if (!isNaN(parsedPageSize) && parsedPageSize !== pageSize) {
@@ -306,7 +306,7 @@ export default function DataTable<T>({
                                                 )
                                                 : !col.render && (col.key === 'phone' || col.key === 'whatsapp')
                                                     ? formatContactPhone(typeof cellValue === 'string' ? cellValue : null)
-                                                : cellValue;
+                                                    : cellValue;
 
                                             return (
                                                 <td
@@ -326,15 +326,10 @@ export default function DataTable<T>({
             </div>
 
             {!disablePagination && (
-                <Pagination
-                    pagination={{
-                        currentPage: page,
-                        totalPages: Math.ceil(actualTotalCount / pageSize),
-                        pageSize,
-                        totalItems: actualTotalCount,
-                        hasNext: page < Math.ceil(actualTotalCount / pageSize),
-                        hasPrevious: page > 1
-                    }}
+                <SimplePagination
+                    currentPage={page}
+                    totalPages={Math.max(1, Math.ceil(actualTotalCount / pageSize))}
+                    onPageChange={setPage}
                 />
             )}
         </div>

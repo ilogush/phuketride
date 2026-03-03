@@ -9,6 +9,8 @@ import Button from "~/components/dashboard/Button";
 import BackButton from "~/components/dashboard/BackButton";
 import FormSection from "~/components/dashboard/FormSection";
 import { useLatinValidation } from "~/lib/useLatinValidation";
+import { useToast } from "~/lib/toast";
+import { useEffect } from "react";
 import { z } from "zod";
 
 interface LocationRow {
@@ -72,8 +74,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         accountNumber: z.string().trim().optional(),
         accountName: z.string().trim().optional(),
         swiftCode: z.string().trim().optional(),
-        preparationTime: z.coerce.number().int().min(0).max(1440).default(30),
         deliveryFeeAfterHours: z.coerce.number().min(0).default(0),
+        islandTripPrice: z.coerce.number().min(0).optional().nullable(),
+        krabiTripPrice: z.coerce.number().min(0).optional().nullable(),
+        babySeatPricePerDay: z.coerce.number().min(0).optional().nullable(),
     });
     const parsed = editCompanySchema.safeParse({
         name: formData.get("name"),
@@ -88,8 +92,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         accountNumber: formData.get("accountNumber"),
         accountName: formData.get("accountName"),
         swiftCode: formData.get("swiftCode"),
-        preparationTime: formData.get("preparationTime") || 30,
         deliveryFeeAfterHours: formData.get("deliveryFeeAfterHours") || 0,
+        islandTripPrice: formData.get("islandTripPrice") ? Number(formData.get("islandTripPrice")) : null,
+        krabiTripPrice: formData.get("krabiTripPrice") ? Number(formData.get("krabiTripPrice")) : null,
+        babySeatPricePerDay: formData.get("babySeatPricePerDay") ? Number(formData.get("babySeatPricePerDay")) : null,
     });
     if (!parsed.success) {
         return { errors: { form: parsed.error.errors[0]?.message || "Validation failed" } };
@@ -107,8 +113,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         accountNumber,
         accountName,
         swiftCode,
-        preparationTime,
         deliveryFeeAfterHours,
+        islandTripPrice,
+        krabiTripPrice,
+        babySeatPricePerDay,
     } = parsed.data;
 
     try {
@@ -129,8 +137,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                     account_number = ?,
                     account_name = ?,
                     swift_code = ?,
-                    preparation_time = ?,
                     delivery_fee_after_hours = ?,
+                    island_trip_price = ?,
+                    krabi_trip_price = ?,
+                    baby_seat_price_per_day = ?,
                     updated_at = ?
                 WHERE id = ?
                 `
@@ -148,22 +158,34 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 accountNumber,
                 accountName,
                 swiftCode,
-                preparationTime,
                 deliveryFeeAfterHours,
+                islandTripPrice,
+                krabiTripPrice,
+                babySeatPricePerDay,
                 Date.now(),
                 companyId
             )
             .run();
 
         return redirect(`/companies/${companyId}/edit?success=Company updated successfully`);
-    } catch {
-        return redirect(`/companies/${companyId}/edit?error=Failed to update company`);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to update company";
+        return redirect(`/companies/${companyId}/edit?error=${encodeURIComponent(message)}`);
     }
 }
 
 export default function CompanyEditPage() {
     const { company, locations, districts } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
+    const toast = useToast();
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const error = params.get("error");
+        const success = params.get("success");
+        if (error) toast.error(decodeURIComponent(error));
+        if (success) toast.success(decodeURIComponent(success));
+    }, [toast]);
     const errors: Record<string, string> = (actionData as { errors?: Record<string, string> } | undefined)?.errors || {};
     const { validateLatinInput } = useLatinValidation();
     const initialLocationId = Number(company?.location_id ?? 0) || Number(locations[0]?.id ?? 0);
@@ -345,23 +367,35 @@ export default function CompanyEditPage() {
                         </div>
                     </FormSection>
 
-                    <FormSection title="Settings">
+                    <FormSection title="Extras">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <Input
-                                label="Preparation Time (minutes)"
-                                name="preparationTime"
-                                type="number"
-                                placeholder="30"
-                                defaultValue={company.preparationTime || 30}
-                            />
-
                             <Input
                                 label="Delivery Fee After Hours"
                                 name="deliveryFeeAfterHours"
                                 type="number"
                                 step="0.01"
-
                                 defaultValue={company.deliveryFeeAfterHours || 0}
+                            />
+                            <Input
+                                label="Island Trip Cost"
+                                name="islandTripPrice"
+                                type="number"
+                                step="0.01"
+                                defaultValue={company.island_trip_price || 0}
+                            />
+                            <Input
+                                label="Krabi Trip Cost"
+                                name="krabiTripPrice"
+                                type="number"
+                                step="0.01"
+                                defaultValue={company.krabi_trip_price || 0}
+                            />
+                            <Input
+                                label="Baby Seat Cost (per day)"
+                                name="babySeatPricePerDay"
+                                type="number"
+                                step="1"
+                                defaultValue={company.baby_seat_price_per_day || 0}
                             />
                         </div>
                     </FormSection>

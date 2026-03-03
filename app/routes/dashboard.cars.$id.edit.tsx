@@ -5,7 +5,8 @@ import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
-import Card from "~/components/dashboard/Card";
+import AdminCard from "~/components/dashboard/AdminCard";
+import FormSection from "~/components/dashboard/FormSection";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
 import Toggle from "~/components/dashboard/Toggle";
@@ -14,7 +15,7 @@ import { useToast } from "~/lib/toast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { carSchema } from "~/schemas/car";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
-import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { ExclamationTriangleIcon, TruckIcon, PhotoIcon, WrenchScrewdriverIcon, AdjustmentsHorizontalIcon, ShieldCheckIcon, BanknotesIcon, Cog6ToothIcon } from "@heroicons/react/24/outline";
 import { calculateSeasonalPrice, getAverageDays } from "~/lib/pricing";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
@@ -178,7 +179,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         engineVolume: Number(formData.get("engineVolume")) || car.engine_volume || 0,
         fuelType: (formData.get("fuelType") as "petrol" | "diesel" | "electric" | "hybrid") || "petrol",
         status: (formData.get("status") as "available" | "rented" | "maintenance" | "booked") || car.status || "available",
-        vin: (formData.get("vin") as string) || car.vin || null,
         currentMileage: Number(formData.get("currentMileage")) || car.mileage || 0,
         nextOilChangeMileage: Number(formData.get("nextOilChangeMileage")) || car.next_oil_change_mileage || 0,
         oilChangeInterval: Number(formData.get("oilChangeInterval")) || car.oil_change_interval || 10000,
@@ -228,7 +228,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             .prepare(`
                 UPDATE company_cars
                 SET template_id = ?, year = ?, color_id = ?, license_plate = ?, transmission = ?, engine_volume = ?,
-                    fuel_type_id = ?, vin = ?, status = ?, mileage = ?, next_oil_change_mileage = ?, oil_change_interval = ?,
+                    fuel_type_id = ?, status = ?, mileage = ?, next_oil_change_mileage = ?, oil_change_interval = ?,
                     price_per_day = ?, deposit = ?, insurance_type = ?, insurance_expiry_date = ?, registration_expiry = ?,
                     tax_road_expiry_date = ?, min_insurance_price = ?, max_insurance_price = ?, photos = ?, updated_at = ?
                 WHERE id = ?
@@ -241,7 +241,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 validData.transmission,
                 validData.engineVolume,
                 fuelType?.id ?? null,
-                validData.vin,
                 validData.status,
                 validData.currentMileage,
                 validData.nextOilChangeMileage,
@@ -318,11 +317,11 @@ export default function EditCarPage() {
         const model = template.model?.name || 'Unknown';
         const engine = template.engineVolume ? `${template.engineVolume}L` : '';
         const fuel = template.fuelType?.name || '';
-        
+
         let name = `${brand} ${model}`;
         if (engine) name += ` ${engine}`;
         if (fuel) name += ` ${fuel}`;
-        
+
         return name;
     };
 
@@ -360,13 +359,12 @@ export default function EditCarPage() {
                 }
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Main Form - Left Side */}
-                <div className="lg:col-span-2">
-                    <Form id="edit-car-form" method="post" className="bg-white rounded-3xl shadow-sm p-4">
+            <Form id="edit-car-form" method="post">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    {/* Main Form - Left Side */}
+                    <div className="lg:col-span-2">
                         <div className="space-y-4">
-                            <div>
-                                <h3 className="text-sm font-semibold text-gray-900 mb-3">Specifications</h3>
+                            <FormSection title="Specifications" icon={<Cog6ToothIcon className="w-5 h-5" />}>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <Select
                                         label="Car Template"
@@ -404,37 +402,13 @@ export default function EditCarPage() {
                                         max={new Date().getFullYear() + 1}
                                         defaultValue={car.year || ""}
                                     />
-                                    <Input
-                                        label="VIN Number"
-                                        name="vin"
-                                        maxLength={17}
-                                        defaultValue={car.vin || ""}
-                                        onChange={(e) => {
-                                            e.target.value = e.target.value.toUpperCase();
-                                            validateLatinInput(e, 'VIN');
-                                        }}
-                                    />
-                                    <Select
-                                        label="Status"
-                                        name="status"
-                                        required
-                                        options={[
-                                            { id: "available", name: "Available" },
-                                            { id: "rented", name: "Rented" },
-                                            { id: "maintenance", name: "Maintenance" },
-                                            { id: "booked", name: "Booked" },
-                                        ]}
-                                        defaultValue={car.status || "available"}
-                                    />
                                 </div>
-                            </div>
+                                <input type="hidden" name="transmission" value={selectedTemplate?.transmission || car.transmission || 'automatic'} />
+                                <input type="hidden" name="engineVolume" value={selectedTemplate?.engineVolume || car.engineVolume || 1.5} />
+                                <input type="hidden" name="fuelType" value={(selectedTemplate?.fuelType?.name || car.fuelType?.name || 'Petrol').toLowerCase()} />
+                            </FormSection>
 
-                            <input type="hidden" name="transmission" value={selectedTemplate?.transmission || car.transmission || 'automatic'} />
-                            <input type="hidden" name="engineVolume" value={selectedTemplate?.engineVolume || car.engineVolume || 1.5} />
-                            <input type="hidden" name="fuelType" value={(selectedTemplate?.fuelType?.name || car.fuelType?.name || 'Petrol').toLowerCase()} />
-
-                            <div className="pt-4 border-t border-gray-100 space-y-4">
-                                <h3 className="text-sm font-semibold text-gray-900">Insurance</h3>
+                            <FormSection title="Insurance" icon={<ShieldCheckIcon className="w-5 h-5" />}>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <Select
                                         label="Insurance Type"
@@ -500,54 +474,9 @@ export default function EditCarPage() {
                                         </>
                                     )}
                                 </div>
-                            </div>
+                            </FormSection>
 
-                            <div className="pt-4 border-t border-gray-100 space-y-4">
-                                <h3 className="text-sm font-semibold text-gray-900">Maintenance</h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    <Input
-                                        label="Current Mileage"
-                                        name="currentMileage"
-                                        type="number"
-                                        required
-                                        min={0}
-                                        value={currentMileage}
-                                        onChange={(e) => setCurrentMileage(Number(e.target.value))}
-                                        addonRight="km"
-                                    />
-                                    <div>
-                                        <Input
-                                            label="Next Oil Change Mileage"
-                                            name="nextOilChangeMileage"
-                                            type="number"
-                                            required
-                                            min={0}
-                                            value={nextOilChange}
-                                            onChange={(e) => setNextOilChange(Number(e.target.value))}
-                                            addonRight="km"
-                                            className={isOilChangeDueSoon ? 'bg-gray-100 font-bold' : ''}
-                                        />
-                                        {isOilChangeDueSoon && (
-                                            <div className="mt-2 flex items-center gap-2 text-orange-600 animate-pulse">
-                                                <ExclamationTriangleIcon className="w-4 h-4" />
-                                                <span className="text-xs font-medium">Maintenance Due Soon! ({kmUntilOilChange} km left)</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <Input
-                                        label="Oil Change Interval (km)"
-                                        name="oilChangeInterval"
-                                        type="number"
-                                        min={1000}
-                                        step={1000}
-                                        defaultValue={car.oilChangeInterval || 10000}
-                                        addonRight="km"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="pt-4 border-t border-gray-100 space-y-4">
-                                <h3 className="text-sm font-semibold text-gray-900">Pricing</h3>
+                            <FormSection title="Pricing" icon={<BanknotesIcon className="w-5 h-5" />}>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <Input
                                         label="Price per Day"
@@ -589,7 +518,12 @@ export default function EditCarPage() {
                                                                     scope="col"
                                                                     className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight hidden sm:table-cell"
                                                                 >
-                                                                    <span>{duration.rangeName}</span>
+                                                                    <div className="flex flex-col leading-tight">
+                                                                        <span>{duration.rangeName.split(' ')[0]}</span>
+                                                                        <span className="text-[10px] lowercase text-gray-400 font-normal">
+                                                                            {duration.rangeName.split(' ').slice(1).join(' ')}
+                                                                        </span>
+                                                                    </div>
                                                                 </th>
                                                             ))}
                                                         </tr>
@@ -640,57 +574,113 @@ export default function EditCarPage() {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </FormSection>
 
                             <input type="hidden" name="photos" value={JSON.stringify(photos)} />
                         </div>
-                    </Form>
-                </div>
+                    </div>
 
-                {/* Sidebar - Right Side */}
-                <div className="space-y-4">
-                    {selectedTemplate && (
-                        <Card>
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Template Details</h2>
-                            <div className="space-y-3">
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">Body Type</span>
-                                    <span className="text-sm font-medium text-gray-900">{selectedTemplate.bodyType?.name || 'N/A'}</span>
+                    {/* Sidebar - Right Side */}
+                    <div className="space-y-4">
+                        {selectedTemplate && (
+                            <AdminCard title="Template Details" icon={<TruckIcon className="w-5 h-5" />}>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-600">Body Type</span>
+                                        <span className="text-sm font-medium text-gray-900">{selectedTemplate.bodyType?.name || 'N/A'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-600">Transmission</span>
+                                        <span className="text-sm font-medium text-gray-900 capitalize">{selectedTemplate.transmission || 'N/A'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-600">Engine</span>
+                                        <span className="text-sm font-medium text-gray-900">{selectedTemplate.engineVolume}L</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-600">Seats</span>
+                                        <span className="text-sm font-medium text-gray-900">{selectedTemplate.seats}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-600">Doors</span>
+                                        <span className="text-sm font-medium text-gray-900">{selectedTemplate.doors}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-600">Fuel Type</span>
+                                        <span className="text-sm font-medium text-gray-900">{selectedTemplate.fuelType?.name || 'N/A'}</span>
+                                    </div>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">Transmission</span>
-                                    <span className="text-sm font-medium text-gray-900 capitalize">{selectedTemplate.transmission || 'N/A'}</span>
+                            </AdminCard>
+                        )}
+
+                        <AdminCard title="Photos" icon={<PhotoIcon className="w-5 h-5" />}>
+                            <CarPhotosUpload
+                                currentPhotos={car.photos ? JSON.parse(car.photos as string) : []}
+                                onPhotosChange={setPhotos}
+                                maxPhotos={6}
+                            />
+                        </AdminCard>
+
+                        <AdminCard title="Maintenance" icon={<WrenchScrewdriverIcon className="w-5 h-5" />}>
+                            <div className="space-y-4">
+                                <Input
+                                    label="Current Mileage"
+                                    name="currentMileage"
+                                    type="number"
+                                    required
+                                    min={0}
+                                    value={currentMileage}
+                                    onChange={(e) => setCurrentMileage(Number(e.target.value))}
+                                    addonRight="km"
+                                />
+                                <div>
+                                    <Input
+                                        label="Next Oil Change Mileage"
+                                        name="nextOilChangeMileage"
+                                        type="number"
+                                        required
+                                        min={0}
+                                        value={nextOilChange}
+                                        onChange={(e) => setNextOilChange(Number(e.target.value))}
+                                        addonRight="km"
+                                        className={isOilChangeDueSoon ? 'bg-gray-100 font-bold' : ''}
+                                    />
+                                    {isOilChangeDueSoon && (
+                                        <div className="mt-2 flex items-center gap-2 text-orange-600 animate-pulse">
+                                            <ExclamationTriangleIcon className="w-4 h-4" />
+                                            <span className="text-xs font-medium">Maintenance Due Soon! ({kmUntilOilChange} km left)</span>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">Engine</span>
-                                    <span className="text-sm font-medium text-gray-900">{selectedTemplate.engineVolume}L</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">Seats</span>
-                                    <span className="text-sm font-medium text-gray-900">{selectedTemplate.seats}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">Doors</span>
-                                    <span className="text-sm font-medium text-gray-900">{selectedTemplate.doors}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">Fuel Type</span>
-                                    <span className="text-sm font-medium text-gray-900">{selectedTemplate.fuelType?.name || 'N/A'}</span>
-                                </div>
+                                <Input
+                                    label="Oil Change Interval (km)"
+                                    name="oilChangeInterval"
+                                    type="number"
+                                    min={1000}
+                                    step={1000}
+                                    defaultValue={car.oilChangeInterval || 10000}
+                                    addonRight="km"
+                                />
                             </div>
-                        </Card>
-                    )}
+                        </AdminCard>
 
-                    <Card>
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Photos</h2>
-                        <CarPhotosUpload
-                            currentPhotos={car.photos ? JSON.parse(car.photos as string) : []}
-                            onPhotosChange={setPhotos}
-                            maxPhotos={6}
-                        />
-                    </Card>
+                        <AdminCard title="Status" icon={<AdjustmentsHorizontalIcon className="w-5 h-5" />}>
+                            <Select
+                                label="Status"
+                                name="status"
+                                required
+                                options={[
+                                    { id: "available", name: "Available" },
+                                    { id: "rented", name: "Rented" },
+                                    { id: "maintenance", name: "Maintenance" },
+                                    { id: "booked", name: "Booked" },
+                                ]}
+                                defaultValue={car.status || "available"}
+                            />
+                        </AdminCard>
+                    </div>
                 </div>
-            </div>
+            </Form>
         </div>
     );
 }

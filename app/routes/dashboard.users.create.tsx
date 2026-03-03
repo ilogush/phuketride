@@ -9,6 +9,7 @@ import { useToast } from "~/lib/toast";
 import { useEffect } from "react";
 import { userSchema } from "~/schemas/user";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { parseDateFromDisplay } from "~/lib/formatters";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
@@ -84,7 +85,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             passwordHash = await hashPassword(newPassword);
         }
 
-        const dateOfBirth = validData.dateOfBirth ? new Date(validData.dateOfBirth).toISOString() : null;
+        const dateOfBirth = validData.dateOfBirth ? parseDateFromDisplay(validData.dateOfBirth) : null;
         await context.cloudflare.env.DB
             .prepare(`
                 INSERT INTO users (
@@ -140,8 +141,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
         });
 
         return redirect(`/users?success=${encodeURIComponent("User created successfully")}`);
-    } catch {
-        return redirect(`/users/create?error=${encodeURIComponent("Failed to create user")}`);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to create user";
+        return redirect(`/users/create?error=${encodeURIComponent(message)}`);
     }
 }
 

@@ -106,7 +106,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
         accountNumber: (formData.get("accountNumber") as string) || null,
         accountName: (formData.get("accountName") as string) || null,
         swiftCode: (formData.get("swiftCode") as string) || null,
-        preparationTime: parseIntegerValue(formData.get("preparationTime"), 30),
         deliveryFeeAfterHours: parseMoneyValue(formData.get("deliveryFeeAfterHours")) ?? 0,
         islandTripPrice: parseMoneyValue(formData.get("islandTripPrice")),
         krabiTripPrice: parseMoneyValue(formData.get("krabiTripPrice")),
@@ -134,9 +133,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 INSERT INTO companies (
                     name, owner_id, email, phone, telegram, location_id, district_id,
                     street, house_number, bank_name, account_number, account_name, swift_code,
-                    preparation_time, delivery_fee_after_hours, island_trip_price, krabi_trip_price,
+                    delivery_fee_after_hours, island_trip_price, krabi_trip_price,
                     baby_seat_price_per_day, weekly_schedule, holidays, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `)
             .bind(
                 validData.name,
@@ -152,7 +151,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 validData.accountNumber,
                 validData.accountName,
                 validData.swiftCode,
-                validData.preparationTime,
                 validData.deliveryFeeAfterHours,
                 validData.islandTripPrice,
                 validData.krabiTripPrice,
@@ -175,7 +173,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             .bind(validData.locationId)
             .all()) as { results?: DistrictRow[] };
         const allDistricts = allDistrictsResult.results || [];
-        
+
         await Promise.all(
             allDistricts.map((district: DistrictRow) =>
                 context.cloudflare.env.DB
@@ -200,7 +198,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         if (managerIds.length > 0 && newCompany?.id) {
             // First manager becomes the owner
             const ownerId = managerIds[0];
-            
+
             // Update company owner
             await context.cloudflare.env.DB
                 .prepare("UPDATE companies SET owner_id = ?, updated_at = ? WHERE id = ?")
@@ -244,8 +242,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
         });
 
         return redirect(`/companies?success=${encodeURIComponent("Company created successfully")}`);
-    } catch {
-        return redirect(`/companies/create?error=${encodeURIComponent("Failed to create company")}`);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to create company";
+        return redirect(`/companies/create?error=${encodeURIComponent(message)}`);
     }
 }
 
@@ -400,13 +399,6 @@ export default function CreateCompanyPage() {
                 <FormSection title="Extras" icon={<Cog6ToothIcon />}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Input
-                            label="Preparation Time (min)"
-                            name="preparationTime"
-                            type="number"
-                            placeholder="30"
-                            defaultValue="30"
-                        />
-                        <Input
                             label="Delivery Fee (After Hours)"
                             name="deliveryFeeAfterHours"
                             type="number"
@@ -430,17 +422,15 @@ export default function CreateCompanyPage() {
 
                             addonLeft="฿"
                         />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-                            <Input
-                                label="Baby Seat Cost (per day)"
-                                name="babySeatPricePerDay"
-                                type="number"
-                                step="1"
-                                min={0}
+                        <Input
+                            label="Baby Seat Cost (per day)"
+                            name="babySeatPricePerDay"
+                            type="number"
+                            step="1"
+                            min={0}
 
-                                addonLeft="฿"
-                            />
+                            addonLeft="฿"
+                        />
                     </div>
                 </FormSection>
 
@@ -522,6 +512,6 @@ export default function CreateCompanyPage() {
                 <input type="hidden" name="holidays" value={holidays} />
                 <HolidaysManager value={holidays} onChange={setHolidays} />
             </Form>
-        </div>
+        </div >
     );
 }

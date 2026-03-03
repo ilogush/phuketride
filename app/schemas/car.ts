@@ -9,7 +9,6 @@ export const carSchema = z.object({
     engineVolume: z.number().min(0.1, "Engine volume must be positive").max(10, "Engine volume is too large"),
     fuelType: z.enum(["petrol", "diesel", "electric", "hybrid"], { errorMap: () => ({ message: "Invalid fuel type" }) }),
     status: z.enum(["available", "rented", "maintenance", "booked"], { errorMap: () => ({ message: "Invalid status" }) }),
-    vin: z.string().max(50, "VIN is too long").optional().nullable(),
     // Maintenance
     currentMileage: z.number().int().min(0, "Mileage must be positive"),
     nextOilChangeMileage: z.number().int().min(0, "Next oil change mileage must be positive"),

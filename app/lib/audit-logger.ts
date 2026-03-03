@@ -16,11 +16,9 @@ interface AuditLogParams {
 }
 
 /**
- * Quick audit logging function
- * Logs user actions to audit_logs table
- * Executes asynchronously without blocking the main flow
+ * Get prepared statement for audit log
  */
-export async function quickAudit(params: AuditLogParams): Promise<void> {
+export function getQuickAuditStmt(params: AuditLogParams): D1PreparedStatement {
     const {
         db,
         userId,
@@ -35,29 +33,36 @@ export async function quickAudit(params: AuditLogParams): Promise<void> {
         userAgent,
     } = params;
 
+    return db
+        .prepare(
+            `
+            INSERT INTO audit_logs (
+                user_id, role, company_id, entity_type, entity_id, action,
+                before_state, after_state, ip_address, user_agent, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `
+        )
+        .bind(
+            userId,
+            role,
+            companyId || null,
+            entityType,
+            entityId ? (typeof entityId === 'number' ? entityId : Number(entityId) || null) : null,
+            action,
+            beforeState ? JSON.stringify(beforeState) : null,
+            afterState ? JSON.stringify(afterState) : null,
+            ipAddress || null,
+            userAgent || null,
+            new Date().toISOString()
+        );
+}
+
+/**
+ * Quick audit logging function (immediate execution)
+ */
+export async function quickAudit(params: AuditLogParams): Promise<void> {
     try {
-        await db
-            .prepare(
-                `
-                INSERT INTO audit_logs (
-                    user_id, role, company_id, entity_type, entity_id, action,
-                    before_state, after_state, ip_address, user_agent
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `
-            )
-            .bind(
-                userId,
-                role,
-                companyId || null,
-                entityType,
-                entityId ? Number(entityId) : null,
-                action,
-                beforeState ? JSON.stringify(beforeState) : null,
-                afterState ? JSON.stringify(afterState) : null,
-                ipAddress || null,
-                userAgent || null
-            )
-            .run();
+        await getQuickAuditStmt(params).run();
     } catch {
         // Audit logging should never break the main flow.
     }

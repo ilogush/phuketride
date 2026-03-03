@@ -69,13 +69,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const contracts = ((contractsResult as { results?: unknown[] }).results || []) as CalendarContract[];
     const bookings = ((bookingsResult as { results?: unknown[] }).results || []) as CalendarBooking[];
 
-    return { 
-        user, 
-        events, 
+    return {
+        user,
+        events,
         contracts,
         bookings,
-        currentMonth, 
-        currentYear 
+        currentMonth,
+        currentYear
     };
 }
 
@@ -145,9 +145,9 @@ export default function CalendarPage() {
 
     const isToday = (day: number) => {
         const today = new Date();
-        return day === today.getDate() && 
-               currentMonth === today.getMonth() && 
-               currentYear === today.getFullYear();
+        return day === today.getDate() &&
+            currentMonth === today.getMonth() &&
+            currentYear === today.getFullYear();
     };
 
     return (
@@ -166,13 +166,13 @@ export default function CalendarPage() {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
                     <Link to={prevMonth()}>
-                        <Button variant="secondary" icon={<ChevronLeftIcon className="w-5 h-5" />} />
+                        <Button variant="ghost" icon={<ChevronLeftIcon className="w-5 h-5" />} />
                     </Link>
                     <h2 className="text-xl font-bold text-gray-900">
                         {monthNames[currentMonth]} {currentYear}
                     </h2>
                     <Link to={nextMonth()}>
-                        <Button variant="secondary" icon={<ChevronRightIcon className="w-5 h-5" />} />
+                        <Button variant="ghost" icon={<ChevronRightIcon className="w-5 h-5" />} />
                     </Link>
                 </div>
             </div>
@@ -192,38 +192,36 @@ export default function CalendarPage() {
                         const { events: dayEvents, contracts: dayContracts, bookings: dayBookings } = isValidDay ? getEventsForDay(day) : { events: [], contracts: [], bookings: [] };
 
                         return (
-                            <div 
-                                key={i} 
-                                className={`min-h-[100px] sm:min-h-[120px] border-r border-b border-gray-100 p-1 sm:p-2 ${
-                                    isValidDay ? 'hover:bg-gray-50/20 transition-colors group cursor-pointer' : 'bg-gray-50/30'
-                                }`}
+                            <div
+                                key={i}
+                                className={`min-h-[100px] sm:min-h-[120px] border-r border-b border-gray-100 p-1 sm:p-2 ${isValidDay ? 'hover:bg-gray-50/20 transition-colors group cursor-pointer' : 'bg-gray-50/30'
+                                    }`}
                             >
                                 {isValidDay && (
                                     <>
-                                        <span className={`text-xs font-bold ${
-                                            isToday(day) 
-                                                ? 'bg-gray-800 text-white rounded-full px-2 py-1' 
+                                        <span className={`text-xs font-bold ${isToday(day)
+                                                ? 'bg-gray-800 text-white rounded-full px-2 py-1'
                                                 : 'text-gray-400 group-hover:text-gray-900'
-                                        } transition-colors`}>
+                                            } transition-colors`}>
                                             {day}
                                         </span>
                                         <div className="mt-1 space-y-1">
                                             {dayEvents.map((event) => {
                                                 const color = event.color ?? '#6B7280'
                                                 return (
-                                                <div 
-                                                    key={event.id} 
-                                                    className="text-[10px] sm:text-xs px-1 py-0.5 rounded truncate"
-                                                    style={{ backgroundColor: `${color}20`, color }}
-                                                    title={event.title}
-                                                >
-                                                    {event.title}
-                                                </div>
+                                                    <div
+                                                        key={event.id}
+                                                        className="text-[10px] sm:text-xs px-1 py-0.5 rounded truncate"
+                                                        style={{ backgroundColor: `${color}20`, color }}
+                                                        title={event.title}
+                                                    >
+                                                        {event.title}
+                                                    </div>
                                                 )
                                             })}
                                             {dayContracts.map((contract) => (
-                                                <div 
-                                                    key={contract.id} 
+                                                <div
+                                                    key={contract.id}
                                                     className="text-[10px] sm:text-xs px-1 py-0.5 rounded truncate bg-red-50 text-red-600"
                                                     title={`Contract #${contract.id} ends`}
                                                 >
@@ -231,8 +229,8 @@ export default function CalendarPage() {
                                                 </div>
                                             ))}
                                             {dayBookings.map((booking) => (
-                                                <div 
-                                                    key={booking.id} 
+                                                <div
+                                                    key={booking.id}
                                                     className="text-[10px] sm:text-xs px-1 py-0.5 rounded truncate bg-blue-50 text-blue-600"
                                                     title={`Booking #${booking.id} starts`}
                                                 >

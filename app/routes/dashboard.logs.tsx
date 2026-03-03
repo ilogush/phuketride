@@ -24,6 +24,35 @@ interface AuditLog {
     userSurname: string | null;
 }
 
+function parseAuditDate(value: unknown): Date | null {
+    if (value === null || value === undefined || value === "") return null;
+
+    if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
+    }
+
+    if (typeof value === "number") {
+        const date = new Date(value < 1e12 ? value * 1000 : value);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+
+        if (/^\d+$/.test(trimmed)) {
+            const numeric = Number(trimmed);
+            const date = new Date(numeric < 1e12 ? numeric * 1000 : numeric);
+            return Number.isNaN(date.getTime()) ? null : date;
+        }
+
+        const date = new Date(trimmed);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    return null;
+}
+
 const ACTION_COLORS: Record<string, string> = {
     create: "bg-green-100 text-green-800",
     update: "bg-orange-100 text-orange-800",
@@ -119,16 +148,23 @@ export default function AuditLogsPage() {
         {
             key: "createdAt",
             label: "Timestamp",
-            render: (log) => (
-                <div className="text-sm">
-                    <div className="font-medium text-gray-900">
-                        {new Date(log.createdAt).toLocaleDateString("en-GB")}
+            render: (log) => {
+                const timestamp = parseAuditDate(log.createdAt);
+                if (!timestamp) {
+                    return <span className="text-sm text-gray-500">-</span>;
+                }
+
+                return (
+                    <div className="text-sm">
+                        <div className="font-medium text-gray-900">
+                            {timestamp.toLocaleDateString("en-GB")}
+                        </div>
+                        <div className="text-gray-500">
+                            {timestamp.toLocaleTimeString("en-GB")}
+                        </div>
                     </div>
-                    <div className="text-gray-500">
-                        {new Date(log.createdAt).toLocaleTimeString("en-GB")}
-                    </div>
-                </div>
-            ),
+                );
+            },
         },
         {
             key: "userId",

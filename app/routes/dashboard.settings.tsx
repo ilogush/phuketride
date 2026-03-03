@@ -41,7 +41,6 @@ type CompanySettings = {
     accountNumber: string | null;
     accountName: string | null;
     swiftCode: string | null;
-    preparationTime: number | null;
     deliveryFeeAfterHours: number | null;
     islandTripPrice: number | null;
     krabiTripPrice: number | null;
@@ -49,7 +48,7 @@ type CompanySettings = {
     weeklySchedule: string | null;
     holidays: string | null;
 };
-type ListItem = { id: number; name: string; [key: string]: unknown };
+type ListItem = { id: number; name: string;[key: string]: unknown };
 type PaymentType = {
     id: number;
     name: string;
@@ -70,6 +69,13 @@ type Currency = {
     isActive?: boolean | number | null;
 };
 
+const isPhuketName = (value: unknown) => String(value || "").trim().toLowerCase() === "phuket";
+const normalizeCurrencyRow = (row: Record<string, unknown>): Currency => ({
+    ...(row as Currency),
+    companyId: (row.companyId as number | null | undefined) ?? (row.company_id as number | null | undefined) ?? null,
+    isActive: (row.isActive as number | boolean | null | undefined) ?? (row.is_active as number | boolean | null | undefined) ?? null,
+});
+
 const normalizeCompanyRow = (row: Record<string, unknown>) => ({
     ...row,
     locationId: (row.locationId as number | undefined) ?? (row.location_id as number | undefined) ?? null,
@@ -79,7 +85,6 @@ const normalizeCompanyRow = (row: Record<string, unknown>) => ({
     accountNumber: (row.accountNumber as string | undefined) ?? (row.account_number as string | undefined) ?? null,
     accountName: (row.accountName as string | undefined) ?? (row.account_name as string | undefined) ?? null,
     swiftCode: (row.swiftCode as string | undefined) ?? (row.swift_code as string | undefined) ?? null,
-    preparationTime: (row.preparationTime as number | undefined) ?? (row.preparation_time as number | undefined) ?? null,
     deliveryFeeAfterHours:
         (row.deliveryFeeAfterHours as number | undefined) ??
         (row.delivery_fee_after_hours as number | undefined) ??
@@ -105,7 +110,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const [companyRow, locations, districts, paymentTypes, currencies] = await Promise.all([
         context.cloudflare.env.DB.prepare("SELECT * FROM companies WHERE id = ? LIMIT 1").bind(companyId).first() as any,
         context.cloudflare.env.DB.prepare("SELECT * FROM locations LIMIT 100").all().then((r: any) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT * FROM districts LIMIT 200").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB
+            .prepare("SELECT id, name, location_id AS locationId FROM districts LIMIT 200")
+            .all()
+            .then((r: any) => r.results || []),
         context.cloudflare.env.DB
             .prepare("SELECT * FROM payment_types WHERE company_id IS NULL OR company_id = ? LIMIT 100")
             .bind(companyId)
@@ -118,6 +126,28 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         throw new Response("Company not found", { status: 404 });
     }
     const company = normalizeCompanyRow(companyRow as Record<string, unknown>) as CompanySettings;
+    const companyLocation = (locations as ListItem[]).find((location) => Number(location.id) === Number(company.locationId));
+    const isPhuketCompany = isPhuketName(companyLocation?.name);
+
+    if (isPhuketCompany) {
+        const thbCurrency = await context.cloudflare.env.DB
+            .prepare("SELECT id FROM currencies WHERE UPPER(code) = 'THB' LIMIT 1")
+            .first() as { id?: number } | null;
+        if (thbCurrency?.id) {
+            await context.cloudflare.env.DB
+                .prepare("UPDATE currencies SET company_id = ? WHERE id = ?")
+                .bind(company.id, thbCurrency.id)
+                .run();
+            await context.cloudflare.env.DB
+                .prepare("UPDATE currencies SET is_active = 1, updated_at = ? WHERE id = ?")
+                .bind(new Date().toISOString(), thbCurrency.id)
+                .run();
+            await context.cloudflare.env.DB
+                .prepare("UPDATE currencies SET company_id = NULL WHERE company_id = ? AND id != ?")
+                .bind(company.id, thbCurrency.id)
+                .run();
+        }
+    }
 
     return {
         user,
@@ -125,7 +155,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         locations: locations as ListItem[],
         districts: districts as ListItem[],
         paymentTypes: paymentTypes as PaymentType[],
-        currencies: currencies as Currency[],
+        currencies: (await context.cloudflare.env.DB
+            .prepare("SELECT * FROM currencies ORDER BY name ASC LIMIT 50")
+            .all()
+            .then((r: any) => (r.results || []).map((row: Record<string, unknown>) => normalizeCurrencyRow(row)))) as Currency[],
     };
 }
 
@@ -186,7 +219,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
             accountNumber: (formData.get("accountNumber") as string) || null,
             accountName: (formData.get("accountName") as string) || null,
             swiftCode: (formData.get("swiftCode") as string) || null,
-            preparationTime: parseIntegerValue(formData.get("preparationTime"), 30),
             deliveryFeeAfterHours: parseMoneyValue(formData.get("deliveryFeeAfterHours")) ?? 0,
             islandTripPrice: parseMoneyValue(formData.get("islandTripPrice")),
             krabiTripPrice: parseMoneyValue(formData.get("krabiTripPrice")),
@@ -210,7 +242,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                     UPDATE companies
                     SET name = ?, email = ?, phone = ?, telegram = ?, location_id = ?, district_id = ?,
                         street = ?, house_number = ?, bank_name = ?, account_number = ?, account_name = ?,
-                        swift_code = ?, preparation_time = ?, delivery_fee_after_hours = ?, island_trip_price = ?,
+                        swift_code = ?, delivery_fee_after_hours = ?, island_trip_price = ?,
                         krabi_trip_price = ?, baby_seat_price_per_day = ?, weekly_schedule = ?, holidays = ?,
                         updated_at = ?
                     WHERE id = ?
@@ -228,7 +260,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
                     validData.accountNumber,
                     validData.accountName,
                     validData.swiftCode,
-                    validData.preparationTime,
                     validData.deliveryFeeAfterHours,
                     validData.islandTripPrice,
                     validData.krabiTripPrice,
@@ -321,8 +352,23 @@ export async function action({ request, context }: ActionFunctionArgs) {
     // Currency actions
     if (intent === "setDefaultCurrency") {
         const currencyId = Number(formData.get("currencyId"));
-        
+        const isPhuketCompany = isPhuketName((currentCompany as { locationId?: number | null } | null)?.locationId
+            ? (await context.cloudflare.env.DB
+                .prepare("SELECT name FROM locations WHERE id = ? LIMIT 1")
+                .bind((currentCompany as { locationId?: number | null }).locationId)
+                .first() as { name?: string } | null)?.name
+            : null);
+
         try {
+            if (isPhuketCompany) {
+                const targetCurrency = await context.cloudflare.env.DB
+                    .prepare("SELECT code FROM currencies WHERE id = ? LIMIT 1")
+                    .bind(currencyId)
+                    .first() as { code?: string } | null;
+                if (String(targetCurrency?.code || "").toUpperCase() !== "THB") {
+                    return redirect(withMode("/settings?tab=currencies&error=Phuket companies must use THB as default currency"));
+                }
+            }
             // Default currency must be active.
             await context.cloudflare.env.DB
                 .prepare("UPDATE currencies SET company_id = ?, is_active = 1, updated_at = ? WHERE id = ?")
@@ -344,8 +390,23 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (intent === "toggleCurrencyActive") {
         const currencyId = Number(formData.get("currencyId"));
         const isActive = formData.get("isActive") === "true";
+        const isPhuketCompany = isPhuketName((currentCompany as { locationId?: number | null } | null)?.locationId
+            ? (await context.cloudflare.env.DB
+                .prepare("SELECT name FROM locations WHERE id = ? LIMIT 1")
+                .bind((currentCompany as { locationId?: number | null }).locationId)
+                .first() as { name?: string } | null)?.name
+            : null);
 
         try {
+            if (isPhuketCompany && !isActive) {
+                const targetCurrency = await context.cloudflare.env.DB
+                    .prepare("SELECT code FROM currencies WHERE id = ? LIMIT 1")
+                    .bind(currencyId)
+                    .first() as { code?: string } | null;
+                if (String(targetCurrency?.code || "").toUpperCase() === "THB") {
+                    return redirect(withMode("/settings?tab=currencies&error=THB must stay active for Phuket companies"));
+                }
+            }
             await context.cloudflare.env.DB
                 .prepare(`
                     UPDATE currencies
@@ -398,7 +459,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 .prepare("SELECT * FROM payment_types WHERE id = ? LIMIT 1")
                 .bind(id)
                 .first() as any;
-            
+
             if (!template) {
                 return redirect(withMode("/settings?error=Payment template not found"));
             }
@@ -459,14 +520,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     if (intent === "deletePaymentTemplate") {
         const id = Number(formData.get("id"));
-        
+
         try {
             // Check if this is a company template (not system)
             const template = await context.cloudflare.env.DB
                 .prepare("SELECT * FROM payment_types WHERE id = ? LIMIT 1")
                 .bind(id)
                 .first() as any;
-            
+
             if (!template) {
                 return redirect(withMode("/settings?error=Payment template not found"));
             }
@@ -500,7 +561,9 @@ export default function SettingsPage() {
     const modCompanyId = searchParams.get("modCompanyId");
     const settingsActionUrl = modCompanyId ? `/settings?modCompanyId=${modCompanyId}` : "/settings";
     const initialLocationId = Number(company.locationId ?? locations[0]?.id ?? 0);
+    const initialDistrictId = Number(company.districtId ?? 0);
     const [selectedLocationId, setSelectedLocationId] = useState(initialLocationId);
+    const [selectedDistrictId, setSelectedDistrictId] = useState(initialDistrictId);
     const [weeklySchedule, setWeeklySchedule] = useState(company.weeklySchedule || "");
     const [holidays, setHolidays] = useState(company.holidays || "");
     const shownToastsRef = useRef<Set<string>>(new Set());
@@ -521,13 +584,13 @@ export default function SettingsPage() {
     useEffect(() => {
         const success = searchParams.get("success");
         const error = searchParams.get("error");
-        
+
         const toastKey = success || error;
-        
+
         if (toastKey && !shownToastsRef.current.has(toastKey)) {
             // Mark as shown
             shownToastsRef.current.add(toastKey);
-            
+
             // Show toast
             if (success) {
                 toast.success(success);
@@ -535,7 +598,7 @@ export default function SettingsPage() {
             if (error) {
                 toast.error(error);
             }
-            
+
             // Clear URL params
             setSearchParams((prev) => {
                 const newParams = new URLSearchParams(prev);
@@ -552,8 +615,9 @@ export default function SettingsPage() {
         { id: "currencies", label: "Currencies" },
     ];
 
-    const filteredDistricts = districts.filter((d) => Number(d.locationId) === Number(selectedLocationId));
-    const selectedDistrictId = Number(company.districtId ?? filteredDistricts[0]?.id ?? 0);
+    const filteredDistricts = districts.filter((d) => Number(d.locationId ?? d.location_id) === Number(selectedLocationId));
+    const companyLocation = locations.find((location) => Number(location.id) === Number(company.locationId));
+    const isPhuketCompany = isPhuketName(companyLocation?.name);
 
     const handleTabChange = (tabId: string | number) => {
         const nextParams = new URLSearchParams(searchParams);
@@ -706,14 +770,22 @@ export default function SettingsPage() {
                                     label="Location"
                                     name="locationId"
                                     value={String(selectedLocationId || "")}
-                                    onChange={(e) => setSelectedLocationId(Number(e.target.value) || 0)}
+                                    onChange={(e) => {
+                                        const nextLocationId = Number(e.target.value) || 0;
+                                        setSelectedLocationId(nextLocationId);
+                                        const firstDistrict = districts.find(
+                                            (d) => Number(d.locationId ?? d.location_id) === nextLocationId
+                                        );
+                                        setSelectedDistrictId(Number(firstDistrict?.id ?? 0));
+                                    }}
                                     options={locations}
                                     required
                                 />
                                 <Select
                                     label="District"
                                     name="districtId"
-                                    defaultValue={String(selectedDistrictId || "")}
+                                    value={String(selectedDistrictId || "")}
+                                    onChange={(e) => setSelectedDistrictId(Number(e.target.value) || 0)}
                                     options={filteredDistricts}
                                     required
                                 />
@@ -773,13 +845,6 @@ export default function SettingsPage() {
                     <FormSection title="Extras" icon={<Cog6ToothIcon />}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input
-                                label="Preparation Time (min)"
-                                name="preparationTime"
-                                type="number"
-                                defaultValue={company.preparationTime?.toString() || "30"}
-                                placeholder="30"
-                            />
-                            <Input
                                 label="Delivery Fee (After Hours)"
                                 name="deliveryFeeAfterHours"
                                 type="number"
@@ -806,8 +871,6 @@ export default function SettingsPage() {
 
                                 addonLeft="฿"
                             />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
                             <Input
                                 label="Baby Seat Cost (per day)"
                                 name="babySeatPricePerDay"
@@ -829,282 +892,292 @@ export default function SettingsPage() {
                     <input type="hidden" name="holidays" value={holidays} />
                     <HolidaysManager value={holidays} onChange={setHolidays} />
                 </Form>
-            )}
+            )
+            }
 
-            {activeTab === "payments" && (
-                <div className="space-y-4">
-                    <div className="overflow-hidden">
-                        <div className="border border-gray-200 rounded-3xl overflow-hidden bg-white">
-                            <div className="overflow-x-auto sm:mx-0">
-                                <table className="min-w-full divide-y divide-gray-100 bg-transparent">
-                                    <thead>
-                                        <tr className="bg-gray-50/50">
-                                            <th scope="col" className="pl-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
-                                                <span>ID</span>
-                                            </th>
-                                            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight w-full">
-                                                <span>Name</span>
-                                            </th>
-                                            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight w-24">
-                                                <span>Sign</span>
-                                            </th>
-                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight whitespace-nowrap">
-                                                <span>On Create</span>
-                                            </th>
-                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight whitespace-nowrap">
-                                                <span>On Close</span>
-                                            </th>
-                                            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
-                                                <span>Actions</span>
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {paymentTypes.map((template) => (
-                                            <tr key={template.id} className="group hover:bg-white transition-all">
-                                                <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                    <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
-                                                        {String(template.id).padStart(3, '0')}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-full">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-medium text-gray-900">{template.name}</span>
-                                                        {template.description && (
-                                                            <span className="text-xs text-gray-500 mt-0.5">
-                                                                {template.description}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-24">
-                                                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg text-sm font-bold border ${
-                                                        template.sign === '+' 
-                                                            ? 'bg-green-50 text-green-700 border-green-100' 
+            {
+                activeTab === "payments" && (
+                    <div className="space-y-4">
+                        <div className="overflow-hidden">
+                            <div className="border border-gray-200 rounded-3xl overflow-hidden bg-white">
+                                <div className="overflow-x-auto sm:mx-0">
+                                    <table className="min-w-full divide-y divide-gray-100 bg-transparent">
+                                        <thead>
+                                            <tr className="bg-gray-50/50">
+                                                <th scope="col" className="pl-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
+                                                    <span>ID</span>
+                                                </th>
+                                                <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight w-full">
+                                                    <span>Name</span>
+                                                </th>
+                                                <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight w-24">
+                                                    <span>Sign</span>
+                                                </th>
+                                                <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight whitespace-nowrap">
+                                                    <span>On Create</span>
+                                                </th>
+                                                <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight whitespace-nowrap">
+                                                    <span>On Close</span>
+                                                </th>
+                                                <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
+                                                    <span>Actions</span>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {paymentTypes.map((template) => (
+                                                <tr key={template.id} className="group hover:bg-white transition-all">
+                                                    <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
+                                                            {String(template.id).padStart(3, '0')}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-full">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium text-gray-900">{template.name}</span>
+                                                            {template.description && (
+                                                                <span className="text-xs text-gray-500 mt-0.5">
+                                                                    {template.description}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap w-24">
+                                                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg text-sm font-bold border ${template.sign === '+'
+                                                            ? 'bg-green-50 text-green-700 border-green-100'
                                                             : 'bg-red-50 text-red-700 border-red-100'
-                                                    }`}>
-                                                        {template.sign}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
-                                                    <Toggle
-                                                        size="sm"
-                                                        enabled={Boolean(template.showOnCreate)}
-                                                        onChange={() => handleTogglePaymentTemplate(template.id, 'showOnCreate', Boolean(template.showOnCreate))}
-                                                    />
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
-                                                    <Toggle
-                                                        size="sm"
-                                                        enabled={Boolean(template.showOnClose)}
-                                                        onChange={() => handleTogglePaymentTemplate(template.id, 'showOnClose', Boolean(template.showOnClose))}
-                                                    />
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                    <div className="flex gap-2">
-                                                        <Button
-                                                            type="button"
-                                                            variant="secondary"
+                                                            }`}>
+                                                            {template.sign}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
+                                                        <Toggle
                                                             size="sm"
-                                                            onClick={() => {
-                                                                setPaymentFormData({
-                                                                    name: template.name,
-                                                                    sign: template.sign ?? "+",
-                                                                    description: template.description || "",
-                                                                    showOnCreate: Boolean(template.showOnCreate),
-                                                                    showOnClose: Boolean(template.showOnClose),
-                                                                });
-                                                                setEditingPaymentTemplate(template);
-                                                                setIsPaymentModalOpen(true);
-                                                            }}
-                                                        >
-                                                            Edit
-                                                        </Button>
-                                                        {!template.isSystem && (
-                                                            <Form method="post" action={settingsActionUrl} reloadDocument>
-                                                                <input type="hidden" name="intent" value="deletePaymentTemplate" />
-                                                                <input type="hidden" name="id" value={template.id} />
-                                                                <Button type="submit" variant="secondary" size="sm">Delete</Button>
-                                                            </Form>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                                            enabled={Boolean(template.showOnCreate)}
+                                                            onChange={() => handleTogglePaymentTemplate(template.id, 'showOnCreate', Boolean(template.showOnCreate))}
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
+                                                        <Toggle
+                                                            size="sm"
+                                                            enabled={Boolean(template.showOnClose)}
+                                                            onChange={() => handleTogglePaymentTemplate(template.id, 'showOnClose', Boolean(template.showOnClose))}
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                type="button"
+                                                                variant="secondary"
+                                                                size="sm"
+                                                                onClick={() => {
+                                                                    setPaymentFormData({
+                                                                        name: template.name,
+                                                                        sign: template.sign ?? "+",
+                                                                        description: template.description || "",
+                                                                        showOnCreate: Boolean(template.showOnCreate),
+                                                                        showOnClose: Boolean(template.showOnClose),
+                                                                    });
+                                                                    setEditingPaymentTemplate(template);
+                                                                    setIsPaymentModalOpen(true);
+                                                                }}
+                                                            >
+                                                                Edit
+                                                            </Button>
+                                                            {!template.isSystem && (
+                                                                <Form method="post" action={settingsActionUrl} reloadDocument>
+                                                                    <input type="hidden" name="intent" value="deletePaymentTemplate" />
+                                                                    <input type="hidden" name="id" value={template.id} />
+                                                                    <Button type="submit" variant="secondary" size="sm">Delete</Button>
+                                                                </Form>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <Modal
-                        title={editingPaymentTemplate ? "Edit Payment Template" : "Add Payment Template"}
-                        isOpen={isPaymentModalOpen}
-                        onClose={() => {
-                            setIsPaymentModalOpen(false);
-                            setEditingPaymentTemplate(null);
-                        }}
-                        size="md"
-                    >
-                        <Form method="post" action={settingsActionUrl} className="space-y-4" reloadDocument onSubmit={() => {
-                            setIsPaymentModalOpen(false);
-                            setEditingPaymentTemplate(null);
-                        }}>
-                            <input type="hidden" name="intent" value={editingPaymentTemplate ? "updatePaymentTemplate" : "createPaymentTemplate"} />
-                            {editingPaymentTemplate && <input type="hidden" name="id" value={editingPaymentTemplate.id} />}
-                            <Input
-                                label="Payment Type Name"
-                                name="name"
-                                value={paymentFormData.name}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPaymentFormData({ ...paymentFormData, name: e.target.value })}
-                                placeholder="e.g., Rental Payment"
-                                required
-                            />
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Sign</label>
-                                <select
-                                    name="sign"
-                                    value={paymentFormData.sign}
-                                    onChange={(e) => setPaymentFormData({ ...paymentFormData, sign: e.target.value })}
-                                    className="w-full px-4 py-2 text-gray-600 border border-gray-200 rounded-xl"
+                        <Modal
+                            title={editingPaymentTemplate ? "Edit Payment Template" : "Add Payment Template"}
+                            isOpen={isPaymentModalOpen}
+                            onClose={() => {
+                                setIsPaymentModalOpen(false);
+                                setEditingPaymentTemplate(null);
+                            }}
+                            size="md"
+                        >
+                            <Form method="post" action={settingsActionUrl} className="space-y-4" reloadDocument onSubmit={() => {
+                                setIsPaymentModalOpen(false);
+                                setEditingPaymentTemplate(null);
+                            }}>
+                                <input type="hidden" name="intent" value={editingPaymentTemplate ? "updatePaymentTemplate" : "createPaymentTemplate"} />
+                                {editingPaymentTemplate && <input type="hidden" name="id" value={editingPaymentTemplate.id} />}
+                                <Input
+                                    label="Payment Type Name"
+                                    name="name"
+                                    value={paymentFormData.name}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPaymentFormData({ ...paymentFormData, name: e.target.value })}
+                                    placeholder="e.g., Rental Payment"
                                     required
-                                >
-                                    <option value="+">+ (Income)</option>
-                                    <option value="-">- (Expense)</option>
-                                </select>
-                            </div>
-                            <Textarea
-                                label="Description"
-                                name="description"
-                                value={paymentFormData.description}
-                                onChange={(value) => setPaymentFormData({ ...paymentFormData, description: value })}
-                                rows={3}
-                                placeholder="Optional description"
-                            />
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-700">Show when creating contract</span>
-                                    <Toggle
-                                        size="sm"
-                                        enabled={paymentFormData.showOnCreate}
-                                        onChange={() => setPaymentFormData({ ...paymentFormData, showOnCreate: !paymentFormData.showOnCreate })}
-                                    />
-                                    <input type="hidden" name="showOnCreate" value={paymentFormData.showOnCreate ? "true" : "false"} />
+                                />
+                                <div>
+                                    <label className="block text-xs text-gray-600 mb-1">Sign</label>
+                                    <select
+                                        name="sign"
+                                        value={paymentFormData.sign}
+                                        onChange={(e) => setPaymentFormData({ ...paymentFormData, sign: e.target.value })}
+                                        className="w-full px-4 py-2 text-gray-600 border border-gray-200 rounded-xl"
+                                        required
+                                    >
+                                        <option value="+">+ (Income)</option>
+                                        <option value="-">- (Expense)</option>
+                                    </select>
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-700">Show when closing contract</span>
-                                    <Toggle
-                                        size="sm"
-                                        enabled={paymentFormData.showOnClose}
-                                        onChange={() => setPaymentFormData({ ...paymentFormData, showOnClose: !paymentFormData.showOnClose })}
-                                    />
-                                    <input type="hidden" name="showOnClose" value={paymentFormData.showOnClose ? "true" : "false"} />
+                                <Textarea
+                                    label="Description"
+                                    name="description"
+                                    value={paymentFormData.description}
+                                    onChange={(value) => setPaymentFormData({ ...paymentFormData, description: value })}
+                                    rows={3}
+                                    placeholder="Optional description"
+                                />
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-gray-700">Show when creating contract</span>
+                                        <Toggle
+                                            size="sm"
+                                            enabled={paymentFormData.showOnCreate}
+                                            onChange={() => setPaymentFormData({ ...paymentFormData, showOnCreate: !paymentFormData.showOnCreate })}
+                                        />
+                                        <input type="hidden" name="showOnCreate" value={paymentFormData.showOnCreate ? "true" : "false"} />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-gray-700">Show when closing contract</span>
+                                        <Toggle
+                                            size="sm"
+                                            enabled={paymentFormData.showOnClose}
+                                            onChange={() => setPaymentFormData({ ...paymentFormData, showOnClose: !paymentFormData.showOnClose })}
+                                        />
+                                        <input type="hidden" name="showOnClose" value={paymentFormData.showOnClose ? "true" : "false"} />
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="flex justify-end gap-3 pt-4">
-                                <Button type="button" variant="secondary" onClick={() => {
-                                    setIsPaymentModalOpen(false);
-                                    setEditingPaymentTemplate(null);
-                                }}>Cancel</Button>
-                                <Button type="submit" variant="primary">{editingPaymentTemplate ? "Update" : "Create"}</Button>
-                            </div>
-                        </Form>
-                    </Modal>
-                </div>
-            )}
+                                <div className="flex justify-end gap-3 pt-4">
+                                    <Button type="button" variant="secondary" onClick={() => {
+                                        setIsPaymentModalOpen(false);
+                                        setEditingPaymentTemplate(null);
+                                    }}>Cancel</Button>
+                                    <Button type="submit" variant="primary">{editingPaymentTemplate ? "Update" : "Create"}</Button>
+                                </div>
+                            </Form>
+                        </Modal>
+                    </div>
+                )
+            }
 
-            {activeTab === "currencies" && (
-                <div className="space-y-4">
-                    <div className="overflow-hidden">
-                        <div className="border border-gray-200 rounded-3xl overflow-hidden bg-white">
-                            <div className="overflow-x-auto sm:mx-0">
-                                <table className="min-w-full divide-y divide-gray-100 bg-transparent">
-                                    <thead>
-                                        <tr className="bg-gray-50/50">
-                                            <th scope="col" className="pl-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
-                                                <span>ID</span>
-                                            </th>
-                                            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
-                                                <span>Currency</span>
-                                            </th>
-                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
-                                                <span>Default</span>
-                                            </th>
-                                            <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
-                                                <span>Active</span>
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {currencies.map((currency) => (
-                                            <tr key={currency.id} className="group hover:bg-white transition-all">
-                                                <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                    <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
-                                                        {String(currency.id).padStart(3, '0')}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-medium text-gray-900">{currency.name}</span>
-                                                        <span className="text-xs text-gray-500 uppercase">{currency.code} ({currency.symbol})</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
-                                                    <Toggle
-                                                        size="sm"
-                                                        enabled={currency.companyId === company.id}
-                                                        onChange={() => handleToggleCurrency(currency.id, 'isDefault')}
-                                                    />
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
-                                                    <Toggle
-                                                        size="sm"
-                                                        enabled={Boolean(currency.isActive)}
-                                                        onChange={() => handleToggleCurrency(currency.id, 'isActive')}
-                                                    />
-                                                </td>
+            {
+                activeTab === "currencies" && (
+                    <div className="space-y-4">
+                        <div className="overflow-hidden">
+                            <div className="border border-gray-200 rounded-3xl overflow-hidden bg-white">
+                                <div className="overflow-x-auto sm:mx-0">
+                                    <table className="min-w-full divide-y divide-gray-100 bg-transparent">
+                                        <thead>
+                                            <tr className="bg-gray-50/50">
+                                                <th scope="col" className="pl-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
+                                                    <span>ID</span>
+                                                </th>
+                                                <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
+                                                    <span>Currency</span>
+                                                </th>
+                                                <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
+                                                    <span>Default</span>
+                                                </th>
+                                                <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
+                                                    <span>Active</span>
+                                                </th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {currencies.map((currency) => {
+                                                const isThbCurrency = String(currency.code || "").toUpperCase() === "THB";
+                                                const lockThbForPhuket = isPhuketCompany && isThbCurrency;
+                                                return (
+                                                    <tr key={currency.id} className="group hover:bg-white transition-all">
+                                                        <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
+                                                                {String(currency.id).padStart(3, '0')}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-medium text-gray-900">{currency.name}</span>
+                                                                <span className="text-xs text-gray-500 uppercase">{currency.code} ({currency.symbol})</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
+                                                            <Toggle
+                                                                size="sm"
+                                                                enabled={lockThbForPhuket ? true : currency.companyId === company.id}
+                                                                disabled={lockThbForPhuket}
+                                                                onChange={() => handleToggleCurrency(currency.id, 'isDefault')}
+                                                            />
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
+                                                            <Toggle
+                                                                size="sm"
+                                                                enabled={lockThbForPhuket ? true : Boolean(currency.isActive)}
+                                                                disabled={lockThbForPhuket}
+                                                                onChange={() => handleToggleCurrency(currency.id, 'isActive')}
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
+                        <Modal
+                            title="Add Currency"
+                            isOpen={isCurrencyModalOpen}
+                            onClose={() => setIsCurrencyModalOpen(false)}
+                            size="md"
+                        >
+                            <Form method="post" action={settingsActionUrl} className="space-y-4" reloadDocument onSubmit={() => { setIsCurrencyModalOpen(false); toast.success("Currency added"); }}>
+                                <input type="hidden" name="intent" value="createCurrency" />
+                                <Input
+                                    label="Currency Name"
+                                    name="name"
+                                    placeholder="e.g., British Pound"
+                                    required
+                                />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <Input
+                                        label="Currency Code"
+                                        name="code"
+                                        placeholder="e.g., GBP"
+                                        required
+                                    />
+                                    <Input
+                                        label="Symbol"
+                                        name="symbol"
+                                        placeholder="e.g., £"
+                                        required
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3 pt-4">
+                                    <Button type="button" variant="secondary" onClick={() => setIsCurrencyModalOpen(false)}>Cancel</Button>
+                                    <Button type="submit" variant="primary">Create</Button>
+                                </div>
+                            </Form>
+                        </Modal>
                     </div>
-                    <Modal
-                        title="Add Currency"
-                        isOpen={isCurrencyModalOpen}
-                        onClose={() => setIsCurrencyModalOpen(false)}
-                        size="md"
-                    >
-                        <Form method="post" action={settingsActionUrl} className="space-y-4" reloadDocument onSubmit={() => { setIsCurrencyModalOpen(false); toast.success("Currency added"); }}>
-                            <input type="hidden" name="intent" value="createCurrency" />
-                            <Input
-                                label="Currency Name"
-                                name="name"
-                                placeholder="e.g., British Pound"
-                                required
-                            />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <Input
-                                    label="Currency Code"
-                                    name="code"
-                                    placeholder="e.g., GBP"
-                                    required
-                                />
-                                <Input
-                                    label="Symbol"
-                                    name="symbol"
-                                    placeholder="e.g., £"
-                                    required
-                                />
-                            </div>
-                            <div className="flex justify-end gap-3 pt-4">
-                                <Button type="button" variant="secondary" onClick={() => setIsCurrencyModalOpen(false)}>Cancel</Button>
-                                <Button type="submit" variant="primary">Create</Button>
-                            </div>
-                        </Form>
-                    </Modal>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

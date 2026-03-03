@@ -14,6 +14,9 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
 import { createContractEvents } from "~/lib/calendar-events.server";
+import { useLatinValidation } from "~/lib/useLatinValidation";
+import { useDateMasking } from "~/lib/useDateMasking";
+import { parseDateFromDisplay, parseDateTimeFromDisplay, formatDateForDisplay } from "~/lib/formatters";
 import {
     TruckIcon,
     CalendarIcon,
@@ -130,176 +133,181 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
     const user = await requireAuth(request);
-    const formData = await request.formData();
     const contractId = parseInt(params.id!);
-    const existingContract = await context.cloudflare.env.DB
-        .prepare(`
+
+    try {
+        const formData = await request.formData();
+        const existingContract = await context.cloudflare.env.DB
+            .prepare(`
             SELECT *
             FROM contracts
             WHERE id = ?
             LIMIT 1
         `)
-        .bind(contractId)
-        .first() as any;
+            .bind(contractId)
+            .first() as any;
 
-    if (!existingContract) {
-        return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
-    }
-
-    const parseDocPhotos = (value: FormDataEntryValue | null): Array<{ base64: string; fileName: string }> => {
-        if (typeof value !== "string") return [];
-        const trimmed = value.trim();
-        if (!trimmed) return [];
-        try {
-            const parsed = JSON.parse(trimmed);
-            if (!Array.isArray(parsed)) return [];
-            return parsed.filter((p) => p && typeof p.base64 === "string" && typeof p.fileName === "string");
-        } catch {
-            return [];
+        if (!existingContract) {
+            return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
         }
-    };
 
-    const parsePhotoList = (value: FormDataEntryValue | null): string[] => {
-        if (typeof value !== "string") return [];
-        const trimmed = value.trim();
-        if (!trimmed) return [];
-        try {
-            const parsed = JSON.parse(trimmed);
-            if (!Array.isArray(parsed)) return [];
-            return parsed.filter((p) => typeof p === "string" && p.trim().length > 0);
-        } catch {
-            return [];
-        }
-    };
+        const parseDocPhotos = (value: FormDataEntryValue | null): Array<{ base64: string; fileName: string }> => {
+            if (typeof value !== "string") return [];
+            const trimmed = value.trim();
+            if (!trimmed) return [];
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (!Array.isArray(parsed)) return [];
+                return parsed.filter((p) => p && typeof p.base64 === "string" && typeof p.fileName === "string");
+            } catch {
+                return [];
+            }
+        };
 
-    // SECURITY: Verify contract belongs to user's company
-    const contract = await context.cloudflare.env.DB
-        .prepare(`
+        const parsePhotoList = (value: FormDataEntryValue | null): string[] => {
+            if (typeof value !== "string") return [];
+            const trimmed = value.trim();
+            if (!trimmed) return [];
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (!Array.isArray(parsed)) return [];
+                return parsed.filter((p) => typeof p === "string" && p.trim().length > 0);
+            } catch {
+                return [];
+            }
+        };
+
+        // SECURITY: Verify contract belongs to user's company
+        const contract = await context.cloudflare.env.DB
+            .prepare(`
             SELECT c.id, cc.company_id AS companyId
             FROM contracts c
             JOIN company_cars cc ON cc.id = c.company_car_id
             WHERE c.id = ?
             LIMIT 1
         `)
-        .bind(contractId)
-        .first() as any;
+            .bind(contractId)
+            .first() as any;
 
-    if (!contract) {
-        return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
-    }
+        if (!contract) {
+            return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
+        }
 
-    if (user.role !== "admin" && contract.companyCar.companyId !== user.companyId) {
-        return redirect(`/contracts?error=${encodeURIComponent("Access denied")}`);
-    }
+        if (user.role !== "admin" && contract.companyCar.companyId !== user.companyId) {
+            return redirect(`/contracts?error=${encodeURIComponent("Access denied")}`);
+        }
 
-    // Client update (keep existing values if empty)
-    const passportPhotosValue = parseDocPhotos(formData.get("passportPhotos"));
-    const driverLicensePhotosValue = parseDocPhotos(formData.get("driverLicensePhotos"));
+        // Client update (keep existing values if empty)
+        const passportPhotosValue = parseDocPhotos(formData.get("passportPhotos"));
+        const driverLicensePhotosValue = parseDocPhotos(formData.get("driverLicensePhotos"));
 
-    const clientUpdate: Record<string, unknown> = {
-        name: String(formData.get("client_name") || "").trim() || null,
-        surname: String(formData.get("client_surname") || "").trim() || null,
-        phone: String(formData.get("client_phone") || "").trim() || null,
-        whatsapp: String(formData.get("client_whatsapp") || "").trim() || null,
-        telegram: String(formData.get("client_telegram") || "").trim() || null,
-        passportNumber: String(formData.get("client_passport") || "").trim() || null,
-        citizenship: String(formData.get("citizenship") || "").trim() || null,
-        gender: (String(formData.get("client_gender") || "").trim() as any) || null,
-        dateOfBirth: formData.get("date_of_birth") ? new Date(String(formData.get("date_of_birth"))) : null,
-        updatedAt: new Date(),
-    };
+        const clientUpdate: Record<string, unknown> = {
+            name: String(formData.get("client_name") || "").trim() || null,
+            surname: String(formData.get("client_surname") || "").trim() || null,
+            phone: String(formData.get("client_phone") || "").trim() || null,
+            whatsapp: String(formData.get("client_whatsapp") || "").trim() || null,
+            telegram: String(formData.get("client_telegram") || "").trim() || null,
+            passportNumber: String(formData.get("client_passport") || "").trim() || null,
+            citizenship: String(formData.get("citizenship") || "").trim() || null,
+            gender: (String(formData.get("client_gender") || "").trim() as any) || null,
+            dateOfBirth: formData.get("date_of_birth") ? new Date(parseDateFromDisplay(String(formData.get("date_of_birth")))) : null,
+            updatedAt: new Date(),
+        };
 
-    const email = String(formData.get("client_email") || "").trim();
-    if (email) {
-        clientUpdate.email = email;
-    }
-    if (passportPhotosValue.length > 0) {
-        clientUpdate.passportPhotos = JSON.stringify(passportPhotosValue);
-    }
-    if (driverLicensePhotosValue.length > 0) {
-        clientUpdate.driverLicensePhotos = JSON.stringify(driverLicensePhotosValue);
-    }
+        const email = String(formData.get("client_email") || "").trim();
+        if (email) {
+            clientUpdate.email = email;
+        }
+        if (passportPhotosValue.length > 0) {
+            clientUpdate.passportPhotos = JSON.stringify(passportPhotosValue);
+        }
+        if (driverLicensePhotosValue.length > 0) {
+            clientUpdate.driverLicensePhotos = JSON.stringify(driverLicensePhotosValue);
+        }
 
-    await context.cloudflare.env.DB
-        .prepare(`
+        await context.cloudflare.env.DB
+            .prepare(`
             UPDATE users
             SET name = ?, surname = ?, phone = ?, whatsapp = ?, telegram = ?, passport_number = ?, citizenship = ?,
                 gender = ?, date_of_birth = ?, email = COALESCE(?, email), passport_photos = COALESCE(?, passport_photos),
                 driver_license_photos = COALESCE(?, driver_license_photos), updated_at = ?
             WHERE id = ?
         `)
-        .bind(
-            clientUpdate.name,
-            clientUpdate.surname,
-            clientUpdate.phone,
-            clientUpdate.whatsapp,
-            clientUpdate.telegram,
-            clientUpdate.passportNumber,
-            clientUpdate.citizenship,
-            clientUpdate.gender,
-            (clientUpdate.dateOfBirth as Date | null)?.toISOString?.() ?? null,
-            (clientUpdate.email as string | undefined) ?? null,
-            (clientUpdate.passportPhotos as string | undefined) ?? null,
-            (clientUpdate.driverLicensePhotos as string | undefined) ?? null,
-            new Date().toISOString(),
-            existingContract.client_id
-        )
-        .run();
+            .bind(
+                clientUpdate.name,
+                clientUpdate.surname,
+                clientUpdate.phone,
+                clientUpdate.whatsapp,
+                clientUpdate.telegram,
+                clientUpdate.passportNumber,
+                clientUpdate.citizenship,
+                clientUpdate.gender,
+                (clientUpdate.dateOfBirth as Date | null)?.toISOString?.() ?? null,
+                (clientUpdate.email as string | undefined) ?? null,
+                (clientUpdate.passportPhotos as string | undefined) ?? null,
+                (clientUpdate.driverLicensePhotos as string | undefined) ?? null,
+                new Date().toISOString(),
+                existingContract.client_id
+            )
+            .run();
 
-    const getValidDate = (value: FormDataEntryValue | null, fallback: Date) => {
-        if (typeof value !== "string" || !value) return fallback;
-        const d = new Date(value);
-        return isNaN(d.getTime()) ? fallback : d;
-    };
+        const getValidDate = (value: FormDataEntryValue | null, fallback: Date) => {
+            if (typeof value !== "string" || !value) return fallback;
+            const d = new Date(value);
+            return isNaN(d.getTime()) ? fallback : d;
+        };
 
-    const newCompanyCarId = Number(formData.get("company_car_id")) || existingContract.companyCarId;
-    const startDate = getValidDate(formData.get("start_date"), new Date(existingContract.startDate));
-    const endDate = getValidDate(formData.get("end_date"), new Date(existingContract.endDate));
-    const photosValue = parsePhotoList(formData.get("photos"));
+        // Parse contract data
+        const newCompanyCarId = Number(formData.get("company_car_id")) || existingContract.companyCarId;
+        const startDateRaw = formData.get("start_date");
+        const startDate = startDateRaw ? new Date(parseDateTimeFromDisplay(String(startDateRaw))) : new Date(existingContract.startDate);
+        const endDateRaw = formData.get("end_date");
+        const endDate = endDateRaw ? new Date(parseDateTimeFromDisplay(String(endDateRaw))) : new Date(existingContract.endDate);
+        const photosValue = parsePhotoList(formData.get("photos"));
 
-    const pickupDistrictIdRaw = formData.get("pickup_district_id");
-    const returnDistrictIdRaw = formData.get("return_district_id");
+        const pickupDistrictIdRaw = formData.get("pickup_district_id");
+        const returnDistrictIdRaw = formData.get("return_district_id");
 
-    const pickupDistrictId = pickupDistrictIdRaw ? Number(pickupDistrictIdRaw) : null;
-    const returnDistrictId = returnDistrictIdRaw ? Number(returnDistrictIdRaw) : null;
+        const pickupDistrictId = pickupDistrictIdRaw ? Number(pickupDistrictIdRaw) : null;
+        const returnDistrictId = returnDistrictIdRaw ? Number(returnDistrictIdRaw) : null;
 
-    const updatePayload: Record<string, unknown> = {
-        companyCarId: newCompanyCarId,
-        startDate,
-        endDate,
-        pickupDistrictId,
-        pickupHotel: (formData.get("pickup_hotel") as string) || null,
-        pickupRoom: (formData.get("pickup_room") as string) || null,
-        deliveryCost: Number(formData.get("delivery_cost")) || 0,
-        returnDistrictId,
-        returnHotel: (formData.get("return_hotel") as string) || null,
-        returnRoom: (formData.get("return_room") as string) || null,
-        returnCost: Number(formData.get("return_cost")) || 0,
-        depositAmount: Number(formData.get("deposit_amount")) || 0,
-        depositPaymentMethod: (formData.get("deposit_payment_method") as any) || null,
-        totalAmount: Number(formData.get("total_amount")) || existingContract.totalAmount,
-        fuelLevel: String(formData.get("fuel_level") || existingContract.fuelLevel || "Full"),
-        cleanliness: String(formData.get("cleanliness") || existingContract.cleanliness || "Clean"),
-        startMileage: Number(formData.get("start_mileage")) || existingContract.startMileage || 0,
-        fullInsuranceEnabled: formData.get("fullInsurance") === "true",
-        babySeatEnabled: formData.get("babySeat") === "true",
-        islandTripEnabled: formData.get("islandTrip") === "true",
-        krabiTripEnabled: formData.get("krabiTrip") === "true",
-        // prices are not editable in this form yet, keep current values
-        fullInsurancePrice: existingContract.fullInsurancePrice ?? 0,
-        babySeatPrice: existingContract.babySeatPrice ?? 0,
-        islandTripPrice: existingContract.islandTripPrice ?? 0,
-        krabiTripPrice: existingContract.krabiTripPrice ?? 0,
-        notes: (formData.get("notes") as string) || null,
-        updatedAt: new Date(),
-    };
+        const updatePayload: Record<string, unknown> = {
+            companyCarId: newCompanyCarId,
+            startDate,
+            endDate,
+            pickupDistrictId,
+            pickupHotel: (formData.get("pickup_hotel") as string) || null,
+            pickupRoom: (formData.get("pickup_room") as string) || null,
+            deliveryCost: Number(formData.get("delivery_cost")) || 0,
+            returnDistrictId,
+            returnHotel: (formData.get("return_hotel") as string) || null,
+            returnRoom: (formData.get("return_room") as string) || null,
+            returnCost: Number(formData.get("return_cost")) || 0,
+            depositAmount: Number(formData.get("deposit_amount")) || 0,
+            depositPaymentMethod: (formData.get("deposit_payment_method") as any) || null,
+            totalAmount: Number(formData.get("total_amount")) || existingContract.totalAmount,
+            fuelLevel: String(formData.get("fuel_level") || existingContract.fuelLevel || "Full"),
+            cleanliness: String(formData.get("cleanliness") || existingContract.cleanliness || "Clean"),
+            startMileage: Number(formData.get("start_mileage")) || existingContract.startMileage || 0,
+            fullInsuranceEnabled: formData.get("fullInsurance") === "true",
+            babySeatEnabled: formData.get("babySeat") === "true",
+            islandTripEnabled: formData.get("islandTrip") === "true",
+            krabiTripEnabled: formData.get("krabiTrip") === "true",
+            // prices are not editable in this form yet, keep current values
+            fullInsurancePrice: existingContract.fullInsurancePrice ?? 0,
+            babySeatPrice: existingContract.babySeatPrice ?? 0,
+            islandTripPrice: existingContract.islandTripPrice ?? 0,
+            krabiTripPrice: existingContract.krabiTripPrice ?? 0,
+            notes: (formData.get("notes") as string) || null,
+            updatedAt: new Date(),
+        };
 
-    if (photosValue.length > 0) {
-        updatePayload.photos = JSON.stringify(photosValue);
-    }
+        if (photosValue.length > 0) {
+            updatePayload.photos = JSON.stringify(photosValue);
+        }
 
-    await context.cloudflare.env.DB
-        .prepare(`
+        await context.cloudflare.env.DB
+            .prepare(`
             UPDATE contracts
             SET company_car_id = ?, start_date = ?, end_date = ?, pickup_district_id = ?, pickup_hotel = ?, pickup_room = ?,
                 delivery_cost = ?, return_district_id = ?, return_hotel = ?, return_room = ?, return_cost = ?, deposit_amount = ?,
@@ -309,73 +317,79 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 photos = COALESCE(?, photos), updated_at = ?
             WHERE id = ?
         `)
-        .bind(
-            updatePayload.companyCarId,
-            (updatePayload.startDate as Date).toISOString(),
-            (updatePayload.endDate as Date).toISOString(),
-            updatePayload.pickupDistrictId,
-            updatePayload.pickupHotel,
-            updatePayload.pickupRoom,
-            updatePayload.deliveryCost,
-            updatePayload.returnDistrictId,
-            updatePayload.returnHotel,
-            updatePayload.returnRoom,
-            updatePayload.returnCost,
-            updatePayload.depositAmount,
-            updatePayload.depositPaymentMethod,
-            updatePayload.totalAmount,
-            updatePayload.fuelLevel,
-            updatePayload.cleanliness,
-            updatePayload.startMileage,
-            updatePayload.fullInsuranceEnabled ? 1 : 0,
-            updatePayload.babySeatEnabled ? 1 : 0,
-            updatePayload.islandTripEnabled ? 1 : 0,
-            updatePayload.krabiTripEnabled ? 1 : 0,
-            updatePayload.fullInsurancePrice,
-            updatePayload.babySeatPrice,
-            updatePayload.islandTripPrice,
-            updatePayload.krabiTripPrice,
-            updatePayload.notes,
-            (updatePayload.photos as string | undefined) ?? null,
-            new Date().toISOString(),
-            contractId
-        )
-        .run();
-
-    if (newCompanyCarId !== existingContract.companyCarId) {
-        const { updateCarStatus } = await import("~/lib/contract-helpers.server");
-        await updateCarStatus(context.cloudflare.env.DB, existingContract.company_car_id, 'available', 'Contract car changed');
-        await updateCarStatus(context.cloudflare.env.DB, newCompanyCarId, 'rented', 'Contract car changed');
-    }
-
-    // Refresh calendar events (delete old and recreate)
-    const carRow = await context.cloudflare.env.DB
-        .prepare("SELECT company_id AS companyId FROM company_cars WHERE id = ? LIMIT 1")
-        .bind(newCompanyCarId)
-        .first() as any;
-
-    if (carRow?.companyId) {
-        await context.cloudflare.env.DB
-            .prepare("DELETE FROM calendar_events WHERE related_id = ? AND event_type IN ('pickup', 'contract')")
-            .bind(contractId)
+            .bind(
+                updatePayload.companyCarId,
+                (updatePayload.startDate as Date).toISOString(),
+                (updatePayload.endDate as Date).toISOString(),
+                updatePayload.pickupDistrictId,
+                updatePayload.pickupHotel,
+                updatePayload.pickupRoom,
+                updatePayload.deliveryCost,
+                updatePayload.returnDistrictId,
+                updatePayload.returnHotel,
+                updatePayload.returnRoom,
+                updatePayload.returnCost,
+                updatePayload.depositAmount,
+                updatePayload.depositPaymentMethod,
+                updatePayload.totalAmount,
+                updatePayload.fuelLevel,
+                updatePayload.cleanliness,
+                updatePayload.startMileage,
+                updatePayload.fullInsuranceEnabled ? 1 : 0,
+                updatePayload.babySeatEnabled ? 1 : 0,
+                updatePayload.islandTripEnabled ? 1 : 0,
+                updatePayload.krabiTripEnabled ? 1 : 0,
+                updatePayload.fullInsurancePrice,
+                updatePayload.babySeatPrice,
+                updatePayload.islandTripPrice,
+                updatePayload.krabiTripPrice,
+                updatePayload.notes,
+                (updatePayload.photos as string | undefined) ?? null,
+                new Date().toISOString(),
+                contractId
+            )
             .run();
 
-        await createContractEvents({
-            db: context.cloudflare.env.DB,
-            companyId: carRow.companyId,
-            contractId,
-            startDate,
-            endDate,
-            createdBy: user.id,
-        });
-    }
+        if (newCompanyCarId !== existingContract.companyCarId) {
+            const { updateCarStatus } = await import("~/lib/contract-helpers.server");
+            await updateCarStatus(context.cloudflare.env.DB, existingContract.company_car_id, 'available', 'Contract car changed');
+            await updateCarStatus(context.cloudflare.env.DB, newCompanyCarId, 'rented', 'Contract car changed');
+        }
 
-    return redirect(`/contracts/${contractId}/edit?success=${encodeURIComponent("Contract updated successfully")}`);
+        // Refresh calendar events (delete old and recreate)
+        const carRow = await context.cloudflare.env.DB
+            .prepare("SELECT company_id AS companyId FROM company_cars WHERE id = ? LIMIT 1")
+            .bind(newCompanyCarId)
+            .first() as any;
+
+        if (carRow?.companyId) {
+            await context.cloudflare.env.DB
+                .prepare("DELETE FROM calendar_events WHERE related_id = ? AND event_type IN ('pickup', 'contract')")
+                .bind(contractId)
+                .run();
+
+            await createContractEvents({
+                db: context.cloudflare.env.DB,
+                companyId: carRow.companyId,
+                contractId,
+                startDate,
+                endDate,
+                createdBy: user.id,
+            });
+        }
+
+        return redirect(`/contracts/${contractId}/edit?success=${encodeURIComponent("Contract updated successfully")}`);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to update contract";
+        return redirect(`/contracts/${contractId}/edit?error=${encodeURIComponent(message)}`);
+    }
 }
 
 export default function EditContract() {
     const { contract, cars, districts, client } = useLoaderData<typeof loader>();
     const navigate = useNavigate();
+    const { validateLatinInput } = useLatinValidation();
+    const { maskDateInput, maskDateTimeInput } = useDateMasking();
 
     // Safely parse dates
     const getValidDate = (dateValue: any) => {
@@ -529,11 +543,12 @@ export default function EditContract() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Input
                             label="Start Date & Time"
-                            type="datetime-local"
+                            type="text"
                             name="start_date"
                             required
-                            defaultValue={startDate.toISOString().slice(0, 16)}
-                            onChange={(e) => setStartDate(new Date(e.target.value))}
+                            defaultValue={formatDateForDisplay(startDate) + " " + format(startDate, "HH:mm")}
+                            placeholder="DD/MM/YYYY HH:mm"
+                            onChange={maskDateTimeInput}
                         />
                         <FormSelect
                             label="Pickup District"
@@ -557,11 +572,12 @@ export default function EditContract() {
                         />
                         <Input
                             label="End Date & Time"
-                            type="datetime-local"
+                            type="text"
                             name="end_date"
                             required
-                            defaultValue={endDate.toISOString().slice(0, 16)}
-                            onChange={(e) => setEndDate(new Date(e.target.value))}
+                            defaultValue={formatDateForDisplay(endDate) + " " + format(endDate, "HH:mm")}
+                            placeholder="DD/MM/YYYY HH:mm"
+                            onChange={maskDateTimeInput}
                         />
                         <FormSelect
                             label="Return District"
@@ -635,9 +651,10 @@ export default function EditContract() {
                         <FormInput
                             label="Birth Date"
                             name="date_of_birth"
-                            type="date"
-                            defaultValue={client?.dateOfBirth ? format(new Date(client.dateOfBirth), "yyyy-MM-dd") : ""}
-                            placeholder="DD-MM-YYYY"
+                            type="text"
+                            placeholder="DD/MM/YYYY"
+                            defaultValue={formatDateForDisplay(client?.dateOfBirth)}
+                            onChange={maskDateInput}
                         />
                         <div />
                         <FormInput

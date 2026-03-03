@@ -35,7 +35,6 @@ export const companySchema = z.object({
         .nullable(),
     swiftCode: z.string().max(50, "SWIFT code is too long").optional().nullable(),
     // Booking Settings
-    preparationTime: z.number().int().min(0, "Preparation time must be positive").max(1440, "Preparation time is too long").optional(),
     deliveryFeeAfterHours: z.number().min(0, "Delivery fee must be positive").optional(),
     islandTripPrice: z.number().min(0, "Island trip price must be positive").optional().nullable(),
     krabiTripPrice: z.number().min(0, "Krabi trip price must be positive").optional().nullable(),

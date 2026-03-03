@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import BasePanel from "~/components/dashboard/BasePanel";
 
 interface CardProps {
     children: ReactNode
@@ -14,9 +15,9 @@ export default function Card({ children, className = '', padding = 'md' }: CardP
     }
 
     return (
-        <div className={`bg-white rounded-3xl ${paddingClasses[padding]} ${className}`}>
+        <BasePanel className={`${paddingClasses[padding]} ${className}`}>
             {children}
-        </div>
+        </BasePanel>
     )
 }
 

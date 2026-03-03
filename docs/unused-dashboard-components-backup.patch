@@ -1,0 +1,106 @@
+diff --git a/app/components/dashboard/FormBox.tsx b/app/components/dashboard/FormBox.tsx
+index 5f15391..27d69ca 100644
+--- a/app/components/dashboard/FormBox.tsx
++++ b/app/components/dashboard/FormBox.tsx
+@@ -1,3 +1,5 @@
++import BasePanel from "~/components/dashboard/BasePanel";
++
+ interface FormBoxProps {
+     children: React.ReactNode;
+     className?: string;
+@@ -5,8 +7,8 @@ interface FormBoxProps {
+ 
+ export default function FormBox({ children, className = "" }: FormBoxProps) {
+     return (
+-        <div className={`bg-white rounded-3xl shadow-sm p-4 ${className}`}>
++        <BasePanel className={`shadow-sm p-4 ${className}`}>
+             {children}
+-        </div>
++        </BasePanel>
+     );
+ }
+diff --git a/app/components/dashboard/SeasonalPricingTable.tsx b/app/components/dashboard/SeasonalPricingTable.tsx
+index 6b92847..6dd7bfd 100644
+--- a/app/components/dashboard/SeasonalPricingTable.tsx
++++ b/app/components/dashboard/SeasonalPricingTable.tsx
+@@ -191,7 +191,14 @@ export default function SeasonalPricingTable({
+         },
+         ...durations.map((duration) => ({
+             key: `duration_${duration.id}`,
+-            label: duration.name,
++            label: (
++                <div className="flex flex-col leading-tight">
++                    <span className="font-semibold">{duration.name.split(' ')[0]}</span>
++                    <span className="text-[10px] lowercase text-gray-400 font-normal">
++                        {duration.name.split(' ').slice(1).join(' ')}
++                    </span>
++                </div>
++            ),
+             className: 'text-left',
+             render: (row: PricingMatrixRow) => {
+                 const priceData = row[`duration_${duration.id}`]
+diff --git a/app/components/dashboard/TaskForm.tsx b/app/components/dashboard/TaskForm.tsx
+index 1bde37a..9bdb156 100644
+--- a/app/components/dashboard/TaskForm.tsx
++++ b/app/components/dashboard/TaskForm.tsx
+@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
+ import Button from '~/components/dashboard/Button'
+ import Modal from '~/components/dashboard/Modal'
+ import FormField from '~/components/dashboard/FormField'
++import { useDateMasking } from '~/lib/useDateMasking'
++import { formatDateTimeForDisplay, parseDateTimeFromDisplay } from '~/lib/formatters'
+ 
+ interface User {
+     id: string
+@@ -38,6 +40,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
+         assigned_to: [] as string[],
+     })
+     const [errors, setErrors] = useState<Record<string, string>>({})
++    const { maskDateTimeInput } = useDateMasking()
+ 
+     useEffect(() => {
+         if (task) {
+@@ -45,7 +48,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
+                 title: task.title,
+                 description: task.description || '',
+                 status: task.status,
+-                due_date: task.due_date ? new Date(task.due_date).toISOString().slice(0, 16) : '',
++                due_date: task.due_date ? formatDateTimeForDisplay(task.due_date) : '',
+                 assigned_to: task.assigned_to ? [task.assigned_to] : [],
+             })
+         }
+@@ -86,7 +89,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
+         onSubmit({
+             ...formData,
+             description: formData.description || null,
+-            due_date: formData.due_date || null,
++            due_date: formData.due_date ? parseDateTimeFromDisplay(formData.due_date) : null,
+             assigned_to: task
+                 ? (formData.assigned_to[0] || null)
+                 : formData.assigned_to,
+@@ -115,7 +118,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
+                         name="title"
+                         value={formData.title}
+                         onChange={handleChange}
+-                            className={`block w-full rounded-3xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.title ? 'border-gray-600' : ''
++                        className={`block w-full rounded-3xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.title ? 'border-gray-600' : ''
+                             }`}
+                         placeholder="Enter task title"
+                     />
+@@ -154,10 +157,14 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
+                     <div className="col-span-2">
+                         <FormField label="Due Date" error={errors.due_date}>
+                             <input
+-                                type="datetime-local"
++                                type="text"
+                                 name="due_date"
+                                 value={formData.due_date}
+-                                onChange={handleChange}
++                                onChange={(e) => {
++                                    maskDateTimeInput(e)
++                                    setFormData(prev => ({ ...prev, due_date: e.target.value }))
++                                }}
++                                placeholder="DD/MM/YYYY HH:mm"
+                                 className={`block w-full rounded-3xl sm:text-sm py-2 px-3 bg-white text-gray-900 focus:ring-0 focus:border-gray-500 transition-colors ${errors.due_date ? 'border-gray-600' : ''
+                                     }`}
+                             />

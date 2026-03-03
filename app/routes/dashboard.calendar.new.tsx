@@ -10,6 +10,8 @@ import Modal from "~/components/dashboard/Modal";
 import Button from "~/components/dashboard/Button";
 import { useToast } from "~/lib/toast";
 import { CalendarIcon } from "@heroicons/react/24/outline";
+import { useDateMasking } from "~/lib/useDateMasking";
+import { parseDateTimeFromDisplay } from "~/lib/formatters";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -24,8 +26,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const title = formData.get("title") as string;
         const description = formData.get("description") as string || null;
         const eventType = formData.get("eventType") as string;
-        const startDate = new Date(formData.get("startDate") as string);
-        const endDate = formData.get("endDate") ? new Date(formData.get("endDate") as string) : null;
+        const startRaw = formData.get("startDate") as string;
+        const endRaw = formData.get("endDate") as string;
+
+        const startDate = new Date(parseDateTimeFromDisplay(startRaw));
+        const endDate = endRaw ? new Date(parseDateTimeFromDisplay(endRaw)) : null;
+
+        if (isNaN(startDate.getTime())) {
+            throw new Error("Invalid start date");
+        }
+
         const color = formData.get("color") as string || "#3B82F6";
 
         await context.cloudflare.env.DB
@@ -50,8 +60,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
             .run();
 
         return redirect(`/dashboard/calendar?success=${encodeURIComponent("Event created successfully")}`);
-    } catch {
-        return redirect(`/dashboard/calendar/new?error=${encodeURIComponent("Failed to create event")}`);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to create event";
+        return redirect(`/dashboard/calendar/new?error=${encodeURIComponent(message)}`);
     }
 }
 
@@ -59,6 +70,7 @@ export default function NewCalendarEvent() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const toast = useToast();
+    const { maskDateTimeInput } = useDateMasking();
 
     useEffect(() => {
         const error = searchParams.get("error");
@@ -115,15 +127,19 @@ export default function NewCalendarEvent() {
                             <FormInput
                                 label="Start Date & Time"
                                 name="startDate"
-                                type="datetime-local"
+                                type="text"
+                                placeholder="DD/MM/YYYY HH:mm"
                                 required
+                                onChange={maskDateTimeInput}
                             />
                         </div>
                         <div className="col-span-2">
                             <FormInput
                                 label="End Date & Time (Optional)"
                                 name="endDate"
-                                type="datetime-local"
+                                type="text"
+                                placeholder="DD/MM/YYYY HH:mm"
+                                onChange={maskDateTimeInput}
                             />
                         </div>
                         <div className="col-span-4">

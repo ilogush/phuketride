@@ -12,6 +12,7 @@ interface FormSelectProps {
     disabled?: boolean;
     isEdit?: boolean;
     className?: string;
+    onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
 const FormSelect = memo(function FormSelect({
@@ -25,12 +26,14 @@ const FormSelect = memo(function FormSelect({
     disabled = false,
     isEdit = true,
     className = "",
+    onChange,
 }: FormSelectProps) {
     const isFieldDisabled = disabled || !isEdit;
 
-    // Use value for controlled (disabled) fields, defaultValue for editable fields
-    const selectValue = isFieldDisabled ? (value ?? defaultValue ?? "") : undefined;
-    const selectDefaultValue = !isFieldDisabled ? (defaultValue ?? value ?? "") : undefined;
+    // Determine if we should be controlled or uncontrolled
+    const hasValue = value !== undefined;
+    const selectValue = hasValue ? (value ?? "") : undefined;
+    const selectDefaultValue = !hasValue ? (defaultValue ?? "") : undefined;
 
     return (
         <div className={className}>
@@ -42,6 +45,7 @@ const FormSelect = memo(function FormSelect({
                 disabled={isFieldDisabled}
                 className={selectBaseStyles}
                 required={required}
+                onChange={onChange}
             >
                 <option value="">{placeholder || `Select ${label}`}</option>
                 {options.map((option) => (

@@ -40,13 +40,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     SELECT
                         d.id,
                         d.name,
-                        d.location_id AS locationId,
+                        d.location_id,
                         d.beaches,
                         d.streets,
-                        cds.is_active AS isActive,
-                        cds.delivery_price AS deliveryPrice,
-                        d.created_at AS createdAt,
-                        d.updated_at AS updatedAt
+                        cds.is_active,
+                        cds.delivery_price,
+                        d.created_at,
+                        d.updated_at
                     FROM company_delivery_settings cds
                     JOIN districts d ON d.id = cds.district_id
                     WHERE cds.company_id = ?
@@ -54,7 +54,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 `)
                 .bind(effectiveCompanyId)
                 .all() as { results?: any[] };
-            districts = (settings.results || []).map((s) => ({ ...s, isActive: !!s.isActive }));
+            districts = (settings.results || []).map((s) => ({
+                id: s.id,
+                name: s.name,
+                locationId: s.location_id,
+                beaches: s.beaches,
+                streets: s.streets,
+                isActive: !!s.is_active,
+                deliveryPrice: s.delivery_price,
+                createdAt: s.created_at,
+                updatedAt: s.updated_at,
+            }));
         }
     } else {
         // Admin sees all districts
@@ -63,19 +73,29 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 SELECT
                     id,
                     name,
-                    location_id AS locationId,
+                    location_id,
                     beaches,
                     streets,
-                    is_active AS isActive,
-                    delivery_price AS deliveryPrice,
-                    created_at AS createdAt,
-                    updated_at AS updatedAt
+                    is_active,
+                    delivery_price,
+                    created_at,
+                    updated_at
                 FROM districts
                 WHERE location_id = 1
                 LIMIT 100
             `)
             .all() as { results?: any[] };
-        districts = (districtsRaw.results || []).map((d) => ({ ...d, isActive: !!d.isActive }));
+        districts = (districtsRaw.results || []).map((d) => ({
+            id: d.id,
+            name: d.name,
+            locationId: d.location_id,
+            beaches: d.beaches,
+            streets: d.streets,
+            isActive: !!d.is_active,
+            deliveryPrice: d.delivery_price,
+            createdAt: d.created_at,
+            updatedAt: d.updated_at,
+        }));
     }
 
     return { districts, user, isModMode };
@@ -86,98 +106,86 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
     const isModMode = user.role === "admin" && effectiveCompanyId !== null;
     const canManageCompanyDelivery = user.role === "partner" || isModMode;
+    const canManageDistrictTemplates = user.role === "admin" && !isModMode;
 
-    if (user.role !== "admin" && !canManageCompanyDelivery) {
+    if (!canManageDistrictTemplates && !canManageCompanyDelivery) {
         return data({ success: false, message: "Forbidden" }, { status: 403 });
     }
     const formData = await request.formData();
     const intent = formData.get("intent");
 
     if (intent === "bulkUpdate") {
+        if (!canManageCompanyDelivery || !effectiveCompanyId) {
+            return data({ success: false, message: "Forbidden" }, { status: 403 });
+        }
         const updates = JSON.parse(formData.get("updates") as string);
-        
-        if (canManageCompanyDelivery && effectiveCompanyId) {
-            // Partner/mod mode updates company-specific delivery settings by district id.
-            for (const update of updates) {
-                await context.cloudflare.env.DB
-                    .prepare(`
-                        UPDATE company_delivery_settings
-                        SET is_active = ?, delivery_price = ?, updated_at = ?
-                        WHERE company_id = ? AND district_id = ?
-                    `)
-                    .bind(update.isActive ? 1 : 0, update.deliveryPrice, new Date().toISOString(), effectiveCompanyId, update.id)
-                    .run();
-            }
-        } else {
-            // Admin updates global districts
-            for (const update of updates) {
-                await context.cloudflare.env.DB
-                    .prepare(`
-                        UPDATE districts
-                        SET is_active = ?, delivery_price = ?, updated_at = ?
-                        WHERE id = ?
-                    `)
-                    .bind(update.isActive ? 1 : 0, update.deliveryPrice, new Date().toISOString(), update.id)
-                    .run();
-            }
+
+        // Partner/mod mode updates company-specific delivery settings by district id.
+        for (const update of updates) {
+            await context.cloudflare.env.DB
+                .prepare(`
+                    UPDATE company_delivery_settings
+                    SET is_active = ?, delivery_price = ?, updated_at = ?
+                    WHERE company_id = ? AND district_id = ?
+                `)
+                .bind(update.isActive ? 1 : 0, update.deliveryPrice, new Date().toISOString(), effectiveCompanyId, update.id)
+                .run();
         }
 
         return data({ success: true, message: "All changes saved successfully" });
     }
 
     if (intent === "toggleStatus") {
+        if (!canManageCompanyDelivery || !effectiveCompanyId) {
+            return data({ success: false, message: "Forbidden" }, { status: 403 });
+        }
         const id = Number(formData.get("id"));
         const isActive = formData.get("isActive") === "true";
 
-        if (canManageCompanyDelivery && effectiveCompanyId) {
-            await context.cloudflare.env.DB
-                .prepare(`
-                    UPDATE company_delivery_settings
-                    SET is_active = ?, updated_at = ?
-                    WHERE company_id = ? AND district_id = ?
-                `)
-                .bind(isActive ? 1 : 0, new Date().toISOString(), effectiveCompanyId, id)
-                .run();
-        } else {
-            await context.cloudflare.env.DB
-                .prepare("UPDATE districts SET is_active = ?, updated_at = ? WHERE id = ?")
-                .bind(isActive ? 1 : 0, new Date().toISOString(), id)
-                .run();
-        }
+        await context.cloudflare.env.DB
+            .prepare(`
+                UPDATE company_delivery_settings
+                SET is_active = ?, updated_at = ?
+                WHERE company_id = ? AND district_id = ?
+            `)
+            .bind(isActive ? 1 : 0, new Date().toISOString(), effectiveCompanyId, id)
+            .run();
 
         return data({ success: true, message: "Status updated successfully" });
     }
 
     if (intent === "updatePrice") {
+        if (!canManageCompanyDelivery || !effectiveCompanyId) {
+            return data({ success: false, message: "Forbidden" }, { status: 403 });
+        }
         const id = Number(formData.get("id"));
         const deliveryPrice = Number(formData.get("deliveryPrice"));
 
-        if (canManageCompanyDelivery && effectiveCompanyId) {
-            await context.cloudflare.env.DB
-                .prepare(`
-                    UPDATE company_delivery_settings
-                    SET delivery_price = ?, updated_at = ?
-                    WHERE company_id = ? AND district_id = ?
-                `)
-                .bind(deliveryPrice, new Date().toISOString(), effectiveCompanyId, id)
-                .run();
-        } else {
-            await context.cloudflare.env.DB
-                .prepare("UPDATE districts SET delivery_price = ?, updated_at = ? WHERE id = ?")
-                .bind(deliveryPrice, new Date().toISOString(), id)
-                .run();
-        }
+        await context.cloudflare.env.DB
+            .prepare(`
+                UPDATE company_delivery_settings
+                SET delivery_price = ?, updated_at = ?
+                WHERE company_id = ? AND district_id = ?
+            `)
+            .bind(deliveryPrice, new Date().toISOString(), effectiveCompanyId, id)
+            .run();
 
         return data({ success: true, message: "Price updated successfully" });
     }
 
     if (intent === "delete") {
+        if (!canManageDistrictTemplates) {
+            return data({ success: false, message: "Forbidden" }, { status: 403 });
+        }
         const id = Number(formData.get("id"));
         await context.cloudflare.env.DB.prepare("DELETE FROM districts WHERE id = ?").bind(id).run();
         return data({ success: true, message: "District deleted successfully" });
     }
 
     if (intent === "update") {
+        if (!canManageDistrictTemplates) {
+            return data({ success: false, message: "Forbidden" }, { status: 403 });
+        }
         const id = Number(formData.get("id"));
         const name = formData.get("name") as string;
         const beaches = formData.get("beaches") as string;
@@ -203,6 +211,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     if (intent === "create") {
+        if (!canManageDistrictTemplates) {
+            return data({ success: false, message: "Forbidden" }, { status: 403 });
+        }
         const name = formData.get("name") as string;
         const beaches = formData.get("beaches") as string;
         const streets = formData.get("streets") as string;
@@ -328,42 +339,46 @@ export default function LocationsPage() {
             wrap: true,
             className: "hidden lg:table-cell",
         },
-        {
-            key: "status",
-            label: "Status",
-            render: (item) => {
-                const district = localDistricts.find(d => d.id === item.id) || item;
-                return (
-                    <Toggle
-                        size="sm"
-                        enabled={Boolean(district.isActive)}
-                        onChange={() => handleToggleStatus(item.id, district.isActive ?? false)}
-                    />
-                );
-            },
-        },
-        {
-            key: "deliveryPrice",
-            label: "Cost (฿)",
-            render: (item) => {
-                const district = localDistricts.find(d => d.id === item.id) || item;
-                return (
-                    <div className="relative max-w-[120px]">
-                        <input
-                            type="number"
-                            value={district.deliveryPrice || 0}
-                            onChange={(e) => handlePriceChange(item.id, e.target.value)}
-                            disabled={!district.isActive}
-                            className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed disabled:border-gray-200"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">
-                            ฿
-                        </span>
-                    </div>
-                );
-            },
-            className: "hidden sm:table-cell",
-        },
+        ...(!isAdmin
+            ? [
+                {
+                    key: "status",
+                    label: "Status",
+                    render: (item: District) => {
+                        const district = localDistricts.find(d => d.id === item.id) || item;
+                        return (
+                            <Toggle
+                                size="sm"
+                                enabled={Boolean(district.isActive)}
+                                onChange={() => handleToggleStatus(item.id, district.isActive ?? false)}
+                            />
+                        );
+                    },
+                },
+                {
+                    key: "deliveryPrice",
+                    label: "Cost (฿)",
+                    render: (item: District) => {
+                        const district = localDistricts.find(d => d.id === item.id) || item;
+                        return (
+                            <div className="relative max-w-[120px]">
+                                <input
+                                    type="number"
+                                    value={district.deliveryPrice || 0}
+                                    onChange={(e) => handlePriceChange(item.id, e.target.value)}
+                                    disabled={!district.isActive}
+                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed disabled:border-gray-200"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">
+                                    ฿
+                                </span>
+                            </div>
+                        );
+                    },
+                    className: "hidden sm:table-cell",
+                },
+            ]
+            : []),
         ...(isAdmin
             ? [
                 {
@@ -399,9 +414,11 @@ export default function LocationsPage() {
                 title="Delivery"
                 rightActions={
                     <div className="flex gap-2">
-                        <Button variant="primary" onClick={handleSaveAll}>
-                            Save
-                        </Button>
+                        {isPartner && (
+                            <Button variant="primary" onClick={handleSaveAll}>
+                                Save
+                            </Button>
+                        )}
                         {isAdmin && (
                             <Button variant="secondary" icon={<PlusIcon className="w-5 h-5" />} onClick={() => setIsModalOpen(true)}>
                                 Add

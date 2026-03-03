@@ -1,3 +1,5 @@
+import { parse, isValid, format } from "date-fns";
+
 /**
  * Format user initials from name, surname, or email
  */
@@ -56,10 +58,54 @@ export function formatDateForDisplay(date: Date | string | number | null | undef
  */
 export function parseDateFromDisplay(displayDate: string | null): string {
     if (!displayDate) return "";
-    const parts = displayDate.split("/");
-    if (parts.length !== 3) return displayDate;
-    const [day, month, year] = parts;
-    return `${year}-${month}-${day}`;
+    const cleaned = displayDate.trim();
+    if (!cleaned) return "";
+
+    const parsed = parse(cleaned, 'dd/MM/yyyy', new Date());
+    if (!isValid(parsed)) {
+        throw new Error(`Invalid date: ${displayDate}. Use DD/MM/YYYY format.`);
+    }
+    return format(parsed, 'yyyy-MM-dd');
+}
+
+/**
+ * Convert DD/MM/YYYY HH:mm to ISO for database
+ */
+export function parseDateTimeFromDisplay(displayDateTime: string | null): string {
+    if (!displayDateTime) return "";
+    const cleaned = displayDateTime.trim();
+    if (!cleaned) return "";
+
+    const parsed = parse(cleaned, 'dd/MM/yyyy HH:mm', new Date());
+    if (!isValid(parsed)) {
+        throw new Error(`Invalid date/time: ${displayDateTime}. Use DD/MM/YYYY HH:mm format.`);
+    }
+    return parsed.toISOString();
+}
+
+/**
+ * Format date for display in DD/MM/YYYY HH:mm format
+ */
+export function formatDateTimeForDisplay(date: Date | string | number | null | undefined): string {
+    if (date === null || date === undefined || date === "") return "";
+    let dateObj: Date;
+    if (date instanceof Date) {
+        dateObj = date;
+    } else if (typeof date === "number") {
+        dateObj = new Date(date < 1e12 ? date * 1000 : date);
+    } else {
+        dateObj = new Date(date);
+    }
+
+    if (Number.isNaN(dateObj.getTime())) return "";
+
+    const d = dateObj.getDate().toString().padStart(2, '0');
+    const m = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const y = dateObj.getFullYear();
+    const h = dateObj.getHours().toString().padStart(2, '0');
+    const min = dateObj.getMinutes().toString().padStart(2, '0');
+
+    return `${d}/${m}/${y} ${h}:${min}`;
 }
 
 /**

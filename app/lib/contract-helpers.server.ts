@@ -57,7 +57,20 @@ export async function getContractWithAmountPaid(
 }
 
 /**
- * Update car status based on contract status
+ * Get prepared statement to update car status
+ */
+export function getUpdateCarStatusStmt(
+    db: DbType,
+    carId: number,
+    status: 'available' | 'rented' | 'booked' | 'maintenance'
+): D1PreparedStatement {
+    return db
+        .prepare("UPDATE company_cars SET status = ?, updated_at = ? WHERE id = ?")
+        .bind(status, new Date().toISOString(), carId);
+}
+
+/**
+ * Update car status based on contract status (immediate execution)
  */
 export async function updateCarStatus(
     db: DbType,
@@ -66,8 +79,5 @@ export async function updateCarStatus(
     reason: string
 ): Promise<void> {
     void reason;
-    await db
-        .prepare("UPDATE company_cars SET status = ?, updated_at = ? WHERE id = ?")
-        .bind(status, Date.now(), carId)
-        .run();
+    await getUpdateCarStatusStmt(db, carId, status).run();
 }

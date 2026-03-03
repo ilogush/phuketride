@@ -17,9 +17,7 @@ import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { useToast } from "~/lib/toast";
 import { parseDateFromDisplay } from "~/lib/formatters";
-import { contractSchema } from "~/schemas/contract";
-import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
-import { createContractEvents } from "~/lib/calendar-events.server";
+import { getRequestMetadata } from "~/lib/audit-logger";
 import {
     TruckIcon,
     CalendarIcon,
@@ -70,7 +68,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             pricePerDay: car.pricePerDay,
             deposit: car.deposit,
         })),
-        districts: districtsList,
+        districts: districtsList.map((d: any) => ({ id: d.id, name: d.name_en || d.name })),
         paymentTemplates,
         currencies,
     };
@@ -130,8 +128,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
             .bind(passportNumber)
             .first() as any;
 
+        const userStmts: D1PreparedStatement[] = [];
         if (existingClient) {
-            // Check if all data matches
+            clientId = existingClient.id;
             const dataMatches =
                 existingClient.name === clientData.name &&
                 existingClient.surname === clientData.surname &&
@@ -139,11 +138,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 existingClient.phone === clientData.phone &&
                 (!clientData.citizenship || existingClient.citizenship === clientData.citizenship);
 
-            if (dataMatches) {
-                // Use existing client
-                clientId = existingClient.id;
-                if (passportPhotosValue.length > 0 || driverLicensePhotosValue.length > 0) {
-                    await context.cloudflare.env.DB
+            if (!dataMatches || passportPhotosValue.length > 0 || driverLicensePhotosValue.length > 0) {
+                userStmts.push(
+                    context.cloudflare.env.DB
                         .prepare(`
                             UPDATE users
                             SET passport_photos = ?, driver_license_photos = ?, updated_at = ?
@@ -155,12 +152,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
                             new Date().toISOString(),
                             clientId
                         )
-                        .run();
-                }
-            } else {
-                // Data changed - create new user
-                clientId = crypto.randomUUID();
-                await context.cloudflare.env.DB
+                );
+            }
+        } else {
+            clientId = crypto.randomUUID();
+            userStmts.push(
+                context.cloudflare.env.DB
                     .prepare(`
                         INSERT INTO users (
                             id, email, role, name, surname, phone, whatsapp, telegram, gender, passport_number, citizenship,
@@ -184,36 +181,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
                         new Date().toISOString(),
                         new Date().toISOString()
                     )
-                    .run();
-            }
-        } else {
-            // Client not found - create new
-            clientId = crypto.randomUUID();
-            await context.cloudflare.env.DB
-                .prepare(`
-                    INSERT INTO users (
-                        id, email, role, name, surname, phone, whatsapp, telegram, gender, passport_number, citizenship,
-                        date_of_birth, passport_photos, driver_license_photos, created_at, updated_at
-                    ) VALUES (?, ?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `)
-                .bind(
-                    clientId,
-                    clientData.email || `${clientData.phone}@temp.com`,
-                    clientData.name,
-                    clientData.surname,
-                    clientData.phone,
-                    clientData.whatsapp || null,
-                    clientData.telegram || null,
-                    clientData.gender || null,
-                    passportNumber,
-                    clientData.citizenship || null,
-                    clientData.dateOfBirth ? clientData.dateOfBirth.toISOString() : null,
-                    passportPhotosValue.length > 0 ? JSON.stringify(passportPhotosValue) : null,
-                    driverLicensePhotosValue.length > 0 ? JSON.stringify(driverLicensePhotosValue) : null,
-                    new Date().toISOString(),
-                    new Date().toISOString()
-                )
-                .run();
+            );
+        }
+
+        if (userStmts.length > 0) {
+            await context.cloudflare.env.DB.batch(userStmts);
         }
 
         // Parse contract data
@@ -307,16 +279,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
         };
 
         const contractPhotosValue = parsePhotoList(formData.get("photos"));
-
-        const pickupDistrictIdRaw = formData.get("pickup_district_id");
-        const returnDistrictIdRaw = formData.get("return_district_id");
-
-        const pickupDistrictId = pickupDistrictIdRaw ? Number(pickupDistrictIdRaw) : null;
-        const returnDistrictId = returnDistrictIdRaw ? Number(returnDistrictIdRaw) : null;
+        const pickupDistrictId = formData.get("pickup_district_id") ? Number(formData.get("pickup_district_id")) : null;
+        const returnDistrictId = formData.get("return_district_id") ? Number(formData.get("return_district_id")) : null;
 
         const deliveryCost = Number(formData.get("delivery_cost")) || 0;
         const returnCost = Number(formData.get("return_cost")) || 0;
-
         const fuelLevel = String(formData.get("fuel_level") || "Full");
         const cleanliness = String(formData.get("cleanliness") || "Clean");
         const startMileage = Number(formData.get("start_mileage")) || 0;
@@ -368,9 +335,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 new Date().toISOString()
             )
             .run();
-        const newContract = { id: Number(contractInsert.meta.last_row_id) };
 
-        // Create payments from selected templates
+        const contractId = Number(contractInsert.meta.last_row_id);
+
+        // Prep batch 2: Payments, Car Status, Calendar Events
+        const finalStmts: D1PreparedStatement[] = [];
+
+        // Create payments
         const paymentCount = Number(formData.get("paymentCount")) || 0;
         for (let i = 0; i < paymentCount; i++) {
             const paymentTypeId = Number(formData.get(`payment_${i}_type`));
@@ -379,48 +350,55 @@ export async function action({ request, context }: ActionFunctionArgs) {
             const paymentMethod = formData.get(`payment_${i}_method`) as string;
 
             if (paymentTypeId && amount > 0) {
-                await context.cloudflare.env.DB
-                    .prepare(`
-                        INSERT INTO payments (
-                            contract_id, payment_type_id, amount, currency_id, payment_method, status, created_by, created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?)
-                    `)
-                    .bind(newContract.id, paymentTypeId, amount, currencyId || null, paymentMethod || null, user.id, new Date().toISOString(), new Date().toISOString())
-                    .run();
+                finalStmts.push(
+                    context.cloudflare.env.DB
+                        .prepare(`
+                            INSERT INTO payments (
+                                contract_id, payment_type_id, amount, currency_id, payment_method, status, created_by, created_at, updated_at
+                            ) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?)
+                        `)
+                        .bind(contractId, paymentTypeId, amount, currencyId || null, paymentMethod || null, user.id, new Date().toISOString(), new Date().toISOString())
+                );
             }
         }
 
         // Update car status to 'rented'
-        const { updateCarStatus } = await import("~/lib/contract-helpers.server");
-        await updateCarStatus(context.cloudflare.env.DB, companyCarId, 'rented', 'Contract created');
+        const { getUpdateCarStatusStmt } = await import("~/lib/contract-helpers.server");
+        finalStmts.push(getUpdateCarStatusStmt(context.cloudflare.env.DB, companyCarId, 'rented'));
 
-        // Create calendar events for contract
-        await createContractEvents({
+        // Create calendar events
+        const { getCreateContractEventsStmts } = await import("~/lib/calendar-events.server");
+        finalStmts.push(...getCreateContractEventsStmts({
             db: context.cloudflare.env.DB,
             companyId: user.companyId!,
-            contractId: newContract.id,
+            contractId: contractId,
             startDate,
             endDate,
             createdBy: user.id,
-        });
+        }));
 
-        // Audit log
+        // Execute batch 2
+        await context.cloudflare.env.DB.batch(finalStmts);
+
+        // Audit log (immediate execution)
+        const { getQuickAuditStmt } = await import("~/lib/audit-logger");
         const metadata = getRequestMetadata(request);
-        quickAudit({
+        await getQuickAuditStmt({
             db: context.cloudflare.env.DB,
             userId: user.id,
             role: user.role,
             companyId: user.companyId,
             entityType: "contract",
-            entityId: newContract.id,
+            entityId: contractId,
             action: "create",
-            afterState: { contractId: newContract.id, clientId, companyCarId },
+            afterState: { contractId: contractId, clientId, companyCarId },
             ...metadata,
-        });
+        }).run();
 
         return redirect(`/contracts?success=${encodeURIComponent("Contract created successfully")}`);
-    } catch {
-        return redirect(`/contracts/new?error=${encodeURIComponent("Failed to create contract")}`);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to create contract";
+        return redirect(`/contracts/new?error=${encodeURIComponent(message)}`);
     }
 }
 
@@ -533,7 +511,6 @@ export default function NewContract() {
                             label="Start Mileage"
                             name="start_mileage"
                             type="number"
-
                             required
                         />
                     </div>

@@ -1,6 +1,9 @@
 import { useState } from "react";
 import Button from "~/components/dashboard/Button";
 import { CalendarIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { useDateMasking } from "~/lib/useDateMasking";
+import { parseDateFromDisplay } from "~/lib/formatters";
+import { useToast } from "~/lib/toast";
 
 interface HolidaysManagerProps {
     value?: string; // JSON string array of dates
@@ -8,6 +11,7 @@ interface HolidaysManagerProps {
 }
 
 export default function HolidaysManager({ value, onChange }: HolidaysManagerProps) {
+    const { maskDateInput } = useDateMasking();
     const [holidays, setHolidays] = useState<string[]>(() => {
         if (value) {
             try {
@@ -21,15 +25,22 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
 
     const [newDate, setNewDate] = useState("");
 
-    // Get today's date in YYYY-MM-DD format
-    const today = new Date().toISOString().split('T')[0];
+    const toast = useToast();
 
     const handleAddHoliday = () => {
-        if (newDate && !holidays.includes(newDate)) {
-            const newHolidays = [...holidays, newDate].sort();
-            setHolidays(newHolidays);
-            onChange?.(JSON.stringify(newHolidays));
-            setNewDate("");
+        if (newDate) {
+            try {
+                const isoDate = parseDateFromDisplay(newDate);
+                // Basic validation for YYYY-MM-DD
+                if (isoDate.match(/^\d{4}-\d{2}-\d{2}$/) && !holidays.includes(isoDate)) {
+                    const newHolidays = [...holidays, isoDate].sort();
+                    setHolidays(newHolidays);
+                    onChange?.(JSON.stringify(newHolidays));
+                    setNewDate("");
+                }
+            } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Invalid date");
+            }
         }
     };
 
@@ -51,16 +62,19 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
                     <label className="block text-xs text-gray-600 mb-1">Add Holiday</label>
                     <div className="flex gap-2">
                         <input
-                            type="date"
+                            type="text"
                             value={newDate}
-                            onChange={(e) => setNewDate(e.target.value)}
-                            placeholder="Select date..."
+                            onChange={(e) => {
+                                maskDateInput(e);
+                                setNewDate(e.target.value);
+                            }}
+                            placeholder="DD/MM/YYYY"
                             className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-500"
                         />
                         <Button
                             type="button"
                             onClick={handleAddHoliday}
-                            disabled={!newDate}
+                            disabled={newDate.length < 10}
                             variant="primary"
                         >
                             Add

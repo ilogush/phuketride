@@ -292,22 +292,21 @@ await db.delete(companyCars)
   );
 ```
 
-### Транзакции
+### Транзакции и пакетные операции (Batch)
+
+В Cloudflare D1 для обеспечения атомарности нескольких операций следует использовать `db.batch()`. Это предпочтительный способ по сравнению с традиционными транзакциями для SQLite в среде Workers.
 
 ```typescript
-await db.transaction(async (tx) => {
-  const [contract] = await tx.insert(contracts)
-    .values(contractData)
-    .returning();
+const stmt1 = db.prepare("INSERT INTO table1 ...");
+const stmt2 = db.prepare("UPDATE table2 ...");
 
-  await tx.update(companyCars)
-    .set({ status: "rented" })
-    .where(eq(companyCars.id, carId));
-
-  await tx.insert(payments)
-    .values(paymentData);
-});
+await db.batch([stmt1, stmt2]);
 ```
+
+Используйте `db.batch()` для:
+1. Создания контракта + обновления статуса авто + создания платежей.
+2. Закрытия контракта + освобождения авто + финальных расчетов.
+3. Любых операций, где важна целостность данных между несколькими таблицами.
 
 ## Миграции
 

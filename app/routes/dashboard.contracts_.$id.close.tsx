@@ -11,6 +11,9 @@ import { Textarea } from "~/components/dashboard/Textarea";
 import Button from "~/components/dashboard/Button";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { BanknotesIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { useDateMasking } from "~/lib/useDateMasking";
+import { formatDateForDisplay, parseDateTimeFromDisplay } from "~/lib/formatters";
+import { format } from "date-fns";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -91,7 +94,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
 
     try {
         // Parse closing data
-        const actualEndDate = new Date(formData.get("actualEndDate") as string);
+        const actualEndDate = new Date(parseDateTimeFromDisplay(formData.get("actualEndDate") as string));
         const endMileage = Number(formData.get("endMileage"));
         const fuelLevel = formData.get("fuelLevel") as string;
         const cleanliness = formData.get("cleanliness") as string;
@@ -116,15 +119,19 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
             return redirect(`/contracts?error=${encodeURIComponent("Forbidden")}`);
         }
 
+        // Prepare statements for batching
+        const stmts: D1PreparedStatement[] = [];
+
         // Update contract status to closed
-        await context.cloudflare.env.DB
-            .prepare(`
-                UPDATE contracts
-                SET status = 'closed', actual_end_date = ?, end_mileage = ?, fuel_level = ?, cleanliness = ?, notes = ?, updated_at = ?
-                WHERE id = ?
-            `)
-            .bind(actualEndDate.toISOString(), endMileage, fuelLevel, cleanliness, notes, new Date().toISOString(), contractId)
-            .run();
+        stmts.push(
+            context.cloudflare.env.DB
+                .prepare(`
+                    UPDATE contracts
+                    SET status = 'closed', actual_end_date = ?, end_mileage = ?, fuel_level = ?, cleanliness = ?, notes = ?, updated_at = ?
+                    WHERE id = ?
+                `)
+                .bind(actualEndDate.toISOString(), endMileage, fuelLevel, cleanliness, notes, new Date().toISOString(), contractId)
+        );
 
         // Create payments from selected templates
         const paymentCount = Number(formData.get("paymentCount")) || 0;
@@ -135,33 +142,38 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
             const paymentMethod = formData.get(`payment_${i}_method`) as string;
 
             if (paymentTypeId && amount > 0) {
-                await context.cloudflare.env.DB
-                    .prepare(`
-                        INSERT INTO payments (
-                            contract_id, payment_type_id, amount, currency_id, payment_method, status, created_by, created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?)
-                    `)
-                    .bind(
-                        contractId,
-                        paymentTypeId,
-                        amount,
-                        currencyId || null,
-                        paymentMethod || null,
-                        user.id,
-                        new Date().toISOString(),
-                        new Date().toISOString()
-                    )
-                    .run();
+                stmts.push(
+                    context.cloudflare.env.DB
+                        .prepare(`
+                            INSERT INTO payments (
+                                contract_id, payment_type_id, amount, currency_id, payment_method, status, created_by, created_at, updated_at
+                            ) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?)
+                        `)
+                        .bind(
+                            contractId,
+                            paymentTypeId,
+                            amount,
+                            currencyId || null,
+                            paymentMethod || null,
+                            user.id,
+                            new Date().toISOString(),
+                            new Date().toISOString()
+                        )
+                );
             }
         }
 
         // Update car status to available
-        const { updateCarStatus } = await import("~/lib/contract-helpers.server");
-        await updateCarStatus(context.cloudflare.env.DB, contract.companyCarId, 'available', 'Contract closed');
+        const { getUpdateCarStatusStmt } = await import("~/lib/contract-helpers.server");
+        stmts.push(getUpdateCarStatusStmt(context.cloudflare.env.DB, contract.companyCarId, 'available'));
+
+        // Execute batch
+        await context.cloudflare.env.DB.batch(stmts);
 
         // Audit log
+        const { getQuickAuditStmt } = await import("~/lib/audit-logger");
         const metadata = getRequestMetadata(request);
-        quickAudit({
+        await getQuickAuditStmt({
             db: context.cloudflare.env.DB,
             userId: user.id,
             role: user.role,
@@ -172,17 +184,19 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
             beforeState: { status: contract.status },
             afterState: { status: "closed", actualEndDate, endMileage },
             ...metadata,
-        });
+        }).run();
 
         return redirect(`/contracts?success=${encodeURIComponent("Contract closed successfully")}`);
-    } catch {
-        return redirect(`/contracts/${contractId}/close?error=${encodeURIComponent("Failed to close contract")}`);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to close contract";
+        return redirect(`/contracts/${contractId}/close?error=${encodeURIComponent(message)}`);
     }
 }
 
 export default function CloseContract() {
     const { contract, paymentTemplates, currencies } = useLoaderData<typeof loader>();
     const navigate = useNavigate();
+    const { maskDateTimeInput } = useDateMasking();
     const [selectedPayments, setSelectedPayments] = useState<Array<{ templateId: number; amount: number; currencyId: number; method: string }>>([]);
 
     const fuelLevels = [
@@ -255,10 +269,12 @@ export default function CloseContract() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Input
                             label="Actual End Date & Time"
-                            type="datetime-local"
+                            type="text"
                             name="actualEndDate"
                             required
-                            defaultValue={new Date().toISOString().slice(0, 16)}
+                            defaultValue={formatDateForDisplay(new Date()) + " " + format(new Date(), "HH:mm")}
+                            placeholder="DD/MM/YYYY HH:mm"
+                            onChange={maskDateTimeInput}
                         />
                         <FormInput
                             label="End Mileage"
@@ -300,9 +316,9 @@ export default function CloseContract() {
                                         className="w-4 h-4 text-gray-800 border-gray-300 rounded focus:ring-gray-800"
                                         onChange={(e) => {
                                             if (e.target.checked) {
-                                                setSelectedPayments([...selectedPayments, { 
-                                                    templateId: template.id, 
-                                                    amount: 0, 
+                                                setSelectedPayments([...selectedPayments, {
+                                                    templateId: template.id,
+                                                    amount: 0,
                                                     currencyId: currencies[0]?.id || 1,
                                                     method: 'cash'
                                                 }]);

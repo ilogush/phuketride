@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { useLoaderData, Form, Link } from "react-router";
+import { useLoaderData, Form, Link, useActionData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import Button from "~/components/dashboard/Button";
@@ -13,6 +14,7 @@ import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { parseDateFromDisplay } from "~/lib/formatters";
+import { useToast } from "~/lib/toast";
 
 const bookingSchema = z.object({
     carId: z.string().min(1, "Car is required"),
@@ -148,8 +150,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
             if (district) estimatedAmount += district.deliveryPrice || 0;
         }
 
-        // Create booking
-        const insertResult = await context.cloudflare.env.DB
+        // Prepare statements for batching
+        const bookingInsertStmt = context.cloudflare.env.DB
             .prepare(`
                 INSERT INTO bookings (
                     company_car_id, client_id, manager_id, start_date, end_date, estimated_amount, currency,
@@ -192,38 +194,77 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 notes || null,
                 new Date().toISOString(),
                 new Date().toISOString()
-            )
-            .run();
-        const booking = { id: Number(insertResult.meta.last_row_id) };
+            );
 
-        // Update car status to booked
-        const { updateCarStatus } = await import("~/lib/contract-helpers.server");
-        await updateCarStatus(context.cloudflare.env.DB, Number(carId), 'booked', 'Booking created');
+        const { getUpdateCarStatusStmt } = await import("~/lib/contract-helpers.server");
+        const carUpdateStmt = getUpdateCarStatusStmt(context.cloudflare.env.DB, Number(carId), 'booked');
 
-        // Audit log
+        // Execute batch
+        const batchResults = await context.cloudflare.env.DB.batch([bookingInsertStmt, carUpdateStmt]);
+        const bookingId = (batchResults[0] as any).meta.last_row_id;
+
+        // Audit log (immediate execution is fine here as it's separate from business logic integrity)
+        const { getQuickAuditStmt } = await import("~/lib/audit-logger");
         const metadata = getRequestMetadata(request);
-        await quickAudit({
+        await getQuickAuditStmt({
             db: context.cloudflare.env.DB,
             userId: user.id,
             role: user.role,
             companyId: user.companyId,
             entityType: "booking",
-            entityId: booking.id,
+            entityId: bookingId,
             action: "create",
-            afterState: booking,
+            afterState: { id: bookingId, estimatedAmount },
             ...metadata,
-        });
+        }).run();
 
         return redirect(`/dashboard/bookings?success=Booking created successfully`);
-    } catch {
-        return { error: "Failed to create booking" };
+    } catch (error) {
+        return { error: error instanceof Error ? error.message : "Failed to create booking" };
     }
 }
 
 export default function CreateBookingPage() {
     const { cars, districts, user } = useLoaderData<typeof loader>();
+    const actionData = useActionData<{ error?: string }>();
+    const toast = useToast();
     const { validateLatinInput } = useLatinValidation();
     const { maskDateInput } = useDateMasking();
+
+    // Live pricing calculation
+    const [selectedCarId, setSelectedCarId] = useState<string>("");
+    const [dates, setDates] = useState({ start: "", end: "" });
+    const [extras, setExtras] = useState({
+        insurance: 0,
+        babySeat: 0,
+        islandTrip: 0,
+        krabiTrip: 0
+    });
+
+    const selectedCar = cars.find((c: any) => String(c.id) === selectedCarId);
+
+    // Calculate days
+    const calculateDays = () => {
+        if (!dates.start || !dates.end || dates.start.length < 10 || dates.end.length < 10) return 0;
+        try {
+            const s = new Date(parseDateFromDisplay(dates.start));
+            const e = new Date(parseDateFromDisplay(dates.end));
+            if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
+            const diff = Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24));
+            return diff > 0 ? diff : 0;
+        } catch { return 0; }
+    };
+
+    const days = calculateDays();
+    const baseAmount = selectedCar ? selectedCar.pricePerDay * days : 0;
+    const extrasAmount = (extras.insurance * days) + (extras.babySeat * days) + extras.islandTrip + extras.krabiTrip;
+    const totalAmount = baseAmount + extrasAmount;
+
+    useEffect(() => {
+        if (actionData?.error) {
+            toast.error(actionData.error);
+        }
+    }, [actionData, toast]);
 
     return (
         <div className="space-y-6">
@@ -252,13 +293,50 @@ export default function CreateBookingPage() {
                             label="Car"
                             required
                             className="col-span-full"
+                            value={selectedCarId}
+                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedCarId(e.target.value)}
                             options={cars.map((car: { id: number; name: string; pricePerDay: number }) => ({ id: car.id, name: `${car.name} - ${car.pricePerDay} THB/day` }))}
                             placeholder="Select car"
                         />
-                        <FormInput type="text" name="startDate" label="Start Date" placeholder="DD/MM/YYYY" required onChange={maskDateInput} />
-                        <FormInput type="text" name="endDate" label="End Date" placeholder="DD/MM/YYYY" required onChange={maskDateInput} />
+                        <FormInput
+                            type="text"
+                            name="startDate"
+                            label="Start Date"
+                            placeholder="DD/MM/YYYY"
+                            required
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                maskDateInput(e);
+                                setDates(prev => ({ ...prev, start: e.target.value }));
+                            }}
+                        />
+                        <FormInput
+                            type="text"
+                            name="endDate"
+                            label="End Date"
+                            placeholder="DD/MM/YYYY"
+                            required
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                maskDateInput(e);
+                                setDates(prev => ({ ...prev, end: e.target.value }));
+                            }}
+                        />
                     </div>
                 </FormSection>
+
+                {totalAmount > 0 && (
+                    <div className="bg-gray-800 text-white p-4 rounded-xl shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">Estimated Total</p>
+                                <p className="text-2xl font-bold">{totalAmount.toLocaleString()} THB</p>
+                            </div>
+                            <div className="text-right text-sm text-gray-400">
+                                <p>{days} days @ {selectedCar?.pricePerDay} THB</p>
+                                {extrasAmount > 0 && <p>+ {extrasAmount.toLocaleString()} THB extras</p>}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <FormSection title="Client Information">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -334,10 +412,34 @@ export default function CreateBookingPage() {
 
                 <FormSection title="Additional Services">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormInput type="number" name="fullInsurance" label="Full Insurance (per day)" step="0.01" />
-                        <FormInput type="number" name="babySeat" label="Baby Seat (per day)" step="0.01" />
-                        <FormInput type="number" name="islandTrip" label="Island Trip (total)" step="0.01" />
-                        <FormInput type="number" name="krabiTrip" label="Krabi Trip (total)" step="0.01" />
+                        <FormInput
+                            type="number"
+                            name="fullInsurance"
+                            label="Full Insurance (per day)"
+                            step="0.01"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExtras(prev => ({ ...prev, insurance: Number(e.target.value) || 0 }))}
+                        />
+                        <FormInput
+                            type="number"
+                            name="babySeat"
+                            label="Baby Seat (per day)"
+                            step="0.01"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExtras(prev => ({ ...prev, babySeat: Number(e.target.value) || 0 }))}
+                        />
+                        <FormInput
+                            type="number"
+                            name="islandTrip"
+                            label="Island Trip (total)"
+                            step="0.01"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExtras(prev => ({ ...prev, islandTrip: Number(e.target.value) || 0 }))}
+                        />
+                        <FormInput
+                            type="number"
+                            name="krabiTrip"
+                            label="Krabi Trip (total)"
+                            step="0.01"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExtras(prev => ({ ...prev, krabiTrip: Number(e.target.value) || 0 }))}
+                        />
                     </div>
                 </FormSection>
 

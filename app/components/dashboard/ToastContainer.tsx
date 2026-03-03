@@ -1,5 +1,5 @@
 import type { Toast } from '~/lib/toast'
-import ToastItem from './ToastItem'
+import ToastItem from './ToastMessageItem'
 
 interface ToastContainerProps {
     toasts: Toast[]

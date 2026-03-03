@@ -14,7 +14,7 @@ import { userSchema } from "~/schemas/user";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
-import { formatDateForDisplay } from "~/lib/formatters";
+import { formatDateForDisplay, parseDateFromDisplay } from "~/lib/formatters";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
 
 interface EditableUserRow {
@@ -194,7 +194,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             passwordHash = await hashPassword(newPassword);
         }
 
-        const dateOfBirth = validData.dateOfBirth ? new Date(validData.dateOfBirth).toISOString() : null;
+        const dateOfBirth = validData.dateOfBirth ? parseDateFromDisplay(validData.dateOfBirth) : null;
         await context.cloudflare.env.DB
             .prepare(`
                 UPDATE users
@@ -245,8 +245,9 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         });
 
         return redirect(`/users/${userId}/edit?success=${encodeURIComponent("User updated successfully")}`);
-    } catch {
-        return redirect(`/users/${userId}/edit?error=${encodeURIComponent("Failed to update user")}`);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to update user";
+        return redirect(`/users/${userId}/edit?error=${encodeURIComponent(message)}`);
     }
 }
 
