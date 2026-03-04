@@ -103,11 +103,23 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
       LEFT JOIN districts d ON c.district_id = d.id
       WHERE cc.archived_at IS NULL
         AND c.archived_at IS NULL
-        AND LOWER(COALESCE(cc.license_plate, '')) LIKE '%' || LOWER(?) || '%'
-      LIMIT 40
+        AND (
+          LOWER(TRIM(COALESCE(cc.license_plate, ''))) = LOWER(TRIM(?))
+          OR LOWER(COALESCE(cc.license_plate, '')) LIKE '%' || LOWER(?) || '%'
+        )
+        AND (
+          ? = ''
+          OR LOWER(COALESCE(c.name, '')) LIKE LOWER(?) || '%'
+        )
+      LIMIT 20
       `
     )
-    .bind(parsedPath.plateTail)
+    .bind(
+      parsedPath.plateTail,
+      parsedPath.plateTail,
+      parsedPath.companyHint,
+      parsedPath.companyHint,
+    )
     .all();
   const carRows = (carCandidatesResult.results ?? []) as Array<Record<string, unknown>>;
   const car = carRows.find((row) => (

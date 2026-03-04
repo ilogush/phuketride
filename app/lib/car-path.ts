@@ -26,8 +26,11 @@ export const parseCarPathSegment = (raw: string | undefined | null) => {
   const value = String(raw || "").trim();
   if (!value) return null;
   const chunks = value.split("-");
+  const plateTail = chunks[chunks.length - 1] || "";
+  const companyHint = chunks[0] || "";
   return {
     full: value,
-    plateTail: chunks[chunks.length - 1] || "",
+    plateTail,
+    companyHint,
   };
 };
