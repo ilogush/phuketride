@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { useLoaderData, Form, Link, useActionData } from "react-router";
+import { useLoaderData, Form, useActionData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { useState, useEffect } from "react";
 import { z } from "zod";
@@ -17,6 +17,7 @@ import { getQuickAuditStmt } from "~/lib/audit-logger";
 import { parseDateFromDisplay } from "~/lib/formatters";
 import { useToast } from "~/lib/toast";
 import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
+import { calculateBaseTripTotal } from "~/lib/pricing";
 
 const bookingSchema = z.object({
     carId: z.string().min(1, "Car is required"),
@@ -243,20 +244,23 @@ export default function CreateBookingPage() {
 
     const selectedCar = cars.find((c: any) => String(c.id) === selectedCarId);
 
-    // Calculate days
-    const calculateDays = () => {
-        if (!dates.start || !dates.end || dates.start.length < 10 || dates.end.length < 10) return 0;
+    const tripPricing = (() => {
+        if (!selectedCar || !dates.start || !dates.end || dates.start.length < 10 || dates.end.length < 10) {
+            return { days: 0, baseAmount: 0 };
+        }
         try {
             const s = new Date(parseDateFromDisplay(dates.start));
             const e = new Date(parseDateFromDisplay(dates.end));
-            if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
-            const diff = Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24));
-            return diff > 0 ? diff : 0;
-        } catch { return 0; }
-    };
+            if (isNaN(s.getTime()) || isNaN(e.getTime())) return { days: 0, baseAmount: 0 };
+            const { days, total } = calculateBaseTripTotal(selectedCar.pricePerDay, s, e);
+            return { days, baseAmount: total };
+        } catch {
+            return { days: 0, baseAmount: 0 };
+        }
+    })();
 
-    const days = calculateDays();
-    const baseAmount = selectedCar ? selectedCar.pricePerDay * days : 0;
+    const days = tripPricing.days;
+    const baseAmount = tripPricing.baseAmount;
     const extrasAmount = (extras.insurance * days) + (extras.babySeat * days) + extras.islandTrip + extras.krabiTrip;
     const totalAmount = baseAmount + extrasAmount;
 
@@ -272,16 +276,9 @@ export default function CreateBookingPage() {
                 title="Create Booking"
                 leftActions={<BackButton to="/dashboard/bookings" />}
                 rightActions={
-                    <div className="flex gap-2">
-                        <Link to="/dashboard/bookings">
-                            <Button type="button" variant="secondary">
-                                Cancel
-                            </Button>
-                        </Link>
-                        <Button type="submit" variant="primary" form="create-booking-form">
-                            Create Booking
-                        </Button>
-                    </div>
+                    <Button type="submit" variant="primary" form="create-booking-form">
+                        Create Booking
+                    </Button>
                 }
             />
 

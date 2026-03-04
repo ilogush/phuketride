@@ -38,71 +38,93 @@ export function meta({ }: Route.MetaArgs) {
 export async function loader({ context }: Route.LoaderArgs) {
   const d1 = context.cloudflare.env.DB;
 
-  const rowsResult = await d1
-    .prepare(
-      `
-      SELECT
-        cc.id AS id,
-        cc.company_id AS companyId,
-        cb.name AS brandName,
-        cm.name AS modelName,
-        bt.name AS bodyType,
-        cc.year AS year,
-        cc.transmission AS transmission,
-        ft.name AS fuelType,
-        cc.price_per_day AS pricePerDay,
-        cc.deposit AS deposit,
-        cc.photos AS photos,
-        CASE
-          WHEN json_valid(cc.photos) THEN json_extract(cc.photos, '$[0]')
-          ELSE NULL
-        END AS photoUrl,
-        c.name AS companyName,
-        l.name AS locationName,
-        d.name AS districtName,
-        c.street AS street,
-        c.house_number AS houseNumber,
-        crm.total_rating AS rating,
-        crm.total_ratings AS totalRatings
-      FROM company_cars cc
-      LEFT JOIN car_templates ct ON cc.template_id = ct.id
-      LEFT JOIN car_brands cb ON ct.brand_id = cb.id
-      LEFT JOIN car_models cm ON ct.model_id = cm.id
-      LEFT JOIN body_types bt ON ct.body_type_id = bt.id
-      LEFT JOIN fuel_types ft ON cc.fuel_type_id = ft.id
-      INNER JOIN companies c ON cc.company_id = c.id
-      LEFT JOIN locations l ON c.location_id = l.id
-      LEFT JOIN districts d ON c.district_id = d.id
-      LEFT JOIN car_rating_metrics crm ON cc.id = crm.company_car_id
-      WHERE cc.status = 'available'
-        AND cc.archived_at IS NULL
-        AND c.archived_at IS NULL
-      ORDER BY cc.created_at DESC
-      LIMIT 120
-      `
-    )
-    .all();
-  const rows = ((rowsResult.results ?? []) as Array<Record<string, unknown>>);
+  let rows: Array<Record<string, unknown>> = [];
+  try {
+    const rowsResult = await d1
+      .prepare(
+        `
+        SELECT
+          cc.id AS id,
+          cc.company_id AS companyId,
+          cb.name AS brandName,
+          cm.name AS modelName,
+          bt.name AS bodyType,
+          cc.year AS year,
+          cc.transmission AS transmission,
+          ft.name AS fuelType,
+          cc.price_per_day AS pricePerDay,
+          cc.deposit AS deposit,
+          cc.photos AS photos,
+          c.name AS companyName,
+          l.name AS locationName,
+          d.name AS districtName,
+          c.street AS street,
+          c.house_number AS houseNumber,
+          crm.total_rating AS rating,
+          crm.total_ratings AS totalRatings
+        FROM company_cars cc
+        LEFT JOIN car_templates ct ON cc.template_id = ct.id
+        LEFT JOIN car_brands cb ON ct.brand_id = cb.id
+        LEFT JOIN car_models cm ON ct.model_id = cm.id
+        LEFT JOIN body_types bt ON ct.body_type_id = bt.id
+        LEFT JOIN fuel_types ft ON cc.fuel_type_id = ft.id
+        INNER JOIN companies c ON cc.company_id = c.id
+        LEFT JOIN locations l ON c.location_id = l.id
+        LEFT JOIN districts d ON c.district_id = d.id
+        LEFT JOIN car_rating_metrics crm ON cc.id = crm.company_car_id
+        WHERE cc.status = 'available'
+          AND cc.archived_at IS NULL
+          AND c.archived_at IS NULL
+        ORDER BY cc.created_at DESC
+        LIMIT 120
+        `
+      )
+      .all();
+    rows = (rowsResult.results ?? []) as Array<Record<string, unknown>>;
+  } catch {
+    const fallbackRowsResult = await d1
+      .prepare(
+        `
+        SELECT
+          cc.id AS id,
+          cc.company_id AS companyId,
+          cc.price_per_day AS pricePerDay,
+          cc.deposit AS deposit,
+          cc.photos AS photos,
+          cc.year AS year,
+          cc.transmission AS transmission,
+          c.name AS companyName
+        FROM company_cars cc
+        INNER JOIN companies c ON cc.company_id = c.id
+        WHERE cc.status = 'available'
+        ORDER BY cc.created_at DESC
+        LIMIT 120
+        `
+      )
+      .all()
+      .catch(() => ({ results: [] as Record<string, unknown>[] }));
+    rows = (fallbackRowsResult.results ?? []) as Array<Record<string, unknown>>;
+  }
 
   const districtsResult = await d1
     .prepare("SELECT name FROM districts ORDER BY name")
-    .all();
+    .all()
+    .catch(() => ({ results: [] as Record<string, unknown>[] }));
   const districtsRows = ((districtsResult.results ?? []) as Array<Record<string, unknown>>);
 
   const cars = rows.map((row) => {
-    const fallbackPhotoUrl = typeof row.photoUrl === "string" ? row.photoUrl : null;
     let photoUrls: string[] = [];
     if (typeof row.photos === "string" && row.photos) {
       try {
         const parsed = JSON.parse(row.photos);
-        photoUrls = Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string" && Boolean(item)) : [];
+        photoUrls = Array.isArray(parsed)
+          ? parsed.filter((item): item is string => typeof item === "string" && Boolean(item))
+          : [];
       } catch {
         photoUrls = [];
       }
     }
-    if (!photoUrls.length && fallbackPhotoUrl) {
-      photoUrls = [fallbackPhotoUrl];
-    }
+    const fallbackPhotoUrl = photoUrls[0] || null;
 
     const districtTitle =
       (typeof row.districtName === "string" && row.districtName) ||

@@ -8,6 +8,7 @@ import {
   ChevronDownIcon,
   HeartIcon,
 } from "@heroicons/react/24/outline";
+import { calculateBaseTripTotal } from "~/lib/pricing";
 
 interface CarTripSidebarProps {
   carId: number;
@@ -62,11 +63,7 @@ export default function CarTripSidebar({
   const { days, baseTotal, finalTotal } = useMemo(() => {
     const start = parseDateTime(trip.startDate, trip.startTime);
     const end = parseDateTime(trip.endDate, trip.endTime);
-    const diffMs = end.getTime() - start.getTime();
-    const rawDays = Number.isFinite(diffMs) ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 1;
-    const safeDays = Math.max(1, rawDays);
-
-    const base = safeDays * baseDaily;
+    const { days: safeDays, total: base } = calculateBaseTripTotal(baseDaily, start, end);
 
     return {
       days: safeDays,

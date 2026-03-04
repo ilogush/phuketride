@@ -32,6 +32,12 @@ export interface PricingResult {
     durationName?: string;
 }
 
+export interface HostIncomeEstimate {
+    dailyRate: number;
+    monthlyEarnings: number;
+    annualEarnings: number;
+}
+
 /**
  * Calculate seasonal price based on base price, season multiplier, days, and duration multiplier
  * Duration multiplier affects BOTH daily price and total price (discount for longer rentals)
@@ -46,6 +52,51 @@ export function calculateSeasonalPrice(
     const dailyPrice = basePrice * seasonMultiplier * durationMultiplier;
     const totalPrice = dailyPrice * days;
     return { dailyPrice, totalPrice };
+}
+
+/**
+ * Calculate number of rental days between two dates with a lower bound.
+ */
+export function calculateRentalDays(
+    startDate: Date,
+    endDate: Date,
+    minDays: number = 1
+): number {
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const rawDays = Number.isFinite(diffMs) ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : minDays;
+    return Math.max(minDays, rawDays);
+}
+
+/**
+ * Calculate base rental totals without seasonal/duration modifiers.
+ */
+export function calculateBaseTripTotal(
+    pricePerDay: number,
+    startDate: Date,
+    endDate: Date
+): { days: number; total: number } {
+    const days = calculateRentalDays(startDate, endDate, 1);
+    const safeDaily = Number.isFinite(pricePerDay) ? Math.max(0, pricePerDay) : 0;
+    return { days, total: days * safeDaily };
+}
+
+/**
+ * Estimate host income used by public and admin calculators.
+ */
+export function calculateHostIncomeEstimate(
+    carValue: number,
+    rentedDaysPerMonth: number,
+    rateFactor: number = 0.002
+): HostIncomeEstimate {
+    const safeCarValue = Number.isFinite(carValue) ? Math.max(0, carValue) : 0;
+    const safeDays = Number.isFinite(rentedDaysPerMonth) ? Math.max(0, rentedDaysPerMonth) : 0;
+    const safeFactor = Number.isFinite(rateFactor) ? Math.max(0, rateFactor) : 0;
+
+    const dailyRate = Math.round(safeCarValue * safeFactor);
+    const monthlyEarnings = dailyRate * safeDays;
+    const annualEarnings = monthlyEarnings * 12;
+
+    return { dailyRate, monthlyEarnings, annualEarnings };
 }
 
 /**

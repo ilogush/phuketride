@@ -2,6 +2,7 @@ import type { Route } from "./+types/home";
 import Header from "~/components/public/Header";
 import Footer from "~/components/public/Footer";
 import { useState } from "react";
+import { calculateHostIncomeEstimate } from "~/lib/pricing";
 
 export function meta({ }: Route.MetaArgs) {
     return [
@@ -21,9 +22,7 @@ export default function Carculator() {
     const [carValue, setCarValue] = useState(500000);
     const [daysPerMonth, setDaysPerMonth] = useState(15);
 
-    const dailyRate = Math.round(carValue * 0.002);
-    const monthlyEarnings = dailyRate * daysPerMonth;
-    const annualEarnings = monthlyEarnings * 12;
+    const { dailyRate, monthlyEarnings, annualEarnings } = calculateHostIncomeEstimate(carValue, daysPerMonth);
 
     return (
         <div className="min-h-screen">

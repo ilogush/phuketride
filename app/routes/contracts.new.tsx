@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { Form, useLoaderData, useNavigate } from "react-router";
+import { Form, useLoaderData } from "react-router";
 import { useState } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import FormSection from "~/components/dashboard/FormSection";
@@ -402,7 +402,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function NewContract() {
     const { cars, districts, currencies } = useLoaderData<typeof loader>();
-    const navigate = useNavigate();
     useUrlToast();
     const { validateLatinInput } = useLatinValidation();
     const { maskDateInput, maskDateTimeInput } = useDateMasking();
@@ -445,18 +444,9 @@ export default function NewContract() {
                 title="New Contract"
                 leftActions={<BackButton />}
                 rightActions={
-                    <div className="flex gap-2">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => navigate("/contracts")}
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit" variant="primary" form="new-contract-form">
-                            Create
-                        </Button>
-                    </div>
+                    <Button type="submit" variant="primary" form="new-contract-form">
+                        Create
+                    </Button>
                 }
             />
 
