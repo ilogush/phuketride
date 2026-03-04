@@ -1,6 +1,7 @@
 import { useState, useRef } from "react"
 import { PhotoIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import Button from "~/components/dashboard/Button"
+import { optimizeImage } from "~/lib/image-optimizer"
 
 interface DocumentPhotosUploadProps {
     currentPhotos?: string[]
@@ -24,7 +25,7 @@ export default function DocumentPhotosUpload({
     )
     const fileInputRef = useRef<HTMLInputElement>(null)
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || [])
         if (files.length === 0) return
 
@@ -33,29 +34,23 @@ export default function DocumentPhotosUpload({
         }
 
         const newPhotos: Array<{ id: string; base64: string; fileName: string }> = []
-        let processedCount = 0
-
-        files.forEach((file) => {
+        for (const file of files) {
             if (!file.type.startsWith("image/")) {
-                processedCount++
-                return
+                continue
             }
 
-            const reader = new FileReader()
-            reader.onloadend = () => {
-                const base64 = reader.result as string
+            try {
+                const optimized = await optimizeImage(file, 1200, 800, 0.85)
                 const id = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
-                newPhotos.push({ id, base64, fileName: file.name })
-
-                processedCount++
-                if (processedCount === files.length) {
-                    const updatedPreviews = [...previews, ...newPhotos]
-                    setPreviews(updatedPreviews)
-                    onPhotosChange(updatedPreviews.map((p) => ({ base64: p.base64, fileName: p.fileName })))
-                }
+                newPhotos.push({ id, base64: optimized.base64, fileName: optimized.fileName })
+            } catch {
+                // Ignore single-file optimization errors.
             }
-            reader.readAsDataURL(file)
-        })
+        }
+
+        const updatedPreviews = [...previews, ...newPhotos]
+        setPreviews(updatedPreviews)
+        onPhotosChange(updatedPreviews.map((p) => ({ base64: p.base64, fileName: p.fileName })))
 
         if (fileInputRef.current) {
             fileInputRef.current.value = ""
@@ -70,7 +65,7 @@ export default function DocumentPhotosUpload({
 
     return (
         <div className="w-full">
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-4 gap-3 auto-rows-fr">
                 {previews.map((photo) => (
                     <div
                         key={photo.id}

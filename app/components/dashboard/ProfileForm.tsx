@@ -9,17 +9,11 @@ import ProfileHeader from "~/components/dashboard/ProfileHeader";
 import FormInput from "~/components/dashboard/FormInput";
 import FormSelect from "~/components/dashboard/FormSelect";
 import { UserIcon, BuildingOfficeIcon, DocumentTextIcon, LockClosedIcon } from "@heroicons/react/24/outline";
-import { getInitials, formatDateForInput, parseJSON, formatRole, formatDateForDisplay } from "~/lib/formatters";
+import { getInitials, parseJSON, formatRole } from "~/lib/formatters";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { formatContactPhone } from "~/lib/phone";
-import { useDateMasking } from "~/lib/useDateMasking";
 
 // Типизации
-interface Country {
-    id: number;
-    name: string;
-}
-
 interface Hotel {
     id: number;
     name: string;
@@ -44,8 +38,6 @@ interface User {
     whatsapp: string | null;
     telegram: string | null;
     passportNumber: string | null;
-    countryId: number | null;
-    dateOfBirth: Date | null;
     hotelId: number | null;
     roomNumber: string | null;
     locationId: number | null;
@@ -60,11 +52,9 @@ interface User {
 interface ProfileFormProps {
     user: User;
     currentUserRole?: string;
-    countries: Country[];
     hotels: Hotel[];
     locations: Location[];
     districts?: District[];
-    country?: Country | null;
     hotel?: Hotel | null;
     location?: Location | null;
     isEdit?: boolean;
@@ -99,11 +89,9 @@ const AvatarSection = memo(function AvatarSection({
 function ProfileForm({
     user,
     currentUserRole,
-    countries,
     hotels,
     locations,
     districts = [],
-    country,
     hotel,
     location,
     isEdit = false,
@@ -113,15 +101,12 @@ function ProfileForm({
     const [avatarFileName, setAvatarFileName] = useState<string | null>(null);
     const [removeAvatar, setRemoveAvatar] = useState(false);
     const { validateLatinInput } = useLatinValidation();
-    const { maskDateInput } = useDateMasking();
 
     // Check if current user is admin
     const isAdmin = currentUserRole === "admin";
 
     // Use formatters from lib
     const initials = getInitials(user.name, user.surname, user.email);
-    const formattedDateOfBirth = formatDateForInput(user.dateOfBirth);
-
     // Мемоизированный парсинг JSON для документов
     const passportPhotos = useMemo(
         () => parseJSON<DocumentPhoto[]>(user.passportPhotos),
@@ -144,264 +129,165 @@ function ProfileForm({
         onPhotoChange?.(base64, fileName);
     }, [onPhotoChange]);
 
-    // Универсальная форма для обоих режимов
-    const formContent = (
-        <div className="space-y-4">
-            {/* Profile Information Section */}
-            <FormSection title="Profile Information" icon={<UserIcon />}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <FormInput
-                        isEdit={isEdit}
-                        label="First Name"
-                        name="name"
-                        value={isEdit ? undefined : (user.name || "")}
-                        defaultValue={isEdit ? user.name : undefined}
-                        placeholder="Tom"
-                        pattern="[a-zA-Z\s\-']+"
-                        onChange={isEdit ? (e) => validateLatinInput(e, 'First Name') : undefined}
-                        required
-                    />
-                    <FormInput
-                        isEdit={isEdit}
-                        label="Last Name"
-                        name="surname"
-                        value={isEdit ? undefined : (user.surname || "")}
-                        defaultValue={isEdit ? user.surname : undefined}
-                        placeholder="Carlson"
-                        pattern="[a-zA-Z\s\-']+"
-                        onChange={isEdit ? (e) => validateLatinInput(e, 'Last Name') : undefined}
-                        required
-                    />
-                    <FormInput
-                        isEdit={isEdit}
-                        label="Date of Birth"
-                        name="dateOfBirth"
-                        type="text"
-                        placeholder="DD/MM/YYYY"
-                        value={isEdit ? undefined : formatDateForDisplay(user.dateOfBirth)}
-                        defaultValue={isEdit ? formatDateForDisplay(user.dateOfBirth) : undefined}
-                        onChange={isEdit ? maskDateInput : undefined}
-                    />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {isEdit ? (
-                        <FormSelect
-                            isEdit={isEdit}
-                            label="Role"
-                            name="role"
-                            defaultValue={user.role}
-                            options={[
-                                { id: "admin", name: "Admin" },
-                                { id: "partner", name: "Partner" },
-                                { id: "manager", name: "Manager" },
-                                { id: "user", name: "User" }
-                            ]}
-                            disabled={!isAdmin}
-                        />
-                    ) : (
-                        <FormInput
-                            isEdit={false}
-                            label="Role"
-                            name="role"
-                            value={formatRole(user.role)}
-                        />
-                    )}
-                    <FormInput
-                        isEdit={isEdit}
-                        label="Phone"
-                        name="phone"
-                        value={isEdit ? undefined : formatContactPhone(user.phone)}
-                        defaultValue={isEdit ? user.phone : undefined}
-                        placeholder="+66415484865"
-                    />
-                    <FormInput
-                        isEdit={isEdit}
-                        label="WhatsApp"
-                        name="whatsapp"
-                        value={isEdit ? undefined : formatContactPhone(user.whatsapp)}
-                        defaultValue={isEdit ? user.whatsapp : undefined}
-                        placeholder="+66415484865"
-                    />
-                    <FormInput
-                        isEdit={isEdit}
-                        label="Email"
-                        name="email"
-                        type="email"
-                        value={isEdit ? undefined : user.email}
-                        defaultValue={isEdit ? user.email : undefined}
-                        placeholder="ilogush@icloud.com"
-                    />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <FormInput
-                        isEdit={isEdit}
-                        label="Telegram"
-                        name="telegram"
-                        value={isEdit ? undefined : (user.telegram || "")}
-                        defaultValue={isEdit ? user.telegram : undefined}
-                        placeholder="@user_471322f2"
-                    />
-                    {isEdit ? (
-                        <FormSelect
-                            isEdit={isEdit}
-                            label="Country"
-                            name="countryId"
-                            defaultValue={user.countryId?.toString()}
-                            options={countries}
-                        />
-                    ) : (
-                        <FormInput
-                            isEdit={false}
-                            label="Country"
-                            name="countryId"
-                            value={country?.name || ""}
-                        />
-                    )}
-                    <FormInput
-                        isEdit={isEdit}
-                        label="Passport / ID Number"
-                        name="passportNumber"
-                        value={isEdit ? undefined : (user.passportNumber || "")}
-                        defaultValue={isEdit ? user.passportNumber : undefined}
-                        placeholder="758024093"
-                    />
-                </div>
-            </FormSection>
-
-            {/* Accommodation Section */}
-            <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {isEdit ? (
-                        <FormInput
-                            isEdit={isEdit}
-                            label="Location"
-                            name="accommodationLocation"
-                            defaultValue="Phuket"
-                            placeholder="Phuket"
-                        />
-                    ) : (
-                        <FormInput
-                            isEdit={false}
-                            label="Location"
-                            name="accommodationLocation"
-                            value="Phuket"
-                        />
-                    )}
-                    {isEdit ? (
-                        <FormSelect
-                            isEdit={isEdit}
-                            label="Hotel"
-                            name="hotelId"
-                            defaultValue={user.hotelId?.toString()}
-                            options={hotels}
-                        />
-                    ) : (
-                        <FormInput
-                            isEdit={false}
-                            label="Hotel"
-                            name="hotelId"
-                            value={hotel?.name || ""}
-                        />
-                    )}
-                    <FormInput
-                        isEdit={isEdit}
-                        label="Room Number"
-                        name="roomNumber"
-                        value={isEdit ? undefined : (user.roomNumber || "")}
-                        defaultValue={isEdit ? user.roomNumber : undefined}
-                        placeholder="900"
-                    />
-                    {isEdit ? (
-                        <FormSelect
-                            isEdit={isEdit}
-                            label="Location"
-                            name="locationId"
-                            defaultValue={user.locationId?.toString()}
-                            options={locations}
-                        />
-                    ) : (
-                        <FormInput
-                            isEdit={false}
-                            label="Area"
-                            name="locationId"
-                            value={location?.name || ""}
-                        />
-                    )}
-                    {isEdit && districts.length > 0 && (
-                        <FormSelect
-                            isEdit={isEdit}
-                            label="District"
-                            name="districtId"
-                            defaultValue={user.districtId?.toString()}
-                            options={districts}
-                            placeholder="Select district"
-                        />
-                    )}
-                </div>
-            </FormSection>
-
-            {/* Document Photos Section */}
-            <FormSection title="Document Photos" icon={<DocumentTextIcon />}>
-                {isEdit ? (
-                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
-                        <DocumentPhotosUpload
-                            currentPhotos={passportUploads.map((p) => p.base64)}
-                            onPhotosChange={(photos) => setPassportUploads(photos)}
-                            maxPhotos={3}
-                            label="Passport"
-                        />
-                        <DocumentPhotosUpload
-                            currentPhotos={driverLicenseUploads.map((p) => p.base64)}
-                            onPhotosChange={(photos) => setDriverLicenseUploads(photos)}
-                            maxPhotos={3}
-                            label="Driver License"
-                        />
-                    </div>
-                ) : (
-                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
-                        <DocumentPreview photos={passportPhotos} label="Passport" />
-                        <DocumentPreview photos={driverLicensePhotos} label="Driver License" />
-                    </div>
+    if (isEdit) {
+        return (
+            <Form id="profile-form" method="post" className="space-y-4">
+                <input type="hidden" name="removeAvatar" value={removeAvatar ? "true" : "false"} />
+                {avatarBase64 && (
+                    <>
+                        <input type="hidden" name="avatarBase64" value={avatarBase64} />
+                        <input type="hidden" name="avatarFileName" value={avatarFileName || ""} />
+                    </>
                 )}
-            </FormSection>
+                <input type="hidden" name="passportPhotos" value={JSON.stringify(passportUploads)} />
+                <input type="hidden" name="driverLicensePhotos" value={JSON.stringify(driverLicenseUploads)} />
 
-            {/* Change Password Section */}
-            {isEdit && (
-                <FormSection title="Change Password" icon={<LockClosedIcon />}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormInput
-                            isEdit={isEdit}
-                            label="New Password"
-                            name="newPassword"
-                            type="password"
-                            placeholder="Enter new password"
-                        />
-                        <FormInput
-                            isEdit={isEdit}
-                            label="Confirm Password"
-                            name="confirmPassword"
-                            type="password"
-                            placeholder="Confirm new password"
-                        />
-                        <div />
-                        <div />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div className="lg:col-span-2 space-y-4">
+                        <FormSection title="Profile Information" icon={<UserIcon />}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <FormInput
+                                    isEdit
+                                    label="First Name"
+                                    name="name"
+                                    defaultValue={user.name}
+                                    placeholder="Tom"
+                                    pattern="[a-zA-Z\s\-']+"
+                                    onChange={(e) => validateLatinInput(e, "First Name")}
+                                    required
+                                />
+                                <FormInput
+                                    isEdit
+                                    label="Last Name"
+                                    name="surname"
+                                    defaultValue={user.surname}
+                                    placeholder="Carlson"
+                                    pattern="[a-zA-Z\s\-']+"
+                                    onChange={(e) => validateLatinInput(e, "Last Name")}
+                                    required
+                                />
+                                <FormSelect
+                                    isEdit
+                                    label="Role"
+                                    name="role"
+                                    defaultValue={user.role}
+                                    options={[
+                                        { id: "admin", name: "Admin" },
+                                        { id: "partner", name: "Partner" },
+                                        { id: "manager", name: "Manager" },
+                                        { id: "user", name: "User" },
+                                    ]}
+                                    disabled={!isAdmin}
+                                    required
+                                />
+                                <FormInput
+                                    isEdit
+                                    label="Phone"
+                                    name="phone"
+                                    defaultValue={user.phone}
+                                    placeholder="+66415484865"
+                                    required
+                                />
+                                <FormInput
+                                    isEdit
+                                    label="WhatsApp"
+                                    name="whatsapp"
+                                    defaultValue={user.whatsapp}
+                                    placeholder="+66415484865"
+                                />
+                                <FormInput
+                                    isEdit
+                                    label="Email"
+                                    name="email"
+                                    type="email"
+                                    defaultValue={user.email}
+                                    placeholder="ilogush@icloud.com"
+                                    required
+                                />
+                                <FormInput
+                                    isEdit
+                                    label="Telegram"
+                                    name="telegram"
+                                    defaultValue={user.telegram}
+                                    placeholder="@user_471322f2"
+                                />
+                                <FormInput
+                                    isEdit
+                                    label="Passport / ID Number"
+                                    name="passportNumber"
+                                    defaultValue={user.passportNumber}
+                                    placeholder="758024093"
+                                    required
+                                />
+                            </div>
+                        </FormSection>
+
+                        <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <FormSelect isEdit label="Hotel" name="hotelId" defaultValue={user.hotelId?.toString()} options={hotels} />
+                                <FormInput isEdit label="Room Number" name="roomNumber" defaultValue={user.roomNumber} placeholder="900" />
+                                <FormSelect isEdit label="Location" name="locationId" defaultValue={user.locationId?.toString()} options={locations} />
+                                {districts.length > 0 && (
+                                    <FormSelect
+                                        isEdit
+                                        label="District"
+                                        name="districtId"
+                                        defaultValue={user.districtId?.toString()}
+                                        options={districts}
+                                        placeholder="Select district"
+                                    />
+                                )}
+                            </div>
+                        </FormSection>
                     </div>
-                </FormSection>
-            )}
-        </div>
-    );
+
+                    <div className="lg:col-span-1 space-y-4">
+                        <div className="bg-white rounded-3xl shadow-sm p-4">
+                            <AvatarSection
+                                isEdit
+                                avatarUrl={user.avatarUrl}
+                                initials={initials}
+                                onPhotoChange={handlePhotoChange}
+                            />
+                        </div>
+
+                        <FormSection title="Change Password" icon={<LockClosedIcon />}>
+                            <div className="space-y-4">
+                                <FormInput isEdit label="New Password" name="newPassword" type="password" placeholder="Enter new password" />
+                                <FormInput isEdit label="Confirm Password" name="confirmPassword" type="password" placeholder="Confirm new password" />
+                                <div className="text-xs text-gray-500">Leave empty to keep current password.</div>
+                            </div>
+                        </FormSection>
+
+                        <FormSection title="Document Photos" icon={<DocumentTextIcon />}>
+                            <div className="space-y-4">
+                                <DocumentPhotosUpload
+                                    currentPhotos={passportUploads.map((p) => p.base64)}
+                                    onPhotosChange={(photos) => setPassportUploads(photos)}
+                                    maxPhotos={4}
+                                    label="Passport"
+                                />
+                                <DocumentPhotosUpload
+                                    currentPhotos={driverLicenseUploads.map((p) => p.base64)}
+                                    onPhotosChange={(photos) => setDriverLicenseUploads(photos)}
+                                    maxPhotos={4}
+                                    label="Driver License"
+                                />
+                            </div>
+                        </FormSection>
+                    </div>
+                </div>
+            </Form>
+        );
+    }
 
     return (
         <div className="space-y-4">
-            {/* Profile Photo Section */}
             <div className="flex items-center gap-4">
                 <AvatarSection
-                    isEdit={isEdit}
+                    isEdit={false}
                     avatarUrl={user.avatarUrl}
                     initials={initials}
-                    onPhotoChange={handlePhotoChange}
                 />
                 <ProfileHeader
                     name={user.name}
@@ -411,22 +297,33 @@ function ProfileForm({
                 />
             </div>
 
-            {isEdit ? (
-                <Form id="profile-form" method="post" className="space-y-4">
-                    <input type="hidden" name="removeAvatar" value={removeAvatar ? "true" : "false"} />
-                    {avatarBase64 && (
-                        <>
-                            <input type="hidden" name="avatarBase64" value={avatarBase64} />
-                            <input type="hidden" name="avatarFileName" value={avatarFileName || ""} />
-                        </>
-                    )}
-                    <input type="hidden" name="passportPhotos" value={JSON.stringify(passportUploads)} />
-                    <input type="hidden" name="driverLicensePhotos" value={JSON.stringify(driverLicenseUploads)} />
-                    {formContent}
-                </Form>
-            ) : (
-                formContent
-            )}
+            <FormSection title="Profile Information" icon={<UserIcon />}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <FormInput isEdit={false} label="First Name" name="name" value={user.name || ""} />
+                    <FormInput isEdit={false} label="Last Name" name="surname" value={user.surname || ""} />
+                    <FormInput isEdit={false} label="Role" name="role" value={formatRole(user.role)} />
+                    <FormInput isEdit={false} label="Phone" name="phone" value={formatContactPhone(user.phone)} />
+                    <FormInput isEdit={false} label="WhatsApp" name="whatsapp" value={formatContactPhone(user.whatsapp)} />
+                    <FormInput isEdit={false} label="Email" name="email" type="email" value={user.email} />
+                    <FormInput isEdit={false} label="Telegram" name="telegram" value={user.telegram || ""} />
+                    <FormInput isEdit={false} label="Passport / ID Number" name="passportNumber" value={user.passportNumber || ""} />
+                </div>
+            </FormSection>
+
+            <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <FormInput isEdit={false} label="Hotel" name="hotelId" value={hotel?.name || ""} />
+                    <FormInput isEdit={false} label="Room Number" name="roomNumber" value={user.roomNumber || ""} />
+                    <FormInput isEdit={false} label="Area" name="locationId" value={location?.name || ""} />
+                </div>
+            </FormSection>
+
+            <FormSection title="Document Photos" icon={<DocumentTextIcon />}>
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
+                    <DocumentPreview photos={passportPhotos} label="Passport" />
+                    <DocumentPreview photos={driverLicensePhotos} label="Driver License" />
+                </div>
+            </FormSection>
         </div>
     );
 }

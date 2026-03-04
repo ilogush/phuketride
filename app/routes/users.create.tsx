@@ -8,7 +8,6 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { userSchema } from "~/schemas/user";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
-import { parseDateFromDisplay } from "~/lib/formatters";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
 import { hashPassword } from "~/lib/password.server";
 
@@ -19,14 +18,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     }
 
     // Load reference data
-    const [countries, hotels, locations, districts] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT * FROM countries ORDER BY name ASC").all().then((r: any) => r.results || []),
+    const [hotels, locations, districts] = await Promise.all([
         context.cloudflare.env.DB.prepare("SELECT * FROM hotels ORDER BY name ASC").all().then((r: any) => r.results || []),
         context.cloudflare.env.DB.prepare("SELECT * FROM locations ORDER BY name ASC").all().then((r: any) => r.results || []),
         context.cloudflare.env.DB.prepare("SELECT * FROM districts ORDER BY name ASC").all().then((r: any) => r.results || []),
     ]);
 
-    return { user, countries, hotels, locations, districts };
+    return { user, hotels, locations, districts };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -46,8 +44,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
         whatsapp: (formData.get("whatsapp") as string) || null,
         telegram: (formData.get("telegram") as string) || null,
         passportNumber: (formData.get("passportNumber") as string) || null,
-        countryId: formData.get("countryId") ? parseInt(formData.get("countryId") as string) : null,
-        dateOfBirth: (formData.get("dateOfBirth") as string) || null,
         hotelId: formData.get("hotelId") ? parseInt(formData.get("hotelId") as string) : null,
         roomNumber: (formData.get("roomNumber") as string) || null,
         locationId: formData.get("locationId") ? parseInt(formData.get("locationId") as string) : null,
@@ -81,16 +77,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
             passwordHash = await hashPassword(newPassword);
         }
 
-        const dateOfBirth = validData.dateOfBirth ? parseDateFromDisplay(validData.dateOfBirth) : null;
         await context.cloudflare.env.DB
             .prepare(`
                 INSERT INTO users (
                     id, email, role, name, surname, phone, whatsapp, telegram,
-                    passport_number, country_id, date_of_birth,
+                    passport_number,
                     hotel_id, room_number, location_id, district_id, address,
                     avatar_url, passport_photos, driver_license_photos, password_hash,
                     is_first_login, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `)
             .bind(
                 id,
@@ -102,8 +97,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 validData.whatsapp,
                 validData.telegram,
                 validData.passportNumber,
-                validData.countryId,
-                dateOfBirth,
                 validData.hotelId,
                 validData.roomNumber,
                 validData.locationId,
@@ -141,7 +134,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function CreateUserPage() {
-    const { user, countries, hotels, locations, districts } = useLoaderData<typeof loader>();
+    const { user, hotels, locations, districts } = useLoaderData<typeof loader>();
     useUrlToast();
 
     // Empty user object for create mode
@@ -154,8 +147,6 @@ export default function CreateUserPage() {
         whatsapp: null,
         telegram: null,
         passportNumber: null,
-        countryId: null,
-        dateOfBirth: null,
         hotelId: null,
         roomNumber: null,
         locationId: null,
@@ -181,7 +172,6 @@ export default function CreateUserPage() {
             <ProfileForm
                 user={emptyUser}
                 currentUserRole={user.role}
-                countries={countries}
                 hotels={hotels}
                 locations={locations}
                 districts={districts}

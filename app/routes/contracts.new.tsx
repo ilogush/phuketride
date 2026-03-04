@@ -16,11 +16,11 @@ import Button from "~/components/dashboard/Button";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { parseDateFromDisplay } from "~/lib/formatters";
 import { getRequestMetadata } from "~/lib/audit-logger";
 import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
 import { getCreateContractEventsStmts } from "~/lib/calendar-events.server";
 import { getQuickAuditStmt } from "~/lib/audit-logger";
+import { uploadPhotoItemsToR2, type UploadPhotoItem } from "~/lib/r2.server";
 import {
     EXTRA_TYPES,
     getCreateExtraPaymentStmt,
@@ -95,7 +95,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
 
     try {
-        const parseDocPhotos = (value: FormDataEntryValue | null): Array<{ base64: string; fileName: string }> => {
+        const parseDocPhotos = (value: FormDataEntryValue | null): UploadPhotoItem[] => {
             if (typeof value !== "string") return [];
             const trimmed = value.trim();
             if (!trimmed) return [];
@@ -123,7 +123,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
             phone: String(formData.get("client_phone") || "").trim(),
             whatsapp: String(formData.get("client_whatsapp") || "").trim(),
             telegram: String(formData.get("client_telegram") || "").trim(),
-            dateOfBirth: formData.get("date_of_birth") ? new Date(parseDateFromDisplay(String(formData.get("date_of_birth")))) : null,
         };
         if (!clientData.name || !clientData.surname || !clientData.phone) {
             throw new Error("Client name, surname and phone are required");
@@ -145,6 +144,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const userStmts: D1PreparedStatement[] = [];
         if (existingClient) {
             clientId = existingClient.id;
+            const uploadedPassportPhotos = await uploadPhotoItemsToR2(
+                context.cloudflare.env.ASSETS,
+                passportPhotosValue,
+                `users/${clientId}/passport`
+            );
+            const uploadedDriverLicensePhotos = await uploadPhotoItemsToR2(
+                context.cloudflare.env.ASSETS,
+                driverLicensePhotosValue,
+                `users/${clientId}/driver-license`
+            );
             const dataMatches =
                 existingClient.name === clientData.name &&
                 existingClient.surname === clientData.surname &&
@@ -160,8 +169,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
                             WHERE id = ?
                         `)
                         .bind(
-                            passportPhotosValue.length > 0 ? JSON.stringify(passportPhotosValue) : existingClient.passportPhotos,
-                            driverLicensePhotosValue.length > 0 ? JSON.stringify(driverLicensePhotosValue) : existingClient.driverLicensePhotos,
+                            uploadedPassportPhotos.length > 0 ? JSON.stringify(uploadedPassportPhotos) : existingClient.passportPhotos,
+                            uploadedDriverLicensePhotos.length > 0 ? JSON.stringify(uploadedDriverLicensePhotos) : existingClient.driverLicensePhotos,
                             new Date().toISOString(),
                             clientId
                         )
@@ -169,13 +178,23 @@ export async function action({ request, context }: ActionFunctionArgs) {
             }
         } else {
             clientId = crypto.randomUUID();
+            const uploadedPassportPhotos = await uploadPhotoItemsToR2(
+                context.cloudflare.env.ASSETS,
+                passportPhotosValue,
+                `users/${clientId}/passport`
+            );
+            const uploadedDriverLicensePhotos = await uploadPhotoItemsToR2(
+                context.cloudflare.env.ASSETS,
+                driverLicensePhotosValue,
+                `users/${clientId}/driver-license`
+            );
             userStmts.push(
                 context.cloudflare.env.DB
                     .prepare(`
                         INSERT INTO users (
                             id, email, role, name, surname, phone, whatsapp, telegram, passport_number,
-                            date_of_birth, passport_photos, driver_license_photos, created_at, updated_at
-                        ) VALUES (?, ?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            passport_photos, driver_license_photos, created_at, updated_at
+                        ) VALUES (?, ?, 'user', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     `)
                     .bind(
                         clientId,
@@ -186,9 +205,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
                         clientData.whatsapp || null,
                         clientData.telegram || null,
                         passportNumber,
-                        clientData.dateOfBirth ? clientData.dateOfBirth.toISOString() : null,
-                        passportPhotosValue.length > 0 ? JSON.stringify(passportPhotosValue) : null,
-                        driverLicensePhotosValue.length > 0 ? JSON.stringify(driverLicensePhotosValue) : null,
+                        uploadedPassportPhotos.length > 0 ? JSON.stringify(uploadedPassportPhotos) : null,
+                        uploadedDriverLicensePhotos.length > 0 ? JSON.stringify(uploadedDriverLicensePhotos) : null,
                         new Date().toISOString(),
                         new Date().toISOString()
                     )
@@ -404,7 +422,7 @@ export default function NewContract() {
     const { cars, districts, currencies } = useLoaderData<typeof loader>();
     useUrlToast();
     const { validateLatinInput } = useLatinValidation();
-    const { maskDateInput, maskDateTimeInput } = useDateMasking();
+    const { maskDateTimeInput } = useDateMasking();
 
     const [startDate, setStartDate] = useState(new Date());
     const [endDate, setEndDate] = useState(new Date(Date.now() + 86400000));
@@ -584,13 +602,6 @@ export default function NewContract() {
                                     pattern="[a-zA-Z\s\-']+"
                                     onChange={(e) => validateLatinInput(e, 'Last Name')}
                                     required
-                                />
-                                <FormInput
-                                    label="Birth Date"
-                                    name="date_of_birth"
-                                    type="text"
-                                    placeholder="DD/MM/YYYY"
-                                    onChange={maskDateInput}
                                 />
                                 <FormInput
                                     label="Phone"

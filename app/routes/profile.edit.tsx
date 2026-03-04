@@ -9,7 +9,7 @@ import FormSection from "~/components/dashboard/FormSection";
 import PhotoUpload from "~/components/dashboard/PhotoUpload";
 import DocumentPhotosUpload from "~/components/dashboard/DocumentPhotosUpload";
 import { UserIcon, BuildingOfficeIcon, DocumentTextIcon, LockClosedIcon } from "@heroicons/react/24/outline";
-import { uploadAvatarFromBase64, deleteAvatar } from "~/lib/r2.server";
+import { uploadAvatarFromBase64, deleteAvatar, uploadPhotoItemsToR2, type UploadPhotoItem } from "~/lib/r2.server";
 import ProfileForm from "~/components/dashboard/ProfileForm";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { userSchema } from "~/schemas/user";
@@ -17,17 +17,32 @@ import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
 import { hashPassword } from "~/lib/password.server";
 
-type ProfileUserRow = Parameters<typeof ProfileForm>[0]["user"] & {
-    dateOfBirth: string | Date | null;
-};
+interface ProfileUserRow {
+    id: string;
+    email: string;
+    role: "admin" | "partner" | "manager" | "user";
+    name: string | null;
+    surname: string | null;
+    phone: string | null;
+    whatsapp: string | null;
+    telegram: string | null;
+    passportNumber: string | null;
+    passportPhotos: string | null;
+    driverLicensePhotos: string | null;
+    avatarUrl: string | null;
+    hotelId: number | null;
+    roomNumber: string | null;
+    locationId: number | null;
+    districtId: number | null;
+    address: string | null;
+}
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const sessionUser = await requireAuth(request);
     const rawUser = (await context.cloudflare.env.DB
         .prepare(`
             SELECT id, email, role, name, surname, phone, whatsapp, telegram,
-                   passport_number AS passportNumber, country_id AS countryId,
-                   date_of_birth AS dateOfBirth, passport_photos AS passportPhotos,
+                   passport_number AS passportNumber, passport_photos AS passportPhotos,
                    driver_license_photos AS driverLicensePhotos, avatar_url AS avatarUrl,
                    hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
                    district_id AS districtId, address
@@ -38,14 +53,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         .bind(sessionUser.id)
         .first()) as ProfileUserRow | null;
     if (!rawUser) throw new Response("User not found", { status: 404 });
-    const fullUser: ProfileUserRow = {
-        ...rawUser,
-        dateOfBirth: rawUser.dateOfBirth ? new Date(rawUser.dateOfBirth) : null,
-    };
+    const fullUser: ProfileUserRow = { ...rawUser };
 
     // Load reference data
-    const [countries, hotels, locations, districts] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT * FROM countries ORDER BY name ASC").all().then((r: any) => r.results || []),
+    const [hotels, locations, districts] = await Promise.all([
         context.cloudflare.env.DB.prepare("SELECT * FROM hotels ORDER BY name ASC").all().then((r: any) => r.results || []),
         context.cloudflare.env.DB.prepare("SELECT * FROM locations ORDER BY name ASC").all().then((r: any) => r.results || []),
         context.cloudflare.env.DB.prepare("SELECT * FROM districts ORDER BY name ASC").all().then((r: any) => r.results || []),
@@ -54,7 +65,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     return {
         user: fullUser,
         currentUserRole: sessionUser.role,
-        countries,
         hotels,
         locations,
         districts
@@ -69,8 +79,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const currentUser = (await context.cloudflare.env.DB
         .prepare(`
             SELECT id, email, role, name, surname, phone, whatsapp, telegram,
-                   passport_number AS passportNumber, country_id AS countryId,
-                   date_of_birth AS dateOfBirth, avatar_url AS avatarUrl,
+                   passport_number AS passportNumber, avatar_url AS avatarUrl,
                    hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
                    district_id AS districtId, address
             FROM users
@@ -122,8 +131,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
         whatsapp: (formData.get("whatsapp") as string) || null,
         telegram: (formData.get("telegram") as string) || null,
         passportNumber: (formData.get("passportNumber") as string) || null,
-        countryId: formData.get("countryId") ? parseInt(formData.get("countryId") as string) : null,
-        dateOfBirth: (formData.get("dateOfBirth") as string) || null,
         hotelId: formData.get("hotelId") ? parseInt(formData.get("hotelId") as string) : null,
         roomNumber: (formData.get("roomNumber") as string) || null,
         locationId: formData.get("locationId") ? parseInt(formData.get("locationId") as string) : null,
@@ -131,21 +138,21 @@ export async function action({ request, context }: ActionFunctionArgs) {
         address: (formData.get("address") as string) || null,
     };
 
-    const parseDocPhotos = (value: FormDataEntryValue | null): string | null => {
-        if (typeof value !== "string") return null;
+    const parseDocPhotos = (value: FormDataEntryValue | null): UploadPhotoItem[] => {
+        if (typeof value !== "string") return [];
         const trimmed = value.trim();
-        if (!trimmed) return null;
+        if (!trimmed) return [];
         try {
             const parsed = JSON.parse(trimmed);
-            if (Array.isArray(parsed) && parsed.length === 0) return null;
-            return JSON.stringify(parsed);
+            if (!Array.isArray(parsed)) return [];
+            return parsed.filter((p) => p && typeof p.base64 === "string" && typeof p.fileName === "string");
         } catch {
-            return null;
+            return [];
         }
     };
 
-    const passportPhotos = parseDocPhotos(formData.get("passportPhotos"));
-    const driverLicensePhotos = parseDocPhotos(formData.get("driverLicensePhotos"));
+    const passportPhotosInput = parseDocPhotos(formData.get("passportPhotos"));
+    const driverLicensePhotosInput = parseDocPhotos(formData.get("driverLicensePhotos"));
     const newPassword = (formData.get("newPassword") as string | null) || "";
     const confirmPassword = (formData.get("confirmPassword") as string | null) || "";
 
@@ -176,16 +183,27 @@ export async function action({ request, context }: ActionFunctionArgs) {
         if (user.role === "admin") {
             const newRole = formData.get("role") as string;
             if (newRole && ["admin", "partner", "manager", "user"].includes(newRole)) {
-                nextRole = newRole;
+                nextRole = newRole as ProfileUserRow["role"];
             }
         }
+        const uploadedPassportPhotos = await uploadPhotoItemsToR2(
+            context.cloudflare.env.ASSETS,
+            passportPhotosInput,
+            `users/${user.id}/passport`
+        );
+        const uploadedDriverLicensePhotos = await uploadPhotoItemsToR2(
+            context.cloudflare.env.ASSETS,
+            driverLicensePhotosInput,
+            `users/${user.id}/driver-license`
+        );
+        const passportPhotos = uploadedPassportPhotos.length > 0 ? JSON.stringify(uploadedPassportPhotos) : null;
+        const driverLicensePhotos = uploadedDriverLicensePhotos.length > 0 ? JSON.stringify(uploadedDriverLicensePhotos) : null;
 
-        const dateOfBirth = validData.dateOfBirth ? new Date(validData.dateOfBirth).toISOString() : null;
         await context.cloudflare.env.DB
             .prepare(`
                 UPDATE users
                 SET role = ?, name = ?, surname = ?, phone = ?, whatsapp = ?, telegram = ?,
-                    passport_number = ?, country_id = ?, date_of_birth = ?,
+                    passport_number = ?,
                     avatar_url = ?, passport_photos = ?, driver_license_photos = ?,
                     hotel_id = ?, room_number = ?, location_id = ?, district_id = ?, address = ?,
                     password_hash = COALESCE(?, password_hash),
@@ -200,8 +218,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 validData.whatsapp,
                 validData.telegram,
                 validData.passportNumber,
-                validData.countryId,
-                dateOfBirth,
                 avatarUrl,
                 passportPhotos,
                 driverLicensePhotos,
@@ -238,7 +254,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function EditProfilePage() {
-    const { user, currentUserRole, countries, hotels, locations, districts } = useLoaderData<typeof loader>();
+    const { user, currentUserRole, hotels, locations, districts } = useLoaderData<typeof loader>();
     useUrlToast();
 
     return (
@@ -255,7 +271,6 @@ export default function EditProfilePage() {
             <ProfileForm
                 user={user}
                 currentUserRole={currentUserRole}
-                countries={countries}
                 hotels={hotels}
                 locations={locations}
                 districts={districts}

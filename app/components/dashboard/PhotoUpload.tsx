@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { ArrowUpTrayIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import Button from "~/components/dashboard/Button";
+import { optimizeImage } from "~/lib/image-optimizer";
 
 interface PhotoUploadProps {
     currentPhotoUrl?: string | null;
@@ -21,7 +22,7 @@ export default function PhotoUpload({
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -33,14 +34,13 @@ export default function PhotoUpload({
 
         setError(null);
 
-        // Convert to base64
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const base64 = reader.result as string;
-            setPreview(base64);
-            onPhotoChange(base64, file.name);
-        };
-        reader.readAsDataURL(file);
+        try {
+            const optimized = await optimizeImage(file, 800, 800, 0.85);
+            setPreview(optimized.base64);
+            onPhotoChange(optimized.base64, optimized.fileName);
+        } catch {
+            setError("Failed to process image");
+        }
     };
 
     const handleRemove = () => {
@@ -80,7 +80,7 @@ export default function PhotoUpload({
                         type="button"
                         variant="unstyled"
                         onClick={handleRemove}
-                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors"
+                        className="absolute -top-1 -right-1 w-5 h-5 aspect-square !p-0 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors"
                     >
                         <XMarkIcon className="w-3 h-3" />
                     </Button>

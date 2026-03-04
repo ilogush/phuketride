@@ -16,9 +16,10 @@ import Button from "~/components/dashboard/Button";
 import { createContractEvents } from "~/lib/calendar-events.server";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
-import { parseDateFromDisplay, parseDateTimeFromDisplay, formatDateForDisplay } from "~/lib/formatters";
+import { parseDateTimeFromDisplay, formatDateForDisplay } from "~/lib/formatters";
 import { EXTRA_TYPES, getCreateExtraPaymentStmt, getExtraFlagsFromFormData, mapExtrasByType } from "~/lib/contract-extras.server";
 import { updateCarStatus } from "~/lib/contract-helpers.server";
+import { uploadPhotoItemsToR2, type UploadPhotoItem } from "~/lib/r2.server";
 import {
     TruckIcon,
     CalendarIcon,
@@ -49,7 +50,6 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
                 u.whatsapp AS clientWhatsapp,
                 u.telegram AS clientTelegram,
                 u.passport_number AS clientPassport,
-                u.date_of_birth AS clientDateOfBirth,
                 u.passport_photos AS clientPassportPhotos,
                 u.driver_license_photos AS clientDriverLicensePhotos
             FROM contracts c
@@ -108,7 +108,6 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
                 whatsapp: contractRaw.clientWhatsapp,
                 telegram: contractRaw.clientTelegram,
                 passportNumber: contractRaw.clientPassport,
-                dateOfBirth: contractRaw.clientDateOfBirth,
                 passportPhotos: contractRaw.clientPassportPhotos,
                 driverLicensePhotos: contractRaw.clientDriverLicensePhotos,
             },
@@ -160,7 +159,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
         }
 
-        const parseDocPhotos = (value: FormDataEntryValue | null): Array<{ base64: string; fileName: string }> => {
+        const parseDocPhotos = (value: FormDataEntryValue | null): UploadPhotoItem[] => {
             if (typeof value !== "string") return [];
             const trimmed = value.trim();
             if (!trimmed) return [];
@@ -209,6 +208,16 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         // Client update (keep existing values if empty)
         const passportPhotosValue = parseDocPhotos(formData.get("passportPhotos"));
         const driverLicensePhotosValue = parseDocPhotos(formData.get("driverLicensePhotos"));
+        const uploadedPassportPhotos = await uploadPhotoItemsToR2(
+            context.cloudflare.env.ASSETS,
+            passportPhotosValue,
+            `users/${existingContract.client_id}/passport`
+        );
+        const uploadedDriverLicensePhotos = await uploadPhotoItemsToR2(
+            context.cloudflare.env.ASSETS,
+            driverLicensePhotosValue,
+            `users/${existingContract.client_id}/driver-license`
+        );
 
         const clientUpdate: Record<string, unknown> = {
             name: String(formData.get("client_name") || "").trim() || null,
@@ -217,7 +226,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             whatsapp: String(formData.get("client_whatsapp") || "").trim() || null,
             telegram: String(formData.get("client_telegram") || "").trim() || null,
             passportNumber: String(formData.get("client_passport") || "").trim() || null,
-            dateOfBirth: formData.get("date_of_birth") ? new Date(parseDateFromDisplay(String(formData.get("date_of_birth")))) : null,
             updatedAt: new Date(),
         };
 
@@ -225,18 +233,18 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         if (email) {
             clientUpdate.email = email;
         }
-        if (passportPhotosValue.length > 0) {
-            clientUpdate.passportPhotos = JSON.stringify(passportPhotosValue);
+        if (uploadedPassportPhotos.length > 0) {
+            clientUpdate.passportPhotos = JSON.stringify(uploadedPassportPhotos);
         }
-        if (driverLicensePhotosValue.length > 0) {
-            clientUpdate.driverLicensePhotos = JSON.stringify(driverLicensePhotosValue);
+        if (uploadedDriverLicensePhotos.length > 0) {
+            clientUpdate.driverLicensePhotos = JSON.stringify(uploadedDriverLicensePhotos);
         }
 
         await context.cloudflare.env.DB
             .prepare(`
             UPDATE users
             SET name = ?, surname = ?, phone = ?, whatsapp = ?, telegram = ?, passport_number = ?,
-                date_of_birth = ?, email = COALESCE(?, email), passport_photos = COALESCE(?, passport_photos),
+                email = COALESCE(?, email), passport_photos = COALESCE(?, passport_photos),
                 driver_license_photos = COALESCE(?, driver_license_photos), updated_at = ?
             WHERE id = ?
         `)
@@ -247,7 +255,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 clientUpdate.whatsapp,
                 clientUpdate.telegram,
                 clientUpdate.passportNumber,
-                (clientUpdate.dateOfBirth as Date | null)?.toISOString?.() ?? null,
                 (clientUpdate.email as string | undefined) ?? null,
                 (clientUpdate.passportPhotos as string | undefined) ?? null,
                 (clientUpdate.driverLicensePhotos as string | undefined) ?? null,
@@ -433,7 +440,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 export default function EditContract() {
     const { contract, cars, districts, client } = useLoaderData<typeof loader>();
     const { validateLatinInput } = useLatinValidation();
-    const { maskDateInput, maskDateTimeInput } = useDateMasking();
+    const { maskDateTimeInput } = useDateMasking();
 
     // Safely parse dates
     const getValidDate = (dateValue: any) => {
@@ -664,15 +671,6 @@ export default function EditContract() {
                             placeholder="Doe"
                             required
                         />
-                        <FormInput
-                            label="Birth Date"
-                            name="date_of_birth"
-                            type="text"
-                            placeholder="DD/MM/YYYY"
-                            defaultValue={formatDateForDisplay(client?.dateOfBirth)}
-                            onChange={maskDateInput}
-                        />
-                        <div />
                         <FormInput
                             label="Phone"
                             name="client_phone"

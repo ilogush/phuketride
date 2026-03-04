@@ -34,7 +34,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     if (user.role === "partner" || isModMode) {
         if (effectiveCompanyId) {
-            // Load company-specific delivery settings
+            // Load all districts and overlay company-specific settings when available.
             const settings = await context.cloudflare.env.DB
                 .prepare(`
                     SELECT
@@ -43,13 +43,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                         d.location_id,
                         d.beaches,
                         d.streets,
-                        cds.is_active,
-                        cds.delivery_price,
+                        cds.is_active AS company_is_active,
+                        cds.delivery_price AS company_delivery_price,
+                        d.is_active AS district_is_active,
+                        d.delivery_price AS district_delivery_price,
                         d.created_at,
                         d.updated_at
-                    FROM company_delivery_settings cds
-                    JOIN districts d ON d.id = cds.district_id
-                    WHERE cds.company_id = ?
+                    FROM districts d
+                    LEFT JOIN company_delivery_settings cds
+                        ON cds.district_id = d.id AND cds.company_id = ?
+                    WHERE d.location_id = 1
                     LIMIT 100
                 `)
                 .bind(effectiveCompanyId)
@@ -60,8 +63,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 locationId: s.location_id,
                 beaches: s.beaches,
                 streets: s.streets,
-                isActive: !!s.is_active,
-                deliveryPrice: s.delivery_price,
+                isActive: s.company_is_active === null || s.company_is_active === undefined
+                    ? !!s.district_is_active
+                    : !!s.company_is_active,
+                deliveryPrice: s.company_delivery_price === null || s.company_delivery_price === undefined
+                    ? s.district_delivery_price
+                    : s.company_delivery_price,
                 createdAt: s.created_at,
                 updatedAt: s.updated_at,
             }));
@@ -113,6 +120,28 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
     const formData = await request.formData();
     const intent = formData.get("intent");
+    const upsertCompanyDeliverySetting = async (districtId: number, isActive: boolean, deliveryPrice: number) => {
+        if (!effectiveCompanyId) return;
+        const now = new Date().toISOString();
+        const updateResult = await context.cloudflare.env.DB
+            .prepare(`
+                UPDATE company_delivery_settings
+                SET is_active = ?, delivery_price = ?, updated_at = ?
+                WHERE company_id = ? AND district_id = ?
+            `)
+            .bind(isActive ? 1 : 0, deliveryPrice, now, effectiveCompanyId, districtId)
+            .run() as { meta?: { changes?: number } };
+
+        if ((updateResult.meta?.changes || 0) === 0) {
+            await context.cloudflare.env.DB
+                .prepare(`
+                    INSERT INTO company_delivery_settings (company_id, district_id, is_active, delivery_price, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `)
+                .bind(effectiveCompanyId, districtId, isActive ? 1 : 0, deliveryPrice, now, now)
+                .run();
+        }
+    };
 
     if (intent === "bulkUpdate") {
         if (!canManageCompanyDelivery || !effectiveCompanyId) {
@@ -122,14 +151,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         // Partner/mod mode updates company-specific delivery settings by district id.
         for (const update of updates) {
-            await context.cloudflare.env.DB
-                .prepare(`
-                    UPDATE company_delivery_settings
-                    SET is_active = ?, delivery_price = ?, updated_at = ?
-                    WHERE company_id = ? AND district_id = ?
-                `)
-                .bind(update.isActive ? 1 : 0, update.deliveryPrice, new Date().toISOString(), effectiveCompanyId, update.id)
-                .run();
+            await upsertCompanyDeliverySetting(update.id, !!update.isActive, Number(update.deliveryPrice) || 0);
         }
 
         return data({ success: true, message: "All changes saved successfully" });
@@ -141,15 +163,26 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
         const id = Number(formData.get("id"));
         const isActive = formData.get("isActive") === "true";
+        const currentPriceRaw = formData.get("deliveryPrice");
+        const currentPrice = Number(currentPriceRaw);
 
-        await context.cloudflare.env.DB
+        const fallbackPriceRow = await context.cloudflare.env.DB
             .prepare(`
-                UPDATE company_delivery_settings
-                SET is_active = ?, updated_at = ?
-                WHERE company_id = ? AND district_id = ?
+                SELECT
+                    cds.delivery_price AS company_delivery_price,
+                    d.delivery_price AS district_delivery_price
+                FROM districts d
+                LEFT JOIN company_delivery_settings cds
+                    ON cds.district_id = d.id AND cds.company_id = ?
+                WHERE d.id = ?
+                LIMIT 1
             `)
-            .bind(isActive ? 1 : 0, new Date().toISOString(), effectiveCompanyId, id)
-            .run();
+            .bind(effectiveCompanyId, id)
+            .first() as { company_delivery_price?: number | null; district_delivery_price?: number | null } | null;
+        const fallbackPrice = fallbackPriceRow?.company_delivery_price ?? fallbackPriceRow?.district_delivery_price ?? 0;
+        const deliveryPrice = Number.isFinite(currentPrice) ? currentPrice : Number(fallbackPrice);
+
+        await upsertCompanyDeliverySetting(id, isActive, deliveryPrice);
 
         return data({ success: true, message: "Status updated successfully" });
     }
@@ -160,15 +193,19 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
         const id = Number(formData.get("id"));
         const deliveryPrice = Number(formData.get("deliveryPrice"));
-
-        await context.cloudflare.env.DB
+        const safeDeliveryPrice = Number.isFinite(deliveryPrice) ? deliveryPrice : 0;
+        const districtResult = await context.cloudflare.env.DB
             .prepare(`
-                UPDATE company_delivery_settings
-                SET delivery_price = ?, updated_at = ?
+                SELECT is_active
+                FROM company_delivery_settings
                 WHERE company_id = ? AND district_id = ?
+                LIMIT 1
             `)
-            .bind(deliveryPrice, new Date().toISOString(), effectiveCompanyId, id)
-            .run();
+            .bind(effectiveCompanyId, id)
+            .first() as { is_active?: number } | null;
+        const isActive = districtResult ? !!districtResult.is_active : true;
+
+        await upsertCompanyDeliverySetting(id, isActive, safeDeliveryPrice);
 
         return data({ success: true, message: "Price updated successfully" });
     }

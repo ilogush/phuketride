@@ -53,12 +53,9 @@ export async function uploadAvatarFromBase64(
         throw new Error("Invalid base64 data");
     }
 
-    const mimeType = matches[1];
     const base64Content = matches[2];
 
-    // Determine file extension
-    const fileExtension = fileName.split(".").pop() || "jpg";
-    const storageFileName = `avatars/${userId}.${fileExtension}`;
+    const storageFileName = `avatars/${userId}.webp`;
 
     // Convert base64 to ArrayBuffer
     const binaryString = atob(base64Content);
@@ -70,12 +67,64 @@ export async function uploadAvatarFromBase64(
     // Upload to R2
     await bucket.put(storageFileName, bytes.buffer, {
         httpMetadata: {
-            contentType: mimeType,
+            contentType: "image/webp",
         },
     });
 
     // Return public URL
     return `/assets/${storageFileName}`;
+}
+
+export interface UploadPhotoItem {
+    base64: string;
+    fileName: string;
+}
+
+function isAssetUrl(value: string): boolean {
+    return value.startsWith("/assets/") || value.startsWith("http://") || value.startsWith("https://");
+}
+
+export async function uploadPhotoItemsToR2(
+    bucket: R2Bucket,
+    photos: UploadPhotoItem[],
+    directory: string
+): Promise<UploadPhotoItem[]> {
+    const tasks = photos
+        .filter((photo) => !!photo?.base64)
+        .map(async (photo) => {
+            if (isAssetUrl(photo.base64)) {
+                return photo;
+            }
+            const safeName = photo.fileName || "photo.webp";
+            const uploadedUrl = await uploadToR2(bucket, photo.base64, `${directory}/${safeName}`);
+            return {
+                base64: uploadedUrl,
+                fileName: safeName.replace(/\.[^.]+$/i, ".webp"),
+            } satisfies UploadPhotoItem;
+        });
+    return Promise.all(tasks);
+}
+
+export function parseAssetKey(assetUrl: string): string | null {
+    if (!assetUrl) return null;
+    const cleaned = assetUrl.split("?")[0].split("#")[0];
+    if (cleaned.startsWith("/assets/")) return cleaned.replace("/assets/", "");
+    try {
+        const url = new URL(cleaned);
+        const marker = "/assets/";
+        const idx = url.pathname.indexOf(marker);
+        if (idx >= 0) return url.pathname.slice(idx + marker.length);
+    } catch {
+    }
+    return null;
+}
+
+export async function deleteAssetUrls(bucket: R2Bucket, assetUrls: string[]): Promise<void> {
+    const keys = assetUrls
+        .map(parseAssetKey)
+        .filter((k): k is string => Boolean(k));
+    if (keys.length === 0) return;
+    await Promise.all(keys.map((key) => bucket.delete(key)));
 }
 
 export async function deleteAvatar(

@@ -8,7 +8,7 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
 import { BanknotesIcon, PlusIcon } from "@heroicons/react/24/outline";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 
@@ -111,7 +111,11 @@ export default function PaymentsPage() {
         {
             key: "createdAt",
             label: "Date",
-            render: (payment) => payment.createdAt ? format(new Date(payment.createdAt), "dd MMM yyyy") : "-"
+            render: (payment) => {
+                if (!payment.createdAt) return "-";
+                const createdAt = new Date(payment.createdAt);
+                return isValid(createdAt) ? format(createdAt, "dd MMM yyyy") : "-";
+            }
         },
         {
             key: "contract",
