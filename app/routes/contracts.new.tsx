@@ -59,9 +59,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             .bind(companyId)
             .all()
             .then((r: any) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT * FROM districts WHERE is_active = 1").all().then((r: any) => r.results || []),
         context.cloudflare.env.DB
-            .prepare("SELECT * FROM currencies WHERE is_active = 1 AND (company_id IS NULL OR company_id = ?)")
+            .prepare("SELECT id, name, name_en FROM districts WHERE is_active = 1")
+            .all()
+            .then((r: any) => r.results || []),
+        context.cloudflare.env.DB
+            .prepare("SELECT id, code, symbol FROM currencies WHERE is_active = 1 AND (company_id IS NULL OR company_id = ?)")
             .bind(companyId)
             .all()
             .then((r: any) => r.results || []),
