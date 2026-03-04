@@ -19,7 +19,16 @@ export default function ModelsPage() {
     const { user } = useLoaderData<typeof loader>();
     useUrlToast();
 
-    const columns: Column<any>[] = [
+    type ModelRow = {
+        id: number;
+        brandName: string;
+        name: string;
+        category?: string;
+        transmission?: string;
+        fuelType?: string;
+    };
+
+    const columns: Column<ModelRow>[] = [
         { key: "id", label: "ID" },
         { key: "brandName", label: "Brand" },
         { key: "name", label: "Model Name" },

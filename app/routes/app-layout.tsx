@@ -5,6 +5,7 @@ import { requireAuth } from "~/lib/auth.server";
 import Sidebar from "~/components/dashboard/Sidebar";
 import Topbar from "~/components/dashboard/Topbar";
 import { useToast } from "~/lib/toast";
+import { getUserNotificationsCount, getUserNotificationWindows } from "~/lib/user-notifications.server";
 
 // Create context for mod mode
 interface ModModeContextType {
@@ -55,33 +56,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     // Only user dashboard needs personal notifications badge.
     if (user.role === "user") {
         try {
-            const nowIso = new Date().toISOString();
-            const threeDaysFromNowIso = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
-            const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
-            const [upcomingCountRow, recentCountRow] = await Promise.all([
-                context.cloudflare.env.DB
-                    .prepare(`
-                        SELECT COUNT(*) AS count
-                        FROM contracts
-                        WHERE client_id = ?
-                          AND status = 'active'
-                          AND end_date >= ?
-                          AND end_date <= ?
-                    `)
-                    .bind(user.id, nowIso, threeDaysFromNowIso)
-                    .first() as Promise<{ count?: number } | null>,
-                context.cloudflare.env.DB
-                    .prepare(`
-                        SELECT COUNT(*) AS count
-                        FROM contracts
-                        WHERE client_id = ? AND created_at >= ?
-                    `)
-                    .bind(user.id, sevenDaysAgoIso)
-                    .first() as Promise<{ count?: number } | null>,
-            ]);
-
-            notificationsCount = Number(upcomingCountRow?.count || 0) + Number(recentCountRow?.count || 0);
+            const windows = getUserNotificationWindows();
+            notificationsCount = await getUserNotificationsCount(context.cloudflare.env.DB, user.id, windows);
         } catch {
             notificationsCount = 0;
         }

@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Outlet, Link, useSearchParams } from "react-router";
-import { useState } from "react";
+import { useMemo } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
@@ -8,6 +8,8 @@ import Card from "~/components/dashboard/Card";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
+import { QUERY_LIMITS } from "~/lib/query-limits";
+import { getMonthWindow, toIsoWindow } from "~/lib/date-windows";
 
 type CalendarEvent = { id: number; title: string; startDate: string; color?: string | null };
 type CalendarContract = { id: number; endDate: string };
@@ -29,9 +31,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const currentMonth = monthParam ? parseInt(monthParam) : now.getMonth();
     const currentYear = yearParam ? parseInt(yearParam) : now.getFullYear();
 
-    // Get first and last day of month
-    const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const { start, end } = getMonthWindow(currentYear, currentMonth);
+    const { startIso, endIso } = toIsoWindow({ start, end });
 
     const [eventsResult, contractsResult, bookingsResult] = await Promise.all([
         context.cloudflare.env.DB
@@ -44,9 +45,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 FROM calendar_events
                 WHERE company_id = ? AND start_date >= ? AND start_date <= ?
                 ORDER BY start_date ASC
-                LIMIT 100
+                LIMIT ${QUERY_LIMITS.LARGE}
             `)
-            .bind(effectiveCompanyId, firstDay.toISOString(), lastDay.toISOString())
+            .bind(effectiveCompanyId, startIso, endIso)
             .all(),
         context.cloudflare.env.DB
             .prepare(`
@@ -56,9 +57,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 FROM contracts c
                 JOIN company_cars cc ON cc.id = c.company_car_id
                 WHERE cc.company_id = ? AND c.status = 'active' AND c.end_date >= ? AND c.end_date <= ?
-                LIMIT 50
+                LIMIT ${QUERY_LIMITS.MEDIUM}
             `)
-            .bind(effectiveCompanyId, firstDay.toISOString(), lastDay.toISOString())
+            .bind(effectiveCompanyId, startIso, endIso)
             .all(),
         context.cloudflare.env.DB
             .prepare(`
@@ -68,9 +69,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 FROM bookings b
                 JOIN company_cars cc ON cc.id = b.company_car_id
                 WHERE cc.company_id = ? AND b.status IN ('pending', 'confirmed') AND b.start_date >= ? AND b.start_date <= ?
-                LIMIT 50
+                LIMIT ${QUERY_LIMITS.MEDIUM}
             `)
-            .bind(effectiveCompanyId, firstDay.toISOString(), lastDay.toISOString())
+            .bind(effectiveCompanyId, startIso, endIso)
             .all(),
     ]);
     const events = ((eventsResult as { results?: unknown[] }).results || []) as CalendarEvent[];
@@ -121,28 +122,33 @@ export default function CalendarPage() {
         return `/calendar?month=${newMonth}&year=${newYear}${modModeSuffix}`;
     };
 
-    const getEventsForDay = (day: number) => {
-        const dayDate = new Date(currentYear, currentMonth, day);
-        const dayStart = new Date(dayDate.setHours(0, 0, 0, 0));
-        const dayEnd = new Date(dayDate.setHours(23, 59, 59, 999));
+    const dayDataMap = useMemo(() => {
+        const map = new Map<number, { events: CalendarEvent[]; contracts: CalendarContract[]; bookings: CalendarBooking[] }>();
+        const ensureDay = (day: number) => {
+            if (!map.has(day)) map.set(day, { events: [], contracts: [], bookings: [] });
+            return map.get(day)!;
+        };
+        const getDayIfCurrentMonth = (value: string) => {
+            const date = new Date(value);
+            if (date.getFullYear() !== currentYear || date.getMonth() !== currentMonth) return null;
+            return date.getDate();
+        };
 
-        const dayEvents = events.filter((event) => {
-            const eventDate = new Date(event.startDate);
-            return eventDate >= dayStart && eventDate <= dayEnd;
+        events.forEach((event) => {
+            const day = getDayIfCurrentMonth(event.startDate);
+            if (day !== null) ensureDay(day).events.push(event);
+        });
+        contracts.forEach((contract) => {
+            const day = getDayIfCurrentMonth(contract.endDate);
+            if (day !== null) ensureDay(day).contracts.push(contract);
+        });
+        bookings.forEach((booking) => {
+            const day = getDayIfCurrentMonth(booking.startDate);
+            if (day !== null) ensureDay(day).bookings.push(booking);
         });
 
-        const dayContracts = contracts.filter((contract) => {
-            const endDate = new Date(contract.endDate);
-            return endDate >= dayStart && endDate <= dayEnd;
-        });
-
-        const dayBookings = bookings.filter((booking) => {
-            const startDate = new Date(booking.startDate);
-            return startDate >= dayStart && startDate <= dayEnd;
-        });
-
-        return { events: dayEvents, contracts: dayContracts, bookings: dayBookings };
-    };
+        return map;
+    }, [events, contracts, bookings, currentMonth, currentYear]);
 
     const isToday = (day: number) => {
         const today = new Date();
@@ -190,7 +196,10 @@ export default function CalendarPage() {
                     {Array.from({ length: totalCells }).map((_, i) => {
                         const day = i - firstDayOfWeek + 1;
                         const isValidDay = day > 0 && day <= daysInMonth;
-                        const { events: dayEvents, contracts: dayContracts, bookings: dayBookings } = isValidDay ? getEventsForDay(day) : { events: [], contracts: [], bookings: [] };
+                        const dayData = isValidDay ? dayDataMap.get(day) : null;
+                        const dayEvents = dayData?.events || [];
+                        const dayContracts = dayData?.contracts || [];
+                        const dayBookings = dayData?.bookings || [];
 
                         return (
                             <div

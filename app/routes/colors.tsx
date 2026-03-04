@@ -8,6 +8,7 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon, SwatchIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getRequestMetadata, quickAudit } from "~/lib/audit-logger";
+import { QUERY_LIMITS } from "~/lib/query-limits";
 
 interface Color {
     id: number;
@@ -18,7 +19,7 @@ interface Color {
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const colorsResult = await context.cloudflare.env.DB
-        .prepare("SELECT id, name, hex_code AS hexCode FROM colors LIMIT 100")
+        .prepare(`SELECT id, name, hex_code AS hexCode FROM colors LIMIT ${QUERY_LIMITS.LARGE}`)
         .all();
     const colors = (colorsResult.results ?? []) as Color[];
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, isValidElement } from 'react'
 import { useSearchParams } from 'react-router'
 import EmptyState from './EmptyState'
 import Loader from './Loader'
@@ -23,7 +23,7 @@ export interface Tab<T = Record<string, unknown>> {
         pageSize: number
         sortBy?: string
         sortOrder?: 'asc' | 'desc'
-        filters?: Record<string, any>
+        filters?: Record<string, unknown>
     }) => Promise<{ data: T[]; totalCount: number }>
     columns: Column<T>[]
 }
@@ -35,7 +35,7 @@ interface DataTableProps<T> {
         pageSize: number
         sortBy?: string
         sortOrder?: 'asc' | 'desc'
-        filters?: Record<string, any>
+        filters?: Record<string, unknown>
     }) => Promise<{ data: T[]; totalCount: number }>
     tabs?: Tab<T>[]
     defaultTabId?: string
@@ -55,6 +55,28 @@ interface DataTableProps<T> {
         variant?: 'primary' | 'secondary'
     }
     searchQuery?: string
+    serverPagination?: boolean
+}
+
+function getPropertyValue(item: unknown, key: string): unknown {
+    if (!item || typeof item !== 'object') return undefined
+    return (item as Record<string, unknown>)[key]
+}
+
+function includesQuery(value: unknown, query: string): boolean {
+    if (value === null || value === undefined) return false
+    if (typeof value === 'object') {
+        return Object.values(value as Record<string, unknown>).some((nestedValue) => includesQuery(nestedValue, query))
+    }
+    return String(value).toLowerCase().includes(query)
+}
+
+function toReactNode(value: unknown): React.ReactNode {
+    if (value === null || value === undefined) return ''
+    if (isValidElement(value)) return value
+    if (Array.isArray(value)) return value as React.ReactNode
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value
+    return String(value)
 }
 
 export default function DataTable<T>({
@@ -73,9 +95,10 @@ export default function DataTable<T>({
     emptyDescription,
     emptyIcon,
     emptyAction,
-    searchQuery = ''
+    searchQuery = '',
+    serverPagination = false
 }: DataTableProps<T>) {
-    const [searchParams] = useSearchParams()
+    const [searchParams, setSearchParams] = useSearchParams()
 
     const initialTabId = defaultTabId || (tabs && tabs.length > 0 ? tabs[0].id : '')
     const [activeTab, setActiveTab] = useState<string>(initialTabId)
@@ -116,8 +139,46 @@ export default function DataTable<T>({
         }
     }, [searchParams])
 
-    const [sortBy, setSortBy] = useState<string | undefined>()
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>()
+    useEffect(() => {
+        if (!serverPagination) return
+        const next = new URLSearchParams(searchParams)
+        const currentPage = Number(next.get('page') || 1)
+        const currentPageSize = Number(next.get('pageSize') || initialPageSize)
+        if (currentPage === page && currentPageSize === pageSize) return
+        next.set('page', String(page))
+        next.set('pageSize', String(pageSize))
+        setSearchParams(next, { replace: true })
+    }, [serverPagination, searchParams, setSearchParams, page, pageSize, initialPageSize])
+
+    const [sortBy, setSortBy] = useState<string | undefined>(() => searchParams.get('sortBy') || undefined)
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>(() => {
+        const raw = searchParams.get('sortOrder')
+        return raw === 'asc' || raw === 'desc' ? raw : undefined
+    })
+
+    useEffect(() => {
+        if (!serverPagination) return
+        const urlSortBy = searchParams.get('sortBy') || undefined
+        const urlSortOrderRaw = searchParams.get('sortOrder')
+        const urlSortOrder = urlSortOrderRaw === 'asc' || urlSortOrderRaw === 'desc' ? urlSortOrderRaw : undefined
+        if (urlSortBy !== sortBy) setSortBy(urlSortBy)
+        if (urlSortOrder !== sortOrder) setSortOrder(urlSortOrder)
+    }, [serverPagination, searchParams, sortBy, sortOrder])
+
+    useEffect(() => {
+        if (!serverPagination) return
+        const next = new URLSearchParams(searchParams)
+        const currentSortBy = next.get('sortBy') || undefined
+        const currentSortOrder = next.get('sortOrder') || undefined
+        const nextSortBy = sortBy || undefined
+        const nextSortOrder = sortOrder || undefined
+        if (currentSortBy === nextSortBy && currentSortOrder === nextSortOrder) return
+        if (nextSortBy) next.set('sortBy', nextSortBy)
+        else next.delete('sortBy')
+        if (nextSortOrder) next.set('sortOrder', nextSortOrder)
+        else next.delete('sortOrder')
+        setSearchParams(next, { replace: true })
+    }, [serverPagination, searchParams, setSearchParams, sortBy, sortOrder])
 
     const userHasSelectedTab = useRef(false)
 
@@ -182,23 +243,15 @@ export default function DataTable<T>({
     const isLoading = providedIsLoading ?? internalLoading
 
     const filteredData = useMemo(() => {
+        if (serverPagination) return data
         if (!searchQuery.trim()) return data
 
         const query = searchQuery.toLowerCase()
-        return data.filter((item: any) => {
-            return Object.values(item).some(value => {
-                if (value === null || value === undefined) return false
-
-                if (typeof value === 'object') {
-                    return Object.values(value).some(nestedValue =>
-                        String(nestedValue).toLowerCase().includes(query)
-                    )
-                }
-
-                return String(value).toLowerCase().includes(query)
-            })
+        return data.filter((item) => {
+            if (!item || typeof item !== 'object') return false
+            return Object.values(item as Record<string, unknown>).some((value) => includesQuery(value, query))
         })
-    }, [data, searchQuery])
+    }, [data, searchQuery, serverPagination])
 
     useEffect(() => {
         const urlTab = searchParams.get('tab')
@@ -217,13 +270,14 @@ export default function DataTable<T>({
 
     const currentData = useMemo(() => {
         if (currentFetchData) return filteredData
+        if (serverPagination) return filteredData
         if (disablePagination) return filteredData
 
         const start = (page - 1) * pageSize
         return filteredData.slice(start, start + pageSize)
-    }, [filteredData, page, pageSize, currentFetchData, disablePagination])
+    }, [filteredData, page, pageSize, currentFetchData, disablePagination, serverPagination])
 
-    const actualTotalCount = currentFetchData ? totalCount : filteredData.length
+    const actualTotalCount = (currentFetchData || serverPagination) ? totalCount : filteredData.length
 
     return (
         <div className="overflow-hidden">
@@ -251,8 +305,30 @@ export default function DataTable<T>({
                                             key={col.key}
                                             scope="col"
                                             className={`${idx === 0 ? 'pl-4' : 'px-4'} py-2 text-left text-xs font-normal text-gray-500 tracking-tight uppercase ${idx > 2 ? 'hidden sm:table-cell' : ''} ${col.className || ''}`}
+                                            onClick={() => {
+                                                if (!col.sortable) return
+                                                if (sortBy !== col.key) {
+                                                    setSortBy(col.key)
+                                                    setSortOrder('desc')
+                                                    setPage(1)
+                                                    return
+                                                }
+                                                if (sortOrder === 'desc') {
+                                                    setSortOrder('asc')
+                                                    setPage(1)
+                                                    return
+                                                }
+                                                setSortBy(undefined)
+                                                setSortOrder(undefined)
+                                                setPage(1)
+                                            }}
                                         >
-                                            <span>{col.label}</span>
+                                            <span className={col.sortable ? 'cursor-pointer select-none inline-flex items-center gap-1' : ''}>
+                                                {col.label}
+                                                {col.sortable && sortBy === col.key && (
+                                                    <span aria-hidden>{sortOrder === 'asc' ? '▲' : '▼'}</span>
+                                                )}
+                                            </span>
                                         </th>
                                     );
                                 })}
@@ -289,13 +365,13 @@ export default function DataTable<T>({
                             ) : (
                                 currentData.map((item, idx) => (
                                     <tr
-                                        key={(item as any).id || idx}
+                                        key={String(getPropertyValue(item, 'id') ?? idx)}
                                         className={`group hover:bg-white transition-all ${isLoading ? 'opacity-50' : ''} ${getRowClassName ? getRowClassName(item, idx) : ''}`}
                                     >
                                         {currentColumns.map((col, cIdx) => {
                                             const cellValue = col.render
                                                 ? col.render(item, idx, page, pageSize)
-                                                : (item as any)[col.key];
+                                                : getPropertyValue(item, col.key);
 
                                             // Auto-format ID and contact columns
                                             const formattedValue = !col.render && col.key === 'id' && typeof cellValue === 'number'
@@ -313,7 +389,7 @@ export default function DataTable<T>({
                                                     key={col.key}
                                                     className={`${cIdx === 0 ? 'pl-4' : 'px-4'} py-2 text-sm text-gray-900 ${col.wrap ? 'whitespace-normal align-middle' : 'whitespace-nowrap align-middle'} ${cIdx > 2 ? 'hidden sm:table-cell' : ''} ${col.className || ''}`}
                                                 >
-                                                    {formattedValue}
+                                                    {toReactNode(formattedValue)}
                                                 </td>
                                             );
                                         })}

@@ -76,6 +76,17 @@ interface CalendarTaskRow {
     status: TaskStatus;
 }
 
+interface ContractCountsRow {
+    totalCount: number | string;
+    monthCount: number | string;
+}
+
+interface UserContractCountsRow {
+    totalCount: number | string;
+    activeCount: number | string;
+    upcomingCount: number | string;
+}
+
 const ICON_MAP: Record<string, IconComponent> = {
     BuildingOfficeIcon,
     UserGroupIcon,
@@ -87,6 +98,16 @@ const ICON_MAP: Record<string, IconComponent> = {
     ClockIcon,
 };
 
+function mapCalendarTasks(rows: CalendarTaskRow[]): TaskItem[] {
+    return rows.map((task) => ({
+        id: task.id.toString(),
+        title: task.title,
+        description: task.description || "",
+        status: task.status,
+        priority: "medium",
+    }));
+}
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
@@ -97,50 +118,60 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     try {
         if (effectiveCompanyId) {
             // Partner/Manager/Admin(mod mode) stats for selected company
-            const company = await context.cloudflare.env.DB
+            const companyPromise = context.cloudflare.env.DB
                 .prepare("SELECT bank_name AS bankName, account_number AS accountNumber, account_name AS accountName FROM companies WHERE id = ? LIMIT 1")
                 .bind(effectiveCompanyId)
-                .first() as CompanyBankRow | null;
-
-            const managersCount = await context.cloudflare.env.DB
+                .first() as Promise<CompanyBankRow | null>;
+            const managersCountPromise = context.cloudflare.env.DB
                 .prepare(`
                     SELECT COUNT(*) AS count
                     FROM managers
                     WHERE company_id = ? AND is_active = 1
                 `)
                 .bind(effectiveCompanyId)
-                .first() as CountRow | null;
+                .first() as Promise<CountRow | null>;
 
             const onlineUsers = 0; // Online tracking not implemented
 
-            const carsCount = await context.cloudflare.env.DB
+            const carsCountPromise = context.cloudflare.env.DB
                 .prepare("SELECT COUNT(*) AS count FROM company_cars WHERE company_id = ?")
                 .bind(effectiveCompanyId)
-                .first() as CountRow | null;
-
-            const contractsCount = await context.cloudflare.env.DB
-                .prepare(`
-                    SELECT COUNT(*) AS count
-                    FROM contracts c
-                    JOIN company_cars cc ON cc.id = c.company_car_id
-                    WHERE cc.company_id = ?
-                `)
-                .bind(effectiveCompanyId)
-                .first() as CountRow | null;
+                .first() as Promise<CountRow | null>;
 
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
             startOfMonth.setHours(0, 0, 0, 0);
 
-            const activeContractsCount = await context.cloudflare.env.DB
+            const contractCountsPromise = context.cloudflare.env.DB
                 .prepare(`
-                    SELECT COUNT(*) AS count
+                    SELECT
+                        COUNT(*) AS totalCount,
+                        SUM(CASE WHEN c.created_at >= ? THEN 1 ELSE 0 END) AS monthCount
                     FROM contracts c
                     JOIN company_cars cc ON cc.id = c.company_car_id
-                    WHERE cc.company_id = ? AND c.created_at >= ?
+                    WHERE cc.company_id = ?
                 `)
-                .bind(effectiveCompanyId, startOfMonth.toISOString())
-                .first() as CountRow | null;
+                .bind(startOfMonth.toISOString(), effectiveCompanyId)
+                .first() as Promise<ContractCountsRow | null>;
+
+            const upcomingTasksPromise = context.cloudflare.env.DB
+                .prepare(`
+                    SELECT id, title, description, status
+                    FROM calendar_events
+                    WHERE company_id = ? AND status = 'pending'
+                    ORDER BY start_date DESC
+                    LIMIT 5
+                `)
+                .bind(effectiveCompanyId)
+                .all() as Promise<{ results?: CalendarTaskRow[] }>;
+
+            const [company, managersCount, carsCount, contractCounts, upcomingTasksResult] = await Promise.all([
+                companyPromise,
+                managersCountPromise,
+                carsCountPromise,
+                contractCountsPromise,
+                upcomingTasksPromise,
+            ]);
 
             statCards = [
                 {
@@ -159,7 +190,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 },
                 {
                     name: "Contracts",
-                    value: `${contractsCount?.count || 0}/${activeContractsCount?.count || 0}`,
+                    value: `${Number(contractCounts?.totalCount || 0)}/${Number(contractCounts?.monthCount || 0)}`,
                     subtext: "total / active this month",
                     icon: "ClipboardDocumentListIcon",
                     href: "/contracts",
@@ -179,25 +210,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 !company.accountName
             );
 
-            const upcomingTasksResult = await context.cloudflare.env.DB
-                .prepare(`
-                    SELECT id, title, description, status
-                    FROM calendar_events
-                    WHERE company_id = ? AND status = 'pending'
-                    ORDER BY start_date DESC
-                    LIMIT 5
-                `)
-                .bind(effectiveCompanyId)
-                .all() as { results?: CalendarTaskRow[] };
-            const upcomingTasks = upcomingTasksResult.results || [];
-
-            tasks = upcomingTasks.map(task => ({
-                id: task.id.toString(),
-                title: task.title,
-                description: task.description || "",
-                status: task.status as "pending" | "in_progress" | "completed",
-                priority: "medium" as const,
-            }));
+            tasks = mapCalendarTasks(upcomingTasksResult.results || []);
 
             if (isCompanyIncomplete) {
                 tasks.unshift({
@@ -210,25 +223,30 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             }
         } else if (user.role === "admin") {
             // Admin stats
-            const [companiesCount, usersCount] = await Promise.all([
-                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM companies").first() as Promise<CountRow | null>,
-                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM users").first() as Promise<CountRow | null>,
-            ]);
-
-            const onlineUsers = 0; // Online tracking not implemented
-
-            const carsCount = await context.cloudflare.env.DB
-                .prepare("SELECT COUNT(*) AS count FROM company_cars")
-                .first() as CountRow | null;
-
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
             startOfMonth.setHours(0, 0, 0, 0);
 
-            const contractsThisMonth = await context.cloudflare.env.DB
-                .prepare("SELECT COUNT(*) AS count FROM contracts WHERE created_at >= ?")
-                .bind(startOfMonth.toISOString())
-                .first() as CountRow | null;
+            const [companiesCount, usersCount, carsCount, contractsThisMonth, upcomingTasksResult] = await Promise.all([
+                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM companies").first() as Promise<CountRow | null>,
+                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM users").first() as Promise<CountRow | null>,
+                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM company_cars").first() as Promise<CountRow | null>,
+                context.cloudflare.env.DB
+                    .prepare("SELECT COUNT(*) AS count FROM contracts WHERE created_at >= ?")
+                    .bind(startOfMonth.toISOString())
+                    .first() as Promise<CountRow | null>,
+                context.cloudflare.env.DB
+                    .prepare(`
+                        SELECT id, title, description, status
+                        FROM calendar_events
+                        WHERE status = 'pending'
+                        ORDER BY start_date DESC
+                        LIMIT 5
+                    `)
+                    .all() as Promise<{ results?: CalendarTaskRow[] }>,
+            ]);
+
+            const onlineUsers = 0; // Online tracking not implemented
 
             statCards = [
                 {
@@ -261,61 +279,39 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 },
             ];
 
-            // Load tasks from calendar events
-            const upcomingTasksResult = await context.cloudflare.env.DB
-                .prepare(`
-                    SELECT id, title, description, status
-                    FROM calendar_events
-                    WHERE status = 'pending'
-                    ORDER BY start_date DESC
-                    LIMIT 5
-                `)
-                .all() as { results?: CalendarTaskRow[] };
-            const upcomingTasks = upcomingTasksResult.results || [];
-
-            tasks = upcomingTasks.map(task => ({
-                id: task.id.toString(),
-                title: task.title,
-                description: task.description || "",
-                status: task.status as "pending" | "in_progress" | "completed",
-                priority: "medium" as const,
-            }));
+            tasks = mapCalendarTasks(upcomingTasksResult.results || []);
         } else {
             // User role - show personal stats
-            const userContractsCount = await context.cloudflare.env.DB
-                .prepare("SELECT COUNT(*) AS count FROM contracts WHERE client_id = ?")
-                .bind(user.id)
-                .first() as CountRow | null;
-
-            const [activeContractsCount, upcomingContractsCount] = await Promise.all([
-                context.cloudflare.env.DB
-                    .prepare("SELECT COUNT(*) AS count FROM contracts WHERE client_id = ? AND status = 'active'")
-                    .bind(user.id)
-                    .first() as Promise<CountRow | null>,
-                context.cloudflare.env.DB
-                    .prepare("SELECT COUNT(*) AS count FROM contracts WHERE client_id = ? AND status = 'active' AND start_date >= ?")
-                    .bind(user.id, new Date().toISOString())
-                    .first() as Promise<CountRow | null>,
-            ]);
+            const userContractCounts = await context.cloudflare.env.DB
+                .prepare(`
+                    SELECT
+                        COUNT(*) AS totalCount,
+                        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS activeCount,
+                        SUM(CASE WHEN status = 'active' AND start_date >= ? THEN 1 ELSE 0 END) AS upcomingCount
+                    FROM contracts
+                    WHERE client_id = ?
+                `)
+                .bind(new Date().toISOString(), user.id)
+                .first() as UserContractCountsRow | null;
 
             statCards = [
                 {
                     name: "My Bookings",
-                    value: userContractsCount?.count || 0,
+                    value: Number(userContractCounts?.totalCount || 0),
                     subtext: "total bookings",
                     icon: "ClipboardDocumentListIcon",
                     href: "/my-bookings",
                 },
                 {
                     name: "Active",
-                    value: activeContractsCount?.count || 0,
+                    value: Number(userContractCounts?.activeCount || 0),
                     subtext: "active rentals",
                     icon: "CheckCircleIcon",
                     href: "/my-contracts",
                 },
                 {
                     name: "Upcoming",
-                    value: upcomingContractsCount?.count || 0,
+                    value: Number(userContractCounts?.upcomingCount || 0),
                     subtext: "scheduled",
                     icon: "CalendarIcon",
                     href: "/my-bookings",

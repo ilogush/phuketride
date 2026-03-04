@@ -16,6 +16,7 @@ import { companySchema } from "~/schemas/company";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { formatContactPhone } from "~/lib/phone";
+import { QUERY_LIMITS } from "~/lib/query-limits";
 import {
     BuildingOfficeIcon,
     BanknotesIcon,
@@ -50,15 +51,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         throw new Response("Forbidden", { status: 403 });
     }
     const [locationsList, districtsList, usersList] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM locations ORDER BY name ASC LIMIT 100").all().then((r: { results?: LocationRow[] }) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT id, name, location_id AS locationId, delivery_price AS deliveryPrice FROM districts ORDER BY name ASC LIMIT 200").all().then((r: { results?: DistrictRow[] }) => r.results || []),
+        context.cloudflare.env.DB.prepare(`SELECT id, name FROM locations ORDER BY name ASC LIMIT ${QUERY_LIMITS.LARGE}`).all().then((r: { results?: LocationRow[] }) => r.results || []),
+        context.cloudflare.env.DB.prepare(`SELECT id, name, location_id AS locationId, delivery_price AS deliveryPrice FROM districts ORDER BY name ASC LIMIT ${QUERY_LIMITS.XL}`).all().then((r: { results?: DistrictRow[] }) => r.results || []),
         context.cloudflare.env.DB
             .prepare(`
                 SELECT id, email, name, surname, role, phone
                 FROM users
                 WHERE role != 'admin'
                 ORDER BY created_at DESC
-                LIMIT 200
+                LIMIT ${QUERY_LIMITS.XL}
             `)
             .all()
             .then((r: { results?: UserRow[] }) => r.results || []),

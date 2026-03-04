@@ -5,12 +5,13 @@ import { DocumentTextIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import SimplePagination from "~/components/dashboard/SimplePagination";
 import Button from "~/components/dashboard/Button";
-
-const ITEMS_PER_PAGE = 20;
-
-interface CountRow {
-    count: number;
-}
+import { getPaginationFromUrl } from "~/lib/pagination.server";
+import {
+    CLIENT_CONTRACT_STATUSES,
+    type ClientContractStatusFilter,
+    loadClientContractsPage,
+} from "~/lib/my-contracts-list.server";
+import { parseListFilters } from "~/lib/query-filters.server";
 
 interface MyContractRow {
     id: number;
@@ -30,48 +31,23 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     
     const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const status = url.searchParams.get("status") || "all";
-    
-    const offset = (page - 1) * ITEMS_PER_PAGE;
+    const { page, pageSize, offset } = getPaginationFromUrl(url);
+    const { status } = parseListFilters(url, {
+        statuses: CLIENT_CONTRACT_STATUSES,
+        defaultStatus: "all",
+    });
+    const selectedStatus: ClientContractStatusFilter = status ?? "all";
+    const { totalPages, rows } = await loadClientContractsPage({
+        db: context.cloudflare.env.DB,
+        userId: user.id,
+        status: selectedStatus,
+        pageSize,
+        offset,
+        includeColor: false,
+    });
+    const contracts = rows as MyContractRow[];
 
-    const whereSql = status === "all" ? "WHERE c.client_id = ?" : "WHERE c.client_id = ? AND c.status = ?";
-    const countSql = `SELECT COUNT(*) AS count FROM contracts c ${whereSql}`;
-    const countResult = status === "all"
-        ? ((await context.cloudflare.env.DB.prepare(countSql).bind(user.id).first()) as CountRow | null)
-        : ((await context.cloudflare.env.DB.prepare(countSql).bind(user.id, status).first()) as CountRow | null);
-
-    const totalItems = Number(countResult?.count || 0);
-    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-
-    const contractsSql = `
-        SELECT
-            c.id,
-            c.start_date AS startDate,
-            c.end_date AS endDate,
-            c.total_amount AS totalAmount,
-            c.total_currency AS totalCurrency,
-            c.status,
-            c.created_at AS createdAt,
-            cc.license_plate AS carLicensePlate,
-            cc.year AS carYear,
-            cb.name AS brandName,
-            cm.name AS modelName
-        FROM contracts c
-        JOIN company_cars cc ON cc.id = c.company_car_id
-        LEFT JOIN car_templates ct ON ct.id = cc.template_id
-        LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-        LEFT JOIN car_models cm ON cm.id = ct.model_id
-        ${whereSql}
-        ORDER BY c.created_at DESC
-        LIMIT ? OFFSET ?
-    `;
-    const contractsResult = status === "all"
-        ? await context.cloudflare.env.DB.prepare(contractsSql).bind(user.id, ITEMS_PER_PAGE, offset).all()
-        : await context.cloudflare.env.DB.prepare(contractsSql).bind(user.id, status, ITEMS_PER_PAGE, offset).all();
-    const contracts = (contractsResult.results ?? []) as MyContractRow[];
-
-    return { contracts, totalPages, currentPage: page, status };
+    return { contracts, totalPages, currentPage: page, status: selectedStatus };
 }
 
 export default function MyContractsPage() {

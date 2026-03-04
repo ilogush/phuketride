@@ -10,6 +10,7 @@ import FormSection from "~/components/dashboard/FormSection";
 import { CubeIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { modelSchema } from "~/schemas/dictionary";
+import { getCachedBodyTypes, getCachedCarBrands } from "~/lib/dictionaries-cache.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -18,11 +19,11 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     }
     const d1 = context.cloudflare.env.DB;
     const [brandsResult, bodyTypesResult] = await Promise.all([
-        d1.prepare("SELECT id, name FROM car_brands LIMIT 100").all(),
-        d1.prepare("SELECT id, name FROM body_types LIMIT 100").all(),
+        getCachedCarBrands(d1),
+        getCachedBodyTypes(d1),
     ]);
-    const brandsList = (brandsResult.results ?? []) as Array<{ id: number; name: string }>;
-    const bodyTypesList = (bodyTypesResult.results ?? []) as Array<{ id: number; name: string }>;
+    const brandsList = brandsResult as Array<{ id: number; name: string }>;
+    const bodyTypesList = bodyTypesResult as Array<{ id: number; name: string }>;
 
     return { brands: brandsList, bodyTypes: bodyTypesList };
 }

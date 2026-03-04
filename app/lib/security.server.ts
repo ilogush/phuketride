@@ -1,3 +1,4 @@
+import { QUERY_LIMITS } from "~/lib/query-limits";
 // Security helpers for multi-tenancy validation
 type DbType = D1Database;
 
@@ -67,7 +68,7 @@ export async function getCompanyClients(
             INNER JOIN contracts c ON u.id = c.client_id
             INNER JOIN company_cars cc ON c.company_car_id = cc.id
             WHERE cc.company_id = ? AND u.role = 'user'
-            LIMIT 100
+            LIMIT ${QUERY_LIMITS.LARGE}
             `
         )
         .bind(companyId)

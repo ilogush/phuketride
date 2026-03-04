@@ -7,8 +7,11 @@ import { PlusIcon, BookmarkIcon, FunnelIcon } from "@heroicons/react/24/outline"
 import { format } from "date-fns";
 import SimplePagination from "~/components/dashboard/SimplePagination";
 import { formatContactPhone } from "~/lib/phone";
+import { getPaginationFromUrl } from "~/lib/pagination.server";
+import { parseListFilters } from "~/lib/query-filters.server";
 
-const ITEMS_PER_PAGE = 20;
+const BOOKING_STATUSES = ["all", "pending", "confirmed", "converted", "cancelled"] as const;
+type BookingStatusFilter = typeof BOOKING_STATUSES[number];
 
 interface CountRow {
     count: number;
@@ -42,12 +45,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     }
 
     const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const status = url.searchParams.get("status") || "all";
-    
-    const offset = (page - 1) * ITEMS_PER_PAGE;
+    const { page, pageSize, offset } = getPaginationFromUrl(url);
+    const { status } = parseListFilters(url, {
+        statuses: BOOKING_STATUSES,
+        defaultStatus: "all",
+    });
+    const selectedStatus: BookingStatusFilter = status ?? "all";
 
-    const whereSql = status === "all"
+    const whereSql = selectedStatus === "all"
         ? "WHERE cc.company_id = ?"
         : "WHERE cc.company_id = ? AND b.status = ?";
     const countSql = `
@@ -56,11 +61,11 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         JOIN company_cars cc ON cc.id = b.company_car_id
         ${whereSql}
     `;
-    const countResult = status === "all"
+    const countResult = selectedStatus === "all"
         ? ((await context.cloudflare.env.DB.prepare(countSql).bind(user.companyId).first()) as CountRow | null)
-        : ((await context.cloudflare.env.DB.prepare(countSql).bind(user.companyId, status).first()) as CountRow | null);
+        : ((await context.cloudflare.env.DB.prepare(countSql).bind(user.companyId, selectedStatus).first()) as CountRow | null);
     const totalItems = Number(countResult?.count || 0);
-    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
     const bookingsSql = `
         SELECT
@@ -90,12 +95,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         ORDER BY b.created_at DESC
         LIMIT ? OFFSET ?
     `;
-    const bookingsResult = status === "all"
-        ? await context.cloudflare.env.DB.prepare(bookingsSql).bind(user.companyId, ITEMS_PER_PAGE, offset).all()
-        : await context.cloudflare.env.DB.prepare(bookingsSql).bind(user.companyId, status, ITEMS_PER_PAGE, offset).all();
+    const bookingsResult = selectedStatus === "all"
+        ? await context.cloudflare.env.DB.prepare(bookingsSql).bind(user.companyId, pageSize, offset).all()
+        : await context.cloudflare.env.DB.prepare(bookingsSql).bind(user.companyId, selectedStatus, pageSize, offset).all();
     const bookings = (bookingsResult.results ?? []) as BookingRow[];
 
-    return { bookings, totalPages, currentPage: page, status };
+    return { bookings, totalPages, currentPage: page, status: selectedStatus };
 }
 
 export default function BookingsPage() {

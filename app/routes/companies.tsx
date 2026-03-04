@@ -1,63 +1,47 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Link } from "react-router";
+import { useLoaderData, Link, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { BuildingOfficeIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
-type CompanyListRow = {
-    id: number;
-    name: string;
-    email: string | null;
-    phone: string | null;
-    locationId: number | null;
-    districtId: number | null;
-    ownerId: string;
-    archivedAt: string | null;
-    ownerName: string | null;
-    ownerSurname: string | null;
-    ownerArchivedAt: string | null;
-    districtName: string | null;
-    carCount: number | string | null;
-};
+import { getPaginationFromUrl } from "~/lib/pagination.server";
+import { parseListFilters } from "~/lib/query-filters.server";
+import { countCompanies, listCompaniesPage } from "~/lib/companies-repo.server";
+import type { CompanyListRow } from "~/lib/db-types";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
 
-    // Get showArchived from query params
     const url = new URL(request.url);
     const showArchived = url.searchParams.get("archived") === "true";
+    const { search, sortBy, sortOrder } = parseListFilters(url, {
+        sortBy: ["createdAt", "id", "name", "carCount"] as const,
+        defaultSortBy: "createdAt",
+        defaultSortOrder: "desc",
+    });
+    const { pageSize, offset } = getPaginationFromUrl(url, { defaultPageSize: 10 });
 
     let companiesList: Array<CompanyListRow & { partnerName: string; partnerArchived: boolean; status: string }> = [];
+    let totalCount = 0;
 
     try {
-        const baseSql = `
-            SELECT
-                c.id,
-                c.name,
-                c.email,
-                c.phone,
-                c.location_id AS locationId,
-                c.district_id AS districtId,
-                c.owner_id AS ownerId,
-                c.archived_at AS archivedAt,
-                u.name AS ownerName,
-                u.surname AS ownerSurname,
-                u.archived_at AS ownerArchivedAt,
-                d.name AS districtName,
-                COUNT(cc.id) AS carCount
-            FROM companies c
-            LEFT JOIN users u ON u.id = c.owner_id
-            LEFT JOIN districts d ON d.id = c.district_id
-            LEFT JOIN company_cars cc ON cc.company_id = c.id
-            ${showArchived ? "" : "WHERE c.archived_at IS NULL"}
-            GROUP BY c.id
-            ORDER BY c.created_at DESC
-            LIMIT 50
-        `;
-        const result = await context.cloudflare.env.DB.prepare(baseSql).all() as { results?: CompanyListRow[] };
-        companiesList = (result.results || []).map((company) => ({
+        totalCount = await countCompanies({
+            db: context.cloudflare.env.DB,
+            showArchived,
+            search,
+        });
+        const rows = await listCompaniesPage({
+            db: context.cloudflare.env.DB,
+            showArchived,
+            pageSize,
+            offset,
+            search,
+            sortBy: sortBy || "createdAt",
+            sortOrder,
+        });
+        companiesList = rows.map((company) => ({
             ...company,
             partnerName: `${company.ownerName || ""} ${company.ownerSurname || ""}`.trim() || "-",
             partnerArchived: !!company.ownerArchivedAt,
@@ -68,17 +52,19 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         companiesList = [];
     }
 
-    return { user, companies: companiesList, showArchived };
+    return { user, companies: companiesList, showArchived, totalCount, search };
 }
 
 export default function CompaniesPage() {
-    const { companies: companiesList, showArchived } = useLoaderData<typeof loader>();
+    const { companies: companiesList, showArchived, totalCount, search } = useLoaderData<typeof loader>();
     useUrlToast();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const columns: Column<typeof companiesList[0]>[] = [
         {
             key: "id",
             label: "ID",
+            sortable: true,
             render: (company) => (
                 <Link to={`/home?modCompanyId=${company.id}`} className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold font-mono bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none hover:bg-gray-700">
                     {String(company.id).padStart(3, '0')}
@@ -88,6 +74,7 @@ export default function CompaniesPage() {
         {
             key: "name",
             label: "Name",
+            sortable: true,
             render: (company) => (
                 <span className="font-medium text-gray-900">
                     {company.name}
@@ -112,8 +99,9 @@ export default function CompaniesPage() {
             ),
         },
         {
-            key: "cars",
+            key: "carCount",
             label: "Cars",
+            sortable: true,
             render: (company) => (
                 <span className="text-gray-600">{company.carCount}</span>
             ),
@@ -145,6 +133,16 @@ export default function CompaniesPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Companies"
+                withSearch
+                searchValue={search}
+                searchPlaceholder="Search companies"
+                onSearchChange={(value) => {
+                    const next = new URLSearchParams(searchParams);
+                    if (value.trim()) next.set("search", value.trim());
+                    else next.delete("search");
+                    next.set("page", "1");
+                    setSearchParams(next);
+                }}
                 rightActions={
                     <Link to={showArchived ? "/companies" : "/companies?archived=true"}>
                         <Button variant="secondary">
@@ -157,7 +155,8 @@ export default function CompaniesPage() {
             <DataTable
                 data={companiesList}
                 columns={columns}
-                totalCount={companiesList.length}
+                totalCount={totalCount}
+                serverPagination
                 emptyTitle="No companies found"
                 emptyDescription="Start by adding your first company"
                 emptyIcon={<BuildingOfficeIcon className="w-10 h-10" />}

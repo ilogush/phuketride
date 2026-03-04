@@ -9,6 +9,7 @@ import { Input } from "~/components/dashboard/Input";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon, SunIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
+import { QUERY_LIMITS } from "~/lib/query-limits";
 
 
 interface Season {
@@ -71,7 +72,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 discount_label AS discountLabel
             FROM seasons
             ORDER BY id ASC
-            LIMIT 100
+            LIMIT ${QUERY_LIMITS.LARGE}
         `)
         .all() as { results?: Season[] };
     const seasons = seasonsResult.results || [];

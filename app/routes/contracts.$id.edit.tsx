@@ -33,6 +33,7 @@ type ExistingContractRow = {
     id: number;
     client_id: string;
     company_car_id: number;
+    companyId: number;
     start_date: string;
     end_date: string;
     total_amount: number | null;
@@ -208,18 +209,20 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         const existingContract = await context.cloudflare.env.DB
             .prepare(`
             SELECT
-                id,
-                client_id,
-                company_car_id,
-                start_date,
-                end_date,
-                total_amount,
-                fuel_level,
-                cleanliness,
-                start_mileage,
-                photos
+                contracts.id,
+                contracts.client_id,
+                contracts.company_car_id,
+                cc.company_id AS companyId,
+                contracts.start_date,
+                contracts.end_date,
+                contracts.total_amount,
+                contracts.fuel_level,
+                contracts.cleanliness,
+                contracts.start_mileage,
+                contracts.photos
             FROM contracts
-            WHERE id = ?
+            JOIN company_cars cc ON cc.id = contracts.company_car_id
+            WHERE contracts.id = ?
             LIMIT 1
         `)
             .bind(contractId)
@@ -256,22 +259,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         };
 
         // SECURITY: Verify contract belongs to user's company
-        const contract = await context.cloudflare.env.DB
-            .prepare(`
-            SELECT c.id, cc.company_id AS companyId
-            FROM contracts c
-            JOIN company_cars cc ON cc.id = c.company_car_id
-            WHERE c.id = ?
-            LIMIT 1
-        `)
-            .bind(contractId)
-            .first() as { id: number; companyId: number } | null;
-
-        if (!contract) {
-            return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
-        }
-
-        if (user.role !== "admin" && contract.companyId !== user.companyId) {
+        if (user.role !== "admin" && existingContract.companyId !== user.companyId) {
             return redirect(`/contracts?error=${encodeURIComponent("Access denied")}`);
         }
 
@@ -479,12 +467,16 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         }
 
         // Refresh calendar events (delete old and recreate)
-        const carRow = await context.cloudflare.env.DB
-            .prepare("SELECT company_id AS companyId FROM company_cars WHERE id = ? LIMIT 1")
-            .bind(newCompanyCarId)
-            .first() as { companyId: number } | null;
+        const targetCompanyId = newCompanyCarId === existingContract.company_car_id
+            ? existingContract.companyId
+            : (
+                await context.cloudflare.env.DB
+                    .prepare("SELECT company_id AS companyId FROM company_cars WHERE id = ? LIMIT 1")
+                    .bind(newCompanyCarId)
+                    .first() as { companyId: number } | null
+            )?.companyId;
 
-        if (carRow?.companyId) {
+        if (targetCompanyId) {
             await context.cloudflare.env.DB
                 .prepare("DELETE FROM calendar_events WHERE related_id = ? AND event_type IN ('pickup', 'contract')")
                 .bind(contractId)
@@ -492,7 +484,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 
             await createContractEvents({
                 db: context.cloudflare.env.DB,
-                companyId: carRow.companyId,
+                companyId: targetCompanyId,
                 contractId,
                 startDate,
                 endDate,

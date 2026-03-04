@@ -5,15 +5,8 @@ import { CarTemplateForm } from '~/components/dashboard/CarTemplateForm'
 import PageHeader from '~/components/dashboard/PageHeader'
 import BackButton from '~/components/dashboard/BackButton'
 import Button from '~/components/dashboard/Button'
-
-interface OptionRow {
-    id: number
-    name: string
-}
-
-interface ModelRow extends OptionRow {
-    brand_id: number
-}
+import { getCachedBodyTypes, getCachedCarBrands, getCachedCarModels, getCachedFuelTypes } from '~/lib/dictionaries-cache.server'
+import type { DictionaryRow as OptionRow, ModelRow } from '~/lib/db-types'
 
 export async function loader({ request, context }: Route.LoaderArgs) {
     const user = await requireAuth(request)
@@ -23,10 +16,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     }
 
     const [brands, models, bodyTypes, fuelTypes] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM car_brands ORDER BY name ASC LIMIT 100").all().then((r) => (r.results || []) as unknown as OptionRow[]),
-        context.cloudflare.env.DB.prepare("SELECT id, name, brand_id FROM car_models ORDER BY name ASC LIMIT 500").all().then((r) => (r.results || []) as unknown as ModelRow[]),
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM body_types ORDER BY name ASC").all().then((r) => (r.results || []) as unknown as OptionRow[]),
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM fuel_types ORDER BY name ASC").all().then((r) => (r.results || []) as unknown as OptionRow[]),
+        getCachedCarBrands(context.cloudflare.env.DB) as Promise<OptionRow[]>,
+        getCachedCarModels(context.cloudflare.env.DB) as Promise<ModelRow[]>,
+        getCachedBodyTypes(context.cloudflare.env.DB) as Promise<OptionRow[]>,
+        getCachedFuelTypes(context.cloudflare.env.DB) as Promise<OptionRow[]>,
     ])
 
     return { brands, models, bodyTypes, fuelTypes }

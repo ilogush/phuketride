@@ -19,6 +19,8 @@ import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { ExclamationTriangleIcon, Cog6ToothIcon, PhotoIcon, WrenchScrewdriverIcon, BanknotesIcon, ShieldCheckIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import { calculateSeasonalPrice, getAverageDays } from "~/lib/pricing";
 import { uploadToR2 } from "~/lib/r2.server";
+import { QUERY_LIMITS } from "~/lib/query-limits";
+import { getCachedColors, getCachedFuelTypes } from "~/lib/dictionaries-cache.server";
 
 interface TemplateQueryRow {
     id: number;
@@ -69,7 +71,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             LEFT JOIN car_models cm ON cm.id = ct.model_id
             LEFT JOIN body_types bt ON bt.id = ct.body_type_id
             LEFT JOIN fuel_types ft ON ft.id = ct.fuel_type_id
-            LIMIT 100
+            LIMIT ${QUERY_LIMITS.LARGE}
         `).all().then((r: { results?: TemplateQueryRow[] }) => (r.results || []).map((t) => ({
             ...t,
             brand: { name: t.brandName },
@@ -78,7 +80,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             fuelType: { name: t.fuelTypeName },
             engineVolume: t.engine_volume,
         }))),
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM colors LIMIT 100").all().then((r: { results?: SimpleOptionRow[] }) => r.results || []),
+        getCachedColors(context.cloudflare.env.DB) as Promise<SimpleOptionRow[]>,
         context.cloudflare.env.DB.prepare(`
             SELECT
                 id,
@@ -91,7 +93,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 discount_label AS discountLabel
             FROM seasons
             ORDER BY price_multiplier DESC
-            LIMIT 10
+            LIMIT ${QUERY_LIMITS.SMALL}
         `).all().then((r: { results?: Array<Record<string, unknown>> }) => r.results || []),
         context.cloudflare.env.DB.prepare(`
             SELECT
@@ -103,9 +105,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 discount_label AS discountLabel
             FROM rental_durations
             ORDER BY min_days ASC
-            LIMIT 10
+            LIMIT ${QUERY_LIMITS.SMALL}
         `).all().then((r: { results?: Array<Record<string, unknown>> }) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM fuel_types LIMIT 20").all().then((r: { results?: SimpleOptionRow[] }) => r.results || []),
+        getCachedFuelTypes(context.cloudflare.env.DB) as Promise<SimpleOptionRow[]>,
     ]);
 
     return {
@@ -183,10 +185,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             return redirect(`/cars/create?error=${encodeURIComponent("Car with same brand, model and license plate already exists in this company")}`);
         }
 
-        const fuelTypesResult = await context.cloudflare.env.DB
-            .prepare("SELECT id, name FROM fuel_types")
-            .all() as { results?: FuelTypeRow[] };
-        const fuelTypes = fuelTypesResult.results || [];
+        const fuelTypes = await getCachedFuelTypes(context.cloudflare.env.DB) as FuelTypeRow[];
         const fuelType = fuelTypes.find((item) => item.name.toLowerCase() === validData.fuelType.toLowerCase());
 
         // Handle photos upload to R2

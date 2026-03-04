@@ -2,25 +2,14 @@ import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import { BellIcon, CalendarIcon, CurrencyDollarIcon, TruckIcon } from "@heroicons/react/24/outline";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Card from "~/components/dashboard/Card";
 import EmptyState from "~/components/dashboard/EmptyState";
-type NotificationContractRow = {
-    id: number;
-    endDate: string;
-    carLicensePlate: string | null;
-    brandName: string | null;
-    modelName: string | null;
-};
-type NotificationRecentContractRow = {
-    id: number;
-    createdAt: string;
-    status: string;
-    carLicensePlate: string | null;
-    brandName: string | null;
-    modelName: string | null;
-};
+import {
+    getUserNotificationContracts,
+    getUserNotificationWindows,
+} from "~/lib/user-notifications.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -34,30 +23,11 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         read: boolean;
     }> = [];
 
-    // Get upcoming contract end dates (within 3 days)
-    const threeDaysFromNow = addDays(new Date(), 3);
-    const upcomingContractsResult = await context.cloudflare.env.DB
-        .prepare(`
-            SELECT
-                c.id,
-                c.end_date AS endDate,
-                cc.license_plate AS carLicensePlate,
-                cb.name AS brandName,
-                cm.name AS modelName
-            FROM contracts c
-            JOIN company_cars cc ON cc.id = c.company_car_id
-            LEFT JOIN car_templates ct ON ct.id = cc.template_id
-            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-            LEFT JOIN car_models cm ON cm.id = ct.model_id
-            WHERE c.client_id = ? AND c.status = 'active' AND c.end_date >= ?
-            LIMIT 10
-        `)
-        .bind(user.id, new Date().toISOString())
-        .all() as { results?: NotificationContractRow[] };
-    const upcomingContracts = upcomingContractsResult.results || [];
+    const windows = getUserNotificationWindows();
+    const contracts = await getUserNotificationContracts(context.cloudflare.env.DB, user.id, windows, 20);
 
-    upcomingContracts.forEach((contract) => {
-        if (new Date(contract.endDate) <= threeDaysFromNow) {
+    contracts.forEach((contract) => {
+        if (contract.endDate && contract.status === "active") {
             notifications.push({
                 id: `contract-${contract.id}`,
                 type: "reminder",
@@ -67,41 +37,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 read: false,
             });
         }
-    });
-
-    // Get recent contracts (last 7 days)
-    const sevenDaysAgo = addDays(new Date(), -7);
-    const recentContractsResult = await context.cloudflare.env.DB
-        .prepare(`
-            SELECT
-                c.id,
-                c.created_at AS createdAt,
-                c.status,
-                cc.license_plate AS carLicensePlate,
-                cb.name AS brandName,
-                cm.name AS modelName
-            FROM contracts c
-            JOIN company_cars cc ON cc.id = c.company_car_id
-            LEFT JOIN car_templates ct ON ct.id = cc.template_id
-            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-            LEFT JOIN car_models cm ON cm.id = ct.model_id
-            WHERE c.client_id = ? AND c.created_at >= ?
-            ORDER BY c.created_at DESC
-            LIMIT 5
-        `)
-        .bind(user.id, sevenDaysAgo.toISOString())
-        .all() as { results?: NotificationRecentContractRow[] };
-    const recentContracts = recentContractsResult.results || [];
-
-    recentContracts.forEach((contract) => {
-        notifications.push({
-            id: `contract-new-${contract.id}`,
-            type: "contract",
-            title: "New Contract",
-            message: `Your rental contract for ${contract.brandName} ${contract.modelName} (${contract.carLicensePlate}) has been created`,
-            date: new Date(contract.createdAt),
-            read: false,
-        });
+        if (new Date(contract.createdAt).getTime() >= new Date(windows.sevenDaysAgoIso).getTime()) {
+            notifications.push({
+                id: `contract-new-${contract.id}`,
+                type: "contract",
+                title: "New Contract",
+                message: `Your rental contract for ${contract.brandName} ${contract.modelName} (${contract.carLicensePlate}) has been created`,
+                date: new Date(contract.createdAt),
+                read: false,
+            });
+        }
     });
 
     // Sort by date (newest first)

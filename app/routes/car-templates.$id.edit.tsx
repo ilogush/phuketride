@@ -5,6 +5,8 @@ import { CarTemplateForm } from '~/components/dashboard/CarTemplateForm'
 import PageHeader from '~/components/dashboard/PageHeader'
 import BackButton from '~/components/dashboard/BackButton'
 import Button from '~/components/dashboard/Button'
+import { getCachedBodyTypes, getCachedCarBrands, getCachedCarModels, getCachedFuelTypes } from '~/lib/dictionaries-cache.server'
+import type { DictionaryRow, ModelRow } from '~/lib/db-types'
 
 interface CarTemplateRow {
     id: number
@@ -18,15 +20,6 @@ interface CarTemplateRow {
     fuel_type_id: number | null
     description: string | null
     photos: string | null
-}
-
-interface DictionaryRow {
-    id: number
-    name: string
-}
-
-interface ModelRow extends DictionaryRow {
-    brand_id: number
 }
 
 export async function loader({ request, context, params }: Route.LoaderArgs) {
@@ -64,10 +57,10 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
     }
 
     const [brands, models, bodyTypes, fuelTypes] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM car_brands ORDER BY name ASC LIMIT 100").all().then((r) => ((r.results || []) as unknown) as DictionaryRow[]),
-        context.cloudflare.env.DB.prepare("SELECT id, name, brand_id FROM car_models ORDER BY name ASC LIMIT 500").all().then((r) => ((r.results || []) as unknown) as ModelRow[]),
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM body_types ORDER BY name ASC").all().then((r) => ((r.results || []) as unknown) as DictionaryRow[]),
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM fuel_types ORDER BY name ASC").all().then((r) => ((r.results || []) as unknown) as DictionaryRow[]),
+        getCachedCarBrands(context.cloudflare.env.DB) as Promise<DictionaryRow[]>,
+        getCachedCarModels(context.cloudflare.env.DB) as Promise<ModelRow[]>,
+        getCachedBodyTypes(context.cloudflare.env.DB) as Promise<DictionaryRow[]>,
+        getCachedFuelTypes(context.cloudflare.env.DB) as Promise<DictionaryRow[]>,
     ])
 
     return { template, brands, models, bodyTypes, fuelTypes }

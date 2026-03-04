@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Link } from "react-router";
-import { useState } from "react";
+import { useLoaderData, Link, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
@@ -11,26 +10,26 @@ import { BanknotesIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { format, isValid } from "date-fns";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
-type PaymentListRow = {
-    id: number;
-    amount: number;
-    status: string;
-    created_at?: string | null;
-    createdAt?: string | null;
-    payment_method?: string | null;
-    paymentMethod?: string | null;
-    contractId?: number | null;
-    paymentTypeName?: string | null;
-    paymentTypeSign?: string | null;
-    currencyCode?: string | null;
-    currencySymbol?: string | null;
-    creatorName?: string | null;
-    creatorSurname?: string | null;
-};
+import { getPaginationFromUrl } from "~/lib/pagination.server";
+import { parseListFilters } from "~/lib/query-filters.server";
+import { listPaymentsPage } from "~/lib/payments-repo.server";
+import type { PaymentListRow } from "~/lib/db-types";
+const PAYMENT_TABS = ["completed", "pending", "cancelled"] as const;
+type PaymentTab = typeof PAYMENT_TABS[number];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
+    const url = new URL(request.url);
+    const { tab, search, sortBy, sortOrder } = parseListFilters(url, {
+        tabs: PAYMENT_TABS,
+        defaultTab: "completed",
+        sortBy: ["createdAt", "id", "amount", "status"] as const,
+        defaultSortBy: "createdAt",
+        defaultSortOrder: "desc",
+    });
+    const activeTab: PaymentTab = tab ?? "completed";
+    const { pageSize, offset } = getPaginationFromUrl(url, { defaultPageSize: 10 });
 
     let paymentsList: Array<PaymentListRow & {
         createdAt: string | null;
@@ -41,53 +40,20 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         creator: { name: string | null; surname: string | null } | null;
     }> = [];
     let statusCounts = { all: 0, pending: 0, completed: 0, cancelled: 0 };
+    let totalCount = 0;
 
     try {
-        const sql = effectiveCompanyId
-            ? `
-                SELECT
-                    p.*,
-                    c.id AS contractId,
-                    pt.name AS paymentTypeName,
-                    pt.sign AS paymentTypeSign,
-                    cur.code AS currencyCode,
-                    cur.symbol AS currencySymbol,
-                    u.name AS creatorName,
-                    u.surname AS creatorSurname
-                FROM payments p
-                JOIN contracts c ON c.id = p.contract_id
-                JOIN company_cars cc ON cc.id = c.company_car_id
-                LEFT JOIN payment_types pt ON pt.id = p.payment_type_id
-                LEFT JOIN currencies cur ON cur.code = p.currency
-                LEFT JOIN users u ON u.id = p.created_by
-                WHERE cc.company_id = ?
-                ORDER BY p.created_at DESC
-                LIMIT 50
-            `
-            : `
-                SELECT
-                    p.*,
-                    c.id AS contractId,
-                    pt.name AS paymentTypeName,
-                    pt.sign AS paymentTypeSign,
-                    cur.code AS currencyCode,
-                    cur.symbol AS currencySymbol,
-                    u.name AS creatorName,
-                    u.surname AS creatorSurname
-                FROM payments p
-                LEFT JOIN contracts c ON c.id = p.contract_id
-                LEFT JOIN payment_types pt ON pt.id = p.payment_type_id
-                LEFT JOIN currencies cur ON cur.code = p.currency
-                LEFT JOIN users u ON u.id = p.created_by
-                ORDER BY p.created_at DESC
-                LIMIT 50
-            `;
-
-        const query = context.cloudflare.env.DB.prepare(sql);
-        const result = effectiveCompanyId
-            ? await query.bind(effectiveCompanyId).all()
-            : await query.all();
-        paymentsList = (((result as { results?: PaymentListRow[] }).results) || []).map((p: PaymentListRow) => ({
+        const rawPayments = await listPaymentsPage({
+            db: context.cloudflare.env.DB,
+            companyId: effectiveCompanyId,
+            status: activeTab,
+            pageSize,
+            offset,
+            search,
+            sortBy: sortBy || "createdAt",
+            sortOrder,
+        });
+        paymentsList = rawPayments.map((p: PaymentListRow) => ({
             ...p,
             createdAt: p.created_at ?? p.createdAt ?? null,
             paymentMethod: p.payment_method ?? p.paymentMethod ?? null,
@@ -97,21 +63,76 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             creator: p.creatorName || p.creatorSurname ? { name: p.creatorName ?? null, surname: p.creatorSurname ?? null } : null,
         }));
 
-        statusCounts.all = paymentsList.length;
-        statusCounts.pending = paymentsList.filter(p => p.status === "pending").length;
-        statusCounts.completed = paymentsList.filter(p => p.status === "completed").length;
-        statusCounts.cancelled = paymentsList.filter(p => p.status === "cancelled").length;
+        const countsSql = effectiveCompanyId
+            ? `
+                SELECT p.status AS status, COUNT(*) AS count
+                FROM payments p
+                JOIN contracts c ON c.id = p.contract_id
+                JOIN company_cars cc ON cc.id = c.company_car_id
+                WHERE cc.company_id = ?
+                GROUP BY p.status
+            `
+            : `
+                SELECT status, COUNT(*) AS count
+                FROM payments
+                GROUP BY status
+            `;
+        const countsQuery = context.cloudflare.env.DB.prepare(countsSql);
+        const countsResult = effectiveCompanyId
+            ? await countsQuery.bind(effectiveCompanyId).all() as { results?: Array<{ status: string; count: number | string }> }
+            : await countsQuery.all() as { results?: Array<{ status: string; count: number | string }> };
+
+        for (const row of countsResult.results || []) {
+            const count = Number(row.count || 0);
+            statusCounts.all += count;
+            if (row.status === "pending") statusCounts.pending = count;
+            if (row.status === "completed") statusCounts.completed = count;
+            if (row.status === "cancelled") statusCounts.cancelled = count;
+        }
+        if (search) {
+            const countSql = effectiveCompanyId
+                ? `
+                    SELECT COUNT(*) AS count
+                    FROM payments p
+                    JOIN contracts c ON c.id = p.contract_id
+                    JOIN company_cars cc ON cc.id = c.company_car_id
+                    LEFT JOIN payment_types pt ON pt.id = p.payment_type_id
+                    LEFT JOIN users u ON u.id = p.created_by
+                    WHERE cc.company_id = ? AND p.status = ?
+                    AND (CAST(p.id AS TEXT) LIKE ? OR CAST(c.id AS TEXT) LIKE ? OR COALESCE(pt.name,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR CAST(p.amount AS TEXT) LIKE ?)
+                `
+                : `
+                    SELECT COUNT(*) AS count
+                    FROM payments p
+                    LEFT JOIN contracts c ON c.id = p.contract_id
+                    LEFT JOIN payment_types pt ON pt.id = p.payment_type_id
+                    LEFT JOIN users u ON u.id = p.created_by
+                    WHERE p.status = ?
+                    AND (CAST(p.id AS TEXT) LIKE ? OR CAST(c.id AS TEXT) LIKE ? OR COALESCE(pt.name,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR CAST(p.amount AS TEXT) LIKE ?)
+                `;
+            const q = `%${search}%`;
+            const countResult = effectiveCompanyId
+                ? await context.cloudflare.env.DB.prepare(countSql).bind(effectiveCompanyId, activeTab, q, q, q, q, q, q).first() as { count?: number | string } | null
+                : await context.cloudflare.env.DB.prepare(countSql).bind(activeTab, q, q, q, q, q, q).first() as { count?: number | string } | null;
+            totalCount = Number(countResult?.count || 0);
+        } else {
+            totalCount = activeTab === "pending"
+                ? statusCounts.pending
+                : activeTab === "cancelled"
+                    ? statusCounts.cancelled
+                    : statusCounts.completed;
+        }
     } catch {
         paymentsList = [];
     }
 
-    return { user, payments: paymentsList, statusCounts };
+    return { user, payments: paymentsList, statusCounts, activeTab, totalCount, search };
 }
 
 export default function PaymentsPage() {
-    const { payments: paymentsList, statusCounts } = useLoaderData<typeof loader>();
+    const { payments: paymentsList, statusCounts, activeTab, totalCount, search } = useLoaderData<typeof loader>();
     useUrlToast();
-    const [activeTab, setActiveTab] = useState<string>("completed");
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const tabs = [
         { id: "completed", label: "Completed", count: statusCounts.completed },
@@ -119,12 +140,11 @@ export default function PaymentsPage() {
         { id: "cancelled", label: "Cancelled", count: statusCounts.cancelled },
     ];
 
-    const filteredPayments = paymentsList.filter(payment => payment.status === activeTab);
-
     const columns: Column<typeof paymentsList[0]>[] = [
         {
             key: "id",
             label: "ID",
+            sortable: true,
             render: (payment) => (
                 <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold font-mono bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
                     {String(payment.id).padStart(3, '0')}
@@ -134,6 +154,7 @@ export default function PaymentsPage() {
         {
             key: "createdAt",
             label: "Date",
+            sortable: true,
             render: (payment) => {
                 if (!payment.createdAt) return "-";
                 const createdAt = new Date(payment.createdAt);
@@ -174,6 +195,7 @@ export default function PaymentsPage() {
         {
             key: "status",
             label: "Status",
+            sortable: true,
             render: (payment) => <StatusBadge variant={payment.status === "completed" ? "success" : "warning"}>{payment.status}</StatusBadge>
         },
         {
@@ -187,6 +209,7 @@ export default function PaymentsPage() {
         {
             key: "amount",
             label: "Amount",
+            sortable: true,
             render: (payment) => {
                 const currencySymbol = payment.currency?.symbol || "฿";
                 const currencyCode = payment.currency?.code || "THB";
@@ -203,6 +226,16 @@ export default function PaymentsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Payments"
+                withSearch
+                searchValue={search}
+                searchPlaceholder="Search payments"
+                onSearchChange={(value) => {
+                    const next = new URLSearchParams(searchParams);
+                    if (value.trim()) next.set("search", value.trim());
+                    else next.delete("search");
+                    next.set("page", "1");
+                    setSearchParams(next);
+                }}
                 rightActions={
                     <Link to="/payments/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
@@ -212,12 +245,22 @@ export default function PaymentsPage() {
                 }
             />
 
-            <Tabs tabs={tabs} activeTab={activeTab} onTabChange={(id) => setActiveTab(id as string)} />
+            <Tabs
+                tabs={tabs}
+                activeTab={activeTab}
+                onTabChange={(id) => {
+                    const next = new URLSearchParams(searchParams);
+                    next.set("tab", String(id));
+                    next.set("page", "1");
+                    setSearchParams(next);
+                }}
+            />
 
             <DataTable
-                data={filteredPayments}
+                data={paymentsList}
                 columns={columns}
-                totalCount={filteredPayments.length}
+                totalCount={totalCount}
+                serverPagination
                 emptyTitle="No payments found"
                 emptyDescription={`No payments with status "${activeTab}"`}
                 emptyIcon={<BanknotesIcon className="w-10 h-10" />}

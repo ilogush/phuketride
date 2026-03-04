@@ -11,23 +11,19 @@ import BackButton from "~/components/dashboard/BackButton";
 import { BanknotesIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { paymentSchema } from "~/schemas/payment";
+import { QUERY_LIMITS } from "~/lib/query-limits";
+import { getCachedCurrencies, getCachedPaymentTypes } from "~/lib/dictionaries-cache.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     await requireAuth(request);
     const [contractsResult, paymentTypesResult, carsResult, currenciesList] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT id FROM contracts LIMIT 100").all(),
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM payment_types LIMIT 100").all(),
-        context.cloudflare.env.DB.prepare("SELECT id, license_plate AS licensePlate FROM company_cars LIMIT 100").all(),
-        // Mock currencies data
-        Promise.resolve([
-            { id: 1, code: "THB", symbol: "฿" },
-            { id: 2, code: "USD", symbol: "$" },
-            { id: 3, code: "EUR", symbol: "€" },
-            { id: 7, code: "RUB", symbol: "₽" },
-        ])
+        context.cloudflare.env.DB.prepare(`SELECT id FROM contracts LIMIT ${QUERY_LIMITS.LARGE}`).all(),
+        getCachedPaymentTypes(context.cloudflare.env.DB),
+        context.cloudflare.env.DB.prepare(`SELECT id, license_plate AS licensePlate FROM company_cars LIMIT ${QUERY_LIMITS.LARGE}`).all(),
+        getCachedCurrencies(context.cloudflare.env.DB),
     ]);
     const contractsList = (contractsResult.results ?? []) as Array<{ id: number }>;
-    const paymentTypesList = (paymentTypesResult.results ?? []) as Array<{ id: number; name: string }>;
+    const paymentTypesList = paymentTypesResult as Array<{ id: number; name: string }>;
     const carsList = (carsResult.results ?? []) as Array<{ id: number; licensePlate: string }>;
     return { contracts: contractsList, paymentTypes: paymentTypesList, cars: carsList, currencies: currenciesList };
 }

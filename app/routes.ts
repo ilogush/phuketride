@@ -22,14 +22,6 @@ export default [
     route("company/:slug", "routes/company.$slug.tsx"),
     route("cars/:id", "routes/cars.$id.tsx"),
     route("cars/:id/checkout", "routes/cars.$id.checkout.tsx"),
-    // Legacy compatibility URL
-    route("dashboard", "routes/legacy-redirect.tsx"),
-    route("dashboard/*", "routes/legacy-redirect-splat.tsx"),
-    route("dashboard/companies", "routes/legacy.dashboard.companies.tsx"),
-    route("dashboard/companies/:companyId/edit", "routes/legacy.dashboard.companies.$companyId.edit.tsx"),
-    route("dashboard/cars", "routes/legacy.dashboard.cars.tsx"),
-    route("dashboard/cars/:id/edit", "routes/legacy.dashboard.cars.$id.edit.tsx"),
-
     // Protected routes with dashboard layout (root admin URLs)
     layout("routes/app-layout.tsx", [
         route("home", "routes/dashboard-home.tsx"),

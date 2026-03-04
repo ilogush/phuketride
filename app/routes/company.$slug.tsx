@@ -6,6 +6,7 @@ import Breadcrumbs from "~/components/public/Breadcrumbs";
 import PopularCarsSection from "~/components/public/PopularCarsSection";
 import { buildCarPathSegment, buildCompanySlug } from "~/lib/car-path";
 import { getCarPhotoUrls } from "~/lib/car-photos";
+import { QUERY_LIMITS } from "~/lib/query-limits";
 
 export function meta({ data }: Route.MetaArgs) {
   const companyName = data?.companyName || "Company";
@@ -70,7 +71,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
         AND cc.archived_at IS NULL
         AND c.archived_at IS NULL
       ORDER BY cc.created_at DESC
-      LIMIT 200
+      LIMIT ${QUERY_LIMITS.XL}
       `
     )
     .all();

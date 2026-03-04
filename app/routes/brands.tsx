@@ -19,7 +19,15 @@ export default function BrandsPage() {
     const { user } = useLoaderData<typeof loader>();
     useUrlToast();
 
-    const columns: Column<any>[] = [
+    type BrandRow = {
+        id: number;
+        name: string;
+        logo?: string | null;
+        modelsCount?: number;
+        createdAt?: string;
+    };
+
+    const columns: Column<BrandRow>[] = [
         { key: "id", label: "ID" },
         { key: "name", label: "Name" },
         { key: "logo", label: "Logo", render: (item) => item.logo ? <img src={item.logo} alt={item.name} className="w-8 h-8 rounded object-contain" /> : <div className="w-8 h-8 bg-gray-100 rounded" /> },

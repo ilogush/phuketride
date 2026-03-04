@@ -14,6 +14,7 @@ import { useState } from 'react'
 import { useToast } from '~/lib/toast'
 import { getRequestMetadata, quickAudit } from '~/lib/audit-logger'
 import type { Column } from '~/components/dashboard/DataTable'
+import { QUERY_LIMITS } from '~/lib/query-limits'
 
 interface BrandRow {
     id: number
@@ -60,7 +61,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
     const [brands, models, templates] = await Promise.all([
         context.cloudflare.env.DB
-            .prepare("SELECT id, name, logo_url, created_at FROM car_brands ORDER BY name ASC LIMIT 100")
+            .prepare(`SELECT id, name, logo_url, created_at FROM car_brands ORDER BY name ASC LIMIT ${QUERY_LIMITS.LARGE}`)
             .all()
             .then((r) => (r.results || []) as unknown as BrandRow[]),
         context.cloudflare.env.DB
@@ -75,7 +76,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
                 FROM car_models cm
                 LEFT JOIN car_brands cb ON cb.id = cm.brand_id
                 ORDER BY cm.name ASC
-                LIMIT 200
+                LIMIT ${QUERY_LIMITS.XL}
             `)
             .all()
             .then((r) => (r.results || []) as unknown as ModelRow[]),
@@ -101,7 +102,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
                 LEFT JOIN car_models cm ON cm.id = ct.model_id
                 LEFT JOIN fuel_types ft ON ft.id = ct.fuel_type_id
                 ORDER BY ct.created_at DESC
-                LIMIT 100
+                LIMIT ${QUERY_LIMITS.LARGE}
             `)
             .all()
             .then((r) => (r.results || []) as unknown as TemplateRow[]),

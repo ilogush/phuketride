@@ -28,6 +28,9 @@ import {
     getExtraFlagsFromFormData,
     getExtraInputFromFormData,
 } from "~/lib/contract-extras.server";
+import { getCachedActiveCurrenciesForCompany } from "~/lib/dictionaries-cache.server";
+import type { CurrencyRow as ContractNewCurrencyRow } from "~/lib/db-types";
+import { parseDisplayDateTimeToDate } from "~/lib/date-windows";
 import {
     TruckIcon,
     CalendarIcon,
@@ -50,12 +53,6 @@ type ContractNewDistrictRow = {
     name: string | null;
     name_en: string | null;
 };
-type ContractNewCurrencyRow = {
-    id: number;
-    code: string;
-    symbol: string;
-};
-
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const companyId = user.companyId ?? null;
@@ -84,12 +81,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             .all()
             .then((r: { results?: ContractNewDistrictRow[] }) => r.results || [])
             .catch(() => []),
-        context.cloudflare.env.DB
-            .prepare("SELECT id, code, symbol FROM currencies WHERE is_active = 1 AND (company_id IS NULL OR company_id = ?)")
-            .bind(companyId)
-            .all()
-            .then((r: { results?: ContractNewCurrencyRow[] }) => r.results || [])
-            .catch(() => []),
+        getCachedActiveCurrenciesForCompany(context.cloudflare.env.DB, companyId) as Promise<ContractNewCurrencyRow[]>,
     ]);
 
     const safeCurrencies =
@@ -247,16 +239,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
         // Parse contract data
         const companyCarId = Number(formData.get("company_car_id"));
 
-        // Use a more flexible parser for DD/MM/YYYY HH:mm
-        const parseDateTime = (val: string) => {
-            const parts = val.split(/[\s/:]/);
-            if (parts.length < 3) return new Date(val);
-            const [d, m, y, h, min] = parts.map(Number);
-            return new Date(y, m - 1, d, h || 0, min || 0);
-        };
-
-        const startDate = parseDateTime(String(formData.get("start_date")));
-        const endDate = parseDateTime(String(formData.get("end_date")));
+        const startDate = parseDisplayDateTimeToDate(String(formData.get("start_date") || ""));
+        const endDate = parseDisplayDateTimeToDate(String(formData.get("end_date") || ""));
         const totalAmount = Number(formData.get("total_amount"));
         const depositAmount = Number(formData.get("deposit_amount")) || 0;
         const totalCurrency = "THB";
@@ -673,7 +657,7 @@ export default function NewContract() {
                                                 <FormSelect
                                                     label="Currency"
                                                     name="extra_full_insurance_currency"
-                                                    options={currencies.map((c: { id: number; code: string; symbol: string }) => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
+                                                    options={currencies.map((c) => ({ id: c.id, name: `${c.code} (${c.symbol ?? ""})` }))}
                                                     placeholder="Select Currency"
                                                 />
                                                 <FormSelect
@@ -701,7 +685,7 @@ export default function NewContract() {
                                                 <FormSelect
                                                     label="Currency"
                                                     name="extra_island_trip_currency"
-                                                    options={currencies.map((c: { id: number; code: string; symbol: string }) => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
+                                                    options={currencies.map((c) => ({ id: c.id, name: `${c.code} (${c.symbol ?? ""})` }))}
                                                     placeholder="Select Currency"
                                                 />
                                                 <FormSelect
@@ -729,7 +713,7 @@ export default function NewContract() {
                                                 <FormSelect
                                                     label="Currency"
                                                     name="extra_krabi_trip_currency"
-                                                    options={currencies.map((c: { id: number; code: string; symbol: string }) => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
+                                                    options={currencies.map((c) => ({ id: c.id, name: `${c.code} (${c.symbol ?? ""})` }))}
                                                     placeholder="Select Currency"
                                                 />
                                                 <FormSelect
@@ -757,7 +741,7 @@ export default function NewContract() {
                                                 <FormSelect
                                                     label="Currency"
                                                     name="extra_baby_seat_currency"
-                                                    options={currencies.map((c: { id: number; code: string; symbol: string }) => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
+                                                    options={currencies.map((c) => ({ id: c.id, name: `${c.code} (${c.symbol ?? ""})` }))}
                                                     placeholder="Select Currency"
                                                 />
                                                 <FormSelect

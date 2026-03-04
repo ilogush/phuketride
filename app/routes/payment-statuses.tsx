@@ -17,7 +17,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function PaymentStatusesPage() {
     const { user } = useLoaderData<typeof loader>();
 
-    const columns: Column<any>[] = [
+    type PaymentStatusRow = {
+        id: number;
+        name: string;
+        color?: string;
+        description?: string;
+    };
+
+    const columns: Column<PaymentStatusRow>[] = [
         { key: "id", label: "ID" },
         { key: "name", label: "Status Name" },
         { key: "color", label: "Color" },

@@ -1,5 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
+import { getFutureWindow, getRelativeDayStatus, toDateFromUnknown, toIsoWindow } from "~/lib/date-windows";
 
 type CalendarEventStatus = 'upcoming' | 'today' | 'overdue';
 
@@ -30,35 +31,46 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         const d1 = context.cloudflare.env.DB;
 
         const url = new URL(request.url);
-        const limit = parseInt(url.searchParams.get("limit") || "5");
+        const rawLimit = parseInt(url.searchParams.get("limit") || "5", 10);
+        const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 50) : 5;
         const companyId = url.searchParams.get("companyId");
+        const parsedCompanyId = companyId ? parseInt(companyId, 10) : null;
 
         const events: EventItem[] = [];
         const today = new Date();
-        const futureDate = new Date();
-        futureDate.setDate(today.getDate() + 30);
+        const { startIso: todayIso, endIso: futureDateIso } = toIsoWindow(getFutureWindow(30, today));
 
-        // Get upcoming contract end dates
+        // Get upcoming contract end dates with proper access scoping.
+        let contractsQuery = `
+            SELECT c.id, c.end_date AS endDate, c.status
+            FROM contracts c
+        `;
+        const contractBindings: Array<string | number> = [todayIso, futureDateIso];
+        if (Number.isFinite(parsedCompanyId) && parsedCompanyId !== null) {
+            contractsQuery += " JOIN company_cars cc ON cc.id = c.company_car_id WHERE c.end_date >= ? AND c.end_date <= ? AND cc.company_id = ?";
+            contractBindings.push(parsedCompanyId);
+        } else if (user.companyId) {
+            contractsQuery += " JOIN company_cars cc ON cc.id = c.company_car_id WHERE c.end_date >= ? AND c.end_date <= ? AND cc.company_id = ?";
+            contractBindings.push(user.companyId);
+        } else if (user.role === "user") {
+            contractsQuery += " WHERE c.end_date >= ? AND c.end_date <= ? AND c.client_id = ?";
+            contractBindings.push(user.id);
+        } else {
+            contractsQuery += " WHERE c.end_date >= ? AND c.end_date <= ?";
+        }
+        contractsQuery += " ORDER BY c.end_date ASC LIMIT ?";
+        contractBindings.push(limit);
+
         const upcomingContractsResult = await d1
-            .prepare(
-                `
-                SELECT id, end_date AS endDate, status
-                FROM contracts
-                WHERE end_date >= ? AND end_date <= ?
-                LIMIT ?
-                `
-            )
-            .bind(today.getTime(), futureDate.getTime(), limit)
+            .prepare(contractsQuery)
+            .bind(...contractBindings)
             .all() as { results?: UpcomingContractRow[] };
         const upcomingContracts = upcomingContractsResult.results ?? [];
 
         upcomingContracts.forEach((contract: UpcomingContractRow) => {
-            const eventDate = new Date(Number(contract.endDate));
-            const diffDays = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-            let status: CalendarEventStatus = 'upcoming';
-            if (diffDays === 0) status = 'today';
-            else if (diffDays < 0) status = 'overdue';
+            const eventDate = toDateFromUnknown(contract.endDate);
+            if (!eventDate) return;
+            const status = getRelativeDayStatus(eventDate, today) as CalendarEventStatus;
 
             events.push({
                 id: contract.id,
@@ -75,7 +87,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             FROM calendar_events
             WHERE start_date >= ? AND start_date <= ?
         `;
-        const bindings: Array<string | number> = [today.getTime(), futureDate.getTime()];
+        const bindings: Array<string | number> = [todayIso, futureDateIso];
         if (companyId) {
             calendarEventsQuery += " AND company_id = ?";
             bindings.push(parseInt(companyId, 10));
@@ -93,12 +105,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         const calendarEventsData = calendarEventsDataResult.results ?? [];
 
         calendarEventsData.forEach((event: CalendarEventRow) => {
-            const eventDate = new Date(Number(event.startDate));
-            const diffDays = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-            let status: CalendarEventStatus = 'upcoming';
-            if (diffDays === 0) status = 'today';
-            else if (diffDays < 0) status = 'overdue';
+            const eventDate = toDateFromUnknown(event.startDate);
+            if (!eventDate) return;
+            const status = getRelativeDayStatus(eventDate, today) as CalendarEventStatus;
 
             events.push({
                 id: event.id,

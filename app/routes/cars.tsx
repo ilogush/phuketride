@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
-import { useState } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
@@ -11,25 +10,26 @@ import { TruckIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 import { getPrimaryCarPhotoUrl } from "~/lib/car-photos";
-type CarListRow = {
-    id: number;
-    photos: string | null;
-    license_plate: string | null;
-    price_per_day: number | null;
-    insurance_type: string | null;
-    engine_volume: number | null;
-    mileage: number | null;
-    deposit: number | null;
-    status: string;
-    brandName: string | null;
-    modelName: string | null;
-    bodyTypeName: string | null;
-    colorName: string | null;
-};
+import { getPaginationFromUrl } from "~/lib/pagination.server";
+import { parseListFilters } from "~/lib/query-filters.server";
+import { listCarsPage } from "~/lib/cars-repo.server";
+import type { CarListRow } from "~/lib/db-types";
+const CAR_TABS = ["available", "rented", "maintenance", "booked"] as const;
+type CarTab = typeof CAR_TABS[number];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
+    const url = new URL(request.url);
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
+    const { tab, search, sortBy, sortOrder } = parseListFilters(url, {
+        tabs: CAR_TABS,
+        defaultTab: "available",
+        sortBy: ["createdAt", "id", "licensePlate", "pricePerDay", "mileage", "deposit"] as const,
+        defaultSortBy: "createdAt",
+        defaultSortOrder: "desc",
+    });
+    const activeStatus: CarTab = tab ?? "available";
+    const { page, pageSize, offset } = getPaginationFromUrl(url);
 
     let cars: Array<CarListRow & {
         previewPhotoUrl: string | null;
@@ -40,44 +40,47 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         color: { name: string | null };
     }> = [];
     let statusCounts = { all: 0, available: 0, rented: 0, maintenance: 0, booked: 0 };
+    let totalCount = 0;
 
     try {
-        const query = effectiveCompanyId
-            ? context.cloudflare.env.DB.prepare(`
-                SELECT
-                    cc.*,
-                    cb.name AS brandName,
-                    cm.name AS modelName,
-                    bt.name AS bodyTypeName,
-                    cl.name AS colorName
-                FROM company_cars cc
-                LEFT JOIN car_templates ct ON ct.id = cc.template_id
-                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-                LEFT JOIN car_models cm ON cm.id = ct.model_id
-                LEFT JOIN body_types bt ON bt.id = ct.body_type_id
-                LEFT JOIN colors cl ON cl.id = cc.color_id
-                WHERE cc.company_id = ?
-                ORDER BY cc.created_at DESC
-                LIMIT 50
-            `).bind(effectiveCompanyId)
-            : context.cloudflare.env.DB.prepare(`
-                SELECT
-                    cc.*,
-                    cb.name AS brandName,
-                    cm.name AS modelName,
-                    bt.name AS bodyTypeName,
-                    cl.name AS colorName
-                FROM company_cars cc
-                LEFT JOIN car_templates ct ON ct.id = cc.template_id
-                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-                LEFT JOIN car_models cm ON cm.id = ct.model_id
-                LEFT JOIN body_types bt ON bt.id = ct.body_type_id
-                LEFT JOIN colors cl ON cl.id = cc.color_id
-                ORDER BY cc.created_at DESC
-                LIMIT 50
-            `);
-        const result = await query.all() as { results?: CarListRow[] };
-        cars = (result.results || []).map((car: CarListRow) => ({
+        const [countsResult, result] = effectiveCompanyId
+            ? await Promise.all([
+                context.cloudflare.env.DB.prepare(`
+                    SELECT status, COUNT(*) AS count
+                    FROM company_cars
+                    WHERE company_id = ?
+                    GROUP BY status
+                `).bind(effectiveCompanyId).all() as Promise<{ results?: Array<{ status: string; count: number }> }>,
+                listCarsPage({
+                    db: context.cloudflare.env.DB,
+                    companyId: effectiveCompanyId,
+                    status: activeStatus,
+                    pageSize,
+                    offset,
+                    search,
+                    sortBy: sortBy || "createdAt",
+                    sortOrder,
+                }) as Promise<CarListRow[]>,
+            ])
+            : await Promise.all([
+                context.cloudflare.env.DB.prepare(`
+                    SELECT status, COUNT(*) AS count
+                    FROM company_cars
+                    GROUP BY status
+                `).all() as Promise<{ results?: Array<{ status: string; count: number }> }>,
+                listCarsPage({
+                    db: context.cloudflare.env.DB,
+                    companyId: null,
+                    status: activeStatus,
+                    pageSize,
+                    offset,
+                    search,
+                    sortBy: sortBy || "createdAt",
+                    sortOrder,
+                }) as Promise<CarListRow[]>,
+            ]);
+
+        cars = result.map((car: CarListRow) => ({
             ...car,
             previewPhotoUrl: getPrimaryCarPhotoUrl(car.photos, request.url, null),
             licensePlate: car.license_plate,
@@ -92,22 +95,48 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             color: { name: car.colorName },
         }));
 
-        statusCounts.all = cars.length;
-        statusCounts.available = cars.filter(c => c.status === "available").length;
-        statusCounts.rented = cars.filter(c => c.status === "rented").length;
-        statusCounts.maintenance = cars.filter(c => c.status === "maintenance").length;
-        statusCounts.booked = cars.filter(c => c.status === "booked").length;
+        (countsResult.results || []).forEach((row) => {
+            const count = Number(row.count || 0);
+            if (row.status === "available") statusCounts.available = count;
+            if (row.status === "rented") statusCounts.rented = count;
+            if (row.status === "maintenance") statusCounts.maintenance = count;
+            if (row.status === "booked") statusCounts.booked = count;
+        });
+        statusCounts.all = statusCounts.available + statusCounts.rented + statusCounts.maintenance + statusCounts.booked;
+        if (search) {
+            const countSql = `
+                SELECT COUNT(*) AS count
+                FROM company_cars cc
+                LEFT JOIN car_templates ct ON ct.id = cc.template_id
+                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+                LEFT JOIN car_models cm ON cm.id = ct.model_id
+                LEFT JOIN body_types bt ON bt.id = ct.body_type_id
+                LEFT JOIN colors cl ON cl.id = cc.color_id
+                WHERE ${effectiveCompanyId ? "cc.company_id = ? AND " : ""}cc.status = ?
+                AND (COALESCE(cc.license_plate,'') LIKE ? OR COALESCE(cb.name,'') LIKE ? OR COALESCE(cm.name,'') LIKE ? OR COALESCE(bt.name,'') LIKE ? OR COALESCE(cl.name,'') LIKE ?)
+            `;
+            const q = `%${search}%`;
+            const countResult = effectiveCompanyId
+                ? await context.cloudflare.env.DB.prepare(countSql).bind(effectiveCompanyId, activeStatus, q, q, q, q, q).first() as { count?: number | string } | null
+                : await context.cloudflare.env.DB.prepare(countSql).bind(activeStatus, q, q, q, q, q).first() as { count?: number | string } | null;
+            totalCount = Number(countResult?.count || 0);
+        } else {
+            totalCount = activeStatus === "available" ? statusCounts.available
+                : activeStatus === "rented" ? statusCounts.rented
+                    : activeStatus === "maintenance" ? statusCounts.maintenance
+                        : statusCounts.booked;
+        }
     } catch {
         cars = [];
     }
 
-    return { user, cars, statusCounts };
+    return { user, cars, statusCounts, activeStatus, totalCount, page, pageSize, search };
 }
 
 export default function CarsPage() {
-    const { cars, statusCounts } = useLoaderData<typeof loader>();
+    const { cars, statusCounts, activeStatus, totalCount, search } = useLoaderData<typeof loader>();
     useUrlToast();
-    const [activeTab, setActiveTab] = useState<string>("available");
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const tabs = [
         { id: "available", label: "Available" },
@@ -116,8 +145,7 @@ export default function CarsPage() {
         { id: "booked", label: "Booked" },
     ];
 
-    const filteredCars = cars.filter(car => car.status === activeTab);
-    const [searchParams] = useSearchParams();
+    const currentTab = String(activeStatus);
     const modCompanyId = searchParams.get("modCompanyId");
 
     const columns: Column<typeof cars[0]>[] = [
@@ -147,7 +175,7 @@ export default function CarsPage() {
                 );
             }
         },
-        { key: "licensePlate", label: "License Plate" },
+        { key: "licensePlate", label: "License Plate", sortable: true },
         {
             key: "car",
             label: "Car",
@@ -176,6 +204,7 @@ export default function CarsPage() {
         {
             key: "mileage",
             label: "Mileage",
+            sortable: true,
             render: (car) => car.mileage ? `${car.mileage.toLocaleString('en-US')} km` : "-"
         },
         {
@@ -186,11 +215,13 @@ export default function CarsPage() {
         {
             key: "pricePerDay",
             label: "Price per Day",
+            sortable: true,
             render: (car) => `${Number(car.pricePerDay || 0).toLocaleString("en-US")} THB`
         },
         {
             key: "deposit",
             label: "Deposit",
+            sortable: true,
             render: (car) => `${Number(car.deposit || 0).toLocaleString("en-US")} THB`
         },
         {
@@ -204,6 +235,16 @@ export default function CarsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Cars"
+                withSearch
+                searchValue={search}
+                searchPlaceholder="Search cars"
+                onSearchChange={(value) => {
+                    const next = new URLSearchParams(searchParams);
+                    if (value.trim()) next.set("search", value.trim());
+                    else next.delete("search");
+                    next.set("page", "1");
+                    setSearchParams(next);
+                }}
                 rightActions={
                     <Link to="/cars/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
@@ -213,14 +254,24 @@ export default function CarsPage() {
                 }
             />
 
-            <Tabs tabs={tabs} activeTab={activeTab} onTabChange={(id) => setActiveTab(id as string)} />
+            <Tabs
+                tabs={tabs}
+                activeTab={currentTab}
+                onTabChange={(id) => {
+                    const next = new URLSearchParams(searchParams);
+                    next.set("tab", String(id));
+                    next.set("page", "1");
+                    setSearchParams(next);
+                }}
+            />
 
             <DataTable
-                data={filteredCars}
+                data={cars}
                 columns={columns}
-                totalCount={filteredCars.length}
+                totalCount={totalCount}
+                serverPagination
                 emptyTitle="No cars found"
-                emptyDescription={`No cars with status "${activeTab}"`}
+                emptyDescription={`No cars with status "${currentTab}"`}
                 emptyIcon={<TruckIcon className="w-10 h-10" />}
             />
         </div>

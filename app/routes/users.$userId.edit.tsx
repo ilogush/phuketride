@@ -195,8 +195,8 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 
     const passportPhotosInput = parseUploadPhotoItems(formData.get("passportPhotos"));
     const driverLicensePhotosInput = parseUploadPhotoItems(formData.get("driverLicensePhotos"));
-    const legacyDocumentPhotosInput = parseUploadPhotoItems(formData.get("documentPhotos"));
-    const nextPassportInput = passportPhotosInput.length > 0 ? passportPhotosInput : legacyDocumentPhotosInput;
+    const fallbackDocumentPhotosInput = parseUploadPhotoItems(formData.get("documentPhotos"));
+    const nextPassportInput = passportPhotosInput.length > 0 ? passportPhotosInput : fallbackDocumentPhotosInput;
 
     const existingPassportPhotos = parseStoredPhotoItems(currentUser.passportPhotos);
     const existingDriverLicensePhotos = parseStoredPhotoItems(currentUser.driverLicensePhotos);

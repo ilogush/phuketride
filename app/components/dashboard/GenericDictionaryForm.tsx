@@ -17,23 +17,35 @@ export interface FieldConfig {
     placeholder?: string
     maxLength?: number
     options?: Array<{ id: number | string; name: string }>
-    validation?: (value: any, formData: Record<string, any>) => string | null
+    validation?: (value: unknown, formData: Record<string, unknown>) => string | null
     disabled?: boolean
     className?: string
     rows?: number
     helpText?: string
-    transform?: (value: any) => any
+    transform?: (value: string) => unknown
 }
 
 interface GenericDictionaryFormProps {
     title: string
     fields: FieldConfig[]
-    data?: Record<string, any> | null
-    onSubmit: (data: Record<string, any>) => void
+    data?: Record<string, unknown> | null
+    onSubmit: (data: Record<string, unknown>) => void
     onCancel: () => void
     onDelete?: () => void
     submitLabel?: string
     gridCols?: number
+}
+
+const toInputValue = (value: unknown): string | number | readonly string[] | undefined => {
+    if (value === null || value === undefined) return ''
+    if (typeof value === 'string' || typeof value === 'number') return value
+    if (Array.isArray(value)) return value.map((v) => String(v))
+    return String(value)
+}
+
+const toColorValue = (value: unknown): string => {
+    if (typeof value === 'string' && value.trim()) return value
+    return '#000000'
 }
 
 export function GenericDictionaryForm({
@@ -46,11 +58,11 @@ export function GenericDictionaryForm({
     submitLabel,
     gridCols = 4
 }: GenericDictionaryFormProps) {
-    const [formData, setFormData] = useState<Record<string, any>>({})
+    const [formData, setFormData] = useState<Record<string, unknown>>({})
     const [errors, setErrors] = useState<Record<string, string>>({})
 
     useEffect(() => {
-        const initialData: Record<string, any> = {}
+        const initialData: Record<string, unknown> = {}
         fields.forEach(field => {
             if (data && data[field.name] !== undefined) {
                 initialData[field.name] = data[field.name]
@@ -65,7 +77,7 @@ export function GenericDictionaryForm({
         const { name, value, type } = e.target
         const field = fields.find(f => f.name === name)
 
-        let newValue: any = value
+        let newValue: unknown = value
 
         if (type === 'checkbox') {
             newValue = (e.target as HTMLInputElement).checked
@@ -120,7 +132,7 @@ export function GenericDictionaryForm({
             return
         }
 
-        const submitData: Record<string, any> = {}
+        const submitData: Record<string, unknown> = {}
         fields.forEach(field => {
             const value = formData[field.name]
             submitData[field.name] = typeof value === 'string' ? value.trim() : value
@@ -146,7 +158,7 @@ export function GenericDictionaryForm({
                         <textarea
                             id={field.name}
                             name={field.name}
-                            value={value}
+                            value={toInputValue(value)}
                             onChange={handleChange}
                             rows={field.rows || 3}
                             className={`${textareaBaseStyles} ${error ? 'border-gray-600' : ''}`}
@@ -170,7 +182,7 @@ export function GenericDictionaryForm({
                         <select
                             id={field.name}
                             name={field.name}
-                            value={value}
+                            value={toInputValue(value)}
                             onChange={handleChange}
                             className={inputClass}
                             disabled={field.disabled}
@@ -241,7 +253,7 @@ export function GenericDictionaryForm({
                                 type="text"
                                 id={field.name}
                                 name={field.name}
-                                value={value}
+                                value={toInputValue(value)}
                                 onChange={handleChange}
                                 maxLength={field.maxLength}
                                 className={`${inputClass} flex-1`}
@@ -250,7 +262,7 @@ export function GenericDictionaryForm({
                             />
                             <div
                                 className="w-10 h-10 rounded-lg border border-gray-200"
-                                style={{ backgroundColor: value || '#000000' }}
+                                style={{ backgroundColor: toColorValue(value) }}
                             />
                         </div>
                         {field.helpText && (
@@ -271,7 +283,7 @@ export function GenericDictionaryForm({
                             type={field.type}
                             id={field.name}
                             name={field.name}
-                            value={value}
+                            value={toInputValue(value)}
                             onChange={handleChange}
                             maxLength={field.maxLength}
                             className={inputClass}

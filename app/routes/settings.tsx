@@ -27,6 +27,11 @@ import { companySchema } from "~/schemas/company";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { getAdminModCompanyId, getEffectiveCompanyId } from "~/lib/mod-mode.server";
+import { QUERY_LIMITS } from "~/lib/query-limits";
+import { isPhuketName, normalizeCompanyRow, normalizeCurrencyRow } from "~/lib/settings-normalizers";
+import type { Currency } from "~/lib/settings-normalizers";
+import { getCachedCurrenciesDetailed, getCachedPaymentTemplatesForCompany } from "~/lib/dictionaries-cache.server";
+import type { PaymentTemplateRow } from "~/lib/db-types";
 
 type CompanySettings = {
     id: number;
@@ -61,26 +66,7 @@ type PaymentType = {
     isSystem?: boolean | number | null;
     companyId?: number | null;
 };
-type Currency = {
-    id: number;
-    name: string;
-    code: string;
-    symbol: string;
-    companyId: number | null;
-    isActive?: boolean | number | null;
-};
 type CompanyRow = Record<string, unknown>;
-type PaymentTemplateRow = {
-    id: number;
-    name: string;
-    sign: "+" | "-";
-    description: string | null;
-    showOnCreate: number | boolean | null;
-    showOnClose: number | boolean | null;
-    isActive: number | boolean | null;
-    isSystem: number | boolean | null;
-    companyId: number | null;
-};
 type DeliveryDistrictRow = {
     id: number;
     deliveryPrice: number | null;
@@ -90,34 +76,6 @@ type CompanyDeliverySettingRow = {
     districtId: number;
     deliveryPrice: number | null;
 };
-
-const isPhuketName = (value: unknown) => String(value || "").trim().toLowerCase() === "phuket";
-const normalizeCurrencyRow = (row: Record<string, unknown>): Currency => ({
-    ...(row as Currency),
-    companyId: (row.companyId as number | null | undefined) ?? (row.company_id as number | null | undefined) ?? null,
-    isActive: (row.isActive as number | boolean | null | undefined) ?? (row.is_active as number | boolean | null | undefined) ?? null,
-});
-
-const normalizeCompanyRow = (row: Record<string, unknown>) => ({
-    ...row,
-    locationId: (row.locationId as number | undefined) ?? (row.location_id as number | undefined) ?? null,
-    districtId: (row.districtId as number | undefined) ?? (row.district_id as number | undefined) ?? null,
-    houseNumber: (row.houseNumber as string | undefined) ?? (row.house_number as string | undefined) ?? "",
-    bankName: (row.bankName as string | undefined) ?? (row.bank_name as string | undefined) ?? null,
-    accountNumber: (row.accountNumber as string | undefined) ?? (row.account_number as string | undefined) ?? null,
-    accountName: (row.accountName as string | undefined) ?? (row.account_name as string | undefined) ?? null,
-    swiftCode: (row.swiftCode as string | undefined) ?? (row.swift_code as string | undefined) ?? null,
-    deliveryFeeAfterHours:
-        (row.deliveryFeeAfterHours as number | undefined) ??
-        (row.delivery_fee_after_hours as number | undefined) ??
-        null,
-    islandTripPrice: (row.islandTripPrice as number | undefined) ?? (row.island_trip_price as number | undefined) ?? null,
-    krabiTripPrice: (row.krabiTripPrice as number | undefined) ?? (row.krabi_trip_price as number | undefined) ?? null,
-    babySeatPricePerDay:
-        (row.babySeatPricePerDay as number | undefined) ?? (row.baby_seat_price_per_day as number | undefined) ?? null,
-    weeklySchedule: (row.weeklySchedule as string | undefined) ?? (row.weekly_schedule as string | undefined) ?? null,
-    holidays: (row.holidays as string | undefined) ?? (row.holidays as string | undefined) ?? null,
-});
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -143,41 +101,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             .bind(companyId)
             .first() as Promise<CompanyRow | null>,
         context.cloudflare.env.DB
-            .prepare("SELECT id, name FROM locations LIMIT 100")
+            .prepare(`SELECT id, name FROM locations LIMIT ${QUERY_LIMITS.LARGE}`)
             .all()
             .then((r: { results?: ListItem[] }) => r.results || []),
         context.cloudflare.env.DB
-            .prepare("SELECT id, name, location_id AS locationId FROM districts LIMIT 200")
+            .prepare(`SELECT id, name, location_id AS locationId FROM districts LIMIT ${QUERY_LIMITS.XL}`)
             .all()
             .then((r: { results?: ListItem[] }) => r.results || []),
-        context.cloudflare.env.DB
-            .prepare(`
-                SELECT
-                    id, name, sign, description,
-                    show_on_create AS showOnCreate,
-                    show_on_close AS showOnClose,
-                    is_active AS isActive,
-                    is_system AS isSystem,
-                    company_id AS companyId
-                FROM payment_types
-                WHERE company_id IS NULL OR company_id = ?
-                LIMIT 100
-            `)
-            .bind(companyId)
-            .all()
-            .then((r: { results?: PaymentType[] }) => r.results || []),
-        context.cloudflare.env.DB
-            .prepare(`
-                SELECT
-                    id, name, code, symbol,
-                    company_id AS companyId,
-                    is_active AS isActive
-                FROM currencies
-                ORDER BY name ASC
-                LIMIT 50
-            `)
-            .all()
-            .then((r: { results?: Currency[] }) => r.results || []),
+        getCachedPaymentTemplatesForCompany(context.cloudflare.env.DB, companyId) as Promise<PaymentType[]>,
+        getCachedCurrenciesDetailed(context.cloudflare.env.DB) as Promise<Currency[]>,
     ]);
 
     if (!companyRow) {
@@ -213,18 +145,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         locations: locations as ListItem[],
         districts: districts as ListItem[],
         paymentTypes: paymentTypes as PaymentType[],
-        currencies: (await context.cloudflare.env.DB
-            .prepare(`
-                SELECT
-                    id, name, code, symbol,
-                    company_id AS companyId,
-                    is_active AS isActive
-                FROM currencies
-                ORDER BY name ASC
-                LIMIT 50
-            `)
-            .all()
-            .then((r: { results?: Record<string, unknown>[] }) => (r.results || []).map((row) => normalizeCurrencyRow(row)))) as Currency[],
+        currencies: (currencies as Currency[]).map((row) => normalizeCurrencyRow(row as unknown as Record<string, unknown>)),
     };
 }
 

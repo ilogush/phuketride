@@ -18,6 +18,7 @@ import { parseDateFromDisplay } from "~/lib/formatters";
 import { useToast } from "~/lib/toast";
 import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
 import { calculateBaseTripTotal } from "~/lib/pricing";
+import { QUERY_LIMITS } from "~/lib/query-limits";
 
 const bookingSchema = z.object({
     carId: z.string().min(1, "Car is required"),
@@ -82,7 +83,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 LEFT JOIN car_brands cb ON cb.id = ct.brand_id
                 LEFT JOIN car_models cm ON cm.id = ct.model_id
                 WHERE cc.company_id = ? AND cc.status = 'available' AND cc.archived_at IS NULL
-                LIMIT 50
+                LIMIT ${QUERY_LIMITS.MEDIUM}
             `)
             .bind(user.companyId)
             .all()

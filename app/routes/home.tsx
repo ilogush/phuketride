@@ -9,6 +9,7 @@ import Footer from "~/components/public/Footer";
 import { buildCarPathSegment, buildCompanySlug } from "~/lib/car-path";
 import { getCarPhotoUrls } from "~/lib/car-photos";
 import { MinusIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { QUERY_LIMITS } from "~/lib/query-limits";
 
 export function meta({ }: Route.MetaArgs) {
   return [
@@ -80,7 +81,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
           AND cc.archived_at IS NULL
           AND c.archived_at IS NULL
         ORDER BY cc.created_at DESC
-        LIMIT 120
+        LIMIT ${QUERY_LIMITS.XL}
         `
       )
       .all();
@@ -102,7 +103,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
         INNER JOIN companies c ON cc.company_id = c.id
         WHERE cc.status = 'available'
         ORDER BY cc.created_at DESC
-        LIMIT 120
+        LIMIT ${QUERY_LIMITS.XL}
         `
       )
       .all()

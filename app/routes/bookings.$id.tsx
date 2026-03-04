@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { formatContactPhone } from "~/lib/phone";
 import { EXTRA_TYPES, getCreateExtraPaymentStmt } from "~/lib/contract-extras.server";
-import { updateCarStatus } from "~/lib/contract-helpers.server";
+import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
 type BookingDetailRow = {
     id: number;
     status: string;
@@ -198,14 +198,14 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
         }
 
         if (action === "cancel") {
+            const nowIso = new Date().toISOString();
             // Cancel booking
-            await context.cloudflare.env.DB
-                .prepare("UPDATE bookings SET status = 'cancelled', updated_at = ? WHERE id = ?")
-                .bind(new Date().toISOString(), bookingId)
-                .run();
-
-            // Update car status back to available
-            await updateCarStatus(context.cloudflare.env.DB, booking.companyCarId, 'available', 'Booking cancelled');
+            await context.cloudflare.env.DB.batch([
+                context.cloudflare.env.DB
+                    .prepare("UPDATE bookings SET status = 'cancelled', updated_at = ? WHERE id = ?")
+                    .bind(nowIso, bookingId),
+                getUpdateCarStatusStmt(context.cloudflare.env.DB, booking.companyCarId, 'available'),
+            ]);
 
             // Audit log
             const metadata = getRequestMetadata(request);
@@ -226,6 +226,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
         }
 
         if (action === "convert") {
+            const nowIso = new Date().toISOString();
             // Check if client exists by passport
             let clientId = booking.clientId;
             
@@ -253,8 +254,8 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                             booking.clientSurname,
                             booking.clientPhone,
                             booking.clientPassport,
-                            new Date().toISOString(),
-                            new Date().toISOString()
+                            nowIso,
+                            nowIso
                         )
                         .run();
                     clientId = newClientId;
@@ -292,8 +293,8 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                     booking.returnRoom,
                     booking.returnCost || 0,
                     booking.notes,
-                    new Date().toISOString(),
-                    new Date().toISOString()
+                    nowIso,
+                    nowIso
                 )
                 .run();
             const contract = { id: Number(insertContractResult.meta.last_row_id) };
@@ -322,18 +323,14 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                         currency: booking.currency || "THB",
                     })
                 );
-            if (extraStmts.length > 0) {
-                await context.cloudflare.env.DB.batch(extraStmts);
-            }
-
-            // Update booking status to converted
-            await context.cloudflare.env.DB
-                .prepare("UPDATE bookings SET status = 'converted', updated_at = ? WHERE id = ?")
-                .bind(new Date().toISOString(), bookingId)
-                .run();
-
-            // Update car status to rented
-            await updateCarStatus(context.cloudflare.env.DB, booking.companyCarId, 'rented', 'Booking converted to contract');
+            const conversionStmts: D1PreparedStatement[] = [
+                context.cloudflare.env.DB
+                    .prepare("UPDATE bookings SET status = 'converted', updated_at = ? WHERE id = ?")
+                    .bind(nowIso, bookingId),
+                getUpdateCarStatusStmt(context.cloudflare.env.DB, booking.companyCarId, 'rented'),
+                ...extraStmts,
+            ];
+            await context.cloudflare.env.DB.batch(conversionStmts);
 
             // Audit logs
             const metadata = getRequestMetadata(request);

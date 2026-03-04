@@ -6,6 +6,7 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { ClipboardDocumentListIcon } from "@heroicons/react/24/outline";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
+import { QUERY_LIMITS } from "~/lib/query-limits";
 
 interface AuditLog {
     id: number;
@@ -86,7 +87,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 LEFT JOIN users u ON a.user_id = u.id
                 WHERE a.company_id = ?
                 ORDER BY a.created_at DESC
-                LIMIT 100
+                LIMIT ${QUERY_LIMITS.LARGE}
                 `
             )
             .bind(effectiveCompanyId)
@@ -108,7 +109,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             FROM audit_logs a
             LEFT JOIN users u ON a.user_id = u.id
             ORDER BY a.created_at DESC
-            LIMIT 100
+            LIMIT ${QUERY_LIMITS.LARGE}
             `
         )
         .all();

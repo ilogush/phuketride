@@ -12,6 +12,7 @@ import { PlusIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { getRequestMetadata, quickAudit } from "~/lib/audit-logger";
+import { QUERY_LIMITS } from "~/lib/query-limits";
 
 interface Hotel {
     id: number;
@@ -38,13 +39,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const [hotelsResult, locationsResult, districtsResult] = await Promise.all([
         context.cloudflare.env.DB
-            .prepare("SELECT id, name, location_id AS locationId, district_id AS districtId, address, created_at AS createdAt, updated_at AS updatedAt FROM hotels LIMIT 100")
+            .prepare(`SELECT id, name, location_id AS locationId, district_id AS districtId, address, created_at AS createdAt, updated_at AS updatedAt FROM hotels LIMIT ${QUERY_LIMITS.LARGE}`)
             .all(),
         context.cloudflare.env.DB
-            .prepare("SELECT id, name FROM locations LIMIT 100")
+            .prepare(`SELECT id, name FROM locations LIMIT ${QUERY_LIMITS.LARGE}`)
             .all(),
         context.cloudflare.env.DB
-            .prepare("SELECT id, name, location_id AS locationId FROM districts LIMIT 100")
+            .prepare(`SELECT id, name, location_id AS locationId FROM districts LIMIT ${QUERY_LIMITS.LARGE}`)
             .all(),
     ]);
 

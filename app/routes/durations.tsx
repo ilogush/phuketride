@@ -9,6 +9,7 @@ import { Input } from "~/components/dashboard/Input";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { TrashIcon, PlusIcon, PencilIcon, ClockIcon as HeroClockIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
+import { QUERY_LIMITS } from "~/lib/query-limits";
 
 interface RentalDuration {
     id: number;
@@ -97,7 +98,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 discount_label AS discountLabel
             FROM rental_durations
             ORDER BY min_days ASC
-            LIMIT 100
+            LIMIT ${QUERY_LIMITS.LARGE}
         `)
         .all() as { results?: RentalDuration[] };
     const durations = durationsResult.results || [];

@@ -9,8 +9,11 @@ import Card from "~/components/dashboard/Card";
 import EmptyState from "~/components/dashboard/EmptyState";
 import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
+import { getPaginationFromUrl } from "~/lib/pagination.server";
+import { parseListFilters } from "~/lib/query-filters.server";
 
-const ITEMS_PER_PAGE = 20;
+const PAYMENT_STATUSES = ["all", "completed", "pending", "cancelled"] as const;
+type PaymentStatusFilter = typeof PAYMENT_STATUSES[number];
 
 interface CountRow {
     count: number;
@@ -36,12 +39,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     
     const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const status = url.searchParams.get("status") || "all";
-    
-    const offset = (page - 1) * ITEMS_PER_PAGE;
+    const { page, pageSize, offset } = getPaginationFromUrl(url);
+    const { status } = parseListFilters(url, {
+        statuses: PAYMENT_STATUSES,
+        defaultStatus: "all",
+    });
+    const selectedStatus: PaymentStatusFilter = status ?? "all";
 
-    const whereSql = status === "all"
+    const whereSql = selectedStatus === "all"
         ? "WHERE c.client_id = ?"
         : "WHERE c.client_id = ? AND p.status = ?";
     const countSql = `
@@ -50,12 +55,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         JOIN contracts c ON c.id = p.contract_id
         ${whereSql}
     `;
-    const countResult = status === "all"
+    const countResult = selectedStatus === "all"
         ? ((await context.cloudflare.env.DB.prepare(countSql).bind(user.id).first()) as CountRow | null)
-        : ((await context.cloudflare.env.DB.prepare(countSql).bind(user.id, status).first()) as CountRow | null);
+        : ((await context.cloudflare.env.DB.prepare(countSql).bind(user.id, selectedStatus).first()) as CountRow | null);
 
     const totalItems = Number(countResult?.count || 0);
-    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
     const paymentsSql = `
         SELECT
@@ -83,12 +88,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         ORDER BY p.created_at DESC
         LIMIT ? OFFSET ?
     `;
-    const paymentsResult = status === "all"
-        ? await context.cloudflare.env.DB.prepare(paymentsSql).bind(user.id, ITEMS_PER_PAGE, offset).all()
-        : await context.cloudflare.env.DB.prepare(paymentsSql).bind(user.id, status, ITEMS_PER_PAGE, offset).all();
+    const paymentsResult = selectedStatus === "all"
+        ? await context.cloudflare.env.DB.prepare(paymentsSql).bind(user.id, pageSize, offset).all()
+        : await context.cloudflare.env.DB.prepare(paymentsSql).bind(user.id, selectedStatus, pageSize, offset).all();
     const payments = (paymentsResult.results ?? []) as PaymentRow[];
 
-    return { payments, totalPages, currentPage: page, status };
+    return { payments, totalPages, currentPage: page, status: selectedStatus };
 }
 
 export default function MyPayments() {

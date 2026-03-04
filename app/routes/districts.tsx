@@ -10,6 +10,7 @@ import { Select } from "~/components/dashboard/Select";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
+import { QUERY_LIMITS } from "~/lib/query-limits";
 
 interface District {
     id: number;
@@ -25,10 +26,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const [districtsResult, locationsResult] = await Promise.all([
         context.cloudflare.env.DB
-            .prepare("SELECT id, name, location_id AS locationId, beaches, delivery_price AS deliveryPrice, created_at AS createdAt, updated_at AS updatedAt FROM districts LIMIT 100")
+            .prepare(`SELECT id, name, location_id AS locationId, beaches, delivery_price AS deliveryPrice, created_at AS createdAt, updated_at AS updatedAt FROM districts LIMIT ${QUERY_LIMITS.LARGE}`)
             .all(),
         context.cloudflare.env.DB
-            .prepare("SELECT id, name FROM locations LIMIT 100")
+            .prepare(`SELECT id, name FROM locations LIMIT ${QUERY_LIMITS.LARGE}`)
             .all(),
     ]);
     const districts = (districtsResult.results ?? []) as District[];

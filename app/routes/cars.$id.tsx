@@ -144,11 +144,18 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
           ? = ''
           OR LOWER(COALESCE(c.name, '')) LIKE LOWER(?) || '%'
         )
-      LIMIT 20
+      ORDER BY
+        CASE WHEN LOWER(TRIM(COALESCE(cc.license_plate, ''))) = LOWER(TRIM(?)) THEN 0 ELSE 1 END,
+        CASE WHEN ? = '' OR LOWER(COALESCE(c.name, '')) LIKE LOWER(?) || '%' THEN 0 ELSE 1 END,
+        cc.id DESC
+      LIMIT 8
       `
     )
     .bind(
       parsedPath.plateTail,
+      parsedPath.plateTail,
+      parsedPath.companyHint,
+      parsedPath.companyHint,
       parsedPath.plateTail,
       parsedPath.companyHint,
       parsedPath.companyHint,

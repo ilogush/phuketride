@@ -12,6 +12,7 @@ import { PlusIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 import Toggle from "~/components/dashboard/Toggle";
+import { QUERY_LIMITS } from "~/lib/query-limits";
 
 interface District {
     id: number;
@@ -77,7 +78,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     LEFT JOIN company_delivery_settings cds
                         ON cds.district_id = d.id AND cds.company_id = ?
                     WHERE d.location_id = 1
-                    LIMIT 100
+                    LIMIT ${QUERY_LIMITS.LARGE}
                 `)
                 .bind(effectiveCompanyId)
                 .all() as { results?: PartnerDistrictSettingRow[] };
@@ -113,7 +114,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     updated_at
                 FROM districts
                 WHERE location_id = 1
-                LIMIT 100
+                LIMIT ${QUERY_LIMITS.LARGE}
                 `)
             .all() as { results?: AdminDistrictRow[] };
         districts = (districtsRaw.results || []).map((d: AdminDistrictRow) => ({
