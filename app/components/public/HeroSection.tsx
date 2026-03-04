@@ -25,6 +25,18 @@ export default function HeroSection({ districts }: HeroSectionProps) {
     setSelectedDistrict(location);
     setSearchQuery(location);
     setShowLocations(false);
+    if (typeof window !== "undefined") {
+      fetch("/api/search-events", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          district: location,
+          query: searchQuery,
+          source: "hero-select",
+        }),
+        keepalive: true,
+      }).catch(() => {});
+    }
   };
 
   return (
@@ -116,6 +128,20 @@ export default function HeroSection({ districts }: HeroSectionProps) {
               <Link
                 className="bg-green-600 hover:bg-green-700 transition text-white p-3 flex items-center justify-center rounded-xl"
                 to="/"
+                onClick={() => {
+                  const district = selectedDistrict || searchQuery.trim();
+                  if (!district || typeof window === "undefined") return;
+                  fetch("/api/search-events", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({
+                      district,
+                      query: searchQuery.trim(),
+                      source: "hero-submit",
+                    }),
+                    keepalive: true,
+                  }).catch(() => {});
+                }}
               >
                 <MagnifyingGlassIcon className="h-5 w-5" />
               </Link>

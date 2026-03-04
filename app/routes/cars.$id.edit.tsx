@@ -18,6 +18,7 @@ import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { ExclamationTriangleIcon, TruckIcon, PhotoIcon, WrenchScrewdriverIcon, AdjustmentsHorizontalIcon, ShieldCheckIcon, BanknotesIcon, Cog6ToothIcon } from "@heroicons/react/24/outline";
 import { calculateSeasonalPrice, getAverageDays } from "~/lib/pricing";
 import { uploadToR2 } from "~/lib/r2.server";
+import { getCarPhotoUrls } from "~/lib/car-photos";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -250,7 +251,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         const fuelTypesResult = await context.cloudflare.env.DB.prepare("SELECT id, name FROM fuel_types").all() as { results?: any[] };
         const fuelType = (fuelTypesResult.results || []).find((item) => item.name.toLowerCase() === validData.fuelType.toLowerCase());
         const photosData = formData.get("photos") as string;
-        let photoUrls: string[] = car.photos ? JSON.parse(car.photos as string) : [];
+        let photoUrls: string[] = getCarPhotoUrls(car.photos);
         if (photosData) {
             try {
                 const photos = JSON.parse(photosData);
@@ -651,7 +652,7 @@ export default function EditCarPage() {
 
                         <AdminCard title="Photos" icon={<PhotoIcon className="w-5 h-5" />}>
                             <CarPhotosUpload
-                                currentPhotos={car.photos ? JSON.parse(car.photos as string) : []}
+                                currentPhotos={getCarPhotoUrls(car.photos)}
                                 onPhotosChange={setPhotos}
                                 maxPhotos={6}
                             />

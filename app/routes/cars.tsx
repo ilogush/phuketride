@@ -10,6 +10,7 @@ import Button from "~/components/dashboard/Button";
 import { TruckIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
+import { getPrimaryCarPhotoUrl } from "~/lib/car-photos";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -56,6 +57,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         const result = await query.all() as { results?: any[] };
         cars = (result.results || []).map((car) => ({
             ...car,
+            previewPhotoUrl: getPrimaryCarPhotoUrl(car.photos, request.url, null),
             licensePlate: car.license_plate,
             pricePerDay: car.price_per_day,
             insuranceType: car.insurance_type,
@@ -101,8 +103,7 @@ export default function CarsPage() {
             key: "photo",
             label: "Photo",
             render: (car) => {
-                const photos = car.photos ? JSON.parse(car.photos as string) : [];
-                const firstPhoto = photos[0];
+                const firstPhoto = car.previewPhotoUrl as string | null;
                 const editPath = modCompanyId
                     ? `/cars/${car.id}/edit?modCompanyId=${modCompanyId}`
                     : `/cars/${car.id}/edit`;

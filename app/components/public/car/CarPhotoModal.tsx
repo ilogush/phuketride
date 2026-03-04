@@ -23,12 +23,14 @@ export default function CarPhotoModal({
   onClose,
 }: CarPhotoModalProps) {
   const [activeIndex, setActiveIndex] = useState(initialIndex);
+  const [failedIndexes, setFailedIndexes] = useState<number[]>([]);
 
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
+    setFailedIndexes([]);
     setActiveIndex(initialIndex);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -47,12 +49,13 @@ export default function CarPhotoModal({
   }, [initialIndex, isOpen, onClose, photos.length]);
 
   const orderedPhotos = useMemo(() => {
-    if (!photos.length) {
+    const safePhotos = photos.filter((_, index) => !failedIndexes.includes(index));
+    if (!safePhotos.length) {
       return [];
     }
-    const safeIndex = Math.max(0, Math.min(activeIndex, photos.length - 1));
-    return [photos[safeIndex], ...photos.filter((_, index) => index !== safeIndex)];
-  }, [activeIndex, photos]);
+    const safeIndex = Math.max(0, Math.min(activeIndex, safePhotos.length - 1));
+    return [safePhotos[safeIndex], ...safePhotos.filter((_, index) => index !== safeIndex)];
+  }, [activeIndex, failedIndexes, photos]);
 
   const photoRows = useMemo(() => {
     const rows: string[][] = [];
@@ -113,6 +116,12 @@ export default function CarPhotoModal({
                       src={photo}
                       alt={`${title} ${rowIndex + photoIndex + 1}`}
                       className="block w-full h-full object-cover"
+                      onError={() => {
+                        const originalIndex = photos.indexOf(photo);
+                        if (originalIndex < 0) return;
+                        setFailedIndexes((prev) => (prev.includes(originalIndex) ? prev : [...prev, originalIndex]));
+                        setActiveIndex(0);
+                      }}
                     />
                   </div>
                 ))}

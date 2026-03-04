@@ -12,11 +12,19 @@ interface CarGalleryProps {
 export default function CarGallery({ title, photos }: CarGalleryProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [failedIndexes, setFailedIndexes] = useState<number[]>([]);
 
-  const galleryPhotos = useMemo(() => {
+  const allPhotos = useMemo(() => {
     const cleanPhotos = photos.filter(Boolean);
     return cleanPhotos;
   }, [photos]);
+  const galleryPhotos = useMemo(
+    () =>
+      allPhotos
+        .map((url, index) => ({ url, originalIndex: index }))
+        .filter((entry) => !failedIndexes.includes(entry.originalIndex)),
+    [allPhotos, failedIndexes],
+  );
 
   if (!galleryPhotos.length) {
     return (
@@ -26,13 +34,17 @@ export default function CarGallery({ title, photos }: CarGalleryProps) {
     );
   }
 
-  const mainPhoto = galleryPhotos[0];
-  const secondPhoto = galleryPhotos[1] || galleryPhotos[0];
-  const thirdPhoto = galleryPhotos[2] || galleryPhotos[0];
+  const mainEntry = galleryPhotos[0];
+  const secondEntry = galleryPhotos[1] || galleryPhotos[0];
+  const thirdEntry = galleryPhotos[2] || galleryPhotos[0];
 
   const openModal = (index: number) => {
     setActiveIndex(index);
     setIsModalOpen(true);
+  };
+
+  const markFailed = (index: number) => {
+    setFailedIndexes((prev) => (prev.includes(index) ? prev : [...prev, index]));
   };
 
   return (
@@ -40,14 +52,14 @@ export default function CarGallery({ title, photos }: CarGalleryProps) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 rounded-2xl overflow-hidden border border-gray-200 aspect-[4/3]">
           <button type="button" onClick={() => openModal(0)} className="block w-full h-full text-left leading-none">
-            <img src={mainPhoto} alt={title} className="block w-full h-full object-cover" />
+            <img src={mainEntry.url} alt={title} className="block w-full h-full object-cover" onError={() => markFailed(mainEntry.originalIndex)} />
           </button>
         </div>
 
-        <div className="space-y-6">
+        <div className="flex flex-col gap-[18px]">
           <div className="relative rounded-2xl overflow-hidden border border-gray-200 aspect-[4/3]">
             <button type="button" onClick={() => openModal(1)} className="block w-full h-full text-left leading-none">
-              <img src={secondPhoto} alt={`${title} 2`} className="block w-full h-full object-cover" />
+              <img src={secondEntry.url} alt={`${title} 2`} className="block w-full h-full object-cover" onError={() => markFailed(secondEntry.originalIndex)} />
             </button>
             <Button
               type="button"
@@ -59,7 +71,7 @@ export default function CarGallery({ title, photos }: CarGalleryProps) {
 
           <div className="relative rounded-2xl overflow-hidden border border-gray-200 aspect-[4/3]">
             <button type="button" onClick={() => openModal(2)} className="block w-full h-full text-left leading-none">
-              <img src={thirdPhoto} alt={`${title} 3`} className="block w-full h-full object-cover" />
+              <img src={thirdEntry.url} alt={`${title} 3`} className="block w-full h-full object-cover" onError={() => markFailed(thirdEntry.originalIndex)} />
             </button>
             <Button
               type="button"
@@ -76,7 +88,7 @@ export default function CarGallery({ title, photos }: CarGalleryProps) {
       <CarPhotoModal
         isOpen={isModalOpen}
         title={title}
-        photos={galleryPhotos}
+        photos={galleryPhotos.map((entry) => entry.url)}
         initialIndex={activeIndex}
         onClose={() => setIsModalOpen(false)}
       />

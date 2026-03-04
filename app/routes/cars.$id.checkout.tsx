@@ -405,7 +405,7 @@ export default function CheckoutPage() {
   const effectiveDeposit = withFullInsurance && hasFullInsurance ? 0 : Number(data.deposit || 0);
   const breadcrumbs = [
     { label: "Home", to: "/" },
-    { label: "Cars", to: "/cars" },
+    { label: "Cars" },
     { label: data.carName, to: `/cars/${data.carPathSegment}` },
     { label: "Checkout" },
   ];

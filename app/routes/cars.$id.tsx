@@ -385,19 +385,17 @@ export default function PublicCarPage() {
   const title = `${car.brandName || "Car"} ${car.modelName || "Model"} ${carNumber || `#${car.id}`}`;
   const breadcrumbs = [
     { label: "Home", to: "/" },
-    { label: "Cars", to: "/cars" },
+    { label: "Cars" },
     { label: title },
   ];
   const pickupDistrict = car.districtName || car.locationName || car.companyName;
   const specifications = [
-    car.year ? String(car.year) : null,
     `${car.seats || 4} seats`,
     car.fuelType || "Gas",
     car.transmission || "Automatic",
     car.bodyType || "Car",
     car.engineVolume ? `${car.engineVolume}L` : null,
     car.doors ? `${car.doors} doors` : null,
-    car.deposit ? `Deposit ฿${Math.round(car.deposit).toLocaleString()}` : null,
   ].filter((item): item is string => Boolean(item));
 
   return (
@@ -412,7 +410,7 @@ export default function PublicCarPage() {
             <CarHostSection
               title={title}
               year={car.year}
-              hostName={car.ownerName || car.companyName}
+              companyName={car.companyName}
               companySlug={car.companySlug}
               hostTrips={hostTrips}
               hostJoinedAt={formatMonthYear(car.ownerCreatedAt || null)}

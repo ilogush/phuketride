@@ -15,9 +15,9 @@ export default function Header() {
             <div className="font-black text-2xl tracking-tight text-gray-900 leading-none">huket Ride</div>
           </Link>
           <div className="flex items-center gap-2">
-            <button className="px-4 py-2 rounded-full text-sm font-medium hidden md:block hover:bg-green-100 transition-colors">
+            <Link to="/#why-phuketride-better" className="px-4 py-2 rounded-full text-sm font-medium hidden md:block hover:bg-green-100 transition-colors">
               Why choose Phuket Ride ?
-            </button>
+            </Link>
 
             {/* Language Dropdown */}
             <div className="relative">
@@ -79,7 +79,7 @@ export default function Header() {
                     <span className="text-sm font-medium text-gray-800">Become a host</span>
                   </Link>
                   <Link
-                    to="/why-choose-phuket-ride"
+                    to="/#why-phuketride-better"
                     className="flex items-center gap-3 px-4 py-3 hover:bg-green-100 transition-colors"
                   >
                     <KeyIcon className="h-5 w-5 text-gray-500" />

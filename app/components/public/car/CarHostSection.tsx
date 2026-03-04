@@ -5,7 +5,7 @@ import type { CarFeatureItem } from "~/components/public/car/types";
 interface CarHostSectionProps {
   title: string;
   year: number | null;
-  hostName: string;
+  companyName: string;
   companySlug: string;
   hostTrips: number;
   hostJoinedAt: string | null;
@@ -17,7 +17,7 @@ interface CarHostSectionProps {
 export default function CarHostSection({
   title,
   year,
-  hostName,
+  companyName,
   companySlug,
   hostTrips,
   hostJoinedAt,
@@ -40,12 +40,12 @@ export default function CarHostSection({
           {hostAvatarUrl ? (
             <img
               src={hostAvatarUrl}
-              alt={hostName}
+              alt={companyName}
               className="w-20 h-20 rounded-full object-cover"
             />
           ) : (
             <div className="w-20 h-20 rounded-full bg-gray-200 text-gray-800 flex items-center justify-center text-xl font-semibold">
-              {hostName.charAt(0).toUpperCase()}
+              {companyName.charAt(0).toUpperCase()}
             </div>
           )}
           <div className="absolute -bottom-2 left-2 bg-white rounded-full px-2 py-1 border border-gray-200 text-sm font-medium text-gray-800 flex items-center gap-1">
@@ -53,13 +53,17 @@ export default function CarHostSection({
           </div>
         </div>
         <div>
-          <Link to={`/company/${companySlug}`} className="text-xl font-semibold text-gray-800 hover:text-green-700 transition-colors">
-            {hostName}
-          </Link>
+          <p className="text-xl font-semibold text-gray-800">{companyName}</p>
           <p className="text-sm text-gray-500">
             {hostTrips} trips
             {hostJoinedAt ? ` • Joined ${hostJoinedAt}` : ""}
           </p>
+          <Link
+            to={`/company/${companySlug}`}
+            className="mt-2 inline-flex items-center rounded-lg border border-green-600 px-3 py-1.5 text-sm font-medium text-green-700 hover:bg-green-50 transition-colors"
+          >
+            View all user cars
+          </Link>
         </div>
       </div>
 

@@ -34,6 +34,7 @@ const formatMoney = (value: number) => `฿${Math.round(value).toLocaleString()}
 export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
   const [pageByDistrict, setPageByDistrict] = useState<Record<string, number>>({});
   const [activePhotoByCar, setActivePhotoByCar] = useState<Record<number, number>>({});
+  const [failedPhotoIndexesByCar, setFailedPhotoIndexesByCar] = useState<Record<number, number[]>>({});
   const pageSize = 3;
 
   const grouped = cars.reduce<Record<string, PublicCarItem[]>>((acc, car) => {
@@ -95,8 +96,15 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                   {visibleCars.map((car) => {
                     const photoUrls = car.photoUrls.length ? car.photoUrls : (car.photoUrl ? [car.photoUrl] : []);
-                    const activeIndex = Math.max(0, Math.min(activePhotoByCar[car.id] || 0, Math.max(photoUrls.length - 1, 0)));
-                    const currentPhotoUrl = photoUrls[activeIndex] || null;
+                    const failedIndexes = failedPhotoIndexesByCar[car.id] || [];
+                    const availablePhotoEntries = photoUrls
+                      .map((url, index) => ({ url, index }))
+                      .filter((entry) => !failedIndexes.includes(entry.index));
+                    const selectedFromAvailable = activePhotoByCar[car.id] || 0;
+                    const safeAvailablePos = Math.max(0, Math.min(selectedFromAvailable, Math.max(availablePhotoEntries.length - 1, 0)));
+                    const activeEntry = availablePhotoEntries[safeAvailablePos] || null;
+                    const currentPhotoUrl = activeEntry?.url || null;
+                    const activeOriginalIndex = activeEntry?.index ?? -1;
 
                     return (
                       <article key={car.id} className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
@@ -116,6 +124,21 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                               alt={`${car.brandName} ${car.modelName}`}
                               className="w-full h-full object-cover"
                               loading="lazy"
+                              onError={() => {
+                                if (activeOriginalIndex < 0) return;
+                                setFailedPhotoIndexesByCar((prev) => {
+                                  const existing = prev[car.id] || [];
+                                  if (existing.includes(activeOriginalIndex)) return prev;
+                                  return {
+                                    ...prev,
+                                    [car.id]: [...existing, activeOriginalIndex],
+                                  };
+                                });
+                                setActivePhotoByCar((prev) => ({
+                                  ...prev,
+                                  [car.id]: 0,
+                                }));
+                              }}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
@@ -129,12 +152,16 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                                 <span
                                   key={`${car.id}-dot-${index}`}
                                   onMouseEnter={() =>
-                                    setActivePhotoByCar((prev) => ({
-                                      ...prev,
-                                      [car.id]: index,
-                                    }))
+                                    setActivePhotoByCar((prev) => {
+                                      const visiblePos = availablePhotoEntries.findIndex((entry) => entry.index === index);
+                                      if (visiblePos < 0) return prev;
+                                      return {
+                                        ...prev,
+                                        [car.id]: visiblePos,
+                                      };
+                                    })
                                   }
-                                  className={`block h-1.5 w-1.5 rounded-full ${index === activeIndex ? "bg-white" : "bg-white/50"}`}
+                                  className={`block h-1.5 w-1.5 rounded-full ${index === activeOriginalIndex ? "bg-white" : "bg-white/50"}`}
                                 />
                               ))}
                             </div>
@@ -147,6 +174,21 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                               alt={`${car.brandName} ${car.modelName}`}
                               className="w-full h-full object-cover"
                               loading="lazy"
+                              onError={() => {
+                                if (activeOriginalIndex < 0) return;
+                                setFailedPhotoIndexesByCar((prev) => {
+                                  const existing = prev[car.id] || [];
+                                  if (existing.includes(activeOriginalIndex)) return prev;
+                                  return {
+                                    ...prev,
+                                    [car.id]: [...existing, activeOriginalIndex],
+                                  };
+                                });
+                                setActivePhotoByCar((prev) => ({
+                                  ...prev,
+                                  [car.id]: 0,
+                                }));
+                              }}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">

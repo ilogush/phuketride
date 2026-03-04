@@ -375,7 +375,7 @@ export default function DateRangePicker({
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 py-3 px-4 border-t border-gray-200">
-                  <div className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1">
                       <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.startDate)} />
                       <select
@@ -503,7 +503,7 @@ export default function DateRangePicker({
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 py-3 px-4 border-t border-gray-200">
-                  <div className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1">
                       <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.startDate)} />
                       <select
