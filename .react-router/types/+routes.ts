@@ -70,30 +70,6 @@ type Pages = {
       "id": string;
     };
   };
-  "/dashboard": {
-    params: {};
-  };
-  "/dashboard/*": {
-    params: {
-      "*": string;
-    };
-  };
-  "/dashboard/companies": {
-    params: {};
-  };
-  "/dashboard/companies/:companyId/edit": {
-    params: {
-      "companyId": string;
-    };
-  };
-  "/dashboard/cars": {
-    params: {};
-  };
-  "/dashboard/cars/:id/edit": {
-    params: {
-      "id": string;
-    };
-  };
   "/home": {
     params: {};
   };
@@ -281,7 +257,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/login" | "/register" | "/register-partner" | "/logout" | "/assets/*" | "/become-a-host" | "/why-choose-phuket-ride" | "/gift-cards" | "/contact-support" | "/legal" | "/insurance-protection" | "/host-tools" | "/carculator" | "/company/:slug" | "/cars/:id" | "/cars/:id/checkout" | "/dashboard" | "/dashboard/*" | "/dashboard/companies" | "/dashboard/companies/:companyId/edit" | "/dashboard/cars" | "/dashboard/cars/:id/edit" | "/home" | "/companies" | "/companies/create" | "/companies/:companyId" | "/companies/:companyId/edit" | "/users" | "/users/create" | "/users/:userId" | "/users/:userId/edit" | "/cars" | "/cars/create" | "/cars/:id/edit" | "/brands" | "/brands/create" | "/models" | "/models/create" | "/car-templates" | "/car-templates/create" | "/car-templates/:id" | "/car-templates/:id/edit" | "/payments" | "/payments/create" | "/payment-statuses" | "/locations" | "/districts" | "/hotels" | "/durations" | "/seasons" | "/colors" | "/colors/new" | "/colors/:colorId/edit" | "/reports" | "/logs" | "/contracts" | "/contracts/:id/close" | "/contracts/new" | "/contracts/:id" | "/contracts/:id/edit" | "/calendar" | "/calendar/new" | "/settings" | "/bookings" | "/bookings/create" | "/bookings/:id" | "/profile" | "/profile/edit" | "/search-cars" | "/my-bookings" | "/my-contracts" | "/my-contracts/:id" | "/my-payments" | "/notifications";
+    page: "/" | "/login" | "/register" | "/register-partner" | "/logout" | "/assets/*" | "/become-a-host" | "/why-choose-phuket-ride" | "/gift-cards" | "/contact-support" | "/legal" | "/insurance-protection" | "/host-tools" | "/carculator" | "/company/:slug" | "/cars/:id" | "/cars/:id/checkout" | "/home" | "/companies" | "/companies/create" | "/companies/:companyId" | "/companies/:companyId/edit" | "/users" | "/users/create" | "/users/:userId" | "/users/:userId/edit" | "/cars" | "/cars/create" | "/cars/:id/edit" | "/brands" | "/brands/create" | "/models" | "/models/create" | "/car-templates" | "/car-templates/create" | "/car-templates/:id" | "/car-templates/:id/edit" | "/payments" | "/payments/create" | "/payment-statuses" | "/locations" | "/districts" | "/hotels" | "/durations" | "/seasons" | "/colors" | "/colors/new" | "/colors/:colorId/edit" | "/reports" | "/logs" | "/contracts" | "/contracts/:id/close" | "/contracts/new" | "/contracts/:id" | "/contracts/:id/edit" | "/calendar" | "/calendar/new" | "/settings" | "/bookings" | "/bookings/create" | "/bookings/:id" | "/profile" | "/profile/edit" | "/search-cars" | "/my-bookings" | "/my-contracts" | "/my-contracts/:id" | "/my-payments" | "/notifications";
   };
   "routes/home.tsx": {
     id: "routes/home";
@@ -350,30 +326,6 @@ type RouteFiles = {
   "routes/cars.$id.checkout.tsx": {
     id: "routes/cars.$id.checkout";
     page: "/cars/:id/checkout";
-  };
-  "routes/legacy-redirect.tsx": {
-    id: "routes/legacy-redirect";
-    page: "/dashboard";
-  };
-  "routes/legacy-redirect-splat.tsx": {
-    id: "routes/legacy-redirect-splat";
-    page: "/dashboard/*";
-  };
-  "routes/legacy.dashboard.companies.tsx": {
-    id: "routes/legacy.dashboard.companies";
-    page: "/dashboard/companies";
-  };
-  "routes/legacy.dashboard.companies.$companyId.edit.tsx": {
-    id: "routes/legacy.dashboard.companies.$companyId.edit";
-    page: "/dashboard/companies/:companyId/edit";
-  };
-  "routes/legacy.dashboard.cars.tsx": {
-    id: "routes/legacy.dashboard.cars";
-    page: "/dashboard/cars";
-  };
-  "routes/legacy.dashboard.cars.$id.edit.tsx": {
-    id: "routes/legacy.dashboard.cars.$id.edit";
-    page: "/dashboard/cars/:id/edit";
   };
   "routes/app-layout.tsx": {
     id: "routes/app-layout";
@@ -612,12 +564,6 @@ type RouteModules = {
   "routes/company.$slug": typeof import("./app/routes/company.$slug.tsx");
   "routes/cars.$id": typeof import("./app/routes/cars.$id.tsx");
   "routes/cars.$id.checkout": typeof import("./app/routes/cars.$id.checkout.tsx");
-  "routes/legacy-redirect": typeof import("./app/routes/legacy-redirect.tsx");
-  "routes/legacy-redirect-splat": typeof import("./app/routes/legacy-redirect-splat.tsx");
-  "routes/legacy.dashboard.companies": typeof import("./app/routes/legacy.dashboard.companies.tsx");
-  "routes/legacy.dashboard.companies.$companyId.edit": typeof import("./app/routes/legacy.dashboard.companies.$companyId.edit.tsx");
-  "routes/legacy.dashboard.cars": typeof import("./app/routes/legacy.dashboard.cars.tsx");
-  "routes/legacy.dashboard.cars.$id.edit": typeof import("./app/routes/legacy.dashboard.cars.$id.edit.tsx");
   "routes/app-layout": typeof import("./app/routes/app-layout.tsx");
   "routes/dashboard-home": typeof import("./app/routes/dashboard-home.tsx");
   "routes/companies": typeof import("./app/routes/companies.tsx");
