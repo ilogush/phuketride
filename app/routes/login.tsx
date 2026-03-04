@@ -13,7 +13,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         // If already logged in, redirect to dashboard
         const user = await getUserFromSession(request);
         if (user) {
-            return redirect("/dashboard");
+            return redirect("/home");
         }
         return null;
     } catch {
@@ -54,7 +54,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
 
         // Set cookie and redirect to dashboard
-        return redirect("/dashboard?login=success", {
+        return redirect("/home?login=success", {
             headers: {
                 "Set-Cookie": result.cookie,
             },

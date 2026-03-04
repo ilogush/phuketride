@@ -351,16 +351,16 @@ export default function DateRangePicker({
                             const selectedEnd = isSameDay(day, endDateObj);
                             const inRange = isInRange(day);
                             return (
-                              <div key={day.toISOString()} className={`flex justify-center ${inRange ? "bg-green-100/70" : ""} ${selectedStart ? "rounded-l-full" : ""} ${selectedEnd ? "rounded-r-full" : ""}`}>
+                              <div key={day.toISOString()} className={`relative flex justify-center ${inRange ? "bg-green-100/70" : ""} ${selectedStart ? "rounded-l-full" : ""} ${selectedEnd ? "rounded-r-full" : ""}`}>
                                 <button
                                   type="button"
                                   disabled={disabled}
                                   onClick={() => handleDaySelect(day)}
-                                  className={`m-px size-10 sm:size-11 flex justify-center items-center border-[1.5px] text-base rounded-full disabled:pointer-events-none ${selectedStart || selectedEnd
-                                    ? "bg-green-600 text-white border-transparent"
+                                  className={`relative m-px size-10 sm:size-11 flex justify-center items-center border-[1.5px] text-base rounded-full disabled:pointer-events-none ${selectedStart || selectedEnd
+                                    ? "z-20 bg-green-600 text-white border-transparent"
                                     : disabled
-                                      ? "border-transparent text-gray-500"
-                                      : "border-transparent text-gray-800 hover:border-green-700 hover:text-green-700"
+                                      ? "z-10 border-transparent text-gray-500"
+                                      : "z-10 border-transparent text-gray-800 hover:border-green-700 hover:text-green-700"
                                     }`}
                                 >
                                   {day.getDate()}
@@ -479,16 +479,16 @@ export default function DateRangePicker({
                             const selectedEnd = isSameDay(day, endDateObj);
                             const inRange = isInRange(day);
                             return (
-                              <div key={day.toISOString()} className={`${inRange ? "bg-green-100/70" : ""} ${selectedStart ? "rounded-l-full" : ""} ${selectedEnd ? "rounded-r-full" : ""}`}>
+                              <div key={day.toISOString()} className={`relative ${inRange ? "bg-green-100/70" : ""} ${selectedStart ? "rounded-l-full" : ""} ${selectedEnd ? "rounded-r-full" : ""}`}>
                                 <button
                                   type="button"
                                   disabled={disabled}
                                   onClick={() => handleDaySelect(day)}
-                                  className={`m-px size-10 sm:size-11 flex justify-center items-center border-[1.5px] text-base rounded-full disabled:pointer-events-none ${selectedStart || selectedEnd
-                                    ? "bg-green-600 text-white border-transparent"
+                                  className={`relative m-px size-10 sm:size-11 flex justify-center items-center border-[1.5px] text-base rounded-full disabled:pointer-events-none ${selectedStart || selectedEnd
+                                    ? "z-20 bg-green-600 text-white border-transparent"
                                     : disabled
-                                      ? "border-transparent text-gray-500"
-                                      : "border-transparent text-gray-800 hover:border-green-700 hover:text-green-700"
+                                      ? "z-10 border-transparent text-gray-500"
+                                      : "z-10 border-transparent text-gray-800 hover:border-green-700 hover:text-green-700"
                                     }`}
                                 >
                                   {day.getDate()}

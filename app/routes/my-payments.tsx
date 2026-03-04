@@ -175,7 +175,7 @@ export default function MyPayments() {
                                                 </p>
                                             )}
                                             <Link
-                                                to={`/dashboard/my-bookings`}
+                                                to={`/my-bookings`}
                                                 className="text-sm text-blue-600 hover:text-blue-700"
                                             >
                                                 View Booking →

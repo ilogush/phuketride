@@ -8,7 +8,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     const query = url.search;
 
     if (!rest) {
-        return redirect(`/dashboard${query}`);
+        return redirect(`/home${query}`);
     }
 
     return redirect(`/${rest}${query}`);

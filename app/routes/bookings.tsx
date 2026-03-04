@@ -118,7 +118,7 @@ export default function BookingsPage() {
             <PageHeader
                 title="Bookings Management"
                 rightActions={
-                    <Link to="/dashboard/bookings/create">
+                    <Link to="/bookings/create">
                         <Button variant="primary">
                             <PlusIcon className="w-5 h-5 mr-2" />
                             New Booking
@@ -175,7 +175,7 @@ export default function BookingsPage() {
                         {bookings.map((booking: BookingRow) => (
                             <Link
                                 key={booking.id}
-                                to={`/dashboard/bookings/${booking.id}`}
+                                to={`/bookings/${booking.id}`}
                                 className="block p-6 hover:bg-gray-50 transition-colors"
                             >
                                 <div className="flex items-center justify-between">

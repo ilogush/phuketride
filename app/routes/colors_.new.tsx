@@ -91,13 +91,6 @@ export default function NewColorModal() {
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => navigate("/colors")}
-                    >
-                        Cancel
-                    </Button>
                     <Button type="submit" variant="primary">
                         Create Color
                     </Button>

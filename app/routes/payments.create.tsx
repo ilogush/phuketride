@@ -166,7 +166,7 @@ export default function RecordPaymentPage() {
                     />
                 </FormSection>
 
-                <FormActions submitLabel="Create Payment" cancelTo="/payments" />
+                <FormActions submitLabel="Create Payment" />
             </Form>
         </div>
     );

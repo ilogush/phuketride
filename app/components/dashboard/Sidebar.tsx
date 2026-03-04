@@ -45,7 +45,7 @@ const getMenuItems = (role: UserRole) => {
         label: string;
         end?: boolean;
     }> = [
-            { to: "/dashboard", icon: Squares2X2Icon, label: "Dashboard", end: true },
+            { to: "/home", icon: Squares2X2Icon, label: "Dashboard", end: true },
         ];
 
     if (role === "admin") {
@@ -111,7 +111,7 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
         if (!isAdminModMode) {
             return to;
         }
-        if (to === "/dashboard") {
+        if (to === "/home") {
             return `/companies/${modCompanyId}`;
         }
         const separator = to.includes("?") ? "&" : "?";

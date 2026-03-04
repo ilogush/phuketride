@@ -104,8 +104,8 @@ export default function CarsPage() {
                 const photos = car.photos ? JSON.parse(car.photos as string) : [];
                 const firstPhoto = photos[0];
                 const editPath = modCompanyId
-                    ? `/dashboard/cars/${car.id}/edit?modCompanyId=${modCompanyId}`
-                    : `/dashboard/cars/${car.id}/edit`;
+                    ? `/cars/${car.id}/edit?modCompanyId=${modCompanyId}`
+                    : `/cars/${car.id}/edit`;
 
                 return (
                     <Link to={editPath} className="block hover:opacity-70 transition-opacity">
@@ -182,7 +182,7 @@ export default function CarsPage() {
             <PageHeader
                 title="Cars"
                 rightActions={
-                    <Link to="/dashboard/cars/create">
+                    <Link to="/cars/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
                             Add
                         </Button>

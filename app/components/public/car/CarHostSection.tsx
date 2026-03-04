@@ -1,10 +1,12 @@
 import { StarIcon } from "@heroicons/react/24/solid";
+import { Link } from "react-router";
 import type { CarFeatureItem } from "~/components/public/car/types";
 
 interface CarHostSectionProps {
   title: string;
   year: number | null;
   hostName: string;
+  companySlug: string;
   hostTrips: number;
   hostJoinedAt: string | null;
   hostAvatarUrl: string | null;
@@ -16,6 +18,7 @@ export default function CarHostSection({
   title,
   year,
   hostName,
+  companySlug,
   hostTrips,
   hostJoinedAt,
   hostAvatarUrl,
@@ -50,7 +53,9 @@ export default function CarHostSection({
           </div>
         </div>
         <div>
-          <p className="text-xl font-semibold text-gray-800">{hostName}</p>
+          <Link to={`/company/${companySlug}`} className="text-xl font-semibold text-gray-800 hover:text-green-700 transition-colors">
+            {hostName}
+          </Link>
           <p className="text-sm text-gray-500">
             {hostTrips} trips
             {hostJoinedAt ? ` • Joined ${hostJoinedAt}` : ""}

@@ -18,17 +18,21 @@ export default [
     route("host-tools", "routes/host-tools.tsx"),
     route("carculator", "routes/carculator.tsx"),
 
-    // Company standalone dashboard (Phuket Ride Co.)
-    route("companies/:companyId", "routes/companies.$companyId.tsx"),
+    // Public company fleet page
+    route("company/:slug", "routes/company.$slug.tsx"),
     route("cars/:id", "routes/cars.$id.tsx"),
     route("cars/:id/checkout", "routes/cars.$id.checkout.tsx"),
+    // Legacy compatibility URL
+    route("dashboard", "routes/legacy-redirect.tsx"),
+    route("dashboard/*", "routes/legacy-redirect-splat.tsx"),
+    route("dashboard/companies", "routes/legacy.dashboard.companies.tsx"),
+    route("dashboard/companies/:companyId/edit", "routes/legacy.dashboard.companies.$companyId.edit.tsx"),
+    route("dashboard/cars", "routes/legacy.dashboard.cars.tsx"),
+    route("dashboard/cars/:id/edit", "routes/legacy.dashboard.cars.$id.edit.tsx"),
 
-    // Compatibility redirects for legacy /dashboard/* URLs
-    route("dashboard/*", "routes/legacy-redirect.tsx"),
-
-    // Protected routes with dashboard layout
+    // Protected routes with dashboard layout (root admin URLs)
     layout("routes/app-layout.tsx", [
-        route("dashboard", "routes/dashboard-home.tsx"),
+        route("home", "routes/dashboard-home.tsx"),
 
         // Admin routes
         route("companies", "routes/companies.tsx"),

@@ -6,6 +6,7 @@ import HeroSection from "~/components/public/HeroSection";
 import BodyTypeFilters from "~/components/public/BodyTypeFilters";
 import PopularCarsSection from "~/components/public/PopularCarsSection";
 import Footer from "~/components/public/Footer";
+import { buildCarPathSegment, buildCompanySlug } from "~/lib/car-path";
 
 export function meta({ }: Route.MetaArgs) {
   return [
@@ -45,6 +46,7 @@ export async function loader({ context }: Route.LoaderArgs) {
         `
         SELECT
           cc.id AS id,
+          cc.license_plate AS licensePlate,
           cc.company_id AS companyId,
           cb.name AS brandName,
           cm.name AS modelName,
@@ -135,6 +137,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 
     return {
       id: Number(row.id),
+      licensePlate: String(row.licensePlate || ""),
       companyId: Number(row.companyId),
       brandName: (row.brandName as string) || "Car",
       modelName: (row.modelName as string) || `#${String(row.id)}`,
@@ -150,6 +153,13 @@ export async function loader({ context }: Route.LoaderArgs) {
       officeAddress: officeAddress || String(row.companyName || ""),
       rating: row.rating ? Number(row.rating) : null,
       totalRatings: row.totalRatings ? Number(row.totalRatings) : null,
+      pathSegment: buildCarPathSegment(
+        String(row.companyName || ""),
+        (row.brandName as string) || "Car",
+        (row.modelName as string) || "",
+        String(row.licensePlate || ""),
+      ),
+      companySlug: buildCompanySlug(String(row.companyName || "")),
     };
   });
 

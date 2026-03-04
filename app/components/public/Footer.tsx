@@ -44,7 +44,7 @@ export default function Footer() {
             <ul className="space-y-4">
               <li><Link to="/contact-support" className="text-gray-600 hover:text-green-600 text-sm transition-colors">Contact support</Link></li>
               <li><Link to="/legal" className="text-gray-600 hover:text-green-600 text-sm transition-colors">Legal & Terms</Link></li>
-              <li><Link to="/dashboard" className="text-gray-600 hover:text-green-600 text-sm transition-colors">Login / Dashboard</Link></li>
+              <li><Link to="/home" className="text-gray-600 hover:text-green-600 text-sm transition-colors">Login / Dashboard</Link></li>
             </ul>
           </div>
         </div>
@@ -80,4 +80,3 @@ export default function Footer() {
     </footer>
   );
 }
-

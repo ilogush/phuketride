@@ -16,6 +16,7 @@ import type {
   CarReviewItem,
   CarRuleItem,
 } from "~/components/public/car/types";
+import { buildCarPathSegment, buildCompanySlug, parseCarPathSegment } from "~/lib/car-path";
 
 const formatDate = (date: Date | null) => {
   if (!date) {
@@ -52,17 +53,17 @@ const toDateOrNull = (value: unknown): Date | null => {
 
 export async function loader({ context, params }: Route.LoaderArgs) {
   const d1 = context.cloudflare.env.DB;
-  const carId = Number(params.id);
-
-  if (!Number.isFinite(carId) || carId <= 0) {
-    throw new Response("Invalid car id", { status: 400 });
+  const parsedPath = parseCarPathSegment(params.id);
+  if (!parsedPath) {
+    throw new Response("Invalid car path", { status: 400 });
   }
 
-  const carResult = await d1
+  const carCandidatesResult = await d1
     .prepare(
       `
       SELECT
         cc.id AS id,
+        cc.license_plate AS licensePlate,
         c.id AS companyId,
         cb.name AS brandName,
         cm.name AS modelName,
@@ -99,27 +100,35 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       LEFT JOIN users u ON c.owner_id = u.id
       LEFT JOIN locations l ON c.location_id = l.id
       LEFT JOIN districts d ON c.district_id = d.id
-      WHERE cc.id = ?
-        AND cc.archived_at IS NULL
+      WHERE cc.archived_at IS NULL
         AND c.archived_at IS NULL
-      LIMIT 1
+        AND LOWER(COALESCE(cc.license_plate, '')) LIKE '%' || LOWER(?) || '%'
+      LIMIT 40
       `
     )
-    .bind(carId)
+    .bind(parsedPath.plateTail)
     .all();
-  const carRows = (carResult.results ?? []) as Array<Record<string, unknown>>;
+  const carRows = (carCandidatesResult.results ?? []) as Array<Record<string, unknown>>;
+  const car = carRows.find((row) => (
+    buildCarPathSegment(
+      String(row.companyName || ""),
+      String(row.brandName || ""),
+      String(row.modelName || ""),
+      String(row.licensePlate || ""),
+    ) === parsedPath.full
+  ));
 
-  if (!carRows.length) {
+  if (!car) {
     throw new Response("Car not found", { status: 404 });
   }
-  const car = carRows[0];
+  const carId = Number(car.id || 0);
 
   const parsedLocationId = Number(car.locationId);
   const parsedCompanyId = Number(car.companyId);
   const safeLocationId = Number.isFinite(parsedLocationId) && parsedLocationId > 0 ? parsedLocationId : null;
   const safeCompanyId = Number.isFinite(parsedCompanyId) && parsedCompanyId > 0 ? parsedCompanyId : null;
-  const districtRows: Array<Record<string, unknown>> = (safeLocationId && safeCompanyId)
-    ? ((await d1
+  const districtPromise = (safeLocationId && safeCompanyId)
+    ? d1
         .prepare(
           `
           SELECT
@@ -135,17 +144,21 @@ export async function loader({ context, params }: Route.LoaderArgs) {
           `
         )
         .bind(safeCompanyId, safeLocationId)
-        .all()).results ?? []) as Array<Record<string, unknown>>
-    : [];
+        .all()
+    : Promise.resolve({ results: [] as Record<string, unknown>[] });
 
-  const tripStatsResult = await d1
-    .prepare("SELECT count(*) AS trips FROM contracts WHERE company_car_id = ?")
-    .bind(carId)
-    .all();
-  const tripStats = (tripStatsResult.results ?? []) as Array<Record<string, unknown>>;
-
-  const ratingMetricsResult = await d1
-    .prepare(
+  const [
+    districtResult,
+    tripStatsResult,
+    ratingMetricsResult,
+    reviewsResult,
+    includedResult,
+    rulesResult,
+    featuresResult,
+  ] = await Promise.all([
+    districtPromise,
+    d1.prepare("SELECT count(*) AS trips FROM contracts WHERE company_car_id = ?").bind(carId).all(),
+    d1.prepare(
       `
       SELECT
         total_rating AS totalRating,
@@ -159,13 +172,8 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       WHERE company_car_id = ?
       LIMIT 1
       `
-    )
-    .bind(carId)
-    .all();
-  const ratingMetricsRows = (ratingMetricsResult.results ?? []) as Array<Record<string, unknown>>;
-
-  const reviewsResult = await d1
-    .prepare(
+    ).bind(carId).all(),
+    d1.prepare(
       `
       SELECT
         id,
@@ -177,14 +185,10 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       FROM car_reviews
       WHERE company_car_id = ?
       ORDER BY sort_order ASC, id ASC
+      LIMIT 12
       `
-    )
-    .bind(carId)
-    .all();
-  const reviewRows = (reviewsResult.results ?? []) as Array<Record<string, unknown>>;
-
-  const includedResult = await d1
-    .prepare(
+    ).bind(carId).all(),
+    d1.prepare(
       `
       SELECT
         id,
@@ -196,13 +200,8 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       WHERE company_car_id = ?
       ORDER BY sort_order ASC, id ASC
       `
-    )
-    .bind(carId)
-    .all();
-  const includedRows = (includedResult.results ?? []) as Array<Record<string, unknown>>;
-
-  const rulesResult = await d1
-    .prepare(
+    ).bind(carId).all(),
+    d1.prepare(
       `
       SELECT
         id,
@@ -213,13 +212,8 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       WHERE company_car_id = ?
       ORDER BY sort_order ASC, id ASC
       `
-    )
-    .bind(carId)
-    .all();
-  const rulesRows = (rulesResult.results ?? []) as Array<Record<string, unknown>>;
-
-  const featuresResult = await d1
-    .prepare(
+    ).bind(carId).all(),
+    d1.prepare(
       `
       SELECT
         id,
@@ -229,9 +223,15 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       WHERE company_car_id = ?
       ORDER BY sort_order ASC, id ASC
       `
-    )
-    .bind(carId)
-    .all();
+    ).bind(carId).all(),
+  ]);
+
+  const districtRows = (districtResult.results ?? []) as Array<Record<string, unknown>>;
+  const tripStats = (tripStatsResult.results ?? []) as Array<Record<string, unknown>>;
+  const ratingMetricsRows = (ratingMetricsResult.results ?? []) as Array<Record<string, unknown>>;
+  const reviewRows = (reviewsResult.results ?? []) as Array<Record<string, unknown>>;
+  const includedRows = (includedResult.results ?? []) as Array<Record<string, unknown>>;
+  const rulesRows = (rulesResult.results ?? []) as Array<Record<string, unknown>>;
   const featureRows = (featuresResult.results ?? []) as Array<Record<string, unknown>>;
 
   let photos: string[] = [];
@@ -289,6 +289,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   return {
     car: {
       id: Number(car.id),
+      licensePlate: String(car.licensePlate || ""),
       companyId: Number(car.companyId || 0),
       brandName: (car.brandName as string | null) ?? null,
       modelName: (car.modelName as string | null) ?? null,
@@ -314,6 +315,13 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       ownerCreatedAt: toDateOrNull(car.ownerCreatedAt),
       marketingHeadline: (car.marketingHeadline as string | null) ?? null,
       description: (car.description as string | null) ?? null,
+      companySlug: buildCompanySlug(String(car.companyName || "")),
+      pathSegment: buildCarPathSegment(
+        String(car.companyName || ""),
+        (car.brandName as string | null) ?? null,
+        (car.modelName as string | null) ?? null,
+        String(car.licensePlate || ""),
+      ),
     },
     photos,
     returnDistricts: districtRows.map((row) => ({
@@ -334,7 +342,8 @@ export async function loader({ context, params }: Route.LoaderArgs) {
 export default function PublicCarPage() {
   const { car, photos, returnDistricts, hostTrips, ratingSummary, reviews, includedItems, rules, features } = useLoaderData<typeof loader>();
 
-  const title = `${car.brandName || "Car"} ${car.modelName || `#${car.id}`}`;
+  const carNumber = String(car.licensePlate || "").trim();
+  const title = `${car.brandName || "Car"} ${car.modelName || "Model"} ${carNumber || `#${car.id}`}`;
   const breadcrumbs = [
     { label: "Home", to: "/" },
     { label: "Cars", to: "/cars" },
@@ -365,6 +374,7 @@ export default function PublicCarPage() {
               title={title}
               year={car.year}
               hostName={car.ownerName || car.companyName}
+              companySlug={car.companySlug}
               hostTrips={hostTrips}
               hostJoinedAt={formatMonthYear(car.ownerCreatedAt || null)}
               hostAvatarUrl={car.ownerAvatarUrl}
@@ -379,6 +389,7 @@ export default function PublicCarPage() {
 
           <CarTripSidebar
             carId={car.id}
+            carPathSegment={car.pathSegment}
             showPricePerDay={false}
             pickupDistrict={pickupDistrict}
             returnDistricts={returnDistricts}

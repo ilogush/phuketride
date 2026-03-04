@@ -67,11 +67,11 @@ export default function CarPhotosUpload({
     }
 
     return (
-        <div className="flex flex-wrap gap-4">
+        <div className="grid grid-cols-4 gap-3">
             {previews.map((photo) => (
                 <div
                     key={photo.id}
-                    className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-50"
+                    className="relative aspect-square rounded-lg overflow-hidden bg-gray-50"
                 >
                     <img
                         src={photo.base64}
@@ -93,7 +93,7 @@ export default function CarPhotosUpload({
                     type="button"
                     variant="unstyled"
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-lg flex flex-col items-center justify-center cursor-pointer gap-2"
+                    className="w-full aspect-square border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-lg flex flex-col items-center justify-center cursor-pointer gap-2"
                 >
                     <PlusIcon className="w-6 h-6 text-gray-400" />
                     <span className="text-xs text-gray-400">

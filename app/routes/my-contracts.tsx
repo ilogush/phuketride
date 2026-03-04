@@ -135,7 +135,7 @@ export default function MyContractsPage() {
                         {contracts.map((contract: MyContractRow) => (
                             <Link
                                 key={contract.id}
-                                to={`/dashboard/my-contracts/${contract.id}`}
+                                to={`/my-contracts/${contract.id}`}
                                 className="block p-6 hover:bg-gray-50 transition-colors"
                             >
                                 <div className="flex items-center justify-between">

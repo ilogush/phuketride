@@ -7,6 +7,7 @@ import { StarIcon } from "@heroicons/react/24/solid";
 
 interface PublicCarItem {
   id: number;
+  licensePlate: string;
   brandName: string;
   modelName: string;
   year: number | null;
@@ -21,6 +22,7 @@ interface PublicCarItem {
   officeAddress: string;
   rating: number | null;
   totalRatings: number | null;
+  pathSegment: string;
 }
 
 interface PopularCarsSectionProps {
@@ -99,7 +101,7 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                     return (
                       <article key={car.id} className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
                         <Link
-                          to={`/cars/${car.id}`}
+                          to={`/cars/${car.pathSegment}`}
                           className="relative hidden sm:block aspect-[16/10] bg-gray-100"
                           onMouseLeave={() =>
                             setActivePhotoByCar((prev) => ({
@@ -175,7 +177,7 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                             </p>
                           </div>
 
-                          <Link to={`/cars/${car.id}`} className="block sm:hidden mb-3">
+                          <Link to={`/cars/${car.pathSegment}`} className="block sm:hidden mb-3">
                             <ClientButton type="button" className="w-full text-sm">
                               Book now
                             </ClientButton>

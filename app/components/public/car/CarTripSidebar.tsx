@@ -12,6 +12,7 @@ import { calculateBaseTripTotal } from "~/lib/pricing";
 
 interface CarTripSidebarProps {
   carId: number;
+  carPathSegment?: string;
   showPricePerDay?: boolean;
   pickupDistrict: string;
   returnDistricts: Array<{ id: number; name: string; isActive?: boolean; deliveryPrice?: number }>;
@@ -47,6 +48,7 @@ const initialRange = (): DateRangeValue => {
 const parseDateTime = (date: string, time: string) => new Date(`${date}T${time}:00`);
 export default function CarTripSidebar({
   carId,
+  carPathSegment,
   showPricePerDay = true,
   pickupDistrict,
   returnDistricts,
@@ -160,7 +162,7 @@ export default function CarTripSidebar({
         </div>
 
         <Link
-          to={`/cars/${carId}/checkout?pickupDistrictId=${pickupDistrictId}&returnDistrictId=${returnDistrictId}`}
+          to={`/cars/${carPathSegment || carId}/checkout?pickupDistrictId=${pickupDistrictId}&returnDistrictId=${returnDistrictId}`}
           className="w-full inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"
         >
           Continue

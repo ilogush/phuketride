@@ -65,7 +65,7 @@ export default function CompaniesPage() {
             key: "id",
             label: "ID",
             render: (company) => (
-                <Link to={`/companies/${company.id}/edit`} className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold font-mono bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none hover:bg-gray-700">
+                <Link to={`/home?modCompanyId=${company.id}`} className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold font-mono bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none hover:bg-gray-700">
                     {String(company.id).padStart(3, '0')}
                 </Link>
             ),

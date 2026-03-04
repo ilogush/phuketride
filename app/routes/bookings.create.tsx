@@ -219,7 +219,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             ...metadata,
         }).run();
 
-        return redirect(`/dashboard/bookings?success=Booking created successfully`);
+        return redirect(`/bookings?success=Booking created successfully`);
     } catch (error) {
         return { error: error instanceof Error ? error.message : "Failed to create booking" };
     }
@@ -274,7 +274,7 @@ export default function CreateBookingPage() {
         <div className="space-y-6">
             <PageHeader
                 title="Create Booking"
-                leftActions={<BackButton to="/dashboard/bookings" />}
+                leftActions={<BackButton to="/bookings" />}
                 rightActions={
                     <Button type="submit" variant="primary" form="create-booking-form">
                         Create Booking

@@ -138,7 +138,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 ...metadata,
             });
 
-            return redirect(`/dashboard/bookings?success=Booking cancelled successfully`);
+            return redirect(`/bookings?success=Booking cancelled successfully`);
         }
 
         if (action === "convert") {
@@ -304,7 +304,7 @@ export default function BookingDetailsPage() {
         <div className="space-y-6">
             <PageHeader
                 title={`Booking #${booking.id}`}
-                leftActions={<BackButton to="/dashboard/bookings" />}
+                leftActions={<BackButton to="/bookings" />}
                 rightActions={
                     <div className="flex gap-2">
                         {canConvert && (

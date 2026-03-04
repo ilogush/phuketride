@@ -1037,10 +1037,6 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
                                 <div className="flex justify-end gap-3 pt-4">
-                                    <Button type="button" variant="secondary" onClick={() => {
-                                        setIsPaymentModalOpen(false);
-                                        setEditingPaymentTemplate(null);
-                                    }}>Cancel</Button>
                                     <Button type="submit" variant="primary">{editingPaymentTemplate ? "Update" : "Create"}</Button>
                                 </div>
                             </Form>
@@ -1142,7 +1138,6 @@ export default function SettingsPage() {
                                     />
                                 </div>
                                 <div className="flex justify-end gap-3 pt-4">
-                                    <Button type="button" variant="secondary" onClick={() => setIsCurrencyModalOpen(false)}>Cancel</Button>
                                     <Button type="submit" variant="primary">Create</Button>
                                 </div>
                             </Form>

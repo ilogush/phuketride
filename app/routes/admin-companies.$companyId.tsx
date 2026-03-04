@@ -4,8 +4,7 @@ import { requireAuth } from "~/lib/auth.server";
 export async function loader({ request, params }: LoaderFunctionArgs) {
     await requireAuth(request);
     const companyId = Number.parseInt(params.companyId || "0", 10);
-    const url = new URL(request.url);
-    return redirect(`/companies/${companyId}/edit${url.search}`);
+    return redirect(`/home?modCompanyId=${companyId}`);
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
@@ -13,7 +12,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const companyId = Number.parseInt(params.companyId || "0", 10);
 
     if (user.role !== "admin") {
-        return redirect(`/companies/${companyId}/edit?error=Access denied`);
+        return redirect(`/home?modCompanyId=${companyId}&error=${encodeURIComponent("Access denied")}`);
     }
 
     const formData = await request.formData();
@@ -27,7 +26,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             return redirect(`/companies?success=${encodeURIComponent(result.message || "Company archived successfully")}`);
         }
 
-        return redirect(`/companies/${companyId}/edit?error=${encodeURIComponent(result.message || result.error || "Failed to archive company")}`);
+        return redirect(`/home?modCompanyId=${companyId}&error=${encodeURIComponent(result.message || result.error || "Failed to archive company")}`);
     }
 
     if (intent === "unarchive") {
@@ -35,13 +34,13 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         const result = await unarchiveCompany(context.cloudflare.env.DB, companyId);
 
         if (result.success) {
-            return redirect(`/companies/${companyId}/edit?success=${encodeURIComponent(result.message || "Company unarchived successfully")}`);
+            return redirect(`/home?modCompanyId=${companyId}&success=${encodeURIComponent(result.message || "Company unarchived successfully")}`);
         }
 
-        return redirect(`/companies/${companyId}/edit?error=${encodeURIComponent(result.message || result.error || "Failed to unarchive company")}`);
+        return redirect(`/home?modCompanyId=${companyId}&error=${encodeURIComponent(result.message || result.error || "Failed to unarchive company")}`);
     }
 
-    return redirect(`/companies/${companyId}/edit`);
+    return redirect(`/home?modCompanyId=${companyId}`);
 }
 
 export default function CompanyRedirectPage() {

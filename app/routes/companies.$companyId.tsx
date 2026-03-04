@@ -53,7 +53,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 
     // Admin opens company page in mod mode as partner dashboard.
     if (user.role === "admin") {
-        return redirect(`/dashboard?modCompanyId=${companyId}`);
+        return redirect(`/home?modCompanyId=${companyId}`);
     }
 
     let company: any = null;
@@ -423,7 +423,7 @@ export default function CompanyDetailPage() {
                     <div className="space-y-6">
                         {/* Back button */}
                         <Link
-                            to="/dashboard/companies"
+                            to="/companies"
                             className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors"
                         >
                             <ArrowLeftIcon className="w-5 h-5" />

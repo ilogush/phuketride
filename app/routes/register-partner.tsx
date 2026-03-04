@@ -15,7 +15,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     // If already logged in, redirect to dashboard
     const user = await getUserFromSession(request);
     if (user) {
-        return redirect("/dashboard");
+        return redirect("/home");
     }
 
     // Load districts for Phuket (location_id = 1)
@@ -132,7 +132,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         const cookie = await serializeSession(request, sessionUser);
 
-        return redirect("/dashboard?login=success", {
+        return redirect("/home?login=success", {
             headers: {
                 "Set-Cookie": cookie,
             },

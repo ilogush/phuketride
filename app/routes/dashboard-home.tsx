@@ -30,13 +30,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 .bind(parseInt(taskId))
                 .run();
 
-            return redirect("/dashboard?success=Task deleted successfully");
+            return redirect("/home?success=Task deleted successfully");
         } catch {
-            return redirect("/dashboard?error=Failed to delete task");
+            return redirect("/home?error=Failed to delete task");
         }
     }
 
-    return redirect("/dashboard");
+    return redirect("/home");
 }
 
 const ICON_MAP: Record<string, any> = {
@@ -267,21 +267,21 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     value: userContractsCount?.count || 0,
                     subtext: "total bookings",
                     icon: "ClipboardDocumentListIcon",
-                    href: "/dashboard/my-bookings",
+                    href: "/my-bookings",
                 },
                 {
                     name: "Active",
                     value: activeContractsCount?.count || 0,
                     subtext: "active rentals",
                     icon: "CheckCircleIcon",
-                    href: "/dashboard/my-contracts",
+                    href: "/my-contracts",
                 },
                 {
                     name: "Upcoming",
                     value: upcomingContractsCount?.count || 0,
                     subtext: "scheduled",
                     icon: "CalendarIcon",
-                    href: "/dashboard/my-bookings",
+                    href: "/my-bookings",
                 },
             ];
         }

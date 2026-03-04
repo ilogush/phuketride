@@ -369,13 +369,6 @@ export default function CloseContract() {
 
                 {/* Actions */}
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => navigate("/contracts")}
-                    >
-                        Cancel
-                    </Button>
                     <Button type="submit" variant="primary">
                         Close Contract
                     </Button>

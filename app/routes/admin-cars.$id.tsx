@@ -26,8 +26,8 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
     }
 
     const editUrl = modCompanyId
-        ? `/dashboard/cars/${carId}/edit?modCompanyId=${modCompanyId}`
-        : `/dashboard/cars/${carId}/edit`;
+        ? `/cars/${carId}/edit?modCompanyId=${modCompanyId}`
+        : `/cars/${carId}/edit`;
     return redirect(editUrl);
 }
 

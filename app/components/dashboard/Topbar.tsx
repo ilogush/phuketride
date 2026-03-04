@@ -79,7 +79,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen, notificat
                 <div className="flex items-center gap-3 ml-6">
                     {/* Notifications */}
                     <Link
-                        to="/dashboard"
+                        to="/notifications"
                         className="relative p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
                         title="Notifications"
                     >

@@ -104,13 +104,13 @@ export default function CalendarPage() {
     const prevMonth = () => {
         const newMonth = currentMonth === 0 ? 11 : currentMonth - 1;
         const newYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-        return `/dashboard/calendar?month=${newMonth}&year=${newYear}${modModeSuffix}`;
+        return `/calendar?month=${newMonth}&year=${newYear}${modModeSuffix}`;
     };
 
     const nextMonth = () => {
         const newMonth = currentMonth === 11 ? 0 : currentMonth + 1;
         const newYear = currentMonth === 11 ? currentYear + 1 : currentYear;
-        return `/dashboard/calendar?month=${newMonth}&year=${newYear}${modModeSuffix}`;
+        return `/calendar?month=${newMonth}&year=${newYear}${modModeSuffix}`;
     };
 
     const getEventsForDay = (day: number) => {
@@ -148,7 +148,7 @@ export default function CalendarPage() {
             <PageHeader
                 title="Calendar"
                 rightActions={
-                    <Link to={modCompanyId ? `/dashboard/calendar/new?modCompanyId=${modCompanyId}` : "/dashboard/calendar/new"}>
+                    <Link to={modCompanyId ? `/calendar/new?modCompanyId=${modCompanyId}` : "/calendar/new"}>
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
                             Add Event
                         </Button>

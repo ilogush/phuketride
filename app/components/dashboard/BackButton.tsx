@@ -23,7 +23,7 @@ export function BackButton({ href, to, useHistory = true }: BackButtonProps) {
         )
     }
 
-    const destination = to || href || '/dashboard'
+    const destination = to || href || '/'
     return (
         <Link
             to={destination}

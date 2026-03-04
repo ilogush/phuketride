@@ -11,6 +11,7 @@ import {
   CalendarDaysIcon,
   MapPinIcon,
 } from "@heroicons/react/24/outline";
+import { buildCarPathSegment, parseCarPathSegment } from "~/lib/car-path";
 
 const textInputClass =
   "w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-base text-gray-700 placeholder:text-gray-400 focus:border-green-600 focus:outline-none";
@@ -37,13 +38,13 @@ const formatTripDate = (value: unknown) => {
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
   const d1 = context.cloudflare.env.DB;
-  const carId = Number(params.id);
+  const parsedPath = parseCarPathSegment(params.id);
   const url = new URL(request.url);
   const pickupDistrictId = Number(url.searchParams.get("pickupDistrictId") || 0);
   const returnDistrictId = Number(url.searchParams.get("returnDistrictId") || 0);
 
-  if (!Number.isFinite(carId) || carId <= 0) {
-    throw new Response("Invalid car id", { status: 400 });
+  if (!parsedPath) {
+    throw new Response("Invalid car path", { status: 400 });
   }
 
   const row = await d1
@@ -51,6 +52,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
       `
       SELECT
         cc.id AS id,
+        cc.license_plate AS licensePlate,
         c.id AS companyId,
         cb.name AS brandName,
         cm.name AS modelName,
@@ -75,21 +77,28 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
       INNER JOIN companies c ON cc.company_id = c.id
       LEFT JOIN locations l ON c.location_id = l.id
       LEFT JOIN districts d ON c.district_id = d.id
-      WHERE cc.id = ?
-        AND cc.archived_at IS NULL
+      WHERE cc.archived_at IS NULL
         AND c.archived_at IS NULL
-      LIMIT 1
+        AND LOWER(COALESCE(cc.license_plate, '')) LIKE '%' || LOWER(?) || '%'
+      LIMIT 40
       `,
     )
-    .bind(carId)
+    .bind(parsedPath.plateTail)
     .all();
 
   const result = (row.results ?? []) as Array<Record<string, unknown>>;
-  if (!result.length) {
+  const car = result.find((item) => (
+    buildCarPathSegment(
+      String(item.companyName || ""),
+      String(item.brandName || ""),
+      String(item.modelName || ""),
+      String(item.licensePlate || ""),
+    ) === parsedPath.full
+  ));
+  if (!car) {
     throw new Response("Car not found", { status: 404 });
   }
-
-  const car = result[0];
+  const carId = Number(car.id || 0);
 
   let photoUrl = "/images/hero-bg.webp";
   if (typeof car.photos === "string" && car.photos) {
@@ -159,7 +168,13 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
   return {
     carId,
-    carName: `${String(car.brandName || "Car")} ${String(car.modelName || `#${carId}`)}`,
+    carPathSegment: buildCarPathSegment(
+      String(car.companyName || ""),
+      String(car.brandName || ""),
+      String(car.modelName || ""),
+      String(car.licensePlate || ""),
+    ),
+    carName: `${String(car.brandName || "Car")} ${String(car.modelName || "Model")} ${String(car.licensePlate || "").trim() || `#${carId}`}`,
     year: Number(car.year || 0) || 2015,
     rating: Number(car.totalRating || 5).toFixed(1),
     trips: Number(car.trips || 1),
@@ -367,7 +382,7 @@ export default function CheckoutPage() {
   const breadcrumbs = [
     { label: "Home", to: "/" },
     { label: "Cars", to: "/cars" },
-    { label: data.carName, to: `/cars/${data.carId}` },
+    { label: data.carName, to: `/cars/${data.carPathSegment}` },
     { label: "Checkout" },
   ];
 
@@ -465,7 +480,7 @@ export default function CheckoutPage() {
 
               <div className="pt-1">
                 <Link
-                  to={`/cars/${data.carId}`}
+                  to={`/cars/${data.carPathSegment}`}
                   className="inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"
                 >
                   <ChevronLeftIcon className="w-5 h-5" />

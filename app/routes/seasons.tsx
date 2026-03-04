@@ -612,13 +612,6 @@ export default function SeasonsPage() {
                     />
 
                     <div className="flex justify-end gap-3 pt-4">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={handleCloseModal}
-                        >
-                            Cancel
-                        </Button>
                         <Button type="submit" variant="primary">
                             {editingSeason ? "Update Season" : "Create Season"}
                         </Button>

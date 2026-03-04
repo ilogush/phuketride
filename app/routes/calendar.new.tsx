@@ -59,10 +59,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
             )
             .run();
 
-        return redirect(`/dashboard/calendar?success=${encodeURIComponent("Event created successfully")}`);
+        return redirect(`/calendar?success=${encodeURIComponent("Event created successfully")}`);
     } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to create event";
-        return redirect(`/dashboard/calendar/new?error=${encodeURIComponent(message)}`);
+        return redirect(`/calendar/new?error=${encodeURIComponent(message)}`);
     }
 }
 
@@ -85,7 +85,7 @@ export default function NewCalendarEvent() {
     return (
         <Modal
             isOpen={true}
-            onClose={() => navigate("/dashboard/calendar")}
+            onClose={() => navigate("/calendar")}
             title="New Event"
         >
             <Form method="post" className="space-y-4">
@@ -146,13 +146,6 @@ export default function NewCalendarEvent() {
                 </FormSection>
 
                 <div className="flex justify-end gap-3 pt-4">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => navigate("/dashboard/calendar")}
-                    >
-                        Cancel
-                    </Button>
                     <Button type="submit" variant="primary">
                         Create Event
                     </Button>

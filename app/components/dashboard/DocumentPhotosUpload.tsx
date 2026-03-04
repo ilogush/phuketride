@@ -70,11 +70,11 @@ export default function DocumentPhotosUpload({
 
     return (
         <div className="w-full">
-            <div className="flex gap-2 overflow-x-auto">
+            <div className="grid grid-cols-4 gap-3">
                 {previews.map((photo) => (
                     <div
                         key={photo.id}
-                        className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-50"
+                        className="relative aspect-square rounded-lg overflow-hidden bg-gray-50"
                     >
                         <img
                             src={photo.base64}
@@ -92,7 +92,7 @@ export default function DocumentPhotosUpload({
                     </div>
                 ))}
                 {previews.length < maxPhotos && (
-                    <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors flex-shrink-0 w-20 h-20 rounded-lg">
+                    <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors w-full aspect-square rounded-lg">
                         <input
                             ref={fileInputRef}
                             type="file"

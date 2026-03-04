@@ -98,7 +98,7 @@ export default function MyBookingsPage() {
                     <h1 className="text-2xl font-bold text-gray-900">My Bookings</h1>
                     <p className="text-sm text-gray-500 mt-1">Manage your car rentals</p>
                 </div>
-                <Link to="/dashboard/bookings/create">
+                <Link to="/bookings/create">
                     <Button variant="primary">
                         <PlusIcon className="h-5 w-5 mr-2" />
                         New Booking
@@ -146,7 +146,7 @@ export default function MyBookingsPage() {
                         {bookings.map((booking: MyBookingRow) => (
                             <Link
                                 key={booking.id}
-                                to={`/dashboard/my-contracts/${booking.id}`}
+                                to={`/my-contracts/${booking.id}`}
                                 className="block p-6 hover:bg-gray-50 transition-colors"
                             >
                                 <div className="flex items-center justify-between">
@@ -188,7 +188,7 @@ export default function MyBookingsPage() {
                         <p className="text-sm text-gray-400 mt-1">
                             Create your first booking to get started
                         </p>
-                        <Link to="/dashboard/bookings/create" className="mt-4 inline-block">
+                        <Link to="/bookings/create" className="mt-4 inline-block">
                             <Button variant="primary">
                                 <PlusIcon className="h-5 w-5 mr-2" />
                                 New Booking

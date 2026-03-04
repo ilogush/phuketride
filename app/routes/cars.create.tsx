@@ -129,6 +129,26 @@ export async function action({ request, context }: ActionFunctionArgs) {
     try {
         const marketingHeadline = formData.get("marketingHeadline") as string || null;
         const description = formData.get("description") as string || null;
+        const duplicateByCompanyResult = await context.cloudflare.env.DB
+            .prepare(
+                `
+                SELECT cc.id
+                FROM company_cars cc
+                JOIN car_templates ct ON ct.id = cc.template_id
+                WHERE cc.company_id = ?
+                  AND ct.brand_id = (SELECT brand_id FROM car_templates WHERE id = ?)
+                  AND ct.model_id = (SELECT model_id FROM car_templates WHERE id = ?)
+                  AND UPPER(TRIM(cc.license_plate)) = UPPER(TRIM(?))
+                  AND cc.archived_at IS NULL
+                LIMIT 1
+                `
+            )
+            .bind(companyId, validData.templateId, validData.templateId, validData.licensePlate)
+            .all();
+        if ((duplicateByCompanyResult.results ?? []).length > 0) {
+            return redirect(`/cars/create?error=${encodeURIComponent("Car with same brand, model and license plate already exists in this company")}`);
+        }
+
         const fuelTypesResult = await context.cloudflare.env.DB
             .prepare("SELECT id, name FROM fuel_types")
             .all() as { results?: any[] };
@@ -262,7 +282,7 @@ export default function CreateCarPage() {
     return (
         <div className="space-y-4">
             <PageHeader
-                leftActions={<BackButton to="/dashboard/cars" />}
+                leftActions={<BackButton to="/cars" />}
                 title="Add"
                 rightActions={
                     <Button type="submit" form="create-car-form" variant="primary">

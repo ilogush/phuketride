@@ -22,6 +22,9 @@ import { uploadToR2 } from "~/lib/r2.server";
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const carId = Number(params.id);
+    if (!Number.isFinite(carId) || carId <= 0) {
+        throw new Response("Invalid car id", { status: 400 });
+    }
 
     const carRaw = await context.cloudflare.env.DB
         .prepare(`
@@ -139,8 +142,20 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
     const user = await requireAuth(request);
+    const requestUrl = new URL(request.url);
+    const modCompanyIdParam = requestUrl.searchParams.get("modCompanyId");
+    const hasModCompanyId = !!modCompanyIdParam && Number.isFinite(Number(modCompanyIdParam)) && Number(modCompanyIdParam) > 0;
+    const modCompanyQuery = hasModCompanyId ? `?modCompanyId=${Number(modCompanyIdParam)}` : "";
+    const withModCompany = (path: string) => {
+        if (!hasModCompanyId) return path;
+        const separator = path.includes("?") ? "&" : "?";
+        return `${path}${separator}modCompanyId=${Number(modCompanyIdParam)}`;
+    };
     const formData = await request.formData();
     const carId = Number(params.id);
+    if (!Number.isFinite(carId) || carId <= 0) {
+        return redirect(withModCompany(`/cars?error=${encodeURIComponent("Invalid car id")}`));
+    }
 
     const car = await context.cloudflare.env.DB
         .prepare("SELECT * FROM company_cars WHERE id = ? LIMIT 1")
@@ -148,10 +163,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         .first() as any;
 
     if (!car) {
-        return redirect(`/cars?error=Car not found`);
+        return redirect(withModCompany(`/cars?error=Car not found`));
     }
     if (user.role !== "admin" && car.company_id !== user.companyId) {
-        return redirect(`/cars/${carId}?error=Access denied`);
+        return redirect(withModCompany(`/cars/${carId}?error=Access denied`));
     }
 
     const intent = formData.get("intent");
@@ -159,16 +174,16 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         const { deleteOrArchiveCar } = await import("~/lib/archive.server");
         const result = await deleteOrArchiveCar(context.cloudflare.env.DB, carId, car.company_id);
         if (result.success) {
-            return redirect(`/cars?success=${encodeURIComponent(result.message || "Car updated successfully")}`);
+            return redirect(withModCompany(`/cars?success=${encodeURIComponent(result.message || "Car updated successfully")}`));
         }
-        return redirect(`/cars/${carId}/edit?error=${encodeURIComponent(result.message || result.error || "Failed to update car")}`);
+        return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent(result.message || result.error || "Failed to update car")}`));
     }
     if (intent === "unarchive") {
         await context.cloudflare.env.DB
             .prepare("UPDATE company_cars SET archived_at = NULL, updated_at = ? WHERE id = ?")
             .bind(new Date().toISOString(), carId)
             .run();
-        return redirect(`/cars/${carId}/edit?success=Car unarchived successfully`);
+        return redirect(withModCompany(`/cars/${carId}/edit?success=Car unarchived successfully`));
     }
 
     const rawData = {
@@ -200,11 +215,38 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const validation = carSchema.safeParse(rawData);
     if (!validation.success) {
         const firstError = validation.error.errors[0];
-        return redirect(`/cars/${carId}/edit?error=${encodeURIComponent(firstError.message)}`);
+        return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent(firstError.message)}`));
     }
     const validData = validation.data;
+    if (!validData.year) {
+        return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent("Year is required")}`));
+    }
+    if (!validData.insuranceType || !String(validData.insuranceType).trim()) {
+        return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent("Insurance type is required")}`));
+    }
 
     try {
+        const duplicateByCompanyResult = await context.cloudflare.env.DB
+            .prepare(
+                `
+                SELECT cc.id
+                FROM company_cars cc
+                JOIN car_templates ct ON ct.id = cc.template_id
+                WHERE cc.company_id = ?
+                  AND ct.brand_id = (SELECT brand_id FROM car_templates WHERE id = ?)
+                  AND ct.model_id = (SELECT model_id FROM car_templates WHERE id = ?)
+                  AND UPPER(TRIM(cc.license_plate)) = UPPER(TRIM(?))
+                  AND cc.archived_at IS NULL
+                  AND cc.id != ?
+                LIMIT 1
+                `
+            )
+            .bind(car.company_id, validData.templateId, validData.templateId, validData.licensePlate, carId)
+            .all();
+        if ((duplicateByCompanyResult.results ?? []).length > 0) {
+            return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent("Car with same brand, model and license plate already exists in this company")}`));
+        }
+
         const fuelTypesResult = await context.cloudflare.env.DB.prepare("SELECT id, name FROM fuel_types").all() as { results?: any[] };
         const fuelType = (fuelTypesResult.results || []).find((item) => item.name.toLowerCase() === validData.fuelType.toLowerCase());
         const photosData = formData.get("photos") as string;
@@ -272,12 +314,12 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             ...metadata,
         });
 
-        return redirect(`/cars?success=${encodeURIComponent("Car updated successfully")}`);
+        return redirect(withModCompany(`/cars?success=${encodeURIComponent("Car updated successfully")}`));
     } catch (error: any) {
         if (error.message?.includes('UNIQUE constraint failed') && error.message?.includes('license_plate')) {
-            return redirect(`/cars/${carId}/edit?error=${encodeURIComponent(`License plate "${validData.licensePlate}" is already in use`)}`);
+            return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent(`License plate "${validData.licensePlate}" is already in use`)}`));
         }
-        return redirect(`/cars/${carId}/edit?error=${encodeURIComponent("Failed to update car")}`);
+        return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent("Failed to update car")}`));
     }
 }
 
@@ -390,6 +432,7 @@ export default function EditCarPage() {
                                         label="Year"
                                         name="year"
                                         type="number"
+                                        required
                                         min={1900}
                                         max={new Date().getFullYear() + 1}
                                         defaultValue={car.year || ""}
@@ -405,6 +448,7 @@ export default function EditCarPage() {
                                     <Select
                                         label="Insurance Type"
                                         name="insuranceType"
+                                        required
                                         options={[
                                             { id: "Business Insurance", name: "Business Insurance" },
                                             { id: "First Class Insurance", name: "First Class Insurance" },

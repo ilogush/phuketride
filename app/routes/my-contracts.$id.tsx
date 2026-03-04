@@ -174,7 +174,7 @@ export default function ContractDetails() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <BackButton to="/dashboard/my-bookings" />
+                    <BackButton to="/my-bookings" />
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">Contract #{contract.id}</h1>
                         <p className="text-sm text-gray-500">
