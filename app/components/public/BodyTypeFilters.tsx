@@ -19,7 +19,7 @@ export default function BodyTypeFilters({ bodyTypes, activeType, onTypeChange }:
                 onClick={() => onTypeChange(type)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border flex items-center gap-2 ${activeType === type
                   ? "bg-gray-800 text-white border-gray-800"
-                  : "bg-white text-gray-800 hover:bg-green-100 border-gray-200"
+                  : "bg-white text-gray-800 hover:bg-gray-800 hover:text-white border-gray-200"
                   }`}
               >
                 <span>{type}</span>

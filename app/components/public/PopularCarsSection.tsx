@@ -73,7 +73,7 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                           [districtTitle]: Math.max(0, currentPage - 1),
                         }))
                       }
-                      className="w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-800 hover:bg-green-100 disabled:opacity-40"
+                      className="w-8 h-8 rounded-full bg-white text-gray-800 hover:bg-gray-800 hover:text-white disabled:opacity-40"
                     >
                       <ChevronLeftIcon className="w-4 h-4" />
                     </Button>
@@ -86,7 +86,7 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                           [districtTitle]: Math.min(maxPage, currentPage + 1),
                         }))
                       }
-                      className="w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-800 hover:bg-green-100 disabled:opacity-40"
+                      className="w-8 h-8 rounded-full bg-white text-gray-800 hover:bg-gray-800 hover:text-white disabled:opacity-40"
                     >
                       <ChevronRightIcon className="w-4 h-4" />
                     </Button>
@@ -107,7 +107,7 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                     const activeOriginalIndex = activeEntry?.index ?? -1;
 
                     return (
-                      <article key={car.id} className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+                      <article key={car.id} className="rounded-2xl bg-white overflow-hidden">
                         <Link
                           to={`/cars/${car.pathSegment}`}
                           className="relative hidden sm:block aspect-[16/10] bg-gray-100"
@@ -197,7 +197,7 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                           )}
                         </div>
 
-                        <div className="px-3 pt-3 space-y-2">
+                        <div className="bg-gray-100 px-3 pt-3 pb-3 space-y-2">
                           <div className="flex items-start justify-between gap-2">
                             <h3 className="text-base font-semibold text-gray-800">
                               {car.brandName} {car.modelName}

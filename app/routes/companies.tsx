@@ -6,6 +6,21 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { BuildingOfficeIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
+type CompanyListRow = {
+    id: number;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    locationId: number | null;
+    districtId: number | null;
+    ownerId: string;
+    archivedAt: string | null;
+    ownerName: string | null;
+    ownerSurname: string | null;
+    ownerArchivedAt: string | null;
+    districtName: string | null;
+    carCount: number | string | null;
+};
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -14,7 +29,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const url = new URL(request.url);
     const showArchived = url.searchParams.get("archived") === "true";
 
-    let companiesList: any[] = [];
+    let companiesList: Array<CompanyListRow & { partnerName: string; partnerArchived: boolean; status: string }> = [];
 
     try {
         const baseSql = `
@@ -41,7 +56,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             ORDER BY c.created_at DESC
             LIMIT 50
         `;
-        const result = await context.cloudflare.env.DB.prepare(baseSql).all() as { results?: any[] };
+        const result = await context.cloudflare.env.DB.prepare(baseSql).all() as { results?: CompanyListRow[] };
         companiesList = (result.results || []).map((company) => ({
             ...company,
             partnerName: `${company.ownerName || ""} ${company.ownerSurname || ""}`.trim() || "-",

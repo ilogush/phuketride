@@ -41,6 +41,19 @@ interface TeamMember {
     role: string;
     avatarUrl: string | null;
 }
+type CompanyDetailRow = {
+    id: number;
+    name: string;
+    owner_id: string;
+    email: string | null;
+};
+type ActivityRow = {
+    id: number;
+    title: string;
+    description: string | null;
+    startDate: string;
+    status: string;
+};
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -56,7 +69,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         return redirect(`/home?modCompanyId=${companyId}`);
     }
 
-    let company: any = null;
+    let company: CompanyDetailRow | null = null;
     let stats = {
         totalVehicles: 0,
         inWorkshop: 0,
@@ -66,18 +79,27 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         thisMonthRevenue: 0,
         totalCustomers: 0,
     };
-    let recentActivity: any[] = [];
+    let recentActivity: ActivityRow[] = [];
     let vehicles: Vehicle[] = [];
     let teamMembers: TeamMember[] = [];
 
     try {
         // Load company info
         const companyData = await d1
-            .prepare("SELECT * FROM companies WHERE id = ? LIMIT 1")
+            .prepare(`
+                SELECT
+                    id, name, email, phone, telegram, location_id, district_id, street, house_number,
+                    bank_name, account_number, account_name, swift_code, delivery_fee_after_hours,
+                    island_trip_price, krabi_trip_price, baby_seat_price_per_day, weekly_schedule, holidays,
+                    owner_id, created_at, updated_at
+                FROM companies
+                WHERE id = ?
+                LIMIT 1
+            `)
             .bind(companyId)
             .all();
 
-        company = (companyData.results?.[0] as Record<string, unknown> | undefined) || null;
+        company = (companyData.results?.[0] as CompanyDetailRow | undefined) || null;
 
         if (!company) {
             throw new Response("Company not found", { status: 404 });
@@ -274,7 +296,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
             .bind(companyId)
             .all();
 
-        recentActivity = (activityData.results ?? []) as any[];
+        recentActivity = (activityData.results ?? []) as ActivityRow[];
 
     } catch {
         // Keep page resilient and show empty states if partial loading fails

@@ -37,6 +37,25 @@ import {
     DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 
+type ContractNewCarRow = {
+    id: number;
+    pricePerDay: number | null;
+    deposit: number | null;
+    licensePlate: string | null;
+    brandName: string | null;
+    modelName: string | null;
+};
+type ContractNewDistrictRow = {
+    id: number;
+    name: string | null;
+    name_en: string | null;
+};
+type ContractNewCurrencyRow = {
+    id: number;
+    code: string;
+    symbol: string;
+};
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const companyId = user.companyId ?? null;
@@ -58,18 +77,18 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             `)
             .bind(companyId)
             .all()
-            .then((r: any) => r.results || [])
+            .then((r: { results?: ContractNewCarRow[] }) => r.results || [])
             .catch(() => []),
         context.cloudflare.env.DB
             .prepare("SELECT id, name, name_en FROM districts WHERE is_active = 1")
             .all()
-            .then((r: any) => r.results || [])
+            .then((r: { results?: ContractNewDistrictRow[] }) => r.results || [])
             .catch(() => []),
         context.cloudflare.env.DB
             .prepare("SELECT id, code, symbol FROM currencies WHERE is_active = 1 AND (company_id IS NULL OR company_id = ?)")
             .bind(companyId)
             .all()
-            .then((r: any) => r.results || [])
+            .then((r: { results?: ContractNewCurrencyRow[] }) => r.results || [])
             .catch(() => []),
     ]);
 
@@ -79,13 +98,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             : [{ id: 1, code: "THB", symbol: "฿" }];
 
     return {
-        cars: cars.map((car: any) => ({
+        cars: cars.map((car: ContractNewCarRow) => ({
             id: car.id,
             name: `${car.brandName || ""} ${car.modelName || ""} - ${car.licensePlate}`,
             pricePerDay: car.pricePerDay,
             deposit: car.deposit,
         })),
-        districts: districtsList.map((d: any) => ({ id: d.id, name: d.name_en || d.name })),
+        districts: districtsList.map((d: ContractNewDistrictRow) => ({ id: d.id, name: d.name_en || d.name })),
         currencies: safeCurrencies,
     };
 }
@@ -139,7 +158,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 LIMIT 1
             `)
             .bind(passportNumber)
-            .first() as any;
+            .first() as {
+                id: string;
+                email: string | null;
+                name: string | null;
+                surname: string | null;
+                phone: string | null;
+                passportPhotos: string | null;
+                driverLicensePhotos: string | null;
+            } | null;
 
         const userStmts: D1PreparedStatement[] = [];
         if (existingClient) {
@@ -256,7 +283,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 LIMIT 1
             `)
             .bind(companyCarId, user.companyId)
-            .first() as any;
+            .first() as { id: number; status: string | null } | null;
 
         if (!car) {
             throw new Error("Car not found or doesn't belong to your company");
@@ -288,7 +315,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 startDate.toISOString(),
                 endDate.toISOString()
             )
-            .first() as any;
+            .first() as { id: number } | null;
 
         if (overlapping) {
             throw new Error("Car is already booked for these dates");

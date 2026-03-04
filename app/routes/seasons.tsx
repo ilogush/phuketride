@@ -21,6 +21,13 @@ interface Season {
     priceMultiplier: number;
     discountLabel: string | null;
 }
+type SeasonCoverageRow = {
+    id?: number;
+    startMonth: number;
+    startDay: number;
+    endMonth: number;
+    endDay: number;
+};
 
 const MONTHS = [
     { value: "1", label: "Jan" },
@@ -66,7 +73,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             ORDER BY id ASC
             LIMIT 100
         `)
-        .all() as { results?: any[] };
+        .all() as { results?: Season[] };
     const seasons = seasonsResult.results || [];
 
     return { user, seasons };
@@ -164,7 +171,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 SELECT id, start_month AS startMonth, start_day AS startDay, end_month AS endMonth, end_day AS endDay
                 FROM seasons
             `)
-            .all() as { results?: any[] };
+            .all() as { results?: SeasonCoverageRow[] };
         const allSeasons = allSeasonsResult.results || [];
         const remainingSeasons = allSeasons.filter(s => s.id !== id);
 
@@ -203,7 +210,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         // Get existing seasons
         const existingSeasonsResult = await context.cloudflare.env.DB
             .prepare("SELECT start_month AS startMonth, start_day AS startDay, end_month AS endMonth, end_day AS endDay FROM seasons")
-            .all() as { results?: any[] };
+            .all() as { results?: SeasonCoverageRow[] };
         const existingSeasons = existingSeasonsResult.results || [];
 
         // Add new season to validation
@@ -264,7 +271,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 SELECT id, start_month AS startMonth, start_day AS startDay, end_month AS endMonth, end_day AS endDay
                 FROM seasons
             `)
-            .all() as { results?: any[] };
+            .all() as { results?: SeasonCoverageRow[] };
         const existingSeasons = existingSeasonsResult.results || [];
         const otherSeasons = existingSeasons.filter(s => s.id !== id);
 

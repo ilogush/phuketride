@@ -16,6 +16,21 @@ import { useDateMasking } from "~/lib/useDateMasking";
 import { formatDateForDisplay, parseDateTimeFromDisplay } from "~/lib/formatters";
 import { format } from "date-fns";
 import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
+type CloseContractLoaderRow = {
+    id: number;
+    companyId: number;
+    company_car_id: number;
+    client_id: string | null;
+    start_date: string;
+    end_date: string;
+    start_mileage: number | null;
+    fuel_level: string | null;
+    cleanliness: string | null;
+    brandName: string | null;
+    modelName: string | null;
+    clientName: string | null;
+    clientSurname: string | null;
+};
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -40,7 +55,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             LIMIT 1
         `)
         .bind(contractId)
-        .first() as any;
+        .first() as CloseContractLoaderRow | null;
 
     if (!contract) {
         throw new Response("Contract not found", { status: 404 });
@@ -54,26 +69,42 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
     // Get payment templates for contract closing (show_on_close = 1)
     const paymentTemplates = await context.cloudflare.env.DB
         .prepare(`
-            SELECT * FROM payment_types
+            SELECT
+                id, name, sign, description,
+                show_on_create AS showOnCreate,
+                show_on_close AS showOnClose,
+                is_active AS isActive,
+                is_system AS isSystem,
+                company_id AS companyId
+            FROM payment_types
             WHERE is_active = 1 AND show_on_close = 1 AND (company_id IS NULL OR company_id = ?)
         `)
         .bind(user.companyId ?? null)
         .all()
-        .then((r: any) => r.results || []);
+        .then((r: { results?: Array<Record<string, unknown>> }) => r.results || []);
 
     // Get active currencies
     const currencies = await context.cloudflare.env.DB
         .prepare(`
-            SELECT * FROM currencies
+            SELECT
+                id, name, code, symbol,
+                is_active AS isActive,
+                company_id AS companyId
+            FROM currencies
             WHERE is_active = 1 AND (company_id IS NULL OR company_id = ?)
         `)
         .bind(user.companyId ?? null)
         .all()
-        .then((r: any) => r.results || []);
+        .then((r: { results?: Array<Record<string, unknown>> }) => r.results || []);
 
     return {
         contract: {
             ...contract,
+            startDate: contract.start_date,
+            endDate: contract.end_date,
+            startMileage: contract.start_mileage,
+            fuelLevel: contract.fuel_level,
+            cleanliness: contract.cleanliness,
             companyCar: {
                 id: contract.company_car_id,
                 companyId: contract.companyId,
@@ -106,11 +137,11 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
         const contract = await context.cloudflare.env.DB
             .prepare("SELECT id, status, company_car_id AS companyCarId FROM contracts WHERE id = ? LIMIT 1")
             .bind(contractId)
-            .first() as any;
+            .first() as { id: number; status: string; companyCarId: number } | null;
         const carCompany = await context.cloudflare.env.DB
             .prepare("SELECT company_id AS companyId FROM company_cars WHERE id = ? LIMIT 1")
             .bind(contract?.companyCarId || 0)
-            .first() as any;
+            .first() as { companyId: number } | null;
 
         if (!contract) {
             return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);

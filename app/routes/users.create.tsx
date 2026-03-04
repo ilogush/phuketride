@@ -19,9 +19,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     // Load reference data
     const [hotels, locations, districts] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT * FROM hotels ORDER BY name ASC").all().then((r: any) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT * FROM locations ORDER BY name ASC").all().then((r: any) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT * FROM districts ORDER BY name ASC").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM hotels ORDER BY name ASC").all().then((r: { results?: Array<{ id: number; name: string }> }) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM locations ORDER BY name ASC").all().then((r: { results?: Array<{ id: number; name: string }> }) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT id, name, location_id AS locationId FROM districts ORDER BY name ASC").all().then((r: { results?: Array<{ id: number; name: string; locationId: number }> }) => r.results || []),
     ]);
 
     return { user, hotels, locations, districts };

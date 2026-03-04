@@ -16,6 +16,7 @@ interface TopbarProps {
         role: string;
         name: string | null;
         surname: string | null;
+        avatarUrl?: string | null;
     };
     onToggleSidebar: () => void;
     isSidebarOpen: boolean;
@@ -95,11 +96,19 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen, notificat
                             onClick={() => setShowProfileMenu(!showProfileMenu)}
                             className="flex items-center gap-3 p-1.5 hover:bg-white hover:shadow-sm  rounded-full transition-all"
                         >
-                            <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center shadow-sm">
-                                <span className="text-white text-xs font-bold">
-                                    {displayName.charAt(0).toUpperCase()}
-                                </span>
-                            </div>
+                            {user.avatarUrl ? (
+                                <img
+                                    src={user.avatarUrl}
+                                    alt={displayName}
+                                    className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-200"
+                                />
+                            ) : (
+                                <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center shadow-sm">
+                                    <span className="text-white text-xs font-bold">
+                                        {displayName.charAt(0).toUpperCase()}
+                                    </span>
+                                </div>
+                            )}
                             <div className="text-left hidden md:block pr-2">
                                 <div className="text-sm font-bold text-gray-900 leading-none mb-1">
                                     {displayName}

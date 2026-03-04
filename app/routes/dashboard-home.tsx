@@ -11,6 +11,7 @@ import {
     CalendarIcon,
     ClockIcon,
 } from "@heroicons/react/24/outline";
+import type { ComponentType, SVGProps } from "react";
 import StatCard from "~/components/dashboard/StatCard";
 import TasksWidget from "~/components/dashboard/TasksWidget";
 import { useUrlToast } from "~/lib/useUrlToast";
@@ -39,7 +40,43 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return redirect("/home");
 }
 
-const ICON_MAP: Record<string, any> = {
+type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
+type TaskStatus = "pending" | "in_progress" | "completed";
+
+interface StatCardItem {
+    name: string;
+    value: string | number;
+    subtext: string;
+    icon: string;
+    href: string;
+}
+
+interface TaskItem {
+    id: string;
+    title: string;
+    description: string;
+    status: TaskStatus;
+    priority: "high" | "medium" | "low";
+}
+
+interface CountRow {
+    count: number;
+}
+
+interface CompanyBankRow {
+    bankName: string | null;
+    accountNumber: string | null;
+    accountName: string | null;
+}
+
+interface CalendarTaskRow {
+    id: number;
+    title: string;
+    description: string | null;
+    status: TaskStatus;
+}
+
+const ICON_MAP: Record<string, IconComponent> = {
     BuildingOfficeIcon,
     UserGroupIcon,
     TruckIcon,
@@ -54,8 +91,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
-    let statCards: any[] = [];
-    let tasks: any[] = [];
+    let statCards: StatCardItem[] = [];
+    let tasks: TaskItem[] = [];
 
     try {
         if (effectiveCompanyId) {
@@ -63,7 +100,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             const company = await context.cloudflare.env.DB
                 .prepare("SELECT bank_name AS bankName, account_number AS accountNumber, account_name AS accountName FROM companies WHERE id = ? LIMIT 1")
                 .bind(effectiveCompanyId)
-                .first() as any;
+                .first() as CompanyBankRow | null;
 
             const managersCount = await context.cloudflare.env.DB
                 .prepare(`
@@ -72,14 +109,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     WHERE company_id = ? AND is_active = 1
                 `)
                 .bind(effectiveCompanyId)
-                .first() as any;
+                .first() as CountRow | null;
 
             const onlineUsers = 0; // Online tracking not implemented
 
             const carsCount = await context.cloudflare.env.DB
                 .prepare("SELECT COUNT(*) AS count FROM company_cars WHERE company_id = ?")
                 .bind(effectiveCompanyId)
-                .first() as any;
+                .first() as CountRow | null;
 
             const contractsCount = await context.cloudflare.env.DB
                 .prepare(`
@@ -89,7 +126,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     WHERE cc.company_id = ?
                 `)
                 .bind(effectiveCompanyId)
-                .first() as any;
+                .first() as CountRow | null;
 
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
@@ -103,7 +140,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     WHERE cc.company_id = ? AND c.created_at >= ?
                 `)
                 .bind(effectiveCompanyId, startOfMonth.toISOString())
-                .first() as any;
+                .first() as CountRow | null;
 
             statCards = [
                 {
@@ -151,7 +188,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     LIMIT 5
                 `)
                 .bind(effectiveCompanyId)
-                .all() as { results?: any[] };
+                .all() as { results?: CalendarTaskRow[] };
             const upcomingTasks = upcomingTasksResult.results || [];
 
             tasks = upcomingTasks.map(task => ({
@@ -174,15 +211,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         } else if (user.role === "admin") {
             // Admin stats
             const [companiesCount, usersCount] = await Promise.all([
-                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM companies").first() as any,
-                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM users").first() as any,
+                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM companies").first() as Promise<CountRow | null>,
+                context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM users").first() as Promise<CountRow | null>,
             ]);
 
             const onlineUsers = 0; // Online tracking not implemented
 
             const carsCount = await context.cloudflare.env.DB
                 .prepare("SELECT COUNT(*) AS count FROM company_cars")
-                .first() as any;
+                .first() as CountRow | null;
 
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
@@ -191,7 +228,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             const contractsThisMonth = await context.cloudflare.env.DB
                 .prepare("SELECT COUNT(*) AS count FROM contracts WHERE created_at >= ?")
                 .bind(startOfMonth.toISOString())
-                .first() as any;
+                .first() as CountRow | null;
 
             statCards = [
                 {
@@ -233,7 +270,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     ORDER BY start_date DESC
                     LIMIT 5
                 `)
-                .all() as { results?: any[] };
+                .all() as { results?: CalendarTaskRow[] };
             const upcomingTasks = upcomingTasksResult.results || [];
 
             tasks = upcomingTasks.map(task => ({
@@ -248,17 +285,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             const userContractsCount = await context.cloudflare.env.DB
                 .prepare("SELECT COUNT(*) AS count FROM contracts WHERE client_id = ?")
                 .bind(user.id)
-                .first() as any;
+                .first() as CountRow | null;
 
             const [activeContractsCount, upcomingContractsCount] = await Promise.all([
                 context.cloudflare.env.DB
                     .prepare("SELECT COUNT(*) AS count FROM contracts WHERE client_id = ? AND status = 'active'")
                     .bind(user.id)
-                    .first() as any,
+                    .first() as Promise<CountRow | null>,
                 context.cloudflare.env.DB
                     .prepare("SELECT COUNT(*) AS count FROM contracts WHERE client_id = ? AND status = 'active' AND start_date >= ?")
                     .bind(user.id, new Date().toISOString())
-                    .first() as any,
+                    .first() as Promise<CountRow | null>,
             ]);
 
             statCards = [

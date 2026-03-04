@@ -1,6 +1,29 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 
+type CalendarEventStatus = 'upcoming' | 'today' | 'overdue';
+
+interface UpcomingContractRow {
+    id: number;
+    endDate: string | number;
+    status: string;
+}
+
+interface CalendarEventRow {
+    id: number;
+    title: string | null;
+    startDate: string | number;
+    eventType: string;
+}
+
+interface EventItem {
+    id: number;
+    title: string;
+    type: string;
+    date: string;
+    status: CalendarEventStatus;
+}
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     try {
         const user = await requireAuth(request);
@@ -10,7 +33,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         const limit = parseInt(url.searchParams.get("limit") || "5");
         const companyId = url.searchParams.get("companyId");
 
-        const events: any[] = [];
+        const events: EventItem[] = [];
         const today = new Date();
         const futureDate = new Date();
         futureDate.setDate(today.getDate() + 30);
@@ -26,14 +49,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 `
             )
             .bind(today.getTime(), futureDate.getTime(), limit)
-            .all();
-        const upcomingContracts = (upcomingContractsResult.results ?? []) as Array<Record<string, unknown>>;
+            .all() as { results?: UpcomingContractRow[] };
+        const upcomingContracts = upcomingContractsResult.results ?? [];
 
-        upcomingContracts.forEach((contract) => {
+        upcomingContracts.forEach((contract: UpcomingContractRow) => {
             const eventDate = new Date(Number(contract.endDate));
             const diffDays = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-            let status: 'upcoming' | 'today' | 'overdue' = 'upcoming';
+            let status: CalendarEventStatus = 'upcoming';
             if (diffDays === 0) status = 'today';
             else if (diffDays < 0) status = 'overdue';
 
@@ -66,14 +89,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         const calendarEventsDataResult = await d1
             .prepare(calendarEventsQuery)
             .bind(...bindings)
-            .all();
-        const calendarEventsData = (calendarEventsDataResult.results ?? []) as Array<Record<string, unknown>>;
+            .all() as { results?: CalendarEventRow[] };
+        const calendarEventsData = calendarEventsDataResult.results ?? [];
 
-        calendarEventsData.forEach((event) => {
+        calendarEventsData.forEach((event: CalendarEventRow) => {
             const eventDate = new Date(Number(event.startDate));
             const diffDays = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-            let status: 'upcoming' | 'today' | 'overdue' = 'upcoming';
+            let status: CalendarEventStatus = 'upcoming';
             if (diffDays === 0) status = 'today';
             else if (diffDays < 0) status = 'overdue';
 

@@ -31,7 +31,7 @@ export function getExtraInputFromFormData(formData: FormData, extraType: ExtraTy
 }
 
 export async function getCurrencyCodeById(db: DbType): Promise<Map<number, string>> {
-    const currenciesResult = await db.prepare("SELECT id, code FROM currencies WHERE is_active = 1").all() as any;
+    const currenciesResult = await db.prepare("SELECT id, code FROM currencies WHERE is_active = 1").all() as { results?: Array<{ id: number; code: string }> };
     const rows = (currenciesResult?.results || []) as Array<{ id: number; code: string }>;
     return new Map(rows.map((row) => [Number(row.id), row.code]));
 }
@@ -76,4 +76,3 @@ export function getCreateExtraPaymentStmt(params: {
             params.amount
         );
 }
-

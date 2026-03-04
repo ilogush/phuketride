@@ -50,8 +50,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         throw new Response("Forbidden", { status: 403 });
     }
     const [locationsList, districtsList, usersList] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT * FROM locations ORDER BY name ASC LIMIT 100").all().then((r: { results?: LocationRow[] }) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT * FROM districts ORDER BY name ASC LIMIT 200").all().then((r: { results?: DistrictRow[] }) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM locations ORDER BY name ASC LIMIT 100").all().then((r: { results?: LocationRow[] }) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT id, name, location_id AS locationId, delivery_price AS deliveryPrice FROM districts ORDER BY name ASC LIMIT 200").all().then((r: { results?: DistrictRow[] }) => r.results || []),
         context.cloudflare.env.DB
             .prepare(`
                 SELECT id, email, name, surname, role, phone

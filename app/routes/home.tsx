@@ -262,63 +262,63 @@ export default function Home() {
               Why Is Renting with PhuketRide Better Than Other Services?
             </h2>
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              <article className="rounded-2xl border border-gray-200 bg-gray-100 p-4">
+              <article className="rounded-2xl bg-gray-100 p-4">
                 <h3 className="font-semibold text-gray-900">No Middlemen</h3>
                 <p className="mt-2 text-sm text-gray-700">
                   You book directly with the car owner without layered marketplace markups.
                   This keeps final rental pricing fair, competitive, and easier to trust.
                 </p>
               </article>
-              <article className="rounded-2xl border border-gray-200 bg-gray-100 p-4">
+              <article className="rounded-2xl bg-gray-100 p-4">
                 <h3 className="font-semibold text-gray-900">Transparent Pricing</h3>
                 <p className="mt-2 text-sm text-gray-700">
                   Before confirmation, you see rental price, deposit, insurance, and key terms.
                   This removes surprise charges and makes comparison between listings straightforward.
                 </p>
               </article>
-              <article className="rounded-2xl border border-gray-200 bg-gray-100 p-4">
+              <article className="rounded-2xl bg-gray-100 p-4">
                 <h3 className="font-semibold text-gray-900">Smart Local Pickup</h3>
                 <p className="mt-2 text-sm text-gray-700">
                   The platform lets you choose a car in your exact location directly from the owner, without delivery cost impact.
                   With local matching in your district, savings can reach up to 100% of one rental day price.
                 </p>
               </article>
-              <article className="rounded-2xl border border-gray-200 bg-gray-100 p-4">
+              <article className="rounded-2xl bg-gray-100 p-4">
                 <h3 className="font-semibold text-gray-900">Strong Car Selection</h3>
                 <p className="mt-2 text-sm text-gray-700">
                   You can compare options by price, rental terms, and host rating in one place.
                   This helps you pick the right car faster for your route, schedule, and travel style.
                 </p>
               </article>
-              <article className="rounded-2xl border border-gray-200 bg-gray-100 p-4">
+              <article className="rounded-2xl bg-gray-100 p-4">
                 <h3 className="font-semibold text-gray-900">Built for Phuket</h3>
                 <p className="mt-2 text-sm text-gray-700">
                   The experience is tailored to Phuket and real island rental scenarios.
                   Booking becomes more practical and predictable, especially during high season periods.
                 </p>
               </article>
-              <article className="rounded-2xl border border-gray-200 bg-gray-100 p-4">
+              <article className="rounded-2xl bg-gray-100 p-4">
                 <h3 className="font-semibold text-gray-900">Fast Support</h3>
                 <p className="mt-2 text-sm text-gray-700">
                   Quick communication with support and hosts reduces resolution time.
                   Pickup, booking updates, and returns feel smoother and more predictable end to end.
                 </p>
               </article>
-              <article className="rounded-2xl border border-gray-200 bg-gray-100 p-4">
+              <article className="rounded-2xl bg-gray-100 p-4">
                 <h3 className="font-semibold text-gray-900">No-Deposit Offers</h3>
                 <p className="mt-2 text-sm text-gray-700">
                   Unique listings are available where you can rent with zero deposit requirements.
                   This lowers entry cost and frees budget for accommodation, activities, and island travel.
                 </p>
               </article>
-              <article className="rounded-2xl border border-gray-200 bg-gray-100 p-4">
+              <article className="rounded-2xl bg-gray-100 p-4">
                 <h3 className="font-semibold text-gray-900">Full Insurance Options</h3>
                 <p className="mt-2 text-sm text-gray-700">
                   Some cars include full insurance plans with broader risk coverage.
                   This gives more peace of mind and reduces financial exposure during unexpected incidents.
                 </p>
               </article>
-              <article className="rounded-2xl border border-gray-200 bg-gray-100 p-4">
+              <article className="rounded-2xl bg-gray-100 p-4">
                 <h3 className="font-semibold text-gray-900">Unique Terms</h3>
                 <p className="mt-2 text-sm text-gray-700">
                   Hosts publish custom terms: flexible handoff, special pricing, and seasonal advantages.
@@ -335,7 +335,7 @@ export default function Home() {
                   {column.map((item) => {
                     const isOpen = openFaqId === item.id;
                     return (
-                      <article key={item.id} className="rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3">
+                      <article key={item.id} className="rounded-2xl bg-gray-100 px-4 py-3">
                         <button
                           type="button"
                           onClick={() => setOpenFaqId((prev) => (prev === item.id ? null : item.id))}

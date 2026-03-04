@@ -9,8 +9,8 @@ interface AuditLogParams {
     entityType: EntityType;
     entityId?: number | string;
     action: AuditAction;
-    beforeState?: any;
-    afterState?: any;
+    beforeState?: unknown;
+    afterState?: unknown;
     ipAddress?: string;
     userAgent?: string;
 }

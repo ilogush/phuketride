@@ -11,13 +11,22 @@ import { UserGroupIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 import { formatContactPhone } from "~/lib/phone";
+type UserListRow = {
+    id: string;
+    email: string;
+    name: string | null;
+    surname: string | null;
+    role: string;
+    phone: string | null;
+    avatarUrl: string | null;
+};
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
     const isModMode = user.role === "admin" && effectiveCompanyId !== null;
 
-    let usersList: any[] = [];
+    let usersList: UserListRow[] = [];
     let roleCounts = { all: 0, admin: 0, partner: 0, manager: 0, user: 0 };
 
     try {
@@ -30,18 +39,18 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             // Get managers from this company
             const managersResult = await context.cloudflare.env.DB
                 .prepare(`
-                    SELECT u.id, u.email, u.name, u.surname, u.role, u.phone
+                    SELECT u.id, u.email, u.name, u.surname, u.role, u.phone, u.avatar_url AS avatarUrl
                     FROM users u
                     INNER JOIN managers m ON u.id = m.user_id
                     WHERE m.company_id = ? AND m.is_active = 1
                 `)
                 .bind(effectiveCompanyId)
-                .all() as { results?: any[] };
+                .all() as { results?: UserListRow[] };
 
             // Get users (clients) who have contracts with this company
             const clientsResult = await context.cloudflare.env.DB
                 .prepare(`
-                    SELECT DISTINCT u.id, u.email, u.name, u.surname, u.role, u.phone
+                    SELECT DISTINCT u.id, u.email, u.name, u.surname, u.role, u.phone, u.avatar_url AS avatarUrl
                     FROM users u
                     INNER JOIN contracts c ON u.id = c.client_id
                     INNER JOIN company_cars cc ON c.company_car_id = cc.id
@@ -49,19 +58,19 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     LIMIT 50
                 `)
                 .bind(effectiveCompanyId)
-                .all() as { results?: any[] };
+                .all() as { results?: UserListRow[] };
 
             usersList = [...(managersResult.results || []), ...(clientsResult.results || [])];
         } else {
             // Admin can see all users
             const usersResult = await context.cloudflare.env.DB
                 .prepare(`
-                    SELECT id, email, name, surname, role, phone
+                    SELECT id, email, name, surname, role, phone, avatar_url AS avatarUrl
                     FROM users
                     ORDER BY created_at DESC
                     LIMIT 50
                 `)
-                .all() as { results?: any[] };
+                .all() as { results?: UserListRow[] };
             usersList = usersResult.results || [];
         }
 
@@ -108,9 +117,17 @@ export default function UsersPage() {
 
                 return (
                     <Link to={`/users/${user.id}/edit`} className="flex items-start gap-3 hover:opacity-80 transition-opacity">
-                        <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0 cursor-pointer">
-                            {initials || "?"}
-                        </div>
+                        {user.avatarUrl ? (
+                            <img
+                                src={user.avatarUrl}
+                                alt={`${fullName} ${surname}`.trim() || user.email}
+                                className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0"
+                            />
+                        ) : (
+                            <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0 cursor-pointer">
+                                {initials || "?"}
+                            </div>
+                        )}
                         <div className="flex flex-col">
                             <span className="font-medium">{fullName}</span>
                             {surname && <span className="text-sm text-gray-500">{surname}</span>}

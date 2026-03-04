@@ -69,6 +69,27 @@ type Currency = {
     companyId: number | null;
     isActive?: boolean | number | null;
 };
+type CompanyRow = Record<string, unknown>;
+type PaymentTemplateRow = {
+    id: number;
+    name: string;
+    sign: "+" | "-";
+    description: string | null;
+    showOnCreate: number | boolean | null;
+    showOnClose: number | boolean | null;
+    isActive: number | boolean | null;
+    isSystem: number | boolean | null;
+    companyId: number | null;
+};
+type DeliveryDistrictRow = {
+    id: number;
+    deliveryPrice: number | null;
+};
+type CompanyDeliverySettingRow = {
+    id: number;
+    districtId: number;
+    deliveryPrice: number | null;
+};
 
 const isPhuketName = (value: unknown) => String(value || "").trim().toLowerCase() === "phuket";
 const normalizeCurrencyRow = (row: Record<string, unknown>): Currency => ({
@@ -109,18 +130,54 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     // NOTE: In remote-preview mode (remote bindings), concurrent D1 requests can intermittently fail.
     // Keep these queries sequential to reduce flakiness during dev.
     const [companyRow, locations, districts, paymentTypes, currencies] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT * FROM companies WHERE id = ? LIMIT 1").bind(companyId).first() as any,
-        context.cloudflare.env.DB.prepare("SELECT * FROM locations LIMIT 100").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB
+            .prepare(`
+                SELECT
+                    id, name, email, phone, telegram, location_id, district_id, street, house_number,
+                    bank_name, account_number, account_name, swift_code, delivery_fee_after_hours,
+                    island_trip_price, krabi_trip_price, baby_seat_price_per_day, weekly_schedule, holidays
+                FROM companies
+                WHERE id = ?
+                LIMIT 1
+            `)
+            .bind(companyId)
+            .first() as Promise<CompanyRow | null>,
+        context.cloudflare.env.DB
+            .prepare("SELECT id, name FROM locations LIMIT 100")
+            .all()
+            .then((r: { results?: ListItem[] }) => r.results || []),
         context.cloudflare.env.DB
             .prepare("SELECT id, name, location_id AS locationId FROM districts LIMIT 200")
             .all()
-            .then((r: any) => r.results || []),
+            .then((r: { results?: ListItem[] }) => r.results || []),
         context.cloudflare.env.DB
-            .prepare("SELECT * FROM payment_types WHERE company_id IS NULL OR company_id = ? LIMIT 100")
+            .prepare(`
+                SELECT
+                    id, name, sign, description,
+                    show_on_create AS showOnCreate,
+                    show_on_close AS showOnClose,
+                    is_active AS isActive,
+                    is_system AS isSystem,
+                    company_id AS companyId
+                FROM payment_types
+                WHERE company_id IS NULL OR company_id = ?
+                LIMIT 100
+            `)
             .bind(companyId)
             .all()
-            .then((r: any) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT * FROM currencies ORDER BY name ASC LIMIT 50").all().then((r: any) => r.results || []),
+            .then((r: { results?: PaymentType[] }) => r.results || []),
+        context.cloudflare.env.DB
+            .prepare(`
+                SELECT
+                    id, name, code, symbol,
+                    company_id AS companyId,
+                    is_active AS isActive
+                FROM currencies
+                ORDER BY name ASC
+                LIMIT 50
+            `)
+            .all()
+            .then((r: { results?: Currency[] }) => r.results || []),
     ]);
 
     if (!companyRow) {
@@ -157,9 +214,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         districts: districts as ListItem[],
         paymentTypes: paymentTypes as PaymentType[],
         currencies: (await context.cloudflare.env.DB
-            .prepare("SELECT * FROM currencies ORDER BY name ASC LIMIT 50")
+            .prepare(`
+                SELECT
+                    id, name, code, symbol,
+                    company_id AS companyId,
+                    is_active AS isActive
+                FROM currencies
+                ORDER BY name ASC
+                LIMIT 50
+            `)
             .all()
-            .then((r: any) => (r.results || []).map((row: Record<string, unknown>) => normalizeCurrencyRow(row)))) as Currency[],
+            .then((r: { results?: Record<string, unknown>[] }) => (r.results || []).map((row) => normalizeCurrencyRow(row)))) as Currency[],
     };
 }
 
@@ -183,9 +248,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     // Get current company for audit log
     const currentCompanyRow = await context.cloudflare.env.DB
-        .prepare("SELECT * FROM companies WHERE id = ? LIMIT 1")
+        .prepare(`
+            SELECT
+                id, name, email, phone, telegram, location_id, district_id, street, house_number,
+                bank_name, account_number, account_name, swift_code, delivery_fee_after_hours,
+                island_trip_price, krabi_trip_price, baby_seat_price_per_day, weekly_schedule, holidays
+            FROM companies
+            WHERE id = ?
+            LIMIT 1
+        `)
         .bind(companyId)
-        .first() as any;
+        .first() as CompanyRow | null;
     const currentCompany = currentCompanyRow ? normalizeCompanyRow(currentCompanyRow) : null;
 
     if (intent === "updateGeneral") {
@@ -277,7 +350,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             const locationDistrictsResult = await context.cloudflare.env.DB
                 .prepare("SELECT id, delivery_price AS deliveryPrice FROM districts WHERE location_id = ?")
                 .bind(validData.locationId)
-                .all() as { results?: any[] };
+                .all() as { results?: DeliveryDistrictRow[] };
             const locationDistricts = locationDistrictsResult.results || [];
 
             const existingCompanySettingsResult = await context.cloudflare.env.DB
@@ -287,7 +360,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                     WHERE company_id = ?
                 `)
                 .bind(companyId)
-                .all() as { results?: any[] };
+                .all() as { results?: CompanyDeliverySettingRow[] };
             const existingCompanySettings = existingCompanySettingsResult.results || [];
 
             const settingsByDistrictId = new Map(existingCompanySettings.map((row) => [row.districtId, row]));
@@ -457,9 +530,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
         try {
             // Check if this is a system template
             const template = await context.cloudflare.env.DB
-                .prepare("SELECT * FROM payment_types WHERE id = ? LIMIT 1")
+                .prepare(`
+                    SELECT
+                        id,
+                        company_id AS companyId,
+                        is_system AS isSystem
+                    FROM payment_types
+                    WHERE id = ?
+                    LIMIT 1
+                `)
                 .bind(id)
-                .first() as any;
+                .first() as PaymentTemplateRow | null;
 
             if (!template) {
                 return redirect(withMode("/settings?error=Payment template not found"));
@@ -525,9 +606,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
         try {
             // Check if this is a company template (not system)
             const template = await context.cloudflare.env.DB
-                .prepare("SELECT * FROM payment_types WHERE id = ? LIMIT 1")
+                .prepare(`
+                    SELECT
+                        id,
+                        company_id AS companyId,
+                        is_system AS isSystem
+                    FROM payment_types
+                    WHERE id = ?
+                    LIMIT 1
+                `)
                 .bind(id)
-                .first() as any;
+                .first() as PaymentTemplateRow | null;
 
             if (!template) {
                 return redirect(withMode("/settings?error=Payment template not found"));
@@ -569,7 +658,7 @@ export default function SettingsPage() {
     const [holidays, setHolidays] = useState(company.holidays || "");
     const { validateLatinInput } = useLatinValidation();
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-    const [editingPaymentTemplate, setEditingPaymentTemplate] = useState<any | null>(null);
+    const [editingPaymentTemplate, setEditingPaymentTemplate] = useState<PaymentType | null>(null);
     const [paymentFormData, setPaymentFormData] = useState({
         name: "",
         sign: "+",

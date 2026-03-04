@@ -36,7 +36,11 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const [eventsResult, contractsResult, bookingsResult] = await Promise.all([
         context.cloudflare.env.DB
             .prepare(`
-                SELECT *
+                SELECT
+                    id,
+                    title,
+                    start_date AS startDate,
+                    color
                 FROM calendar_events
                 WHERE company_id = ? AND start_date >= ? AND start_date <= ?
                 ORDER BY start_date ASC
@@ -46,7 +50,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             .all(),
         context.cloudflare.env.DB
             .prepare(`
-                SELECT c.*
+                SELECT
+                    c.id,
+                    c.end_date AS endDate
                 FROM contracts c
                 JOIN company_cars cc ON cc.id = c.company_car_id
                 WHERE cc.company_id = ? AND c.status = 'active' AND c.end_date >= ? AND c.end_date <= ?
@@ -56,7 +62,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             .all(),
         context.cloudflare.env.DB
             .prepare(`
-                SELECT b.*
+                SELECT
+                    b.id,
+                    b.start_date AS startDate
                 FROM bookings b
                 JOIN company_cars cc ON cc.id = b.company_car_id
                 WHERE cc.company_id = ? AND b.status IN ('pending', 'confirmed') AND b.start_date >= ? AND b.start_date <= ?

@@ -6,6 +6,7 @@ interface CarHostSectionProps {
   title: string;
   year: number | null;
   companyName: string;
+  ownerName: string | null;
   companySlug: string;
   hostTrips: number;
   hostJoinedAt: string | null;
@@ -18,6 +19,7 @@ export default function CarHostSection({
   title,
   year,
   companyName,
+  ownerName,
   companySlug,
   hostTrips,
   hostJoinedAt,
@@ -33,6 +35,8 @@ export default function CarHostSection({
     return acc;
   }, {});
 
+  const displayHostName = ownerName || companyName;
+
   return (
     <section className="rounded-2xl border border-gray-200 p-4 space-y-5">
       <div className="flex items-center gap-4">
@@ -40,12 +44,12 @@ export default function CarHostSection({
           {hostAvatarUrl ? (
             <img
               src={hostAvatarUrl}
-              alt={companyName}
+              alt={displayHostName}
               className="w-20 h-20 rounded-full object-cover"
             />
           ) : (
             <div className="w-20 h-20 rounded-full bg-gray-200 text-gray-800 flex items-center justify-center text-xl font-semibold">
-              {companyName.charAt(0).toUpperCase()}
+              {displayHostName.charAt(0).toUpperCase()}
             </div>
           )}
           <div className="absolute -bottom-2 left-2 bg-white rounded-full px-2 py-1 border border-gray-200 text-sm font-medium text-gray-800 flex items-center gap-1">
@@ -53,7 +57,7 @@ export default function CarHostSection({
           </div>
         </div>
         <div>
-          <p className="text-xl font-semibold text-gray-800">{companyName}</p>
+          <p className="text-xl font-semibold text-gray-800">{displayHostName}</p>
           <p className="text-sm text-gray-500">
             {hostTrips} trips
             {hostJoinedAt ? ` • Joined ${hostJoinedAt}` : ""}

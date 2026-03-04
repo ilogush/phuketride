@@ -57,8 +57,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     // Load reference data in parallel
     const [hotel, location] = await Promise.all([
-        fullUser.hotelId ? d1.prepare("SELECT * FROM hotels WHERE id = ? LIMIT 1").bind(fullUser.hotelId).first() : null,
-        fullUser.locationId ? d1.prepare("SELECT * FROM locations WHERE id = ? LIMIT 1").bind(fullUser.locationId).first() : null,
+        fullUser.hotelId ? d1.prepare("SELECT id, name FROM hotels WHERE id = ? LIMIT 1").bind(fullUser.hotelId).first() : null,
+        fullUser.locationId ? d1.prepare("SELECT id, name FROM locations WHERE id = ? LIMIT 1").bind(fullUser.locationId).first() : null,
     ]);
 
     return { user: fullUser, hotel, location };

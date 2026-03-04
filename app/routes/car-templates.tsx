@@ -13,6 +13,43 @@ import { GenericDictionaryForm, type FieldConfig } from '~/components/dashboard/
 import { useState } from 'react'
 import { useToast } from '~/lib/toast'
 import { getRequestMetadata, quickAudit } from '~/lib/audit-logger'
+import type { Column } from '~/components/dashboard/DataTable'
+
+interface BrandRow {
+    id: number
+    name: string
+    logo_url?: string | null
+    created_at?: string
+}
+
+interface ModelRow {
+    id: number
+    name: string
+    brand_id: number
+    body_type_id?: number | null
+    created_at?: string
+    brand_name?: string | null
+}
+
+interface TemplateRow {
+    id: number
+    brand_id: number
+    model_id: number
+    transmission?: string | null
+    engine_volume?: number | null
+    body_type_id?: number | null
+    seats?: number | null
+    doors?: number | null
+    fuel_type_id?: number | null
+    photos?: string | null
+    created_at?: string
+    brand_name?: string | null
+    model_name?: string | null
+    fuel_type_name?: string | null
+}
+
+type BrandFormData = { name: string }
+type ModelFormData = { name: string; brand_id: string }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
     const user = await requireAuth(request)
@@ -25,7 +62,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         context.cloudflare.env.DB
             .prepare("SELECT id, name, logo_url, created_at FROM car_brands ORDER BY name ASC LIMIT 100")
             .all()
-            .then((r: any) => r.results || []),
+            .then((r) => (r.results || []) as unknown as BrandRow[]),
         context.cloudflare.env.DB
             .prepare(`
                 SELECT
@@ -41,7 +78,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
                 LIMIT 200
             `)
             .all()
-            .then((r: any) => r.results || []),
+            .then((r) => (r.results || []) as unknown as ModelRow[]),
         context.cloudflare.env.DB
             .prepare(`
                 SELECT
@@ -67,7 +104,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
                 LIMIT 100
             `)
             .all()
-            .then((r: any) => r.results || []),
+            .then((r) => (r.results || []) as unknown as TemplateRow[]),
     ])
 
     return { brands, models, templates }
@@ -240,10 +277,11 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         { id: 'models', label: 'Models' },
     ]
 
-    const handleBrandSubmit = async (data: any) => {
+    const handleBrandSubmit = async (data: Record<string, unknown>) => {
+        const form = data as BrandFormData
         const formData = new FormData()
         formData.append('intent', 'create_brand')
-        formData.append('name', data.name)
+        formData.append('name', form.name)
 
         try {
             const response = await fetch('/car-templates', {
@@ -263,11 +301,12 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         }
     }
 
-    const handleModelSubmit = async (data: any) => {
+    const handleModelSubmit = async (data: Record<string, unknown>) => {
+        const form = data as ModelFormData
         const formData = new FormData()
         formData.append('intent', 'create_model')
-        formData.append('name', data.name)
-        formData.append('brand_id', data.brand_id)
+        formData.append('name', form.name)
+        formData.append('brand_id', form.brand_id)
 
         try {
             const response = await fetch('/car-templates', {
@@ -287,48 +326,48 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         }
     }
 
-    const brandColumns = [
+    const brandColumns: Column<BrandRow>[] = [
         {
             key: 'id',
             label: 'ID',
-            render: (brand: any) => <IdBadge>#{String(brand.id).padStart(3, "0")}</IdBadge>,
+            render: (brand) => <IdBadge>#{String(brand.id).padStart(3, "0")}</IdBadge>,
         },
         {
             key: 'name',
             label: 'Name',
-            render: (brand: any) => (
+            render: (brand) => (
                 <span className="text-sm text-gray-900">{brand.name}</span>
             ),
         },
     ]
 
-    const modelColumns = [
+    const modelColumns: Column<ModelRow>[] = [
         {
             key: 'id',
             label: 'ID',
-            render: (model: any) => <IdBadge>#{String(model.id).padStart(3, "0")}</IdBadge>,
+            render: (model) => <IdBadge>#{String(model.id).padStart(3, "0")}</IdBadge>,
         },
         {
             key: 'brand',
             label: 'Brand',
-            render: (model: any) => (
+            render: (model) => (
                 <span className="text-sm text-gray-900">{model.brand_name}</span>
             ),
         },
         {
             key: 'name',
             label: 'Model',
-            render: (model: any) => (
+            render: (model) => (
                 <span className="text-sm text-gray-900">{model.name}</span>
             ),
         },
     ]
 
-    const templateColumns = [
+    const templateColumns: Column<TemplateRow>[] = [
         {
             key: 'id',
             label: 'ID',
-            render: (template: any) => (
+            render: (template) => (
                 <Link to={`/car-templates/${template.id}`} className="hover:opacity-70 transition-opacity">
                     <IdBadge>#{String(template.id).padStart(3, "0")}</IdBadge>
                 </Link>
@@ -337,21 +376,21 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         {
             key: 'brand',
             label: 'Brand',
-            render: (template: any) => (
+            render: (template) => (
                 <span className="text-sm text-gray-900">{template.brand_name}</span>
             ),
         },
         {
             key: 'model',
             label: 'Model',
-            render: (template: any) => (
+            render: (template) => (
                 <span className="text-sm text-gray-900">{template.model_name}</span>
             ),
         },
         {
             key: 'fuel',
             label: 'Fuel',
-            render: (template: any) => (
+            render: (template) => (
                 <span className="text-sm text-gray-600">
                     {template.fuel_type_name || '-'}
                 </span>
@@ -360,7 +399,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         {
             key: 'transmission',
             label: 'Transmission',
-            render: (template: any) => (
+            render: (template) => (
                 <span className="text-sm text-gray-600 capitalize">
                     {template.transmission || '-'}
                 </span>
@@ -369,7 +408,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         {
             key: 'engine',
             label: 'Engine',
-            render: (template: any) => (
+            render: (template) => (
                 <span className="text-sm text-gray-600">
                     {template.engine_volume ? `${template.engine_volume}L` : '-'}
                 </span>
@@ -378,7 +417,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         {
             key: 'seats',
             label: 'Seats',
-            render: (template: any) => (
+            render: (template) => (
                 <span className="text-sm text-gray-600">
                     {template.seats ? `${template.seats} seats` : '-'}
                 </span>

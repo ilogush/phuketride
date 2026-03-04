@@ -41,7 +41,7 @@ export default function HeroSection({ districts }: HeroSectionProps) {
 
   return (
     <section className="relative z-30">
-      <div className="relative overflow-visible rounded-3xl border border-gray-200 bg-white min-h-[400px] flex items-center justify-center">
+      <div className="relative overflow-visible rounded-3xl bg-white min-h-[400px] flex items-center justify-center">
         <div
           className="absolute inset-0 bg-cover bg-center rounded-3xl"
           style={{ backgroundImage: "url('/images/hero-bg.webp')" }}
@@ -56,7 +56,7 @@ export default function HeroSection({ districts }: HeroSectionProps) {
           </p>
 
           <div className="relative mt-6">
-            <div id="hero-search-shell" className="relative bg-white rounded-xl border border-gray-200 flex flex-col md:flex-row items-stretch text-gray-800 p-2">
+            <div id="hero-search-shell" className="relative bg-white rounded-xl flex flex-col md:flex-row items-stretch text-gray-800 p-2">
               <div className="flex-1 relative md:pr-3">
                 <label className="block mb-2 text-left">
                   <p className="text-xs text-gray-500 text-left">Where</p>
@@ -82,7 +82,7 @@ export default function HeroSection({ districts }: HeroSectionProps) {
                 </div>
 
                 {showLocations && (
-                  <div className="absolute left-0 right-0 top-full mt-4 w-auto max-w-none bg-white rounded-lg shadow-xl border border-gray-200  z-[60] max-h-[420px] overflow-y-scroll overscroll-contain scroll-smooth">
+                  <div className="absolute left-0 right-0 top-full mt-4 w-auto max-w-none bg-white rounded-lg shadow-xl z-[60] max-h-[420px] overflow-y-scroll overscroll-contain scroll-smooth">
                     {filteredDistricts.length > 0 ? (
                       filteredDistricts.map((district) => (
                         <button

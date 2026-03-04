@@ -42,7 +42,20 @@ export async function getContractWithAmountPaid(
     contractId: number
 ) {
     const contract = await db
-        .prepare("SELECT * FROM contracts WHERE id = ? LIMIT 1")
+        .prepare(`
+            SELECT
+                id, company_car_id, client_id, manager_id, booking_id,
+                start_date, end_date, actual_end_date,
+                total_amount, total_currency,
+                deposit_amount, deposit_currency, deposit_payment_method,
+                pickup_district_id, pickup_hotel, pickup_room, delivery_cost,
+                return_district_id, return_hotel, return_room, return_cost,
+                start_mileage, end_mileage, fuel_level, cleanliness,
+                status, notes, photos, created_at, updated_at
+            FROM contracts
+            WHERE id = ?
+            LIMIT 1
+        `)
         .bind(contractId)
         .first<Record<string, unknown>>();
 

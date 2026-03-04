@@ -1,15 +1,5 @@
 import type { ActionFunctionArgs } from "react-router";
 
-const CREATE_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS district_search_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    district_name TEXT NOT NULL,
-    search_query TEXT,
-    source TEXT,
-    created_at INTEGER NOT NULL
-  )
-`;
-
 export async function action({ request, context }: ActionFunctionArgs) {
   if (request.method.toUpperCase() !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -34,7 +24,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     const db = context.cloudflare.env.DB;
-    await db.prepare(CREATE_TABLE_SQL).run();
     await db
       .prepare(
         `

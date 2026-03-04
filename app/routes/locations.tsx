@@ -24,6 +24,30 @@ interface District {
     createdAt: Date;
     updatedAt: Date;
 }
+type PartnerDistrictSettingRow = {
+    id: number;
+    name: string;
+    location_id: number;
+    beaches: string | null;
+    streets: string | null;
+    company_is_active: number | null;
+    company_delivery_price: number | null;
+    district_is_active: number;
+    district_delivery_price: number | null;
+    created_at: Date;
+    updated_at: Date;
+};
+type AdminDistrictRow = {
+    id: number;
+    name: string;
+    location_id: number;
+    beaches: string | null;
+    streets: string | null;
+    is_active: number;
+    delivery_price: number | null;
+    created_at: Date;
+    updated_at: Date;
+};
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -56,8 +80,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     LIMIT 100
                 `)
                 .bind(effectiveCompanyId)
-                .all() as { results?: any[] };
-            districts = (settings.results || []).map((s) => ({
+                .all() as { results?: PartnerDistrictSettingRow[] };
+            districts = (settings.results || []).map((s: PartnerDistrictSettingRow) => ({
                 id: s.id,
                 name: s.name,
                 locationId: s.location_id,
@@ -90,9 +114,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 FROM districts
                 WHERE location_id = 1
                 LIMIT 100
-            `)
-            .all() as { results?: any[] };
-        districts = (districtsRaw.results || []).map((d) => ({
+                `)
+            .all() as { results?: AdminDistrictRow[] };
+        districts = (districtsRaw.results || []).map((d: AdminDistrictRow) => ({
             id: d.id,
             name: d.name,
             locationId: d.location_id,

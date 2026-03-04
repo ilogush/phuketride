@@ -15,8 +15,8 @@ import { paymentSchema } from "~/schemas/payment";
 export async function loader({ request, context }: LoaderFunctionArgs) {
     await requireAuth(request);
     const [contractsResult, paymentTypesResult, carsResult, currenciesList] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT * FROM contracts LIMIT 100").all(),
-        context.cloudflare.env.DB.prepare("SELECT * FROM payment_types LIMIT 100").all(),
+        context.cloudflare.env.DB.prepare("SELECT id FROM contracts LIMIT 100").all(),
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM payment_types LIMIT 100").all(),
         context.cloudflare.env.DB.prepare("SELECT id, license_plate AS licensePlate FROM company_cars LIMIT 100").all(),
         // Mock currencies data
         Promise.resolve([

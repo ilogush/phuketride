@@ -198,6 +198,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
       String(car.licensePlate || ""),
     ),
     carName: `${String(car.brandName || "Car")} ${String(car.modelName || "Model")} ${String(car.licensePlate || "").trim() || `#${carId}`}`,
+    carBreadcrumbName: `${String(car.brandName || "Car")} ${String(car.modelName || "Model")}`.trim(),
     year: Number(car.year || 0) || 2015,
     rating: Number(car.totalRating || 5).toFixed(1),
     trips: Number(car.trips || 1),
@@ -406,7 +407,7 @@ export default function CheckoutPage() {
   const breadcrumbs = [
     { label: "Home", to: "/" },
     { label: "Cars" },
-    { label: data.carName, to: `/cars/${data.carPathSegment}` },
+    { label: data.carBreadcrumbName, to: `/cars/${data.carPathSegment}` },
     { label: "Checkout" },
   ];
 
@@ -455,7 +456,7 @@ export default function CheckoutPage() {
 
               <div className={`grid gap-4 ${hasFullInsurance ? "md:grid-cols-2" : "md:grid-cols-1"}`}>
                 <section className={`rounded-2xl border border-gray-200 p-4 ${!withFullInsurance ? "bg-green-100" : "bg-white"}`}>
-                  <h2 className="text-xl font-semibold text-gray-800">Standard insurance</h2>
+                  <h2 className="text-xl font-semibold text-gray-800">Standard insurance include</h2>
                   <p className="mt-1 text-sm text-gray-700">
                     {data.minInsurancePrice && data.maxInsurancePrice
                       ? `${money(data.minInsurancePrice)} - ${money(data.maxInsurancePrice)} / day`

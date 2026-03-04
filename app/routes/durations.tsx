@@ -18,6 +18,11 @@ interface RentalDuration {
     priceMultiplier: number;
     discountLabel: string | null;
 }
+type DurationRangeRow = {
+    id: number;
+    minDays: number;
+    maxDays: number | null;
+};
 
 // Validate durations coverage - no gaps allowed
 function validateDurationsCoverage(durations: Array<{ minDays: number, maxDays: number | null }>): { valid: boolean, message?: string } {
@@ -94,7 +99,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             ORDER BY min_days ASC
             LIMIT 100
         `)
-        .all() as { results?: any[] };
+        .all() as { results?: RentalDuration[] };
     const durations = durationsResult.results || [];
 
     return { user, durations };
@@ -117,7 +122,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         // Get all durations except the one being deleted
         const allDurationsResult = await context.cloudflare.env.DB
             .prepare("SELECT id, min_days AS minDays, max_days AS maxDays FROM rental_durations")
-            .all() as { results?: any[] };
+            .all() as { results?: DurationRangeRow[] };
         const allDurations = allDurationsResult.results || [];
         const remainingDurations = allDurations.filter(d => d.id !== id);
 
@@ -149,7 +154,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         // Get existing durations
         const existingDurationsResult = await context.cloudflare.env.DB
             .prepare("SELECT min_days AS minDays, max_days AS maxDays FROM rental_durations")
-            .all() as { results?: any[] };
+            .all() as { results?: Array<{ minDays: number; maxDays: number | null }> };
         const existingDurations = existingDurationsResult.results || [];
 
         // Add new duration to validation
@@ -197,7 +202,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         // Get all durations except the one being updated
         const allDurationsResult = await context.cloudflare.env.DB
             .prepare("SELECT id, min_days AS minDays, max_days AS maxDays FROM rental_durations")
-            .all() as { results?: any[] };
+            .all() as { results?: DurationRangeRow[] };
         const allDurations = allDurationsResult.results || [];
         const otherDurations = allDurations.filter(d => d.id !== id);
 

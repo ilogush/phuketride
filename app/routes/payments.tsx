@@ -11,12 +11,35 @@ import { BanknotesIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { format, isValid } from "date-fns";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
+type PaymentListRow = {
+    id: number;
+    amount: number;
+    status: string;
+    created_at?: string | null;
+    createdAt?: string | null;
+    payment_method?: string | null;
+    paymentMethod?: string | null;
+    contractId?: number | null;
+    paymentTypeName?: string | null;
+    paymentTypeSign?: string | null;
+    currencyCode?: string | null;
+    currencySymbol?: string | null;
+    creatorName?: string | null;
+    creatorSurname?: string | null;
+};
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
-    let paymentsList: any[] = [];
+    let paymentsList: Array<PaymentListRow & {
+        createdAt: string | null;
+        paymentMethod: string | null;
+        contract: { id: number } | null;
+        paymentType: { name: string | null; sign: string | null } | null;
+        currency: { code: string | null; symbol: string | null } | null;
+        creator: { name: string | null; surname: string | null } | null;
+    }> = [];
     let statusCounts = { all: 0, pending: 0, completed: 0, cancelled: 0 };
 
     try {
@@ -64,14 +87,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         const result = effectiveCompanyId
             ? await query.bind(effectiveCompanyId).all()
             : await query.all();
-        paymentsList = ((result as any).results || []).map((p: any) => ({
+        paymentsList = (((result as { results?: PaymentListRow[] }).results) || []).map((p: PaymentListRow) => ({
             ...p,
-            createdAt: p.created_at ?? p.createdAt,
-            paymentMethod: p.payment_method ?? p.paymentMethod,
+            createdAt: p.created_at ?? p.createdAt ?? null,
+            paymentMethod: p.payment_method ?? p.paymentMethod ?? null,
             contract: p.contractId ? { id: p.contractId } : null,
-            paymentType: p.paymentTypeName ? { name: p.paymentTypeName, sign: p.paymentTypeSign } : null,
-            currency: p.currencyCode ? { code: p.currencyCode, symbol: p.currencySymbol } : null,
-            creator: p.creatorName || p.creatorSurname ? { name: p.creatorName, surname: p.creatorSurname } : null,
+            paymentType: p.paymentTypeName ? { name: p.paymentTypeName, sign: p.paymentTypeSign ?? null } : null,
+            currency: p.currencyCode ? { code: p.currencyCode, symbol: p.currencySymbol ?? null } : null,
+            creator: p.creatorName || p.creatorSurname ? { name: p.creatorName ?? null, surname: p.creatorSurname ?? null } : null,
         }));
 
         statusCounts.all = paymentsList.length;
@@ -166,7 +189,7 @@ export default function PaymentsPage() {
             label: "Amount",
             render: (payment) => {
                 const currencySymbol = payment.currency?.symbol || "฿";
-                const currencyCode = payment.currency?.code || payment.currency || "THB";
+                const currencyCode = payment.currency?.code || "THB";
                 return (
                     <span className="font-medium text-gray-900">
                         {currencySymbol}{payment.amount} {currencyCode}

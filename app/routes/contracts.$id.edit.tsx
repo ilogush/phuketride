@@ -29,6 +29,65 @@ import {
     DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
+type ExistingContractRow = {
+    id: number;
+    client_id: string;
+    company_car_id: number;
+    start_date: string;
+    end_date: string;
+    total_amount: number | null;
+    fuel_level: string | null;
+    cleanliness: string | null;
+    start_mileage: number | null;
+    photos: string | null;
+};
+type ContractLoaderRow = {
+    id: number;
+    company_car_id: number;
+    start_date: string;
+    end_date: string;
+    pickup_district_id: number | null;
+    pickup_hotel: string | null;
+    pickup_room: string | null;
+    return_district_id: number | null;
+    return_hotel: string | null;
+    return_room: string | null;
+    delivery_cost: number | null;
+    return_cost: number | null;
+    deposit_amount: number | null;
+    deposit_payment_method: string | null;
+    total_amount: number | null;
+    fuel_level: string | null;
+    cleanliness: string | null;
+    start_mileage: number | null;
+    carId: number;
+    companyId: number;
+    licensePlate: string;
+    clientId: string;
+    clientName: string | null;
+    clientSurname: string | null;
+    clientPhone: string | null;
+    clientEmail: string | null;
+    clientWhatsapp: string | null;
+    clientTelegram: string | null;
+    clientPassport: string | null;
+    clientPassportPhotos: string | null;
+    clientDriverLicensePhotos: string | null;
+    notes: string | null;
+    photos: string | null;
+};
+type ContractExtraRow = {
+    id: number;
+    extraType: (typeof EXTRA_TYPES)[number];
+    extraPrice: number | null;
+    amount: number | null;
+    paymentTypeId: number | null;
+    currency: string | null;
+    currencyId: number | null;
+    paymentMethod: string | null;
+    status: string | null;
+    notes: string | null;
+};
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -59,7 +118,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
             LIMIT 1
         `)
         .bind(contractId)
-        .first() as any;
+        .first() as ContractLoaderRow | null;
     const extrasResult = await context.cloudflare.env.DB
         .prepare(`
             SELECT id, extra_type AS extraType, extra_price AS extraPrice, amount, payment_type_id AS paymentTypeId,
@@ -68,8 +127,8 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
             WHERE contract_id = ? AND extra_type IS NOT NULL
         `)
         .bind(contractId)
-        .all() as any;
-    const extrasRows = (extrasResult?.results || []) as Array<any>;
+        .all() as { results?: ContractExtraRow[] };
+    const extrasRows = (extrasResult?.results || []) as ContractExtraRow[];
     const extrasMap = mapExtrasByType(extrasRows);
     const contract = contractRaw
         ? {
@@ -89,6 +148,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
             depositPaymentMethod: contractRaw.deposit_payment_method,
             totalAmount: contractRaw.total_amount,
             fuelLevel: contractRaw.fuel_level,
+            cleanliness: contractRaw.cleanliness,
             fullInsuranceEnabled: !!extrasMap.full_insurance,
             babySeatEnabled: !!extrasMap.baby_seat,
             islandTripEnabled: !!extrasMap.island_trip,
@@ -128,13 +188,13 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         .prepare("SELECT id, license_plate AS licensePlate FROM company_cars WHERE company_id = ? AND status = 'available' AND archived_at IS NULL")
         .bind(user.companyId)
         .all()
-        .then((r: any) => r.results || []);
+        .then((r: { results?: Array<{ id: number; licensePlate: string }> }) => r.results || []);
 
     // Get districts
     const districtsList = await context.cloudflare.env.DB
         .prepare("SELECT id, name FROM districts WHERE is_active = 1")
         .all()
-        .then((r: any) => r.results || []);
+        .then((r: { results?: Array<{ id: number; name: string }> }) => r.results || []);
 
     return { contract, cars, districts: districtsList, client: contract.client };
 }
@@ -147,13 +207,23 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         const formData = await request.formData();
         const existingContract = await context.cloudflare.env.DB
             .prepare(`
-            SELECT *
+            SELECT
+                id,
+                client_id,
+                company_car_id,
+                start_date,
+                end_date,
+                total_amount,
+                fuel_level,
+                cleanliness,
+                start_mileage,
+                photos
             FROM contracts
             WHERE id = ?
             LIMIT 1
         `)
             .bind(contractId)
-            .first() as any;
+            .first() as ExistingContractRow | null;
 
         if (!existingContract) {
             return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
@@ -195,7 +265,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             LIMIT 1
         `)
             .bind(contractId)
-            .first() as any;
+            .first() as { id: number; companyId: number } | null;
 
         if (!contract) {
             return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
@@ -291,7 +361,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             returnRoom: (formData.get("return_room") as string) || null,
             returnCost: Number(formData.get("return_cost")) || 0,
             depositAmount: Number(formData.get("deposit_amount")) || 0,
-            depositPaymentMethod: (formData.get("deposit_payment_method") as any) || null,
+            depositPaymentMethod: (formData.get("deposit_payment_method") as string) || null,
             totalAmount: Number(formData.get("total_amount")) || existingContract.total_amount,
             fuelLevel: String(formData.get("fuel_level") || existingContract.fuel_level || "Full"),
             cleanliness: String(formData.get("cleanliness") || existingContract.cleanliness || "Clean"),
@@ -358,8 +428,8 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 WHERE contract_id = ? AND extra_type IS NOT NULL
             `)
             .bind(contractId)
-            .all() as any;
-        const existingExtras = (existingExtrasResult?.results || []) as Array<any>;
+            .all() as { results?: ContractExtraRow[] };
+        const existingExtras = (existingExtrasResult?.results || []) as ContractExtraRow[];
         const existingByType = new Map(existingExtras.map((row) => [String(row.extraType), row]));
         const extraStmts: D1PreparedStatement[] = [];
 
@@ -412,7 +482,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         const carRow = await context.cloudflare.env.DB
             .prepare("SELECT company_id AS companyId FROM company_cars WHERE id = ? LIMIT 1")
             .bind(newCompanyCarId)
-            .first() as any;
+            .first() as { companyId: number } | null;
 
         if (carRow?.companyId) {
             await context.cloudflare.env.DB
@@ -443,8 +513,11 @@ export default function EditContract() {
     const { maskDateTimeInput } = useDateMasking();
 
     // Safely parse dates
-    const getValidDate = (dateValue: any) => {
+    const getValidDate = (dateValue: unknown) => {
         if (!dateValue) return new Date();
+        if (typeof dateValue !== "string" && typeof dateValue !== "number" && !(dateValue instanceof Date)) {
+            return new Date();
+        }
         const date = new Date(dateValue);
         return isNaN(date.getTime()) ? new Date() : date;
     };

@@ -43,6 +43,21 @@ const bookingSchema = z.object({
     krabiTrip: z.string().optional(),
     notes: z.string().optional(),
 });
+type BookingCarRow = {
+    id: number;
+    pricePerDay: number | null;
+    deposit: number | null;
+    licensePlate: string | null;
+    year: number | null;
+    brandName: string | null;
+    modelName: string | null;
+};
+type DistrictRow = {
+    id: number;
+    name: string;
+    deliveryPrice: number | null;
+    isActive: number | boolean | null;
+};
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -71,15 +86,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             `)
             .bind(user.companyId)
             .all()
-            .then((r: any) => r.results || []),
+            .then((r: { results?: BookingCarRow[] }) => r.results || []),
         context.cloudflare.env.DB
-            .prepare("SELECT * FROM districts WHERE is_active = 1")
+            .prepare("SELECT id, name, delivery_price AS deliveryPrice, is_active AS isActive FROM districts WHERE is_active = 1")
             .all()
-            .then((r: any) => r.results || []),
+            .then((r: { results?: DistrictRow[] }) => r.results || []),
     ]);
 
     return {
-        cars: carsRaw.map((car: any) => ({
+        cars: carsRaw.map((car: BookingCarRow) => ({
             id: car.id,
             name: `${car.brandName || ""} ${car.modelName || ""} ${car.year || ""} - ${car.licensePlate}`,
             pricePerDay: car.pricePerDay ?? 0,
@@ -115,7 +130,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 LIMIT 1
             `)
             .bind(Number(carId), user.companyId)
-            .first() as any;
+            .first() as { id: number; pricePerDay: number | null } | null;
 
         if (!car) {
             return { error: "Car not found" };
@@ -142,14 +157,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
             const district = await context.cloudflare.env.DB
                 .prepare("SELECT delivery_price AS deliveryPrice FROM districts WHERE id = ? LIMIT 1")
                 .bind(Number(pickupDistrictId))
-                .first() as any;
+                .first() as { deliveryPrice: number | null } | null;
             if (district) estimatedAmount += district.deliveryPrice || 0;
         }
         if (returnDistrictId) {
             const district = await context.cloudflare.env.DB
                 .prepare("SELECT delivery_price AS deliveryPrice FROM districts WHERE id = ? LIMIT 1")
                 .bind(Number(returnDistrictId))
-                .first() as any;
+                .first() as { deliveryPrice: number | null } | null;
             if (district) estimatedAmount += district.deliveryPrice || 0;
         }
 
@@ -203,7 +218,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         // Execute batch
         const batchResults = await context.cloudflare.env.DB.batch([bookingInsertStmt, carUpdateStmt]);
-        const bookingId = (batchResults[0] as any).meta.last_row_id;
+        const bookingId = Number((batchResults[0] as { meta?: { last_row_id?: number } }).meta?.last_row_id || 0);
 
         // Audit log (immediate execution is fine here as it's separate from business logic integrity)
         const metadata = getRequestMetadata(request);
@@ -242,7 +257,7 @@ export default function CreateBookingPage() {
         krabiTrip: 0
     });
 
-    const selectedCar = cars.find((c: any) => String(c.id) === selectedCarId);
+    const selectedCar = cars.find((c: { id: number }) => String(c.id) === selectedCarId);
 
     const tripPricing = (() => {
         if (!selectedCar || !dates.start || !dates.end || dates.start.length < 10 || dates.end.length < 10) {

@@ -20,6 +20,40 @@ import { ExclamationTriangleIcon, Cog6ToothIcon, PhotoIcon, WrenchScrewdriverIco
 import { calculateSeasonalPrice, getAverageDays } from "~/lib/pricing";
 import { uploadToR2 } from "~/lib/r2.server";
 
+interface TemplateQueryRow {
+    id: number;
+    brandName: string | null;
+    modelName: string | null;
+    bodyTypeName: string | null;
+    fuelTypeName: string | null;
+    engine_volume: number | null;
+    transmission: string | null;
+    seats: number | null;
+    doors: number | null;
+}
+
+interface CarTemplateOption {
+    id: number;
+    brand?: { name?: string | null };
+    model?: { name?: string | null };
+    bodyType?: { name?: string | null };
+    fuelType?: { name?: string | null };
+    engineVolume?: number | null;
+    transmission?: string | null;
+    seats?: number | null;
+    doors?: number | null;
+}
+
+interface SimpleOptionRow {
+    id: number;
+    name: string;
+}
+
+interface FuelTypeRow {
+    id: number;
+    name: string;
+}
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const [templatesList, colorsList, seasonsList, durationsList, fuelTypesList] = await Promise.all([
@@ -36,7 +70,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             LEFT JOIN body_types bt ON bt.id = ct.body_type_id
             LEFT JOIN fuel_types ft ON ft.id = ct.fuel_type_id
             LIMIT 100
-        `).all().then((r: any) => (r.results || []).map((t: any) => ({
+        `).all().then((r: { results?: TemplateQueryRow[] }) => (r.results || []).map((t) => ({
             ...t,
             brand: { name: t.brandName },
             model: { name: t.modelName },
@@ -44,7 +78,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             fuelType: { name: t.fuelTypeName },
             engineVolume: t.engine_volume,
         }))),
-        context.cloudflare.env.DB.prepare("SELECT * FROM colors LIMIT 100").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM colors LIMIT 100").all().then((r: { results?: SimpleOptionRow[] }) => r.results || []),
         context.cloudflare.env.DB.prepare(`
             SELECT
                 id,
@@ -58,7 +92,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             FROM seasons
             ORDER BY price_multiplier DESC
             LIMIT 10
-        `).all().then((r: any) => r.results || []),
+        `).all().then((r: { results?: Array<Record<string, unknown>> }) => r.results || []),
         context.cloudflare.env.DB.prepare(`
             SELECT
                 id,
@@ -70,8 +104,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             FROM rental_durations
             ORDER BY min_days ASC
             LIMIT 10
-        `).all().then((r: any) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT * FROM fuel_types LIMIT 20").all().then((r: any) => r.results || []),
+        `).all().then((r: { results?: Array<Record<string, unknown>> }) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM fuel_types LIMIT 20").all().then((r: { results?: SimpleOptionRow[] }) => r.results || []),
     ]);
 
     return {
@@ -151,7 +185,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         const fuelTypesResult = await context.cloudflare.env.DB
             .prepare("SELECT id, name FROM fuel_types")
-            .all() as { results?: any[] };
+            .all() as { results?: FuelTypeRow[] };
         const fuelTypes = fuelTypesResult.results || [];
         const fuelType = fuelTypes.find((item) => item.name.toLowerCase() === validData.fuelType.toLowerCase());
 
@@ -228,8 +262,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
         });
 
         return redirect(`/cars?success=${encodeURIComponent("Car created successfully")}`);
-    } catch (error: any) {
-        if (error.message?.includes('UNIQUE constraint failed') && error.message?.includes('license_plate')) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "";
+        if (message.includes('UNIQUE constraint failed') && message.includes('license_plate')) {
             return redirect(`/cars/create?error=${encodeURIComponent(`License plate "${validData.licensePlate}" is already in use`)}`);
         }
         return redirect(`/cars/create?error=${encodeURIComponent("Failed to create car")}`);
@@ -262,7 +297,7 @@ export default function CreateCarPage() {
     };
 
     // Get template display name
-    const getTemplateName = (template: any) => {
+    const getTemplateName = (template: CarTemplateOption) => {
         const brand = template.brand?.name || 'Unknown';
         const model = template.model?.name || 'Unknown';
         const engine = template.engineVolume ? `${template.engineVolume}L` : '';

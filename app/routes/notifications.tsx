@@ -6,6 +6,21 @@ import { format, addDays } from "date-fns";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Card from "~/components/dashboard/Card";
 import EmptyState from "~/components/dashboard/EmptyState";
+type NotificationContractRow = {
+    id: number;
+    endDate: string;
+    carLicensePlate: string | null;
+    brandName: string | null;
+    modelName: string | null;
+};
+type NotificationRecentContractRow = {
+    id: number;
+    createdAt: string;
+    status: string;
+    carLicensePlate: string | null;
+    brandName: string | null;
+    modelName: string | null;
+};
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -38,11 +53,11 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             LIMIT 10
         `)
         .bind(user.id, new Date().toISOString())
-        .all() as { results?: any[] };
+        .all() as { results?: NotificationContractRow[] };
     const upcomingContracts = upcomingContractsResult.results || [];
 
     upcomingContracts.forEach((contract) => {
-        if (contract.endDate <= threeDaysFromNow) {
+        if (new Date(contract.endDate) <= threeDaysFromNow) {
             notifications.push({
                 id: `contract-${contract.id}`,
                 type: "reminder",
@@ -75,7 +90,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             LIMIT 5
         `)
         .bind(user.id, sevenDaysAgo.toISOString())
-        .all() as { results?: any[] };
+        .all() as { results?: NotificationRecentContractRow[] };
     const recentContracts = recentContractsResult.results || [];
 
     recentContracts.forEach((contract) => {

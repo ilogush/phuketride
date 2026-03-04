@@ -31,6 +31,7 @@ export interface SessionUser {
     role: UserRole;
     name: string | null;
     surname: string | null;
+    avatarUrl?: string | null;
     companyId?: number;
 }
 
@@ -129,7 +130,34 @@ export async function login(
     try {
         // Use raw SQL query to avoid drizzle mapping issues
         const rawUser = await db
-            .prepare("SELECT * FROM users WHERE email = ? LIMIT 1")
+            .prepare(`
+                SELECT
+                    id,
+                    email,
+                    role,
+                    name,
+                    surname,
+                    phone,
+                    whatsapp,
+                    telegram,
+                    passport_number,
+                    passport_photos,
+                    driver_license_photos,
+                    password_hash,
+                    avatar_url,
+                    hotel_id,
+                    room_number,
+                    location_id,
+                    district_id,
+                    address,
+                    is_first_login,
+                    archived_at,
+                    created_at,
+                    updated_at
+                FROM users
+                WHERE email = ?
+                LIMIT 1
+            `)
             .bind(email)
             .first();
         
@@ -233,6 +261,7 @@ export async function login(
         role: user.role as UserRole,
         name: user.name,
         surname: user.surname,
+        avatarUrl: user.avatarUrl,
         companyId,
     };
 

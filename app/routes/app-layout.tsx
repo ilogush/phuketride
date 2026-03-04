@@ -22,8 +22,35 @@ export function useModMode() {
 }
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
+    const sessionUser = await requireAuth(request);
+    let user = sessionUser;
     let notificationsCount = 0;
+
+    try {
+        const currentUser = await context.cloudflare.env.DB
+            .prepare(`
+                SELECT
+                    avatar_url AS avatarUrl,
+                    name,
+                    surname
+                FROM users
+                WHERE id = ?
+                LIMIT 1
+            `)
+            .bind(sessionUser.id)
+            .first() as { avatarUrl?: string | null; name?: string | null; surname?: string | null } | null;
+
+        if (currentUser) {
+            user = {
+                ...sessionUser,
+                avatarUrl: currentUser.avatarUrl ?? sessionUser.avatarUrl ?? null,
+                name: currentUser.name ?? sessionUser.name,
+                surname: currentUser.surname ?? sessionUser.surname,
+            };
+        }
+    } catch {
+        user = sessionUser;
+    }
 
     // Only user dashboard needs personal notifications badge.
     if (user.role === "user") {

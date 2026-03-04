@@ -383,10 +383,11 @@ export default function PublicCarPage() {
 
   const carNumber = String(car.licensePlate || "").trim();
   const title = `${car.brandName || "Car"} ${car.modelName || "Model"} ${carNumber || `#${car.id}`}`;
+  const breadcrumbTitle = `${car.brandName || "Car"} ${car.modelName || "Model"}`.trim();
   const breadcrumbs = [
     { label: "Home", to: "/" },
     { label: "Cars" },
-    { label: title },
+    { label: breadcrumbTitle },
   ];
   const pickupDistrict = car.districtName || car.locationName || car.companyName;
   const specifications = [
@@ -411,6 +412,7 @@ export default function PublicCarPage() {
               title={title}
               year={car.year}
               companyName={car.companyName}
+              ownerName={car.ownerName}
               companySlug={car.companySlug}
               hostTrips={hostTrips}
               hostJoinedAt={formatMonthYear(car.ownerCreatedAt || null)}

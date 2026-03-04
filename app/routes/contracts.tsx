@@ -11,19 +11,31 @@ import { ClipboardDocumentListIcon, PlusIcon } from "@heroicons/react/24/outline
 import { format } from "date-fns";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
+type ContractListRow = {
+    id: number;
+    startDate: string | null;
+    endDate: string | null;
+    totalAmount: number | null;
+    status: string;
+};
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
-    let contractsList: any[] = [];
+    let contractsList: ContractListRow[] = [];
     let statusCounts = { all: 0, active: 0, closed: 0 };
 
     try {
         if (effectiveCompanyId) {
             const result = await context.cloudflare.env.DB
                 .prepare(`
-                    SELECT c.*
+                    SELECT
+                        c.id,
+                        c.start_date AS startDate,
+                        c.end_date AS endDate,
+                        c.total_amount AS totalAmount,
+                        c.status
                     FROM contracts c
                     JOIN company_cars cc ON cc.id = c.company_car_id
                     WHERE cc.company_id = ?
@@ -31,12 +43,22 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     LIMIT 100
                 `)
                 .bind(effectiveCompanyId)
-                .all() as { results?: any[] };
+                .all() as { results?: ContractListRow[] };
             contractsList = result.results || [];
         } else {
             const result = await context.cloudflare.env.DB
-                .prepare("SELECT * FROM contracts ORDER BY created_at DESC LIMIT 50")
-                .all() as { results?: any[] };
+                .prepare(`
+                    SELECT
+                        id,
+                        start_date AS startDate,
+                        end_date AS endDate,
+                        total_amount AS totalAmount,
+                        status
+                    FROM contracts
+                    ORDER BY created_at DESC
+                    LIMIT 50
+                `)
+                .all() as { results?: ContractListRow[] };
             contractsList = result.results || [];
         }
 

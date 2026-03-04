@@ -20,6 +20,35 @@ import { calculateSeasonalPrice, getAverageDays } from "~/lib/pricing";
 import { uploadToR2 } from "~/lib/r2.server";
 import { getCarPhotoUrls } from "~/lib/car-photos";
 
+interface TemplateQueryRow {
+    id: number;
+    brandName: string | null;
+    modelName: string | null;
+    bodyTypeName: string | null;
+    fuelTypeName: string | null;
+    engine_volume: number | null;
+    transmission: string | null;
+    seats: number | null;
+    doors: number | null;
+}
+
+interface CarTemplateOption {
+    id: number;
+    brand?: { name?: string | null };
+    model?: { name?: string | null };
+    bodyType?: { name?: string | null };
+    fuelType?: { name?: string | null };
+    engineVolume?: number | null;
+    transmission?: string | null;
+    seats?: number | null;
+    doors?: number | null;
+}
+
+interface FuelTypeRow {
+    id: number;
+    name: string;
+}
+
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const carId = Number(params.id);
@@ -47,7 +76,37 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             LIMIT 1
         `)
         .bind(carId)
-        .first() as any;
+        .first() as (Record<string, unknown> & {
+            company_id: number;
+            template_id: number | null;
+            color_id: number | null;
+            license_plate: string | null;
+            price_per_day: number | null;
+            insurance_type: string | null;
+            insurance_expiry_date: string | null;
+            registration_expiry: string | null;
+            tax_road_expiry_date: string | null;
+            next_oil_change_mileage: number | null;
+            oil_change_interval: number | null;
+            min_insurance_price: number | null;
+            max_insurance_price: number | null;
+            archived_at: string | null;
+            brandName: string | null;
+            modelName: string | null;
+            bodyTypeName: string | null;
+            templateFuelTypeName: string | null;
+            colorName: string | null;
+            engine_volume: number | null;
+            transmission: string | null;
+            seats: number | null;
+            doors: number | null;
+            mileage: number | null;
+            year: number | null;
+            status: "available" | "rented" | "maintenance" | "booked" | null;
+            deposit: number | null;
+            photos: string | null;
+            fuelType: { name?: string | null } | null;
+        }) | null;
 
     if (!carRaw) {
         throw new Response("Car not found", { status: 404 });
@@ -71,7 +130,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             LEFT JOIN body_types bt ON bt.id = ct.body_type_id
             LEFT JOIN fuel_types ft ON ft.id = ct.fuel_type_id
             LIMIT 100
-        `).all().then((r: any) => (r.results || []).map((t: any) => ({
+        `).all().then((r: { results?: TemplateQueryRow[] }) => (r.results || []).map((t) => ({
             ...t,
             brand: { name: t.brandName },
             model: { name: t.modelName },
@@ -79,7 +138,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             fuelType: { name: t.fuelTypeName },
             engineVolume: t.engine_volume,
         }))),
-        context.cloudflare.env.DB.prepare("SELECT * FROM colors LIMIT 100").all().then((r: any) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM colors LIMIT 100").all().then((r: { results?: Array<{ id: number; name: string }> }) => r.results || []),
         context.cloudflare.env.DB.prepare(`
             SELECT
                 id,
@@ -93,7 +152,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             FROM seasons
             ORDER BY price_multiplier DESC
             LIMIT 10
-        `).all().then((r: any) => r.results || []),
+        `).all().then((r: { results?: Array<Record<string, unknown>> }) => r.results || []),
         context.cloudflare.env.DB.prepare(`
             SELECT
                 id,
@@ -105,8 +164,8 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             FROM rental_durations
             ORDER BY min_days ASC
             LIMIT 10
-        `).all().then((r: any) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT * FROM fuel_types LIMIT 20").all().then((r: any) => r.results || []),
+        `).all().then((r: { results?: Array<Record<string, unknown>> }) => r.results || []),
+        context.cloudflare.env.DB.prepare("SELECT id, name FROM fuel_types LIMIT 20").all().then((r: { results?: Array<{ id: number; name: string }> }) => r.results || []),
     ]);
 
     const car = {
@@ -115,6 +174,11 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
         templateId: carRaw.template_id,
         colorId: carRaw.color_id,
         licensePlate: carRaw.license_plate,
+        transmission: carRaw.transmission,
+        engineVolume: carRaw.engine_volume,
+        status: carRaw.status,
+        deposit: carRaw.deposit,
+        photos: carRaw.photos,
         pricePerDay: carRaw.price_per_day,
         insuranceType: carRaw.insurance_type,
         insuranceExpiryDate: carRaw.insurance_expiry_date,
@@ -159,9 +223,40 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     }
 
     const car = await context.cloudflare.env.DB
-        .prepare("SELECT * FROM company_cars WHERE id = ? LIMIT 1")
+        .prepare(`
+            SELECT
+                id, company_id, template_id, year, color_id, license_plate, transmission, engine_volume,
+                status, mileage, next_oil_change_mileage, oil_change_interval, price_per_day, deposit,
+                insurance_type, insurance_expiry_date, registration_expiry, tax_road_expiry_date,
+                min_insurance_price, max_insurance_price, photos
+            FROM company_cars
+            WHERE id = ?
+            LIMIT 1
+        `)
         .bind(carId)
-        .first() as any;
+        .first() as {
+            id: number;
+            company_id: number;
+            template_id: number | null;
+            year: number | null;
+            color_id: number | null;
+            license_plate: string | null;
+            transmission: "automatic" | "manual" | null;
+            engine_volume: number | null;
+            status: "available" | "rented" | "maintenance" | "booked" | null;
+            mileage: number | null;
+            next_oil_change_mileage: number | null;
+            oil_change_interval: number | null;
+            price_per_day: number | null;
+            deposit: number | null;
+            insurance_type: string | null;
+            insurance_expiry_date: string | null;
+            registration_expiry: string | null;
+            tax_road_expiry_date: string | null;
+            min_insurance_price: number | null;
+            max_insurance_price: number | null;
+            photos: string | null;
+        } | null;
 
     if (!car) {
         return redirect(withModCompany(`/cars?error=Car not found`));
@@ -248,7 +343,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent("Car with same brand, model and license plate already exists in this company")}`));
         }
 
-        const fuelTypesResult = await context.cloudflare.env.DB.prepare("SELECT id, name FROM fuel_types").all() as { results?: any[] };
+        const fuelTypesResult = await context.cloudflare.env.DB.prepare("SELECT id, name FROM fuel_types").all() as { results?: FuelTypeRow[] };
         const fuelType = (fuelTypesResult.results || []).find((item) => item.name.toLowerCase() === validData.fuelType.toLowerCase());
         const photosData = formData.get("photos") as string;
         let photoUrls: string[] = getCarPhotoUrls(car.photos);
@@ -316,8 +411,9 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         });
 
         return redirect(withModCompany(`/cars?success=${encodeURIComponent("Car updated successfully")}`));
-    } catch (error: any) {
-        if (error.message?.includes('UNIQUE constraint failed') && error.message?.includes('license_plate')) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "";
+        if (message.includes('UNIQUE constraint failed') && message.includes('license_plate')) {
             return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent(`License plate "${validData.licensePlate}" is already in use`)}`));
         }
         return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent("Failed to update car")}`));
@@ -338,7 +434,7 @@ export default function EditCarPage() {
         Boolean((car.minInsurancePrice ?? 0) > 0 || (car.maxInsurancePrice ?? 0) > 0)
     );
 
-    const formatDateInput = (date: Date | null) => {
+    const formatDateInput = (date: Date | string | null) => {
         if (!date) return "";
         const d = new Date(date);
         const day = String(d.getDate()).padStart(2, '0');
@@ -347,7 +443,7 @@ export default function EditCarPage() {
         return `${day}-${month}-${year}`;
     };
 
-    const getTemplateName = (template: any) => {
+    const getTemplateName = (template: CarTemplateOption) => {
         const brand = template.brand?.name || 'Unknown';
         const model = template.model?.name || 'Unknown';
         const engine = template.engineVolume ? `${template.engineVolume}L` : '';
@@ -409,14 +505,14 @@ export default function EditCarPage() {
                                             id: t.id,
                                             name: getTemplateName(t)
                                         }))}
-                                        defaultValue={car.templateId}
+                                        defaultValue={car.templateId ?? ""}
                                         onChange={(e) => setSelectedTemplateId(Number(e.target.value))}
                                     />
                                     <Input
                                         label="License Plate"
                                         name="licensePlate"
                                         required
-                                        defaultValue={car.licensePlate}
+                                        defaultValue={car.licensePlate ?? ""}
                                         onChange={(e) => {
                                             e.target.value = e.target.value.toUpperCase();
                                             validateLatinInput(e, 'License Plate');
@@ -427,7 +523,7 @@ export default function EditCarPage() {
                                         name="colorId"
                                         required
                                         options={colors}
-                                        defaultValue={car.colorId}
+                                        defaultValue={car.colorId ?? ""}
                                     />
                                     <Input
                                         label="Year"

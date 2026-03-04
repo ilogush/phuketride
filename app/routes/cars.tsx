@@ -11,12 +11,34 @@ import { TruckIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 import { getPrimaryCarPhotoUrl } from "~/lib/car-photos";
+type CarListRow = {
+    id: number;
+    photos: string | null;
+    license_plate: string | null;
+    price_per_day: number | null;
+    insurance_type: string | null;
+    engine_volume: number | null;
+    mileage: number | null;
+    deposit: number | null;
+    status: string;
+    brandName: string | null;
+    modelName: string | null;
+    bodyTypeName: string | null;
+    colorName: string | null;
+};
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
-    let cars: any[] = [];
+    let cars: Array<CarListRow & {
+        previewPhotoUrl: string | null;
+        licensePlate: string | null;
+        pricePerDay: number | null;
+        insuranceType: string | null;
+        template: { brand: { name: string | null }; model: { name: string | null }; bodyType: { name: string | null }; engineVolume: number | null };
+        color: { name: string | null };
+    }> = [];
     let statusCounts = { all: 0, available: 0, rented: 0, maintenance: 0, booked: 0 };
 
     try {
@@ -54,8 +76,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 ORDER BY cc.created_at DESC
                 LIMIT 50
             `);
-        const result = await query.all() as { results?: any[] };
-        cars = (result.results || []).map((car) => ({
+        const result = await query.all() as { results?: CarListRow[] };
+        cars = (result.results || []).map((car: CarListRow) => ({
             ...car,
             previewPhotoUrl: getPrimaryCarPhotoUrl(car.photos, request.url, null),
             licensePlate: car.license_plate,

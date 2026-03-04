@@ -39,7 +39,23 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
     const templateId = Number(params.id)
 
     const template = (await context.cloudflare.env.DB
-        .prepare("SELECT * FROM car_templates WHERE id = ? LIMIT 1")
+        .prepare(`
+            SELECT
+                id,
+                brand_id,
+                model_id,
+                transmission,
+                engine_volume,
+                body_type_id,
+                seats,
+                doors,
+                fuel_type_id,
+                description,
+                photos
+            FROM car_templates
+            WHERE id = ?
+            LIMIT 1
+        `)
         .bind(templateId)
         .first()) as CarTemplateRow | null
 
