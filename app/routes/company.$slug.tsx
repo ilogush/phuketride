@@ -5,7 +5,28 @@ import Footer from "~/components/public/Footer";
 import Breadcrumbs from "~/components/public/Breadcrumbs";
 import PopularCarsSection from "~/components/public/PopularCarsSection";
 import { buildCarPathSegment, buildCompanySlug } from "~/lib/car-path";
-import { normalizeAssetUrl } from "~/lib/asset-url";
+import { getCarPhotoUrls } from "~/lib/car-photos";
+
+export function meta({ data }: Route.MetaArgs) {
+  const companyName = data?.companyName || "Company";
+  const canonical = data?.canonicalUrl || "https://phuketride.com";
+  const title = `${companyName} Fleet | Phuket Ride`;
+  const description = `Browse available cars from ${companyName} on Phuket Ride. Compare daily rates, deposits, and car options in one place.`;
+
+  return [
+    { title },
+    { name: "description", content: description },
+    { name: "robots", content: "index,follow" },
+    { tagName: "link", rel: "canonical", href: canonical },
+    { property: "og:type", content: "website" },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:url", content: canonical },
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+  ];
+}
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
   const d1 = context.cloudflare.env.DB;
@@ -60,19 +81,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
   const companyName = String(companyCars[0].companyName || "");
   const cars = companyCars.map((row) => {
-    let photoUrls: string[] = [];
-    if (typeof row.photos === "string" && row.photos) {
-      try {
-        const parsed = JSON.parse(row.photos);
-        photoUrls = Array.isArray(parsed)
-          ? parsed
-              .filter((item): item is string => typeof item === "string" && Boolean(item))
-              .map((item) => normalizeAssetUrl(item, request.url))
-          : [];
-      } catch {
-        photoUrls = [];
-      }
-    }
+    const photoUrls = getCarPhotoUrls(row.photos, request.url);
     const officeAddress = [row.street, row.houseNumber].filter(Boolean).map(String).join(" ");
     return {
       id: Number(row.id),
@@ -101,7 +110,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
     };
   });
 
-  return { companyName, cars };
+  return { companyName, cars, canonicalUrl: request.url };
 }
 
 export default function CompanyFleetPage() {

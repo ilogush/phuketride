@@ -17,7 +17,7 @@ import type {
   CarRuleItem,
 } from "~/components/public/car/types";
 import { buildCarPathSegment, buildCompanySlug, parseCarPathSegment } from "~/lib/car-path";
-import { normalizeAssetUrl } from "~/lib/asset-url";
+import { getCarPhotoUrls } from "~/lib/car-photos";
 
 const formatDate = (date: Date | null) => {
   if (!date) {
@@ -51,6 +51,39 @@ const toDateOrNull = (value: unknown): Date | null => {
   const date = new Date(n);
   return Number.isNaN(date.getTime()) ? null : date;
 };
+
+export function meta({ data }: Route.MetaArgs) {
+  if (!data?.car) {
+    return [
+      { title: "Car details | Phuket Ride" },
+      { name: "description", content: "View detailed car information, pricing, and booking options on Phuket Ride." },
+    ];
+  }
+
+  const car = data.car;
+  const carName = `${car.brandName || "Car"} ${car.modelName || "Model"} ${String(car.licensePlate || "").trim() || `#${car.id}`}`.trim();
+  const district = car.districtName || car.locationName || "Phuket";
+  const title = `${carName} | Rent in ${district} | Phuket Ride`;
+  const description = `Rent ${carName} in ${district}. Price from ฿${Math.round(car.pricePerDay || 0).toLocaleString()}/day on Phuket Ride.`;
+  const canonical = data.canonicalUrl || "https://phuketride.com";
+  const ogImage = data.photos?.[0] || "/images/hero-bg.webp";
+
+  return [
+    { title },
+    { name: "description", content: description },
+    { name: "robots", content: "index,follow" },
+    { tagName: "link", rel: "canonical", href: canonical },
+    { property: "og:type", content: "website" },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:url", content: canonical },
+    { property: "og:image", content: ogImage },
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+    { name: "twitter:image", content: ogImage },
+  ];
+}
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
   const d1 = context.cloudflare.env.DB;
@@ -247,19 +280,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
   const rulesRows = (rulesResult.results ?? []) as Array<Record<string, unknown>>;
   const featureRows = (featuresResult.results ?? []) as Array<Record<string, unknown>>;
 
-  let photos: string[] = [];
-  if (typeof car.photos === "string" && car.photos) {
-    try {
-      const parsed = JSON.parse(car.photos);
-      photos = Array.isArray(parsed)
-        ? parsed
-            .filter((item): item is string => typeof item === "string")
-            .map((item) => normalizeAssetUrl(item, request.url))
-        : [];
-    } catch {
-      photos = [];
-    }
-  }
+  const photos = getCarPhotoUrls(car.photos, request.url);
 
   const ratingSummary: CarRatingSummary | null = ratingMetricsRows[0]
     ? {
@@ -353,6 +374,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
     includedItems,
     rules,
     features,
+    canonicalUrl: request.url,
   };
 }
 

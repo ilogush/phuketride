@@ -1,4 +1,4 @@
-import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction, redirect } from "react-router";
 import { Form, Link, useActionData } from "react-router";
 import { getUserFromSession } from "~/lib/auth.server";
 import { useState } from "react";
@@ -12,6 +12,17 @@ import { useToast } from "~/lib/toast";
 import { useEffect } from "react";
 import { z } from "zod";
 import { hashPassword } from "~/lib/password.server";
+
+export const meta: MetaFunction = () => {
+    const title = "Create Account | Phuket Ride";
+    const description = "Create a Phuket Ride account to book cars, track rentals, and manage your trips.";
+
+    return [
+        { title },
+        { name: "description", content: description },
+        { name: "robots", content: "noindex,nofollow" },
+    ];
+};
 
 export async function loader({ request }: LoaderFunctionArgs) {
     // If already logged in, redirect to dashboard

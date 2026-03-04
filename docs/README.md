@@ -42,8 +42,19 @@ wrangler d1 execute phuketride-bd --remote --file=./drizzle/<migration>.sql
 ## Деплой
 
 ```bash
+npx wrangler whoami
+npm run build
 npm run deploy
 ```
+
+## SEO (клиентские страницы)
+
+- SEO-мета добавлены для клиентских страниц:
+- `/company/:slug`
+- `/cars/:id`
+- `/cars/:id/checkout` (`noindex,nofollow`)
+- `/login`, `/register`, `/register-partner` (`noindex,nofollow`)
+- Для публичных страниц используются `title`, `description`, `canonical`, Open Graph и Twitter Card.
 
 ## Роли
 

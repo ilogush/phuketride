@@ -1,4 +1,4 @@
-import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction, redirect } from "react-router";
 import { Form, Link, useActionData, useSearchParams } from "react-router";
 import { getUserFromSession, login } from "~/lib/auth.server";
 import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
@@ -7,6 +7,17 @@ import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import Button from "~/components/dashboard/Button";
 import { loginSchema } from "~/schemas/user";
+
+export const meta: MetaFunction = () => {
+    const title = "Sign In | Phuket Ride";
+    const description = "Sign in to Phuket Ride to manage bookings, contracts, and your rental activity.";
+
+    return [
+        { title },
+        { name: "description", content: description },
+        { name: "robots", content: "noindex,nofollow" },
+    ];
+};
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     try {

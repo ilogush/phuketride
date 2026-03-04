@@ -12,7 +12,7 @@ import {
   MapPinIcon,
 } from "@heroicons/react/24/outline";
 import { buildCarPathSegment, parseCarPathSegment } from "~/lib/car-path";
-import { normalizeAssetUrl } from "~/lib/asset-url";
+import { getPrimaryCarPhotoUrl } from "~/lib/car-photos";
 
 const textInputClass =
   "w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-base text-gray-700 placeholder:text-gray-400 focus:border-green-600 focus:outline-none";
@@ -36,6 +36,27 @@ const formatTripDate = (value: unknown) => {
   }
   return `${monthDay.format(date)} at ${timeFormat.format(date)}`;
 };
+
+export function meta({ data }: Route.MetaArgs) {
+  const carName = data?.carName || "Car";
+  const canonical = data?.canonicalUrl || "https://phuketride.com";
+  const title = `Checkout ${carName} | Phuket Ride`;
+  const description = `Complete your booking for ${carName} on Phuket Ride. Review trip details, insurance, and total pricing before payment.`;
+
+  return [
+    { title },
+    { name: "description", content: description },
+    { name: "robots", content: "noindex,nofollow" },
+    { tagName: "link", rel: "canonical", href: canonical },
+    { property: "og:type", content: "website" },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:url", content: canonical },
+    { name: "twitter:card", content: "summary" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+  ];
+}
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
   const d1 = context.cloudflare.env.DB;
@@ -113,18 +134,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
   }
   const carId = Number(car.id || 0);
 
-  let photoUrl = "/images/hero-bg.webp";
-  if (typeof car.photos === "string" && car.photos) {
-    try {
-      const parsed = JSON.parse(car.photos);
-      const first = Array.isArray(parsed) ? parsed.find((item) => typeof item === "string" && item) : null;
-      if (typeof first === "string") {
-        photoUrl = normalizeAssetUrl(first, request.url);
-      }
-    } catch {
-      photoUrl = "/images/hero-bg.webp";
-    }
-  }
+  const photoUrl = getPrimaryCarPhotoUrl(car.photos, request.url, "/images/hero-bg.webp") || "/images/hero-bg.webp";
 
   const companyId = Number(car.companyId || 0);
   const companyDistrictId = Number(car.companyDistrictId || 0);
@@ -209,6 +219,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
     salesTax,
     includedDistance: 750,
     tripTotal,
+    canonicalUrl: request.url,
   };
 }
 

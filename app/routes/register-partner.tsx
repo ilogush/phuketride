@@ -1,4 +1,4 @@
-import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction, redirect } from "react-router";
 import { Form, Link, useActionData, useLoaderData } from "react-router";
 import { getUserFromSession, serializeSession } from "~/lib/auth.server";
 import { useState, useEffect } from "react";
@@ -10,6 +10,17 @@ import { hashPassword } from "~/lib/password.server";
 import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 import Button from "~/components/dashboard/Button";
 import { z } from "zod";
+
+export const meta: MetaFunction = () => {
+    const title = "Partner Registration | Phuket Ride";
+    const description = "Register as a Phuket Ride partner to publish your fleet, manage bookings, and grow rental revenue.";
+
+    return [
+        { title },
+        { name: "description", content: description },
+        { name: "robots", content: "noindex,nofollow" },
+    ];
+};
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     // If already logged in, redirect to dashboard
