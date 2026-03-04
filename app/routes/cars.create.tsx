@@ -18,6 +18,7 @@ import { carSchema } from "~/schemas/car";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { ExclamationTriangleIcon, Cog6ToothIcon, PhotoIcon, WrenchScrewdriverIcon, BanknotesIcon, ShieldCheckIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import { calculateSeasonalPrice, getAverageDays } from "~/lib/pricing";
+import { uploadToR2 } from "~/lib/r2.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -143,7 +144,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 const photos = JSON.parse(photosData);
 
                 if (Array.isArray(photos) && photos.length > 0) {
-                    const { uploadToR2 } = await import("~/lib/r2.server");
                     const tempId = Date.now();
                     photoUrls = await Promise.all(
                         photos.map(async (photo: { base64: string; fileName: string }) => {

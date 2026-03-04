@@ -18,6 +18,7 @@ import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { parseDateFromDisplay, parseDateTimeFromDisplay, formatDateForDisplay } from "~/lib/formatters";
 import { EXTRA_TYPES, getCreateExtraPaymentStmt, getExtraFlagsFromFormData, mapExtrasByType } from "~/lib/contract-extras.server";
+import { updateCarStatus } from "~/lib/contract-helpers.server";
 import {
     TruckIcon,
     CalendarIcon,
@@ -396,7 +397,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         }
 
         if (newCompanyCarId !== existingContract.company_car_id) {
-            const { updateCarStatus } = await import("~/lib/contract-helpers.server");
             await updateCarStatus(context.cloudflare.env.DB, existingContract.company_car_id, 'available', 'Contract car changed');
             await updateCarStatus(context.cloudflare.env.DB, newCompanyCarId, 'rented', 'Contract car changed');
         }

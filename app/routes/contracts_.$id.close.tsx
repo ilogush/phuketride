@@ -10,10 +10,12 @@ import { Input } from "~/components/dashboard/Input";
 import { Textarea } from "~/components/dashboard/Textarea";
 import Button from "~/components/dashboard/Button";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { getQuickAuditStmt } from "~/lib/audit-logger";
 import { BanknotesIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { formatDateForDisplay, parseDateTimeFromDisplay } from "~/lib/formatters";
 import { format } from "date-fns";
+import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -164,14 +166,12 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
         }
 
         // Update car status to available
-        const { getUpdateCarStatusStmt } = await import("~/lib/contract-helpers.server");
         stmts.push(getUpdateCarStatusStmt(context.cloudflare.env.DB, contract.companyCarId, 'available'));
 
         // Execute batch
         await context.cloudflare.env.DB.batch(stmts);
 
         // Audit log
-        const { getQuickAuditStmt } = await import("~/lib/audit-logger");
         const metadata = getRequestMetadata(request);
         await getQuickAuditStmt({
             db: context.cloudflare.env.DB,

@@ -13,8 +13,10 @@ import BackButton from "~/components/dashboard/BackButton";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { getQuickAuditStmt } from "~/lib/audit-logger";
 import { parseDateFromDisplay } from "~/lib/formatters";
 import { useToast } from "~/lib/toast";
+import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
 
 const bookingSchema = z.object({
     carId: z.string().min(1, "Car is required"),
@@ -196,7 +198,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 new Date().toISOString()
             );
 
-        const { getUpdateCarStatusStmt } = await import("~/lib/contract-helpers.server");
         const carUpdateStmt = getUpdateCarStatusStmt(context.cloudflare.env.DB, Number(carId), 'booked');
 
         // Execute batch
@@ -204,7 +205,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const bookingId = (batchResults[0] as any).meta.last_row_id;
 
         // Audit log (immediate execution is fine here as it's separate from business logic integrity)
-        const { getQuickAuditStmt } = await import("~/lib/audit-logger");
         const metadata = getRequestMetadata(request);
         await getQuickAuditStmt({
             db: context.cloudflare.env.DB,

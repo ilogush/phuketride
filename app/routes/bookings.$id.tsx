@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { formatContactPhone } from "~/lib/phone";
 import { EXTRA_TYPES, getCreateExtraPaymentStmt } from "~/lib/contract-extras.server";
+import { updateCarStatus } from "~/lib/contract-helpers.server";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -120,7 +121,6 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 .run();
 
             // Update car status back to available
-            const { updateCarStatus } = await import("~/lib/contract-helpers.server");
             await updateCarStatus(context.cloudflare.env.DB, booking.companyCarId, 'available', 'Booking cancelled');
 
             // Audit log
@@ -177,7 +177,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 }
             }
 
-            // Create contract from booking
+            // Create from booking
             const insertContractResult = await context.cloudflare.env.DB
                 .prepare(`
                     INSERT INTO contracts (
@@ -249,7 +249,6 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 .run();
 
             // Update car status to rented
-            const { updateCarStatus } = await import("~/lib/contract-helpers.server");
             await updateCarStatus(context.cloudflare.env.DB, booking.companyCarId, 'rented', 'Booking converted to contract');
 
             // Audit logs

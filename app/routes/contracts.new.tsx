@@ -289,7 +289,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const startMileage = Number(formData.get("start_mileage")) || 0;
         const extraFlags = getExtraFlagsFromFormData(formData);
 
-        // Create contract
+        // Create
         const contractInsert = await context.cloudflare.env.DB
             .prepare(`
                 INSERT INTO contracts (
@@ -384,7 +384,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         return redirect(`/contracts?success=${encodeURIComponent("Contract created successfully")}`);
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to create contract";
+        const message = error instanceof Error ? error.message : "Failed to Create";
         return redirect(`/contracts/new?error=${encodeURIComponent(message)}`);
     }
 }
@@ -443,7 +443,7 @@ export default function NewContract() {
                             Cancel
                         </Button>
                         <Button type="submit" variant="primary" form="new-contract-form">
-                            Create Contract
+                            Create
                         </Button>
                     </div>
                 }

@@ -11,6 +11,7 @@ import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 import { useToast } from "~/lib/toast";
 import { useEffect } from "react";
 import { z } from "zod";
+import { hashPassword } from "~/lib/password.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     // If already logged in, redirect to dashboard
@@ -62,7 +63,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     const id = crypto.randomUUID();
-    const { hashPassword } = await import("~/lib/password.server");
     const passwordHash = await hashPassword(password);
 
     await d1

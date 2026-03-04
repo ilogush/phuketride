@@ -15,6 +15,7 @@ import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { formatDateForDisplay, parseDateFromDisplay } from "~/lib/formatters";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
+import { hashPassword } from "~/lib/password.server";
 
 interface EditableUserRow {
     id: string;
@@ -183,7 +184,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             if (newPassword !== confirmPassword) {
                 return redirect(`/users/${userId}/edit?error=${encodeURIComponent("Passwords do not match")}`);
             }
-            const { hashPassword } = await import("~/lib/password.server");
             passwordHash = await hashPassword(newPassword);
         }
 

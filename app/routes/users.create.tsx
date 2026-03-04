@@ -10,6 +10,7 @@ import { userSchema } from "~/schemas/user";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { parseDateFromDisplay } from "~/lib/formatters";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
+import { hashPassword } from "~/lib/password.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -77,7 +78,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
             if (newPassword !== confirmPassword) {
                 return redirect(`/users/create?error=${encodeURIComponent("Passwords do not match")}`);
             }
-            const { hashPassword } = await import("~/lib/password.server");
             passwordHash = await hashPassword(newPassword);
         }
 

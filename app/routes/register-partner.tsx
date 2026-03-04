@@ -1,11 +1,12 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
 import { Form, Link, useActionData, useLoaderData } from "react-router";
-import { getUserFromSession } from "~/lib/auth.server";
+import { getUserFromSession, serializeSession } from "~/lib/auth.server";
 import { useState, useEffect } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
+import { hashPassword } from "~/lib/password.server";
 import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 import Button from "~/components/dashboard/Button";
 import { z } from "zod";
@@ -99,7 +100,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     try {
         // Create user and company in transaction
         const userId = crypto.randomUUID();
-        const { hashPassword } = await import("~/lib/password.server");
         const passwordHash = await hashPassword(password);
         
         await context.cloudflare.env.DB.batch([
@@ -130,7 +130,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
             companyId: companyResult?.id,
         };
 
-        const { serializeSession } = await import("~/lib/auth.server");
         const cookie = await serializeSession(request, sessionUser);
 
         return redirect("/dashboard?login=success", {

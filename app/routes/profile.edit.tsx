@@ -15,6 +15,7 @@ import { useUrlToast } from "~/lib/useUrlToast";
 import { userSchema } from "~/schemas/user";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { PASSWORD_MIN_LENGTH } from "~/lib/password";
+import { hashPassword } from "~/lib/password.server";
 
 type ProfileUserRow = Parameters<typeof ProfileForm>[0]["user"] & {
     dateOfBirth: string | Date | null;
@@ -167,7 +168,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
             if (newPassword !== confirmPassword) {
                 return redirect(`/profile/edit?error=${encodeURIComponent("Passwords do not match")}`);
             }
-            const { hashPassword } = await import("~/lib/password.server");
             passwordHash = await hashPassword(newPassword);
         }
 
