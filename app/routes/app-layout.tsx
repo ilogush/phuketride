@@ -2,7 +2,6 @@ import { useState, useEffect, createContext, useContext } from "react";
 import { type LoaderFunctionArgs } from "react-router";
 import { Outlet, useLoaderData, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { addDays } from "date-fns";
 import Sidebar from "~/components/dashboard/Sidebar";
 import Topbar from "~/components/dashboard/Topbar";
 import { useToast } from "~/lib/toast";
@@ -24,47 +23,43 @@ export function useModMode() {
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    
-    // Count unread notifications for all roles
     let notificationsCount = 0;
-    
-    try {
-        // Count upcoming contract end dates (within 3 days)
-        const threeDaysFromNow = addDays(new Date(), 3);
-        const upcomingContractsResult = await context.cloudflare.env.DB
-            .prepare(`
-                SELECT end_date AS endDate
-                FROM contracts
-                WHERE client_id = ? AND status = 'active' AND end_date >= ?
-                LIMIT 10
-            `)
-            .bind(user.id, new Date().toISOString())
-            .all() as { results?: any[] };
-        const upcomingContracts = upcomingContractsResult.results || [];
-        
-        // Filter contracts ending within 3 days
-        const upcomingCount = upcomingContracts.filter(
-            c => new Date(c.endDate) <= threeDaysFromNow
-        ).length;
-        
-        // Count recent contracts (last 7 days)
-        const sevenDaysAgo = addDays(new Date(), -7);
-        const recentContractsResult = await context.cloudflare.env.DB
-            .prepare(`
-                SELECT id
-                FROM contracts
-                WHERE client_id = ? AND created_at >= ?
-                LIMIT 5
-            `)
-            .bind(user.id, sevenDaysAgo.toISOString())
-            .all() as { results?: any[] };
-        const recentContracts = recentContractsResult.results || [];
-        
-        notificationsCount = upcomingCount + recentContracts.length;
-    } catch {
-        notificationsCount = 0;
+
+    // Only user dashboard needs personal notifications badge.
+    if (user.role === "user") {
+        try {
+            const nowIso = new Date().toISOString();
+            const threeDaysFromNowIso = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+            const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+            const [upcomingCountRow, recentCountRow] = await Promise.all([
+                context.cloudflare.env.DB
+                    .prepare(`
+                        SELECT COUNT(*) AS count
+                        FROM contracts
+                        WHERE client_id = ?
+                          AND status = 'active'
+                          AND end_date >= ?
+                          AND end_date <= ?
+                    `)
+                    .bind(user.id, nowIso, threeDaysFromNowIso)
+                    .first() as Promise<{ count?: number } | null>,
+                context.cloudflare.env.DB
+                    .prepare(`
+                        SELECT COUNT(*) AS count
+                        FROM contracts
+                        WHERE client_id = ? AND created_at >= ?
+                    `)
+                    .bind(user.id, sevenDaysAgoIso)
+                    .first() as Promise<{ count?: number } | null>,
+            ]);
+
+            notificationsCount = Number(upcomingCountRow?.count || 0) + Number(recentCountRow?.count || 0);
+        } catch {
+            notificationsCount = 0;
+        }
     }
-    
+
     return { user, notificationsCount };
 }
 
@@ -148,7 +143,7 @@ export default function Layout() {
                         notificationsCount={notificationsCount}
                     />
                     <main className="p-4">
-                        <Outlet key={location.pathname} />
+                        <Outlet />
                     </main>
                 </div>
             </div>
