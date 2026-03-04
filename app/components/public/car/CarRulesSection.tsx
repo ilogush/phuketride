@@ -26,6 +26,11 @@ export default function CarRulesSection({ rules }: CarRulesSectionProps) {
   return (
     <section className="rounded-2xl border border-gray-200 p-4 space-y-4">
       <h2 className="text-xl font-semibold text-gray-800">Rules of the road</h2>
+      <div className="text-sm text-gray-500 flex flex-wrap gap-3">
+        <a href="/legal" className="underline hover:text-gray-700">Terms & Policies</a>
+        <a href="/insurance-protection" className="underline hover:text-gray-700">Insurance Docs</a>
+        <a href="/contact-support" className="underline hover:text-gray-700">Support Guidelines</a>
+      </div>
       <div className="space-y-4 text-gray-800">
         {rules.map((rule) => {
           const Icon = iconMap[rule.iconKey] || ExclamationTriangleIcon;

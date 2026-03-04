@@ -14,8 +14,8 @@ interface CarTripSidebarProps {
   carId: number;
   showPricePerDay?: boolean;
   pickupDistrict: string;
-  returnDistricts: string[];
-  initialReturnDistrict?: string | null;
+  returnDistricts: Array<{ id: number; name: string; isActive?: boolean; deliveryPrice?: number }>;
+  initialReturnDistrictId?: number | null;
   pricePerDay: number | null;
 }
 
@@ -50,15 +50,23 @@ export default function CarTripSidebar({
   showPricePerDay = true,
   pickupDistrict,
   returnDistricts,
-  initialReturnDistrict,
+  initialReturnDistrictId,
   pricePerDay,
 }: CarTripSidebarProps) {
   const [trip, setTrip] = useState<DateRangeValue>(initialRange);
-  const [pickupDistrictValue, setPickupDistrictValue] = useState<string>(pickupDistrict);
-  const [returnDistrict, setReturnDistrict] = useState<string>(initialReturnDistrict || returnDistricts[0] || pickupDistrict);
+  const activeDistricts = returnDistricts.filter((d) => d.isActive);
+  const districtOptions = activeDistricts.length ? activeDistricts : returnDistricts;
+  const initialDistrictId = initialReturnDistrictId && districtOptions.some((d) => d.id === initialReturnDistrictId)
+    ? initialReturnDistrictId
+    : (districtOptions[0]?.id ?? 0);
+  const [pickupDistrictId, setPickupDistrictId] = useState<number>(initialDistrictId);
+  const [returnDistrictId, setReturnDistrictId] = useState<number>(initialDistrictId);
 
   const baseDaily = Number(pricePerDay || 0);
-  const locationOptions = Array.from(new Set([pickupDistrict, ...returnDistricts].filter((district): district is string => Boolean(district))));
+  const pickupDistrictLabel = districtOptions.find((d) => d.id === pickupDistrictId)?.name || pickupDistrict;
+  const returnDistrictLabel = districtOptions.find((d) => d.id === returnDistrictId)?.name || pickupDistrict;
+  const pickupFee = Number(districtOptions.find((d) => d.id === pickupDistrictId)?.deliveryPrice || 0);
+  const returnFee = Number(districtOptions.find((d) => d.id === returnDistrictId)?.deliveryPrice || 0);
 
   const { days, baseTotal, finalTotal } = useMemo(() => {
     const start = parseDateTime(trip.startDate, trip.startTime);
@@ -68,9 +76,9 @@ export default function CarTripSidebar({
     return {
       days: safeDays,
       baseTotal: base,
-      finalTotal: base,
+      finalTotal: base + pickupFee + returnFee,
     };
-  }, [trip, baseDaily]);
+  }, [trip, baseDaily, pickupFee, returnFee]);
 
   return (
     <aside className="lg:col-span-1">
@@ -105,12 +113,12 @@ export default function CarTripSidebar({
             <p className="text-sm text-gray-500">Pickup district</p>
             <div className="relative mt-1">
               <select
-                value={pickupDistrictValue}
-                onChange={(event) => setPickupDistrictValue(event.target.value)}
+                value={pickupDistrictId}
+                onChange={(event) => setPickupDistrictId(Number(event.target.value))}
                 className="w-full appearance-none  rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800 focus:border-green-600 focus:outline-none"
               >
-                {locationOptions.map((district) => (
-                  <option key={`pickup-${district}`} value={district}>{district}</option>
+                {districtOptions.map((district) => (
+                  <option key={`pickup-${district.id}`} value={district.id}>{district.name}</option>
                 ))}
               </select>
               <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
@@ -118,12 +126,12 @@ export default function CarTripSidebar({
             <p className="mt-2 text-sm text-gray-500">Return district</p>
             <div className="relative mt-1">
               <select
-                value={returnDistrict}
-                onChange={(event) => setReturnDistrict(event.target.value)}
+                value={returnDistrictId}
+                onChange={(event) => setReturnDistrictId(Number(event.target.value))}
                 className="w-full appearance-none  rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800 focus:border-green-600 focus:outline-none"
               >
-                {locationOptions.map((district) => (
-                  <option key={district} value={district}>{district}</option>
+                {districtOptions.map((district) => (
+                  <option key={district.id} value={district.id}>{district.name}</option>
                 ))}
               </select>
               <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
@@ -136,6 +144,14 @@ export default function CarTripSidebar({
             <p className="text-sm text-gray-500">Trip ({days} days)</p>
             <p className="text-base text-gray-800">{money(baseTotal)}</p>
           </div>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">Pickup ({pickupDistrictLabel})</p>
+            <p className="text-base text-gray-800">{money(pickupFee)}</p>
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">Return ({returnDistrictLabel})</p>
+            <p className="text-base text-gray-800">{money(returnFee)}</p>
+          </div>
           <div className="flex items-center justify-between pt-2 border-t border-gray-200">
             <p className="text-xl font-semibold text-gray-800">Total</p>
             <p className="text-xl font-semibold text-gray-800">{money(finalTotal)}</p>
@@ -144,7 +160,7 @@ export default function CarTripSidebar({
         </div>
 
         <Link
-          to={`/cars/${carId}/checkout`}
+          to={`/cars/${carId}/checkout?pickupDistrictId=${pickupDistrictId}&returnDistrictId=${returnDistrictId}`}
           className="w-full inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"
         >
           Continue

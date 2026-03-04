@@ -35,9 +35,12 @@ const formatTripDate = (value: unknown) => {
   return `${monthDay.format(date)} at ${timeFormat.format(date)}`;
 };
 
-export async function loader({ context, params }: Route.LoaderArgs) {
+export async function loader({ context, params, request }: Route.LoaderArgs) {
   const d1 = context.cloudflare.env.DB;
   const carId = Number(params.id);
+  const url = new URL(request.url);
+  const pickupDistrictId = Number(url.searchParams.get("pickupDistrictId") || 0);
+  const returnDistrictId = Number(url.searchParams.get("returnDistrictId") || 0);
 
   if (!Number.isFinite(carId) || carId <= 0) {
     throw new Response("Invalid car id", { status: 400 });
@@ -48,9 +51,11 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       `
       SELECT
         cc.id AS id,
+        c.id AS companyId,
         cb.name AS brandName,
         cm.name AS modelName,
         cc.year AS year,
+        cc.price_per_day AS pricePerDay,
         cc.min_insurance_price AS minInsurancePrice,
         cc.max_insurance_price AS maxInsurancePrice,
         cc.deposit AS deposit,
@@ -58,6 +63,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
         cc.full_insurance_max_price AS fullInsuranceMaxPrice,
         cc.photos AS photos,
         c.name AS companyName,
+        c.district_id AS companyDistrictId,
         l.name AS locationName,
         d.name AS districtName,
         (SELECT count(*) FROM contracts ctr WHERE ctr.company_car_id = cc.id) AS trips,
@@ -98,12 +104,58 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     }
   }
 
+  const companyId = Number(car.companyId || 0);
+  const companyDistrictId = Number(car.companyDistrictId || 0);
+  const districtSettings = companyId > 0
+    ? await d1
+        .prepare(
+          `
+          SELECT
+            cds.district_id AS districtId,
+            cds.is_active AS isActive,
+            cds.delivery_price AS deliveryPrice,
+            d.name AS districtName
+          FROM company_delivery_settings cds
+          JOIN districts d ON d.id = cds.district_id
+          WHERE cds.company_id = ?
+          `
+        )
+        .bind(companyId)
+        .all()
+    : { results: [] };
+  const deliveryByDistrict = new Map<number, { isActive: boolean; deliveryPrice: number; districtName: string }>();
+  for (const row of ((districtSettings.results ?? []) as Array<Record<string, unknown>>)) {
+    const districtId = Number(row.districtId || 0);
+    if (districtId <= 0) continue;
+    deliveryByDistrict.set(districtId, {
+      isActive: Boolean(row.isActive),
+      deliveryPrice: Number(row.deliveryPrice || 0),
+      districtName: String(row.districtName || ""),
+    });
+  }
+
+  const defaultDistrictId = companyDistrictId > 0 ? companyDistrictId : 0;
+  const resolvedPickupDistrictId = pickupDistrictId > 0 ? pickupDistrictId : defaultDistrictId;
+  const resolvedReturnDistrictId = returnDistrictId > 0 ? returnDistrictId : resolvedPickupDistrictId;
+
+  const pickupSetting = deliveryByDistrict.get(resolvedPickupDistrictId);
+  const returnSetting = deliveryByDistrict.get(resolvedReturnDistrictId);
+  const deliveryFee = pickupSetting?.isActive ? Number(pickupSetting.deliveryPrice || 0) : 0;
+  const returnFee = returnSetting?.isActive ? Number(returnSetting.deliveryPrice || 0) : 0;
+
   const now = new Date();
   const start = new Date(now);
   start.setDate(now.getDate() + 5);
   start.setHours(10, 0, 0, 0);
   const end = new Date(start);
   end.setDate(start.getDate() + 3);
+
+  const tripDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+  const baseTripCost = Number(car.pricePerDay || 0) * tripDays;
+  const insuranceTotal = Number(car.minInsurancePrice || 0);
+  const subtotal = baseTripCost + deliveryFee + returnFee + insuranceTotal;
+  const salesTax = subtotal * 0.089;
+  const tripTotal = subtotal + salesTax;
 
   return {
     carId,
@@ -112,7 +164,8 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     rating: Number(car.totalRating || 5).toFixed(1),
     trips: Number(car.trips || 1),
     photoUrl,
-    address: String(car.districtName || car.locationName || car.companyName || "Atlanta, GA 30315"),
+    address: String(pickupSetting?.districtName || car.districtName || car.locationName || car.companyName || "Atlanta, GA 30315"),
+    returnAddress: String(returnSetting?.districtName || pickupSetting?.districtName || car.districtName || car.locationName || car.companyName || "Atlanta, GA 30315"),
     minInsurancePrice: car.minInsurancePrice ? Number(car.minInsurancePrice) : null,
     maxInsurancePrice: car.maxInsurancePrice ? Number(car.maxInsurancePrice) : null,
     deposit: Number(car.deposit || 0),
@@ -120,14 +173,14 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     fullInsuranceMaxPrice: car.fullInsuranceMaxPrice ? Number(car.fullInsuranceMaxPrice) : null,
     pickupAt: start.getTime(),
     returnAt: end.getTime(),
-    deliveryFee: 0,
-    returnFee: 0,
+    deliveryFee,
+    returnFee,
     extrasTotal: 0,
-    insuranceTotal: Number(car.minInsurancePrice || 0),
-    subtotal: 186.7,
-    salesTax: 16.62,
+    insuranceTotal,
+    subtotal,
+    salesTax,
     includedDistance: 750,
-    tripTotal: 203.32,
+    tripTotal,
   };
 }
 
@@ -140,6 +193,7 @@ function SummaryCard({
   pickupAt,
   returnAt,
   address,
+  returnAddress,
   deliveryFee,
   returnFee,
   extrasTotal,
@@ -158,6 +212,7 @@ function SummaryCard({
   pickupAt: number;
   returnAt: number;
   address: string;
+  returnAddress: string;
   deliveryFee: number;
   returnFee: number;
   extrasTotal: number;
@@ -210,7 +265,7 @@ function SummaryCard({
             <MapPinIcon className="mt-0.5 h-4 w-4 text-gray-800" />
             <div>
               <p><span className="text-gray-500">Pickup:</span> {address}</p>
-              <p><span className="text-gray-500">Return:</span> {address}</p>
+              <p><span className="text-gray-500">Return:</span> {returnAddress}</p>
             </div>
           </div>
         </div>
@@ -429,6 +484,7 @@ export default function CheckoutPage() {
             pickupAt={data.pickupAt}
             returnAt={data.returnAt}
             address={data.address}
+            returnAddress={data.returnAddress}
             deliveryFee={data.deliveryFee}
             returnFee={data.returnFee}
             extrasTotal={data.extrasTotal}

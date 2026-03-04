@@ -63,6 +63,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       `
       SELECT
         cc.id AS id,
+        c.id AS companyId,
         cb.name AS brandName,
         cm.name AS modelName,
         bt.name AS bodyType,
@@ -114,20 +115,26 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const car = carRows[0];
 
   const parsedLocationId = Number(car.locationId);
+  const parsedCompanyId = Number(car.companyId);
   const safeLocationId = Number.isFinite(parsedLocationId) && parsedLocationId > 0 ? parsedLocationId : null;
-  const districtRows: Array<Record<string, unknown>> = safeLocationId
+  const safeCompanyId = Number.isFinite(parsedCompanyId) && parsedCompanyId > 0 ? parsedCompanyId : null;
+  const districtRows: Array<Record<string, unknown>> = (safeLocationId && safeCompanyId)
     ? ((await d1
         .prepare(
           `
           SELECT
-            id,
-            name
-          FROM districts
-          WHERE location_id = ?
+            d.id AS id,
+            d.name AS name,
+            cds.is_active AS isActive,
+            cds.delivery_price AS deliveryPrice
+          FROM company_delivery_settings cds
+          JOIN districts d ON d.id = cds.district_id
+          WHERE cds.company_id = ?
+            AND d.location_id = ?
           ORDER BY name ASC
           `
         )
-        .bind(safeLocationId)
+        .bind(safeCompanyId, safeLocationId)
         .all()).results ?? []) as Array<Record<string, unknown>>
     : [];
 
@@ -282,6 +289,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   return {
     car: {
       id: Number(car.id),
+      companyId: Number(car.companyId || 0),
       brandName: (car.brandName as string | null) ?? null,
       modelName: (car.modelName as string | null) ?? null,
       bodyType: (car.bodyType as string | null) ?? null,
@@ -311,6 +319,8 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     returnDistricts: districtRows.map((row) => ({
       id: Number(row.id || 0),
       name: String(row.name || ""),
+      isActive: Boolean(row.isActive),
+      deliveryPrice: Number(row.deliveryPrice || 0),
     })).filter((row) => row.id > 0 && row.name),
     hostTrips: Number(tripStats[0]?.trips || 0),
     ratingSummary,
@@ -371,8 +381,8 @@ export default function PublicCarPage() {
             carId={car.id}
             showPricePerDay={false}
             pickupDistrict={pickupDistrict}
-            returnDistricts={returnDistricts.map((district) => district.name)}
-            initialReturnDistrict={car.districtName}
+            returnDistricts={returnDistricts}
+            initialReturnDistrictId={returnDistricts.find((district) => district.name === car.districtName)?.id ?? null}
             pricePerDay={car.pricePerDay}
           />
         </div>
