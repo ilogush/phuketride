@@ -12,6 +12,7 @@ import {
   MapPinIcon,
 } from "@heroicons/react/24/outline";
 import { buildCarPathSegment, parseCarPathSegment } from "~/lib/car-path";
+import { normalizeAssetUrl } from "~/lib/asset-url";
 
 const textInputClass =
   "w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-base text-gray-700 placeholder:text-gray-400 focus:border-green-600 focus:outline-none";
@@ -106,7 +107,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
       const parsed = JSON.parse(car.photos);
       const first = Array.isArray(parsed) ? parsed.find((item) => typeof item === "string" && item) : null;
       if (typeof first === "string") {
-        photoUrl = first;
+        photoUrl = normalizeAssetUrl(first, request.url);
       }
     } catch {
       photoUrl = "/images/hero-bg.webp";

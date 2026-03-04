@@ -17,6 +17,7 @@ import type {
   CarRuleItem,
 } from "~/components/public/car/types";
 import { buildCarPathSegment, buildCompanySlug, parseCarPathSegment } from "~/lib/car-path";
+import { normalizeAssetUrl } from "~/lib/asset-url";
 
 const formatDate = (date: Date | null) => {
   if (!date) {
@@ -51,7 +52,7 @@ const toDateOrNull = (value: unknown): Date | null => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-export async function loader({ context, params }: Route.LoaderArgs) {
+export async function loader({ context, params, request }: Route.LoaderArgs) {
   const d1 = context.cloudflare.env.DB;
   const parsedPath = parseCarPathSegment(params.id);
   if (!parsedPath) {
@@ -238,7 +239,11 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   if (typeof car.photos === "string" && car.photos) {
     try {
       const parsed = JSON.parse(car.photos);
-      photos = Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
+      photos = Array.isArray(parsed)
+        ? parsed
+            .filter((item): item is string => typeof item === "string")
+            .map((item) => normalizeAssetUrl(item, request.url))
+        : [];
     } catch {
       photos = [];
     }

@@ -5,8 +5,9 @@ import Footer from "~/components/public/Footer";
 import Breadcrumbs from "~/components/public/Breadcrumbs";
 import PopularCarsSection from "~/components/public/PopularCarsSection";
 import { buildCarPathSegment, buildCompanySlug } from "~/lib/car-path";
+import { normalizeAssetUrl } from "~/lib/asset-url";
 
-export async function loader({ context, params }: Route.LoaderArgs) {
+export async function loader({ context, params, request }: Route.LoaderArgs) {
   const d1 = context.cloudflare.env.DB;
   const slug = String(params.slug || "").trim().toLowerCase();
   if (!slug) throw new Response("Company slug is required", { status: 400 });
@@ -64,7 +65,9 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       try {
         const parsed = JSON.parse(row.photos);
         photoUrls = Array.isArray(parsed)
-          ? parsed.filter((item): item is string => typeof item === "string" && Boolean(item))
+          ? parsed
+              .filter((item): item is string => typeof item === "string" && Boolean(item))
+              .map((item) => normalizeAssetUrl(item, request.url))
           : [];
       } catch {
         photoUrls = [];

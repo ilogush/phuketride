@@ -7,6 +7,7 @@ import BodyTypeFilters from "~/components/public/BodyTypeFilters";
 import PopularCarsSection from "~/components/public/PopularCarsSection";
 import Footer from "~/components/public/Footer";
 import { buildCarPathSegment, buildCompanySlug } from "~/lib/car-path";
+import { normalizeAssetUrl } from "~/lib/asset-url";
 
 export function meta({ }: Route.MetaArgs) {
   return [
@@ -36,7 +37,7 @@ export function meta({ }: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ context }: Route.LoaderArgs) {
+export async function loader({ context, request }: Route.LoaderArgs) {
   const d1 = context.cloudflare.env.DB;
 
   let rows: Array<Record<string, unknown>> = [];
@@ -120,7 +121,9 @@ export async function loader({ context }: Route.LoaderArgs) {
       try {
         const parsed = JSON.parse(row.photos);
         photoUrls = Array.isArray(parsed)
-          ? parsed.filter((item): item is string => typeof item === "string" && Boolean(item))
+          ? parsed
+              .filter((item): item is string => typeof item === "string" && Boolean(item))
+              .map((item) => normalizeAssetUrl(item, request.url))
           : [];
       } catch {
         photoUrls = [];
