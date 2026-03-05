@@ -1,6 +1,6 @@
 import type { Route } from './+types/car-templates'
 import { Link, redirect, useNavigate, useSearchParams } from 'react-router'
-import { requireAuth } from '~/lib/auth.server'
+import { requireAdmin } from '~/lib/auth.server'
 import PageHeader from '~/components/dashboard/PageHeader'
 import Button from '~/components/dashboard/Button'
 import DataTable from '~/components/dashboard/DataTable'
@@ -15,6 +15,8 @@ import { useToast } from '~/lib/toast'
 import { getRequestMetadata, quickAudit } from '~/lib/audit-logger'
 import type { Column } from '~/components/dashboard/DataTable'
 import { QUERY_LIMITS } from '~/lib/query-limits'
+import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
 
 interface BrandRow {
     id: number
@@ -53,11 +55,7 @@ type BrandFormData = { name: string }
 type ModelFormData = { name: string; brand_id: string }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
-    const user = await requireAuth(request)
-    
-    if (user.role !== 'admin') {
-        throw new Response('Forbidden', { status: 403 })
-    }
+    const user = await requireAdmin(request)
 
     const [brands, models, templates] = await Promise.all([
         context.cloudflare.env.DB
@@ -112,13 +110,22 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-    const user = await requireAuth(request)
-    if (user.role !== 'admin') {
-        throw new Response('Forbidden', { status: 403 })
-    }
+    const user = await requireAdmin(request)
 
     const formData = await request.formData()
-    const intent = formData.get('intent')
+    const parsedIntent = parseWithSchema(
+        z.object({
+            intent: z.enum(["create_brand", "delete_brand", "create_model", "delete_model", "delete_template"]),
+        }),
+        {
+            intent: formData.get("intent"),
+        },
+        "Invalid intent"
+    )
+    if (!parsedIntent.ok) {
+        return { error: 'Invalid intent' }
+    }
+    const intent = parsedIntent.data.intent
     const metadata = getRequestMetadata(request)
     // Brand actions
     if (intent === 'create_brand') {

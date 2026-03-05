@@ -213,9 +213,10 @@ export default function PaymentsPage() {
             render: (payment) => {
                 const currencySymbol = payment.currency?.symbol || "฿";
                 const currencyCode = payment.currency?.code || "THB";
+                const isThb = currencyCode.toUpperCase() === "THB";
                 return (
                     <span className="font-medium text-gray-900">
-                        {currencySymbol}{payment.amount} {currencyCode}
+                        {isThb ? `${currencySymbol}${payment.amount}` : `${payment.amount} ${currencyCode}`}
                     </span>
                 );
             }

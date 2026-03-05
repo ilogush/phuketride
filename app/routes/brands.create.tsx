@@ -1,6 +1,6 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { Form } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdmin } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { Input } from "~/components/dashboard/Input";
 import Button from "~/components/dashboard/Button";
@@ -9,20 +9,16 @@ import FormSection from "~/components/dashboard/FormSection";
 import { TagIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { brandSchema } from "~/schemas/dictionary";
+import { parseWithSchema } from "~/lib/validation.server";
+import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    if (user.role !== "admin") {
-        throw new Response("Forbidden", { status: 403 });
-    }
+    const user = await requireAdmin(request);
     return { user };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    if (user.role !== "admin") {
-        throw new Response("Forbidden", { status: 403 });
-    }
+    const user = await requireAdmin(request);
     const formData = await request.formData();
 
     const rawData = {
@@ -30,10 +26,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
     };
 
     // Validate with Zod
-    const validation = brandSchema.safeParse(rawData);
-    if (!validation.success) {
-        const firstError = validation.error.errors[0];
-        return redirect(`/brands/create?error=${encodeURIComponent(firstError.message)}`);
+    const validation = parseWithSchema(brandSchema, rawData, "Validation failed");
+    if (!validation.ok) {
+        return redirectWithError("/brands/create", validation.error);
     }
 
     const validData = validation.data;
@@ -45,9 +40,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
             .bind(validData.name, logoUrl || null)
             .run();
 
-        return redirect(`/brands?success=${encodeURIComponent("Brand created successfully")}`);
+        return redirectWithSuccess("/brands", "Brand created successfully");
     } catch {
-        return redirect(`/brands/create?error=${encodeURIComponent("Failed to create brand")}`);
+        return redirectWithError("/brands/create", "Failed to create brand");
     }
 }
 

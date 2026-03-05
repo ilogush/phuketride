@@ -13,6 +13,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { buildCarPathSegment, parseCarPathSegment } from "~/lib/car-path";
 import { getPrimaryCarPhotoUrl } from "~/lib/car-photos";
+import { calculateBaseTripTotal } from "~/lib/pricing";
 
 const textInputClass =
   "w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-base text-gray-700 placeholder:text-gray-400 focus:border-green-600 focus:outline-none";
@@ -35,6 +36,29 @@ const formatTripDate = (value: unknown) => {
     return "Fri, Mar 27 at 10:00";
   }
   return `${monthDay.format(date)} at ${timeFormat.format(date)}`;
+};
+
+const pad = (value: number) => String(value).padStart(2, "0");
+const toDateInput = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+const toTimeInput = (date: Date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+
+const buildDefaultTrip = () => {
+  const now = new Date();
+  const start = new Date(now);
+  start.setHours(10, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 3);
+  return {
+    startDate: toDateInput(start),
+    endDate: toDateInput(end),
+    startTime: toTimeInput(start),
+    endTime: toTimeInput(end),
+  };
+};
+
+const parseTripDateTime = (dateValue: string, timeValue: string) => {
+  const candidate = new Date(`${dateValue}T${timeValue}:00`);
+  return Number.isNaN(candidate.getTime()) ? null : candidate;
 };
 
 export function meta({ data }: Route.MetaArgs) {
@@ -64,6 +88,11 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const pickupDistrictId = Number(url.searchParams.get("pickupDistrictId") || 0);
   const returnDistrictId = Number(url.searchParams.get("returnDistrictId") || 0);
+  const defaultTrip = buildDefaultTrip();
+  const startDateParam = String(url.searchParams.get("startDate") || defaultTrip.startDate);
+  const endDateParam = String(url.searchParams.get("endDate") || defaultTrip.endDate);
+  const startTimeParam = String(url.searchParams.get("startTime") || defaultTrip.startTime);
+  const endTimeParam = String(url.searchParams.get("endTime") || defaultTrip.endTime);
 
   if (!parsedPath) {
     throw new Response("Invalid car path", { status: 400 });
@@ -80,14 +109,17 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
         cm.name AS modelName,
         cc.year AS year,
         cc.price_per_day AS pricePerDay,
-        cc.min_insurance_price AS minInsurancePrice,
+        cc.insurance_price_per_day AS insurancePricePerDay,
         cc.max_insurance_price AS maxInsurancePrice,
+        cc.min_rental_days AS minRentalDays,
         cc.deposit AS deposit,
         cc.full_insurance_min_price AS fullInsuranceMinPrice,
         cc.full_insurance_max_price AS fullInsuranceMaxPrice,
         cc.photos AS photos,
         c.name AS companyName,
         c.district_id AS companyDistrictId,
+        c.street AS companyStreet,
+        c.house_number AS companyHouseNumber,
         l.name AS locationName,
         d.name AS districtName,
         (SELECT count(*) FROM contracts ctr WHERE ctr.company_car_id = cc.id) AS trips,
@@ -175,19 +207,32 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
   const deliveryFee = pickupSetting?.isActive ? Number(pickupSetting.deliveryPrice || 0) : 0;
   const returnFee = returnSetting?.isActive ? Number(returnSetting.deliveryPrice || 0) : 0;
 
-  const now = new Date();
-  const start = new Date(now);
-  start.setDate(now.getDate() + 5);
-  start.setHours(10, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 3);
+  const start = parseTripDateTime(startDateParam, startTimeParam) || parseTripDateTime(defaultTrip.startDate, defaultTrip.startTime)!;
+  const endCandidate = parseTripDateTime(endDateParam, endTimeParam) || parseTripDateTime(defaultTrip.endDate, defaultTrip.endTime)!;
+  const end = endCandidate > start
+    ? endCandidate
+    : new Date(start.getTime() + (3 * 24 * 60 * 60 * 1000));
 
-  const tripDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-  const baseTripCost = Number(car.pricePerDay || 0) * tripDays;
-  const insuranceTotal = Number(car.minInsurancePrice || 0);
+  const { days: tripDays, total: baseTripCost } = calculateBaseTripTotal(Number(car.pricePerDay || 0), start, end);
+  const minRentalDays = Math.max(1, Number(car.minRentalDays || 1));
+  const effectiveRentalDays = Math.max(tripDays, minRentalDays);
+  const insurancePricePerDay = Number(car.insurancePricePerDay || 0);
+  const insuranceLimit = Number(car.maxInsurancePrice || 0);
+  const rawInsuranceTotal = insurancePricePerDay * effectiveRentalDays;
+  const insuranceTotal = insuranceLimit > 0 ? Math.min(rawInsuranceTotal, insuranceLimit) : rawInsuranceTotal;
   const subtotal = baseTripCost + deliveryFee + returnFee + insuranceTotal;
-  const salesTax = subtotal * 0.089;
+  const salesTax = subtotal * 0.07;
   const tripTotal = subtotal + salesTax;
+  const officeAddress = [String(car.companyStreet || "").trim(), String(car.companyHouseNumber || "").trim()].filter(Boolean).join(" ");
+  const fallbackAddress = [
+    officeAddress,
+    String(car.districtName || "").trim(),
+    String(car.locationName || "").trim(),
+    String(car.companyName || "").trim(),
+  ].find((part) => part.length > 0) || "Test address, Phuket 100";
+  const fallbackYear = Number(car.year || 0) || 2020;
+  const fallbackTrips = Number(car.trips || 0) || 3;
+  const fallbackRating = Number(car.totalRating || 0) > 0 ? Number(car.totalRating) : 4.8;
 
   return {
     carId,
@@ -199,14 +244,16 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
     ),
     carName: `${String(car.brandName || "Car")} ${String(car.modelName || "Model")} ${String(car.licensePlate || "").trim() || `#${carId}`}`,
     carBreadcrumbName: `${String(car.brandName || "Car")} ${String(car.modelName || "Model")}`.trim(),
-    year: Number(car.year || 0) || 2015,
-    rating: Number(car.totalRating || 5).toFixed(1),
-    trips: Number(car.trips || 1),
+    year: fallbackYear,
+    rating: fallbackRating.toFixed(1),
+    trips: fallbackTrips,
     photoUrl,
-    address: String(pickupSetting?.districtName || car.districtName || car.locationName || car.companyName || "Atlanta, GA 30315"),
-    returnAddress: String(returnSetting?.districtName || pickupSetting?.districtName || car.districtName || car.locationName || car.companyName || "Atlanta, GA 30315"),
-    minInsurancePrice: car.minInsurancePrice ? Number(car.minInsurancePrice) : null,
+    address: String(pickupSetting?.districtName || fallbackAddress),
+    returnAddress: String(returnSetting?.districtName || pickupSetting?.districtName || fallbackAddress),
+    insurancePricePerDay: car.insurancePricePerDay ? Number(car.insurancePricePerDay) : null,
     maxInsurancePrice: car.maxInsurancePrice ? Number(car.maxInsurancePrice) : null,
+    minRentalDays,
+    effectiveRentalDays,
     deposit: Number(car.deposit || 0),
     fullInsuranceMinPrice: car.fullInsuranceMinPrice ? Number(car.fullInsuranceMinPrice) : null,
     fullInsuranceMaxPrice: car.fullInsuranceMaxPrice ? Number(car.fullInsuranceMaxPrice) : null,
@@ -215,10 +262,12 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
     deliveryFee,
     returnFee,
     extrasTotal: 0,
+    tripDays,
+    baseTripCost,
     insuranceTotal,
     subtotal,
     salesTax,
-    includedDistance: 750,
+    includedDistance: tripDays * 100,
     tripTotal,
     canonicalUrl: request.url,
   };
@@ -344,10 +393,10 @@ function SummaryCard({
               <div>
                 <p>Distance included</p>
                 <p className="text-sm text-gray-600">
-                  $0.27 / mile fee will be charged for miles driven over this allotment.
+                  Additional distance is charged by host tariff beyond this daily allowance.
                 </p>
               </div>
-              <span>{includedDistance} miles</span>
+              <span>{includedDistance} km</span>
             </div>
           </div>
         </div>
@@ -399,11 +448,14 @@ function SummaryCard({
 export default function CheckoutPage() {
   const data = useLoaderData<typeof loader>();
   const [withFullInsurance, setWithFullInsurance] = useState(false);
-  const standardInsurance = Number(data.minInsurancePrice || data.maxInsurancePrice || 0);
+  const standardInsurance = Number(data.insuranceTotal || 0);
   const fullInsurance = Number(data.fullInsuranceMinPrice || data.fullInsuranceMaxPrice || 0);
   const hasFullInsurance = fullInsurance > 0;
   const selectedInsurance = withFullInsurance && hasFullInsurance ? fullInsurance : standardInsurance;
   const effectiveDeposit = withFullInsurance && hasFullInsurance ? 0 : Number(data.deposit || 0);
+  const liveSubtotal = Number(data.baseTripCost || 0) + Number(data.deliveryFee || 0) + Number(data.returnFee || 0) + selectedInsurance + Number(data.extrasTotal || 0);
+  const liveSalesTax = liveSubtotal * 0.07;
+  const liveTripTotal = liveSubtotal + liveSalesTax;
   const breadcrumbs = [
     { label: "Home", to: "/" },
     { label: "Cars" },
@@ -458,10 +510,14 @@ export default function CheckoutPage() {
                 <section className={`rounded-2xl border border-gray-200 p-4 ${!withFullInsurance ? "bg-green-100" : "bg-white"}`}>
                   <h2 className="text-xl font-semibold text-gray-800">Standard insurance include</h2>
                   <p className="mt-1 text-sm text-gray-700">
-                    {data.minInsurancePrice && data.maxInsurancePrice
-                      ? `${money(data.minInsurancePrice)} - ${money(data.maxInsurancePrice)} / day`
-                      : money(Number(data.minInsurancePrice || data.maxInsurancePrice || 0))}
+                    {`${money(Number(data.insurancePricePerDay || 0))} / day`}
+                    {Number(data.maxInsurancePrice || 0) > 0 ? `, max ${money(Number(data.maxInsurancePrice || 0))}` : ""}
                   </p>
+                  {data.effectiveRentalDays > data.tripDays ? (
+                    <p className="mt-1 text-xs text-gray-600">
+                      Minimum rental policy: charged for {data.effectiveRentalDays} days.
+                    </p>
+                  ) : null}
                   <ul className="mt-3 space-y-1 text-sm text-gray-600">
                     <li>Damage and theft coverage</li>
                     <li>Roadside support assistance</li>
@@ -530,10 +586,10 @@ export default function CheckoutPage() {
             extrasTotal={data.extrasTotal}
             insuranceTotal={selectedInsurance}
             depositTotal={effectiveDeposit}
-            subtotal={data.subtotal}
-            salesTax={data.salesTax}
+            subtotal={liveSubtotal}
+            salesTax={liveSalesTax}
             includedDistance={data.includedDistance}
-            tripTotal={data.tripTotal}
+            tripTotal={liveTripTotal}
           />
         </div>
       </main>

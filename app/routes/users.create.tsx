@@ -1,6 +1,6 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdmin } from "~/lib/auth.server";
 import ProfileForm from "~/components/dashboard/ProfileForm";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
@@ -8,30 +8,21 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { userSchema } from "~/schemas/user";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
-import { PASSWORD_MIN_LENGTH } from "~/lib/password";
-import { hashPassword } from "~/lib/password.server";
+import { loadProfileReferenceData, resolvePasswordHash } from "~/lib/user-profile.server";
+import { parseWithSchema } from "~/lib/validation.server";
+import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    if (user.role !== "admin") {
-        throw new Response("Forbidden", { status: 403 });
-    }
+    const user = await requireAdmin(request);
 
     // Load reference data
-    const [hotels, locations, districts] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM hotels ORDER BY name ASC").all().then((r: { results?: Array<{ id: number; name: string }> }) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM locations ORDER BY name ASC").all().then((r: { results?: Array<{ id: number; name: string }> }) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT id, name, location_id AS locationId FROM districts ORDER BY name ASC").all().then((r: { results?: Array<{ id: number; name: string; locationId: number }> }) => r.results || []),
-    ]);
+    const { hotels, locations, districts } = await loadProfileReferenceData(context.cloudflare.env.DB);
 
     return { user, hotels, locations, districts };
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    if (user.role !== "admin") {
-        throw new Response("Forbidden", { status: 403 });
-    }
+    const user = await requireAdmin(request);
     const formData = await request.formData();
 
     // Parse form data
@@ -55,26 +46,18 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const confirmPassword = (formData.get("confirmPassword") as string | null) || "";
 
     // Validate with Zod
-    const validation = userSchema.safeParse(rawData);
-    if (!validation.success) {
-        const firstError = validation.error.errors[0];
-        return redirect(`/users/create?error=${encodeURIComponent(firstError.message)}`);
+    const validation = parseWithSchema(userSchema, rawData, "Validation failed");
+    if (!validation.ok) {
+        return redirectWithError("/users/create", validation.error);
     }
 
     const validData = validation.data;
 
     try {
         const id = crypto.randomUUID();
-        let passwordHash: string | null = null;
-
-        if (newPassword || confirmPassword) {
-            if (newPassword.length < PASSWORD_MIN_LENGTH) {
-                return redirect(`/users/create?error=${encodeURIComponent(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`)}`);
-            }
-            if (newPassword !== confirmPassword) {
-                return redirect(`/users/create?error=${encodeURIComponent("Passwords do not match")}`);
-            }
-            passwordHash = await hashPassword(newPassword);
+        const { passwordHash, error } = await resolvePasswordHash(newPassword, confirmPassword);
+        if (error) {
+            return redirectWithError("/users/create", error);
         }
 
         await context.cloudflare.env.DB
@@ -126,10 +109,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
             ...metadata,
         });
 
-        return redirect(`/users?success=${encodeURIComponent("User created successfully")}`);
+        return redirectWithSuccess("/users", "User created successfully");
     } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to create user";
-        return redirect(`/users/create?error=${encodeURIComponent(message)}`);
+        return redirectWithError("/users/create", message);
     }
 }
 

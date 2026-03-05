@@ -12,6 +12,7 @@ import { useToast } from "~/lib/toast";
 import { useEffect } from "react";
 import { z } from "zod";
 import { hashPassword } from "~/lib/password.server";
+import { parseWithSchema } from "~/lib/validation.server";
 
 export const meta: MetaFunction = () => {
     const title = "Create Account | Phuket Ride";
@@ -52,15 +53,19 @@ export async function action({ request, context }: ActionFunctionArgs) {
         lastName: z.string().trim().min(1, "Last name is required"),
         phone: z.string().trim().min(1, "Phone is required"),
     });
-    const parsed = registerInputSchema.safeParse({
-        email: formData.get("email"),
-        password: formData.get("password"),
-        firstName: formData.get("firstName"),
-        lastName: formData.get("lastName"),
-        phone: formData.get("phone"),
-    });
-    if (!parsed.success) {
-        return { error: parsed.error.errors[0]?.message || "Validation failed" };
+    const parsed = parseWithSchema(
+        registerInputSchema,
+        {
+            email: formData.get("email"),
+            password: formData.get("password"),
+            firstName: formData.get("firstName"),
+            lastName: formData.get("lastName"),
+            phone: formData.get("phone"),
+        },
+        "Validation failed"
+    );
+    if (!parsed.ok) {
+        return { error: parsed.error };
     }
     const { email, password, firstName, lastName, phone } = parsed.data;
 

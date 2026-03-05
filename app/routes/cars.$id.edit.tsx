@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
@@ -21,6 +21,7 @@ import { uploadToR2 } from "~/lib/r2.server";
 import { getCarPhotoUrls } from "~/lib/car-photos";
 import { QUERY_LIMITS } from "~/lib/query-limits";
 import { getCachedColors, getCachedFuelTypes } from "~/lib/dictionaries-cache.server";
+import { parseWithSchema } from "~/lib/validation.server";
 
 interface TemplateQueryRow {
     id: number;
@@ -44,6 +45,15 @@ interface CarTemplateOption {
     transmission?: string | null;
     seats?: number | null;
     doors?: number | null;
+    drivetrain?: string | null;
+    luggage_capacity?: string | null;
+    rear_camera?: number | null;
+    bluetooth_enabled?: number | null;
+    carplay_enabled?: number | null;
+    android_auto_enabled?: number | null;
+    feature_air_conditioning?: number | null;
+    feature_abs?: number | null;
+    feature_airbags?: number | null;
 }
 
 interface FuelTypeRow {
@@ -62,6 +72,15 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
         .prepare(`
             SELECT
                 cc.*,
+                ct.drivetrain AS templateDrivetrain,
+                ct.luggage_capacity AS templateLuggageCapacity,
+                ct.rear_camera AS templateRearCamera,
+                ct.bluetooth_enabled AS templateBluetoothEnabled,
+                ct.carplay_enabled AS templateCarplayEnabled,
+                ct.android_auto_enabled AS templateAndroidAutoEnabled,
+                ct.feature_air_conditioning AS templateFeatureAirConditioning,
+                ct.feature_abs AS templateFeatureAbs,
+                ct.feature_airbags AS templateFeatureAirbags,
                 cb.name AS brandName,
                 cm.name AS modelName,
                 bt.name AS bodyTypeName,
@@ -90,8 +109,9 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             tax_road_expiry_date: string | null;
             next_oil_change_mileage: number | null;
             oil_change_interval: number | null;
-            min_insurance_price: number | null;
+            insurance_price_per_day: number | null;
             max_insurance_price: number | null;
+            min_rental_days: number | null;
             archived_at: string | null;
             brandName: string | null;
             modelName: string | null;
@@ -108,6 +128,15 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             deposit: number | null;
             photos: string | null;
             fuelType: { name?: string | null } | null;
+            templateDrivetrain: string | null;
+            templateLuggageCapacity: string | null;
+            templateRearCamera: number | null;
+            templateBluetoothEnabled: number | null;
+            templateCarplayEnabled: number | null;
+            templateAndroidAutoEnabled: number | null;
+            templateFeatureAirConditioning: number | null;
+            templateFeatureAbs: number | null;
+            templateFeatureAirbags: number | null;
         }) | null;
 
     if (!carRaw) {
@@ -188,8 +217,9 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
         taxRoadExpiryDate: carRaw.tax_road_expiry_date,
         nextOilChangeMileage: carRaw.next_oil_change_mileage,
         oilChangeInterval: carRaw.oil_change_interval,
-        minInsurancePrice: carRaw.min_insurance_price,
+        insurancePricePerDay: carRaw.insurance_price_per_day,
         maxInsurancePrice: carRaw.max_insurance_price,
+        minRentalDays: carRaw.min_rental_days,
         archivedAt: carRaw.archived_at,
         template: {
             brand: { name: carRaw.brandName },
@@ -200,6 +230,15 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             transmission: carRaw.transmission,
             seats: carRaw.seats,
             doors: carRaw.doors,
+            drivetrain: carRaw.templateDrivetrain,
+            luggageCapacity: carRaw.templateLuggageCapacity,
+            rearCamera: Number(carRaw.templateRearCamera || 0),
+            bluetoothEnabled: Number(carRaw.templateBluetoothEnabled || 0),
+            carplayEnabled: Number(carRaw.templateCarplayEnabled || 0),
+            androidAutoEnabled: Number(carRaw.templateAndroidAutoEnabled || 0),
+            featureAirConditioning: Number(carRaw.templateFeatureAirConditioning || 0),
+            featureAbs: Number(carRaw.templateFeatureAbs || 0),
+            featureAirbags: Number(carRaw.templateFeatureAirbags || 0),
         },
         color: { name: carRaw.colorName },
     };
@@ -230,7 +269,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 id, company_id, template_id, year, color_id, license_plate, transmission, engine_volume,
                 status, mileage, next_oil_change_mileage, oil_change_interval, price_per_day, deposit,
                 insurance_type, insurance_expiry_date, registration_expiry, tax_road_expiry_date,
-                min_insurance_price, max_insurance_price, photos
+                insurance_price_per_day, max_insurance_price, min_rental_days, photos
             FROM company_cars
             WHERE id = ?
             LIMIT 1
@@ -255,8 +294,9 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             insurance_expiry_date: string | null;
             registration_expiry: string | null;
             tax_road_expiry_date: string | null;
-            min_insurance_price: number | null;
+            insurance_price_per_day: number | null;
             max_insurance_price: number | null;
+            min_rental_days: number | null;
             photos: string | null;
         } | null;
 
@@ -298,24 +338,36 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         oilChangeInterval: Number(formData.get("oilChangeInterval")) || car.oil_change_interval || 10000,
         pricePerDay: Number(formData.get("pricePerDay")) || car.price_per_day || 0,
         deposit: Number(formData.get("deposit")) || car.deposit || 0,
-        insuranceType: (formData.get("insuranceType") as string) || car.insurance_type || null,
+        insuranceType: (formData.get("insuranceType") as string) || "First Class Insurance",
         insuranceExpiry: (formData.get("insuranceExpiry") as string) || null,
         registrationExpiry: (formData.get("registrationExpiry") as string) || null,
         taxRoadExpiry: (formData.get("taxRoadExpiry") as string) || null,
-        fullInsuranceMinDays: formData.get("fullInsuranceMinDays") ? Number(formData.get("fullInsuranceMinDays")) : null,
-        minInsurancePrice: formData.get("fullInsuranceEnabled") === "true"
-            ? (formData.get("minInsurancePrice") ? Number(formData.get("minInsurancePrice")) : car.min_insurance_price)
+        minRentalDays: formData.get("minRentalDays")
+            ? Number(formData.get("minRentalDays"))
+            : (car.min_rental_days ?? null),
+        insurancePricePerDay: formData.get("fullInsuranceEnabled") === "true"
+            ? (formData.get("insurancePricePerDay") ? Number(formData.get("insurancePricePerDay")) : car.insurance_price_per_day)
             : null,
         maxInsurancePrice: formData.get("fullInsuranceEnabled") === "true"
             ? (formData.get("maxInsurancePrice") ? Number(formData.get("maxInsurancePrice")) : car.max_insurance_price)
             : null,
     };
-    const validation = carSchema.safeParse(rawData);
-    if (!validation.success) {
-        const firstError = validation.error.errors[0];
-        return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent(firstError.message)}`));
+    const validation = parseWithSchema(carSchema, rawData, "Validation failed");
+    if (!validation.ok) {
+        return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent(validation.error)}`));
     }
     const validData = validation.data;
+    const checkboxToInt = (value: FormDataEntryValue | null) => (value === "1" || value === "on" || value === "true" ? 1 : 0);
+    const drivetrainRaw = String(formData.get("drivetrain") || "").toUpperCase();
+    const templateSpecs = {
+        drivetrain: (["FWD", "RWD", "AWD", "4WD"].includes(drivetrainRaw) ? drivetrainRaw : null) as "FWD" | "RWD" | "AWD" | "4WD" | null,
+        rear_camera: checkboxToInt(formData.get("rear_camera")),
+        bluetooth_enabled: checkboxToInt(formData.get("bluetooth_enabled")),
+        carplay_enabled: checkboxToInt(formData.get("carplay_enabled")),
+        android_auto_enabled: checkboxToInt(formData.get("android_auto_enabled")),
+        feature_air_conditioning: checkboxToInt(formData.get("feature_air_conditioning")),
+        feature_abs: checkboxToInt(formData.get("feature_abs")),
+    };
     if (!validData.year) {
         return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent("Year is required")}`));
     }
@@ -370,7 +422,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 SET template_id = ?, year = ?, color_id = ?, license_plate = ?, transmission = ?, engine_volume = ?,
                     fuel_type_id = ?, status = ?, mileage = ?, next_oil_change_mileage = ?, oil_change_interval = ?,
                     price_per_day = ?, deposit = ?, insurance_type = ?, insurance_expiry_date = ?, registration_expiry = ?,
-                    tax_road_expiry_date = ?, min_insurance_price = ?, max_insurance_price = ?, photos = ?, updated_at = ?
+                    tax_road_expiry_date = ?, insurance_price_per_day = ?, max_insurance_price = ?, min_rental_days = ?, photos = ?, updated_at = ?
                 WHERE id = ?
             `)
             .bind(
@@ -391,13 +443,43 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 validData.insuranceExpiry ? new Date(validData.insuranceExpiry.split('-').reverse().join('-')).toISOString() : null,
                 validData.registrationExpiry ? new Date(validData.registrationExpiry.split('-').reverse().join('-')).toISOString() : null,
                 validData.taxRoadExpiry ? new Date(validData.taxRoadExpiry.split('-').reverse().join('-')).toISOString() : null,
-                validData.minInsurancePrice,
+                validData.insurancePricePerDay,
                 validData.maxInsurancePrice,
+                validData.minRentalDays,
                 photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
                 new Date().toISOString(),
                 carId
             )
             .run();
+
+        if (validData.templateId) {
+            await context.cloudflare.env.DB
+                .prepare(`
+                    UPDATE car_templates
+                    SET
+                        drivetrain = COALESCE(?, drivetrain),
+                        rear_camera = ?,
+                        bluetooth_enabled = ?,
+                        carplay_enabled = ?,
+                        android_auto_enabled = ?,
+                        feature_air_conditioning = ?,
+                        feature_abs = ?,
+                        updated_at = ?
+                    WHERE id = ?
+                `)
+                .bind(
+                    templateSpecs.drivetrain,
+                    templateSpecs.rear_camera,
+                    templateSpecs.bluetooth_enabled,
+                    templateSpecs.carplay_enabled,
+                    templateSpecs.android_auto_enabled,
+                    templateSpecs.feature_air_conditioning,
+                    templateSpecs.feature_abs,
+                    new Date().toISOString(),
+                    validData.templateId
+                )
+                .run();
+        }
 
         const metadata = getRequestMetadata(request);
         quickAudit({
@@ -430,11 +512,30 @@ export default function EditCarPage() {
     const [currentMileage, setCurrentMileage] = useState(car.mileage || 0);
     const [nextOilChange, setNextOilChange] = useState(car.nextOilChangeMileage || 0);
     const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(car.templateId);
-    const selectedTemplate = templates.find((t: { id: number }) => t.id === selectedTemplateId);
+    const selectedTemplate = templates.find((t: CarTemplateOption) => t.id === selectedTemplateId);
+    const linkedTemplate = templates.find((t: CarTemplateOption) => t.id === car.templateId) || null;
     const [photos, setPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [fullInsuranceEnabled, setFullInsuranceEnabled] = useState(
-        Boolean((car.minInsurancePrice ?? 0) > 0 || (car.maxInsurancePrice ?? 0) > 0)
+        Boolean((car.insurancePricePerDay ?? 0) > 0 || (car.maxInsurancePrice ?? 0) > 0)
     );
+    const [drivetrain, setDrivetrain] = useState<string>(String(car.template?.drivetrain || "FWD"));
+    const [rearCamera, setRearCamera] = useState(Boolean(car.template?.rearCamera));
+    const [bluetoothEnabled, setBluetoothEnabled] = useState(Boolean(car.template?.bluetoothEnabled));
+    const [carplayEnabled, setCarplayEnabled] = useState(Boolean(car.template?.carplayEnabled));
+    const [androidAutoEnabled, setAndroidAutoEnabled] = useState(Boolean(car.template?.androidAutoEnabled));
+    const [featureAirConditioning, setFeatureAirConditioning] = useState(car.template?.featureAirConditioning == null ? true : Boolean(car.template.featureAirConditioning));
+    const [featureAbs, setFeatureAbs] = useState(car.template?.featureAbs == null ? true : Boolean(car.template.featureAbs));
+
+    useEffect(() => {
+        if (!selectedTemplate) return;
+        setDrivetrain(String(selectedTemplate.drivetrain || "FWD"));
+        setRearCamera(Boolean(Number(selectedTemplate.rear_camera || 0)));
+        setBluetoothEnabled(Boolean(Number(selectedTemplate.bluetooth_enabled || 0)));
+        setCarplayEnabled(Boolean(Number(selectedTemplate.carplay_enabled || 0)));
+        setAndroidAutoEnabled(Boolean(Number(selectedTemplate.android_auto_enabled || 0)));
+        setFeatureAirConditioning(selectedTemplate.feature_air_conditioning == null ? true : Boolean(Number(selectedTemplate.feature_air_conditioning)));
+        setFeatureAbs(selectedTemplate.feature_abs == null ? true : Boolean(Number(selectedTemplate.feature_abs)));
+    }, [selectedTemplateId]);
 
     const formatDateInput = (date: Date | string | null) => {
         if (!date) return "";
@@ -537,9 +638,72 @@ export default function EditCarPage() {
                                         defaultValue={car.year || ""}
                                     />
                                 </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                                    <Select
+                                        label="Drivetrain"
+                                        name="drivetrain"
+                                        required
+                                        value={drivetrain}
+                                        onChange={(e) => setDrivetrain(e.target.value)}
+                                        options={[
+                                            { id: "FWD", name: "FWD" },
+                                            { id: "RWD", name: "RWD" },
+                                            { id: "AWD", name: "AWD" },
+                                            { id: "4WD", name: "4WD" },
+                                        ]}
+                                    />
+                                    <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Rear Camera</label>
+                                        <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
+                                            <span className="text-sm text-gray-900">{rearCamera ? "Enabled" : "Disabled"}</span>
+                                            <Toggle enabled={rearCamera} onChange={setRearCamera} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Bluetooth</label>
+                                        <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
+                                            <span className="text-sm text-gray-900">{bluetoothEnabled ? "Enabled" : "Disabled"}</span>
+                                            <Toggle enabled={bluetoothEnabled} onChange={setBluetoothEnabled} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-600 mb-1">CarPlay</label>
+                                        <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
+                                            <span className="text-sm text-gray-900">{carplayEnabled ? "Enabled" : "Disabled"}</span>
+                                            <Toggle enabled={carplayEnabled} onChange={setCarplayEnabled} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Android Auto</label>
+                                        <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
+                                            <span className="text-sm text-gray-900">{androidAutoEnabled ? "Enabled" : "Disabled"}</span>
+                                            <Toggle enabled={androidAutoEnabled} onChange={setAndroidAutoEnabled} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Air conditioning</label>
+                                        <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
+                                            <span className="text-sm text-gray-900">{featureAirConditioning ? "Enabled" : "Disabled"}</span>
+                                            <Toggle enabled={featureAirConditioning} onChange={setFeatureAirConditioning} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-600 mb-1">ABS</label>
+                                        <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
+                                            <span className="text-sm text-gray-900">{featureAbs ? "Enabled" : "Disabled"}</span>
+                                            <Toggle enabled={featureAbs} onChange={setFeatureAbs} />
+                                        </div>
+                                    </div>
+                                </div>
                                 <input type="hidden" name="transmission" value={selectedTemplate?.transmission || car.transmission || 'automatic'} />
                                 <input type="hidden" name="engineVolume" value={selectedTemplate?.engineVolume || car.engineVolume || 1.5} />
                                 <input type="hidden" name="fuelType" value={(selectedTemplate?.fuelType?.name || car.fuelType?.name || 'Petrol').toLowerCase()} />
+                                <input type="hidden" name="rear_camera" value={rearCamera ? "1" : "0"} />
+                                <input type="hidden" name="bluetooth_enabled" value={bluetoothEnabled ? "1" : "0"} />
+                                <input type="hidden" name="carplay_enabled" value={carplayEnabled ? "1" : "0"} />
+                                <input type="hidden" name="android_auto_enabled" value={androidAutoEnabled ? "1" : "0"} />
+                                <input type="hidden" name="feature_air_conditioning" value={featureAirConditioning ? "1" : "0"} />
+                                <input type="hidden" name="feature_abs" value={featureAbs ? "1" : "0"} />
                             </FormSection>
 
                             <FormSection title="Insurance" icon={<ShieldCheckIcon className="w-5 h-5" />}>
@@ -548,11 +712,12 @@ export default function EditCarPage() {
                                         label="Insurance Type"
                                         name="insuranceType"
                                         required
+                                        hidePlaceholderOption
                                         options={[
-                                            { id: "Business Insurance", name: "Business Insurance" },
                                             { id: "First Class Insurance", name: "First Class Insurance" },
+                                            { id: "Business Insurance", name: "Business Insurance" },
                                         ]}
-                                        defaultValue={car.insuranceType || ""}
+                                        defaultValue={car.insuranceType || "First Class Insurance"}
                                     />
                                     <Input
                                         label="Insurance Expiry"
@@ -578,6 +743,14 @@ export default function EditCarPage() {
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <Input
+                                        label="Min Rental Days"
+                                        name="minRentalDays"
+                                        type="number"
+                                        min={1}
+                                        step={1}
+                                        defaultValue={car.minRentalDays || 1}
+                                    />
                                     <div>
                                         <label className="block text-xs text-gray-600 mb-1">Full Insurance</label>
                                         <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
@@ -589,12 +762,12 @@ export default function EditCarPage() {
                                     {fullInsuranceEnabled && (
                                         <>
                                             <Input
-                                                label="Min Insurance Price"
-                                                name="minInsurancePrice"
+                                                label="Insurance Price per day"
+                                                name="insurancePricePerDay"
                                                 type="number"
                                                 min={0}
                                                 step={0.01}
-                                                defaultValue={car.minInsurancePrice || ""}
+                                                defaultValue={car.insurancePricePerDay || ""}
                                                 addonRight="฿"
                                             />
                                             <Input
@@ -717,32 +890,52 @@ export default function EditCarPage() {
 
                     {/* Sidebar - Right Side */}
                     <div className="space-y-4">
-                        {selectedTemplate && (
+                        {linkedTemplate && (
                             <AdminCard title="Template Details" icon={<TruckIcon className="w-5 h-5" />}>
                                 <div className="space-y-3">
                                     <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Body Type</span>
-                                        <span className="text-sm font-medium text-gray-900">{selectedTemplate.bodyType?.name || 'N/A'}</span>
+                                        <span className="text-sm text-gray-600">Brand *</span>
+                                        <span className="text-sm font-medium text-gray-900">{linkedTemplate.brand?.name || 'N/A'}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Transmission</span>
-                                        <span className="text-sm font-medium text-gray-900 capitalize">{selectedTemplate.transmission || 'N/A'}</span>
+                                        <span className="text-sm text-gray-600">Model *</span>
+                                        <span className="text-sm font-medium text-gray-900">{linkedTemplate.model?.name || 'N/A'}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Engine</span>
-                                        <span className="text-sm font-medium text-gray-900">{selectedTemplate.engineVolume}L</span>
+                                        <span className="text-sm text-gray-600">Transmission *</span>
+                                        <span className="text-sm font-medium text-gray-900 capitalize">{linkedTemplate.transmission || 'N/A'}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Seats</span>
-                                        <span className="text-sm font-medium text-gray-900">{selectedTemplate.seats}</span>
+                                        <span className="text-sm text-gray-600">Body Type *</span>
+                                        <span className="text-sm font-medium text-gray-900">{linkedTemplate.bodyType?.name || 'N/A'}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Doors</span>
-                                        <span className="text-sm font-medium text-gray-900">{selectedTemplate.doors}</span>
+                                        <span className="text-sm text-gray-600">Fuel Type *</span>
+                                        <span className="text-sm font-medium text-gray-900">{linkedTemplate.fuelType?.name || 'N/A'}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Fuel Type</span>
-                                        <span className="text-sm font-medium text-gray-900">{selectedTemplate.fuelType?.name || 'N/A'}</span>
+                                        <span className="text-sm text-gray-600">Engine Volume (L) *</span>
+                                        <span className="text-sm font-medium text-gray-900">
+                                            {linkedTemplate.engineVolume == null ? 'N/A' : `${String(linkedTemplate.engineVolume).replace('.', ',')}`}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-600">Seats *</span>
+                                        <span className="text-sm font-medium text-gray-900">{linkedTemplate.seats ?? 'N/A'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-600">Doors *</span>
+                                        <span className="text-sm font-medium text-gray-900">{linkedTemplate.doors ?? 'N/A'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-600">Luggage Capacity *</span>
+                                        <span className="text-sm font-medium text-gray-900">
+                                            {linkedTemplate.luggage_capacity ? `${linkedTemplate.luggage_capacity[0].toUpperCase()}${linkedTemplate.luggage_capacity.slice(1)}` : 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-600">Airbags</span>
+                                        <span className="text-sm font-medium text-gray-900">{Number(linkedTemplate.feature_airbags || 0) ? 'Enabled' : 'Disabled'}</span>
                                     </div>
                                 </div>
                             </AdminCard>

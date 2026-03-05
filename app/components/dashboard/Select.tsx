@@ -13,6 +13,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
     error?: string;
     options: SelectOption[];
     placeholder?: string;
+    hidePlaceholderOption?: boolean;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
@@ -22,6 +23,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             error,
             options,
             placeholder,
+            hidePlaceholderOption = true,
             required = false,
             className = "",
             id,
@@ -48,7 +50,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                     className={baseStyle}
                     {...props}
                 >
-                    <option value="">{placeholder || `Select ${label || "option"}`}</option>
+                    {!hidePlaceholderOption && (
+                        <option value="">{placeholder || `Select ${label || "option"}`}</option>
+                    )}
                     {options.map((option) => {
                         const displayName = option.count !== undefined
                             ? option.count.toString()

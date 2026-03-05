@@ -21,9 +21,9 @@ export const carSchema = z.object({
     insuranceExpiry: z.string().optional().nullable(),
     registrationExpiry: z.string().optional().nullable(),
     taxRoadExpiry: z.string().optional().nullable(),
-    fullInsuranceMinDays: z.number().int().min(1, "Minimum days must be at least 1").optional().nullable(),
-    minInsurancePrice: z.number().min(0, "Minimum insurance price must be positive").optional().nullable(),
-    maxInsurancePrice: z.number().min(0, "Maximum insurance price must be positive").optional().nullable(),
+    minRentalDays: z.number().int().min(1, "Minimum rental days must be at least 1").optional().nullable(),
+    insurancePricePerDay: z.number().min(0, "Insurance price per day must be positive").optional().nullable(),
+    maxInsurancePrice: z.number().min(0, "Maximum insurance coverage must be positive").optional().nullable(),
 });
 
 export type CarFormData = z.infer<typeof carSchema>;

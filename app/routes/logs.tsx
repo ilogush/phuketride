@@ -7,6 +7,8 @@ import Button from "~/components/dashboard/Button";
 import { ClipboardDocumentListIcon } from "@heroicons/react/24/outline";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 import { QUERY_LIMITS } from "~/lib/query-limits";
+import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
 
 interface AuditLog {
     id: number;
@@ -120,7 +122,20 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
     const formData = await request.formData();
-    const intent = formData.get("intent");
+    const parsed = parseWithSchema(
+        z
+        .object({
+            intent: z.enum(["clear"]),
+        }),
+        {
+            intent: formData.get("intent"),
+        },
+        "Invalid action"
+    );
+    if (!parsed.ok) {
+        return data({ success: false, message: "Invalid action" }, { status: 400 });
+    }
+    const intent = parsed.data.intent;
     const effectiveCompanyId = getEffectiveCompanyId(request, user);
 
     if (intent === "clear") {

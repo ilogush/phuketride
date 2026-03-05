@@ -22,6 +22,7 @@ export default [
     route("company/:slug", "routes/company.$slug.tsx"),
     route("cars/:id", "routes/cars.$id.tsx"),
     route("cars/:id/checkout", "routes/cars.$id.checkout.tsx"),
+    route("api/car-templates/:id/features", "routes/api.car-templates.$id.features.tsx"),
     // Protected routes with dashboard layout (root admin URLs)
     layout("routes/app-layout.tsx", [
         route("home", "routes/dashboard-home.tsx"),

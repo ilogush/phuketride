@@ -1,15 +1,16 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, data, redirect } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
-import { useState } from "react";
+import { requireAdmin, requireAuth } from "~/lib/auth.server";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
-import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
-import PageHeader from "~/components/dashboard/PageHeader";
+import AdminCrudModalPage from "~/components/dashboard/AdminCrudModalPage";
 import { PlusIcon, SunIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { QUERY_LIMITS } from "~/lib/query-limits";
+import { useCrudModal } from "~/lib/useCrudModal";
+import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
+import { parseFormIntent, runMutationWithFeedback } from "~/lib/admin-actions";
 
 
 interface Season {
@@ -51,12 +52,7 @@ const DAYS = Array.from({ length: 31 }, (_, i) => ({
 }));
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-
-    // Only admin can access seasons page
-    if (user.role !== "admin") {
-        throw new Response("Access denied", { status: 403 });
-    }
+    const user = await requireAdmin(request);
 
     // Get all seasons (global, not company-specific)
     const seasonsResult = await context.cloudflare.env.DB
@@ -161,7 +157,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     const formData = await request.formData();
-    const intent = formData.get("intent");
+    const intentParsed = parseFormIntent(formData, ["delete", "create", "update", "seed"], "Invalid action");
+    if (!intentParsed.ok) {
+        return data({ success: false, message: "Invalid action" }, { status: 400 });
+    }
+    const intent = intentParsed.data.intent;
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));
@@ -180,15 +180,23 @@ export async function action({ request, context }: ActionFunctionArgs) {
         if (remainingSeasons.length > 0) {
             const validation = validateSeasonsCoverage(remainingSeasons);
             if (!validation.valid) {
-                return redirect(`/seasons?error=${encodeURIComponent(validation.message!)}`);
+                return redirectWithError("/seasons", validation.message || "Invalid seasons coverage");
             }
         }
 
-        await context.cloudflare.env.DB
-            .prepare("DELETE FROM seasons WHERE id = ?")
-            .bind(id)
-            .run();
-        return redirect("/seasons?success=Season deleted successfully");
+        return runMutationWithFeedback(
+            async () => {
+                await context.cloudflare.env.DB
+                    .prepare("DELETE FROM seasons WHERE id = ?")
+                    .bind(id)
+                    .run();
+            },
+            {
+                successPath: "/seasons",
+                successMessage: "Season deleted successfully",
+                errorMessage: "Failed to delete season",
+            }
+        );
     }
 
     if (intent === "create") {
@@ -202,10 +210,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         // Validate dates exist
         if (!isValidDate(startMonth, startDay)) {
-            return redirect("/seasons?error=Invalid start date");
+            return redirectWithError("/seasons", "Invalid start date");
         }
         if (!isValidDate(endMonth, endDay)) {
-            return redirect("/seasons?error=Invalid end date");
+            return redirectWithError("/seasons", "Invalid end date");
         }
 
         // Get existing seasons
@@ -222,30 +230,37 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         const validation = validateSeasonsCoverage(allSeasons);
         if (!validation.valid) {
-            return redirect(`/seasons?error=${encodeURIComponent(validation.message!)}`);
+            return redirectWithError("/seasons", validation.message || "Invalid seasons coverage");
         }
 
-        await context.cloudflare.env.DB
-            .prepare(`
-                INSERT INTO seasons (
-                    season_name, start_month, start_day, end_month, end_day,
-                    price_multiplier, discount_label, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `)
-            .bind(
-                seasonName,
-                startMonth,
-                startDay,
-                endMonth,
-                endDay,
-                priceMultiplier,
-                discountLabel || null,
-                new Date().toISOString(),
-                new Date().toISOString()
-            )
-            .run();
-
-        return redirect("/seasons?success=Season created successfully");
+        return runMutationWithFeedback(
+            async () => {
+                await context.cloudflare.env.DB
+                    .prepare(`
+                        INSERT INTO seasons (
+                            season_name, start_month, start_day, end_month, end_day,
+                            price_multiplier, discount_label, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `)
+                    .bind(
+                        seasonName,
+                        startMonth,
+                        startDay,
+                        endMonth,
+                        endDay,
+                        priceMultiplier,
+                        discountLabel || null,
+                        new Date().toISOString(),
+                        new Date().toISOString()
+                    )
+                    .run();
+            },
+            {
+                successPath: "/seasons",
+                successMessage: "Season created successfully",
+                errorMessage: "Failed to create season",
+            }
+        );
     }
 
     if (intent === "update") {
@@ -260,10 +275,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         // Validate dates exist
         if (!isValidDate(startMonth, startDay)) {
-            return redirect("/seasons?error=Invalid start date");
+            return redirectWithError("/seasons", "Invalid start date");
         }
         if (!isValidDate(endMonth, endDay)) {
-            return redirect("/seasons?error=Invalid end date");
+            return redirectWithError("/seasons", "Invalid end date");
         }
 
         // Get all seasons except the one being updated
@@ -284,30 +299,37 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         const validation = validateSeasonsCoverage(allSeasons);
         if (!validation.valid) {
-            return redirect(`/seasons?error=${encodeURIComponent(validation.message!)}`);
+            return redirectWithError("/seasons", validation.message || "Invalid seasons coverage");
         }
 
-        await context.cloudflare.env.DB
-            .prepare(`
-                UPDATE seasons
-                SET season_name = ?, start_month = ?, start_day = ?, end_month = ?, end_day = ?,
-                    price_multiplier = ?, discount_label = ?, updated_at = ?
-                WHERE id = ?
-            `)
-            .bind(
-                seasonName,
-                startMonth,
-                startDay,
-                endMonth,
-                endDay,
-                priceMultiplier,
-                discountLabel || null,
-                new Date().toISOString(),
-                id
-            )
-            .run();
-
-        return redirect("/seasons?success=Season updated successfully");
+        return runMutationWithFeedback(
+            async () => {
+                await context.cloudflare.env.DB
+                    .prepare(`
+                        UPDATE seasons
+                        SET season_name = ?, start_month = ?, start_day = ?, end_month = ?, end_day = ?,
+                            price_multiplier = ?, discount_label = ?, updated_at = ?
+                        WHERE id = ?
+                    `)
+                    .bind(
+                        seasonName,
+                        startMonth,
+                        startDay,
+                        endMonth,
+                        endDay,
+                        priceMultiplier,
+                        discountLabel || null,
+                        new Date().toISOString(),
+                        id
+                    )
+                    .run();
+            },
+            {
+                successPath: "/seasons",
+                successMessage: "Season updated successfully",
+                errorMessage: "Failed to update season",
+            }
+        );
     }
 
     if (intent === "seed") {
@@ -318,29 +340,36 @@ export async function action({ request, context }: ActionFunctionArgs) {
             { seasonName: "Shoulder Season", startMonth: 10, startDay: 21, endMonth: 12, endDay: 19, priceMultiplier: 1.1, discountLabel: "+10%" },
         ];
 
-        for (const season of defaultSeasons) {
-            await context.cloudflare.env.DB
-                .prepare(`
-                    INSERT INTO seasons (
-                        season_name, start_month, start_day, end_month, end_day,
-                        price_multiplier, discount_label, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `)
-                .bind(
-                    season.seasonName,
-                    season.startMonth,
-                    season.startDay,
-                    season.endMonth,
-                    season.endDay,
-                    season.priceMultiplier,
-                    season.discountLabel,
-                    new Date().toISOString(),
-                    new Date().toISOString()
-                )
-                .run();
-        }
-
-        return redirect("/seasons?success=Default seasons created successfully");
+        return runMutationWithFeedback(
+            async () => {
+                for (const season of defaultSeasons) {
+                    await context.cloudflare.env.DB
+                        .prepare(`
+                            INSERT INTO seasons (
+                                season_name, start_month, start_day, end_month, end_day,
+                                price_multiplier, discount_label, created_at, updated_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `)
+                        .bind(
+                            season.seasonName,
+                            season.startMonth,
+                            season.startDay,
+                            season.endMonth,
+                            season.endDay,
+                            season.priceMultiplier,
+                            season.discountLabel,
+                            new Date().toISOString(),
+                            new Date().toISOString()
+                        )
+                        .run();
+                }
+            },
+            {
+                successPath: "/seasons",
+                successMessage: "Default seasons created successfully",
+                errorMessage: "Failed to create default seasons",
+            }
+        );
     }
 
     return data({ success: false, message: "Invalid action" }, { status: 400 });
@@ -349,36 +378,24 @@ export async function action({ request, context }: ActionFunctionArgs) {
 export default function SeasonsPage() {
     const { seasons } = useLoaderData<typeof loader>();
     useUrlToast();
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingSeason, setEditingSeason] = useState<Season | null>(null);
-    const [formData, setFormData] = useState({
-        seasonName: "",
-        startMonth: "12",
-        startDay: "1",
-        endMonth: "1",
-        endDay: "31",
-        priceMultiplier: "1",
-        discountLabel: "",
-    });
-
-    const handleEdit = (season: Season) => {
-        setEditingSeason(season);
-        setFormData({
-            seasonName: season.seasonName,
-            startMonth: String(season.startMonth),
-            startDay: String(season.startDay),
-            endMonth: String(season.endMonth),
-            endDay: String(season.endDay),
-            priceMultiplier: String(season.priceMultiplier),
-            discountLabel: season.discountLabel || "",
-        });
-        setIsModalOpen(true);
-    };
-
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setEditingSeason(null);
-        setFormData({
+    const {
+        isModalOpen,
+        editingEntity: editingSeason,
+        formData,
+        setFormData,
+        openCreateModal,
+        openEditModal,
+        closeModal,
+    } = useCrudModal<Season, {
+        seasonName: string;
+        startMonth: string;
+        startDay: string;
+        endMonth: string;
+        endDay: string;
+        priceMultiplier: string;
+        discountLabel: string;
+    }>({
+        initialFormData: {
             seasonName: "",
             startMonth: "12",
             startDay: "1",
@@ -386,8 +403,17 @@ export default function SeasonsPage() {
             endDay: "31",
             priceMultiplier: "1",
             discountLabel: "",
-        });
-    };
+        },
+        mapEntityToFormData: (season) => ({
+            seasonName: season.seasonName,
+            startMonth: String(season.startMonth),
+            startDay: String(season.startDay),
+            endMonth: String(season.endMonth),
+            endDay: String(season.endDay),
+            priceMultiplier: String(season.priceMultiplier),
+            discountLabel: season.discountLabel || "",
+        }),
+    });
 
     const columns: Column<Season>[] = [
         {
@@ -438,7 +464,7 @@ export default function SeasonsPage() {
                         type="button"
                         variant="secondary"
                         size="sm"
-                        onClick={() => handleEdit(item)}
+                        onClick={() => openEditModal(item)}
                     >
                         Edit
                     </Button>
@@ -459,60 +485,50 @@ export default function SeasonsPage() {
     ];
 
     return (
-        <div className="space-y-4">
-            <PageHeader
-                title="Seasons"
-                rightActions={
-                    <div className="flex gap-3">
-                        {seasons.length === 0 && (
-                            <Form method="post">
-                                <input type="hidden" name="intent" value="seed" />
-                                <Button type="submit" variant="secondary">
-                                    Load Default Data
-                                </Button>
-                            </Form>
-                        )}
-                        <Button
-                            variant="primary"
-                            icon={<PlusIcon className="w-5 h-5" />}
-                            onClick={() => setIsModalOpen(true)}
-                        >
-                            Add
+        <AdminCrudModalPage
+            title="Seasons"
+            addLabel="Add"
+            onAdd={openCreateModal}
+            headerExtras={
+                seasons.length === 0 ? (
+                    <Form method="post">
+                        <input type="hidden" name="intent" value="seed" />
+                        <Button type="submit" variant="secondary">
+                            Load Default Data
                         </Button>
+                    </Form>
+                ) : null
+            }
+            tableContent={
+                seasons.length > 0 ? (
+                    <DataTable
+                        columns={columns}
+                        data={seasons}
+                        disablePagination={true}
+                        emptyTitle="No seasons configured"
+                        emptyDescription="Addal pricing periods to get started"
+                    />
+                ) : (
+                    <div className="bg-white rounded-3xl shadow-sm p-12 py-4">
+                        <div className="text-center">
+                            <SeasonIcon />
+                            <h3 className="mt-4 text-lg font-medium text-gray-900">No seasons configured</h3>
+                            <p className="mt-2 text-sm text-gray-500">
+                                Define seasonal pricing periods for your rental business
+                            </p>
+                        </div>
                     </div>
-                }
-            />
-
-            {seasons.length > 0 ? (
-                <DataTable
-                    columns={columns}
-                    data={seasons}
-                    disablePagination={true}
-                    emptyTitle="No seasons configured"
-                    emptyDescription="Addal pricing periods to get started"
-                />
-            ) : (
-                <div className="bg-white rounded-3xl shadow-sm p-12 py-4">
-                    <div className="text-center">
-                        <SeasonIcon />
-                        <h3 className="mt-4 text-lg font-medium text-gray-900">No seasons configured</h3>
-                        <p className="mt-2 text-sm text-gray-500">
-                            Define seasonal pricing periods for your rental business
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            <Modal
-                title={editingSeason ? "Edit Season" : "Add"}
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                size="md"
-            >
-                <Form method="post" className="space-y-4" onSubmit={handleCloseModal}>
-                    <input type="hidden" name="intent" value={editingSeason ? "update" : "create"} />
-                    {editingSeason && <input type="hidden" name="id" value={editingSeason.id} />}
-
+                )
+            }
+            modalTitle={editingSeason ? "Edit Season" : "Add"}
+            isModalOpen={isModalOpen}
+            onCloseModal={closeModal}
+            formIntent={editingSeason ? "update" : "create"}
+            editingId={editingSeason?.id}
+            onFormSubmit={closeModal}
+            submitLabel={editingSeason ? "Update Season" : "Create Season"}
+            formChildren={
+                <>
                     <Input
                         label="Season Name"
                         name="seasonName"
@@ -618,15 +634,9 @@ export default function SeasonsPage() {
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, discountLabel: e.target.value })}
                         placeholder="e.g., +50%"
                     />
-
-                    <div className="flex justify-end gap-3 pt-4">
-                        <Button type="submit" variant="primary">
-                            {editingSeason ? "Update Season" : "Create Season"}
-                        </Button>
-                    </div>
-                </Form>
-            </Modal>
-        </div>
+                </>
+            }
+        />
     );
 }
 

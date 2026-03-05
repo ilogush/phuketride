@@ -1,6 +1,6 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdmin } from "~/lib/auth.server";
 import ProfileForm from "~/components/dashboard/ProfileForm";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
@@ -9,15 +9,21 @@ import { TrashIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { userSchema } from "~/schemas/user";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
-import { PASSWORD_MIN_LENGTH } from "~/lib/password";
-import { hashPassword } from "~/lib/password.server";
 import {
     uploadAvatarFromBase64,
     deleteAvatar,
     deleteAssetUrls,
-    uploadPhotoItemsToR2,
-    type UploadPhotoItem,
+    uploadPhotoItemsToR2
 } from "~/lib/r2.server";
+import {
+    getRemovedAssetUrls,
+    loadProfileReferenceData,
+    parseStoredPhotoItems,
+    parseUploadPhotoItems,
+    resolvePasswordHash,
+} from "~/lib/user-profile.server";
+import { parseWithSchema } from "~/lib/validation.server";
+import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
 
 interface EditableUserRow {
     id: string;
@@ -39,43 +45,8 @@ interface EditableUserRow {
     address: string | null;
 }
 
-function parseUploadPhotoItems(value: FormDataEntryValue | null): UploadPhotoItem[] {
-    if (typeof value !== "string") return [];
-    const trimmed = value.trim();
-    if (!trimmed) return [];
-    try {
-        const parsed = JSON.parse(trimmed);
-        if (!Array.isArray(parsed)) return [];
-        return parsed.filter((p) => p && typeof p.base64 === "string" && typeof p.fileName === "string");
-    } catch {
-        return [];
-    }
-}
-
-function parseStoredPhotoItems(value: string | null | undefined): UploadPhotoItem[] {
-    if (!value) return [];
-    try {
-        const parsed = JSON.parse(value);
-        if (!Array.isArray(parsed)) return [];
-        return parsed.filter((p) => p && typeof p.base64 === "string" && typeof p.fileName === "string");
-    } catch {
-        return [];
-    }
-}
-
-function getRemovedAssetUrls(existing: UploadPhotoItem[], next: UploadPhotoItem[]): string[] {
-    const kept = new Set(next.map((p) => p.base64));
-    return existing
-        .map((p) => p.base64)
-        .filter((url) => url.startsWith("/assets/") || url.startsWith("http://") || url.startsWith("https://"))
-        .filter((url) => !kept.has(url));
-}
-
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
-    const sessionUser = await requireAuth(request);
-    if (sessionUser.role !== "admin") {
-        throw new Response("Forbidden", { status: 403 });
-    }
+    const sessionUser = await requireAdmin(request);
 
     const userId = params.userId;
     if (!userId) {
@@ -100,20 +71,13 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         throw new Response("User not found", { status: 404 });
     }
 
-    const [hotels, locations, districts] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM hotels ORDER BY name ASC").all().then((r: { results?: Array<{ id: number; name: string }> }) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM locations ORDER BY name ASC").all().then((r: { results?: Array<{ id: number; name: string }> }) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT id, name, location_id AS locationId FROM districts ORDER BY name ASC").all().then((r: { results?: Array<{ id: number; name: string; locationId: number }> }) => r.results || []),
-    ]);
+    const { hotels, locations, districts } = await loadProfileReferenceData(context.cloudflare.env.DB);
 
     return { user, currentUserRole: sessionUser.role, hotels, locations, districts };
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
-    const sessionUser = await requireAuth(request);
-    if (sessionUser.role !== "admin") {
-        throw new Response("Forbidden", { status: 403 });
-    }
+    const sessionUser = await requireAdmin(request);
 
     const formData = await request.formData();
     const intent = formData.get("intent");
@@ -144,7 +108,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 
     if (intent === "deleteUser") {
         if (currentUser.id === sessionUser.id) {
-            return redirect(`/users/${userId}/edit?error=${encodeURIComponent("You cannot delete your own account")}`);
+            return redirectWithError(`/users/${userId}/edit`, "You cannot delete your own account");
         }
 
         try {
@@ -165,9 +129,9 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 ...metadata,
             });
 
-            return redirect(`/users?success=${encodeURIComponent("User deleted successfully")}`);
+            return redirectWithSuccess("/users", "User deleted successfully");
         } catch {
-            return redirect(`/users/${userId}/edit?error=${encodeURIComponent("Failed to delete user (record is linked to other data)")}`);
+            return redirectWithError(`/users/${userId}/edit`, "Failed to delete user (record is linked to other data)");
         }
     }
 
@@ -201,25 +165,17 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const existingPassportPhotos = parseStoredPhotoItems(currentUser.passportPhotos);
     const existingDriverLicensePhotos = parseStoredPhotoItems(currentUser.driverLicensePhotos);
 
-    const validation = userSchema.safeParse(rawData);
-    if (!validation.success) {
-        const firstError = validation.error.errors[0];
-        return redirect(`/users/${userId}/edit?error=${encodeURIComponent(firstError.message)}`);
+    const validation = parseWithSchema(userSchema, rawData, "Validation failed");
+    if (!validation.ok) {
+        return redirectWithError(`/users/${userId}/edit`, validation.error);
     }
 
     const validData = validation.data;
 
     try {
-        const passwordChanged = !!(newPassword || confirmPassword);
-        let passwordHash: string | null = null;
-        if (passwordChanged) {
-            if (newPassword.length < PASSWORD_MIN_LENGTH) {
-                return redirect(`/users/${userId}/edit?error=${encodeURIComponent(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`)}`);
-            }
-            if (newPassword !== confirmPassword) {
-                return redirect(`/users/${userId}/edit?error=${encodeURIComponent("Passwords do not match")}`);
-            }
-            passwordHash = await hashPassword(newPassword);
+        const { passwordChanged, passwordHash, error } = await resolvePasswordHash(newPassword, confirmPassword);
+        if (error) {
+            return redirectWithError(`/users/${userId}/edit`, error);
         }
 
         if (avatarBase64 && avatarFileName) {
@@ -299,10 +255,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             ...metadata,
         });
 
-        return redirect(`/users/${userId}/edit?success=${encodeURIComponent("User updated successfully")}`);
+        return redirectWithSuccess(`/users/${userId}/edit`, "User updated successfully");
     } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to update user";
-        return redirect(`/users/${userId}/edit?error=${encodeURIComponent(message)}`);
+        return redirectWithError(`/users/${userId}/edit`, message);
     }
 }
 

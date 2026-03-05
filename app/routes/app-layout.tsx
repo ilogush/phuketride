@@ -6,6 +6,7 @@ import Sidebar from "~/components/dashboard/Sidebar";
 import Topbar from "~/components/dashboard/Topbar";
 import { useToast } from "~/lib/toast";
 import { getUserNotificationsCount, getUserNotificationWindows } from "~/lib/user-notifications.server";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 // Create context for mod mode
 interface ModModeContextType {
@@ -74,6 +75,7 @@ export default function Layout() {
     const navigate = useNavigate();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const toast = useToast();
+    useUrlToast();
 
     // Show welcome toast on login
     const loginState = searchParams.get("login");

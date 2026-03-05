@@ -187,7 +187,7 @@ export function GenericDictionaryForm({
                             className={inputClass}
                             disabled={field.disabled}
                         >
-                            <option value="">{field.placeholder || `Select ${field.label}`}</option>
+                            {field.placeholder && <option value="">{field.placeholder}</option>}
                             {field.options?.map(option => (
                                 <option key={option.id} value={option.id}>
                                     {option.name}

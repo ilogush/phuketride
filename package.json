@@ -5,10 +5,14 @@
   "scripts": {
     "build": "react-router build",
     "cf-typegen": "wrangler types",
+    "db:check:companies-car-count": "tsx scripts/check-companies-car-count.ts",
     "deploy": "npm run typecheck && npm run build && wrangler deploy",
     "dev": "vite",
+    "lint": "npm run typecheck",
     "postinstall": "npm run cf-typegen",
     "preview": "npm run build && vite preview",
+    "rules:check": "node scripts/check-codex-rules.mjs",
+    "test": "node --test",
     "typecheck": "npm run cf-typegen && react-router typegen && tsc -b"
   },
   "dependencies": {

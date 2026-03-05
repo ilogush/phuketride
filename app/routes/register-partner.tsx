@@ -10,6 +10,7 @@ import { hashPassword } from "~/lib/password.server";
 import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 import Button from "~/components/dashboard/Button";
 import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
 
 export const meta: MetaFunction = () => {
     const title = "Partner Registration | Phuket Ride";
@@ -70,20 +71,24 @@ export async function action({ request, context }: ActionFunctionArgs) {
         street: z.string().trim().min(1, "Street is required"),
         houseNumber: z.string().trim().min(1, "House number is required"),
     });
-    const parsed = registerPartnerSchema.safeParse({
-        email: formData.get("email"),
-        password: formData.get("password"),
-        name: formData.get("name"),
-        surname: formData.get("surname"),
-        phone: formData.get("phone"),
-        telegram: formData.get("telegram"),
-        companyName: formData.get("companyName"),
-        districtId: formData.get("districtId"),
-        street: formData.get("street"),
-        houseNumber: formData.get("houseNumber"),
-    });
-    if (!parsed.success) {
-        return { error: parsed.error.errors[0]?.message || "Validation failed" };
+    const parsed = parseWithSchema(
+        registerPartnerSchema,
+        {
+            email: formData.get("email"),
+            password: formData.get("password"),
+            name: formData.get("name"),
+            surname: formData.get("surname"),
+            phone: formData.get("phone"),
+            telegram: formData.get("telegram"),
+            companyName: formData.get("companyName"),
+            districtId: formData.get("districtId"),
+            street: formData.get("street"),
+            houseNumber: formData.get("houseNumber"),
+        },
+        "Validation failed"
+    );
+    if (!parsed.ok) {
+        return { error: parsed.error };
     }
     const {
         email,

@@ -16,7 +16,7 @@ const COMPANY_SORT_SQL: Record<string, string> = {
     id: "c.id",
     createdAt: "c.created_at",
     name: "c.name",
-    carCount: "carCount",
+    carCount: "c.car_count",
 };
 
 function getCompanySortClause(sortBy: string, sortOrder: SortOrder): string {
@@ -55,7 +55,31 @@ export async function listCompaniesPage(params: {
     sortOrder: SortOrder;
 }): Promise<CompanyListRow[]> {
     const { db, showArchived, pageSize, offset, search, sortBy, sortOrder } = params;
-    const sql = `
+    const idsSql = `
+        SELECT c.id
+        FROM companies c
+        LEFT JOIN users u ON u.id = c.owner_id
+        LEFT JOIN districts d ON d.id = c.district_id
+        WHERE ${showArchived ? "1=1" : "c.archived_at IS NULL"}
+        ${search ? "AND (COALESCE(c.name,'') LIKE ? OR COALESCE(c.email,'') LIKE ? OR COALESCE(c.phone,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR COALESCE(d.name,'') LIKE ?)" : ""}
+        ${getCompanySortClause(sortBy, sortOrder)}
+        LIMIT ? OFFSET ?
+    `;
+    const idsQuery = db.prepare(idsSql);
+    const binds: unknown[] = [];
+    if (search) {
+        const q = `%${search}%`;
+        binds.push(q, q, q, q, q, q);
+    }
+    binds.push(pageSize, offset);
+    const idsResult = await idsQuery.bind(...binds).all();
+    const companyIds = (idsResult.results || []).map((row) => Number((row as { id: number | string }).id)).filter((id) => Number.isFinite(id));
+    if (companyIds.length === 0) {
+        return [];
+    }
+
+    const idPlaceholders = companyIds.map(() => "?").join(", ");
+    const detailsSql = `
         SELECT
             c.id,
             c.name,
@@ -69,24 +93,15 @@ export async function listCompaniesPage(params: {
             u.surname AS ownerSurname,
             u.archived_at AS ownerArchivedAt,
             d.name AS districtName,
-            COUNT(cc.id) AS carCount
+            COALESCE(c.car_count, 0) AS carCount
         FROM companies c
         LEFT JOIN users u ON u.id = c.owner_id
         LEFT JOIN districts d ON d.id = c.district_id
-        LEFT JOIN company_cars cc ON cc.company_id = c.id
-        WHERE ${showArchived ? "1=1" : "c.archived_at IS NULL"}
-        ${search ? "AND (COALESCE(c.name,'') LIKE ? OR COALESCE(c.email,'') LIKE ? OR COALESCE(c.phone,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR COALESCE(d.name,'') LIKE ?)" : ""}
-        GROUP BY c.id
-        ${getCompanySortClause(sortBy, sortOrder)}
-        LIMIT ? OFFSET ?
+        WHERE c.id IN (${idPlaceholders})
     `;
-    const query = db.prepare(sql);
-    const binds: unknown[] = [];
-    if (search) {
-        const q = `%${search}%`;
-        binds.push(q, q, q, q, q, q);
-    }
-    binds.push(pageSize, offset);
-    const result = await query.bind(...binds).all();
-    return (result.results || []) as CompanyListRow[];
+    const detailsBinds: unknown[] = [...companyIds];
+    const detailsResult = await db.prepare(detailsSql).bind(...detailsBinds).all();
+    const details = (detailsResult.results || []) as CompanyListRow[];
+    const orderMap = new Map<number, number>(companyIds.map((id, index) => [id, index]));
+    return details.sort((a, b) => (orderMap.get(Number(a.id)) ?? Number.MAX_SAFE_INTEGER) - (orderMap.get(Number(b.id)) ?? Number.MAX_SAFE_INTEGER));
 }

@@ -7,6 +7,7 @@ import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import Button from "~/components/dashboard/Button";
 import { loginSchema } from "~/schemas/user";
+import { parseWithSchema } from "~/lib/validation.server";
 
 export const meta: MetaFunction = () => {
     const title = "Sign In | Phuket Ride";
@@ -45,12 +46,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
 
         const formData = await request.formData();
-        const parsed = loginSchema.safeParse({
-            email: formData.get("email"),
-            password: formData.get("password"),
-        });
-        if (!parsed.success) {
-            return { error: parsed.error.errors[0]?.message || "Validation failed" };
+        const parsed = parseWithSchema(
+            loginSchema,
+            {
+                email: formData.get("email"),
+                password: formData.get("password"),
+            },
+            "Validation failed"
+        );
+        if (!parsed.ok) {
+            return { error: parsed.error };
         }
         const { email, password } = parsed.data;
 

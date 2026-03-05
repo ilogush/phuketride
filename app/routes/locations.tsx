@@ -13,6 +13,8 @@ import { useToast } from "~/lib/toast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 import Toggle from "~/components/dashboard/Toggle";
 import { QUERY_LIMITS } from "~/lib/query-limits";
+import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
 
 interface District {
     id: number;
@@ -144,7 +146,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
         return data({ success: false, message: "Forbidden" }, { status: 403 });
     }
     const formData = await request.formData();
-    const intent = formData.get("intent");
+    const intentParsed = parseWithSchema(
+        z.enum(["bulkUpdate", "toggleStatus", "updatePrice", "delete", "update", "create"]),
+        formData.get("intent"),
+        "Invalid action"
+    );
+    if (!intentParsed.ok) {
+        return data({ success: false, message: "Invalid action" }, { status: 400 });
+    }
+    const intent = intentParsed.data;
     const upsertCompanyDeliverySetting = async (districtId: number, isActive: boolean, deliveryPrice: number) => {
         if (!effectiveCompanyId) return;
         const now = new Date().toISOString();
@@ -172,7 +182,19 @@ export async function action({ request, context }: ActionFunctionArgs) {
         if (!canManageCompanyDelivery || !effectiveCompanyId) {
             return data({ success: false, message: "Forbidden" }, { status: 403 });
         }
-        const updates = JSON.parse(formData.get("updates") as string);
+        const updatesParsed = parseWithSchema(
+            z.object({
+                updates: z.string().min(2, "Updates payload is required"),
+            }),
+            {
+                updates: formData.get("updates"),
+            },
+            "Invalid updates payload"
+        );
+        if (!updatesParsed.ok) {
+            return data({ success: false, message: "Invalid updates payload" }, { status: 400 });
+        }
+        const updates = JSON.parse(updatesParsed.data.updates);
 
         // Partner/mod mode updates company-specific delivery settings by district id.
         for (const update of updates) {
@@ -186,10 +208,25 @@ export async function action({ request, context }: ActionFunctionArgs) {
         if (!canManageCompanyDelivery || !effectiveCompanyId) {
             return data({ success: false, message: "Forbidden" }, { status: 403 });
         }
-        const id = Number(formData.get("id"));
-        const isActive = formData.get("isActive") === "true";
-        const currentPriceRaw = formData.get("deliveryPrice");
-        const currentPrice = Number(currentPriceRaw);
+        const toggleParsed = parseWithSchema(
+            z.object({
+                id: z.coerce.number().int().positive("District id is required"),
+                isActive: z.enum(["true", "false"]),
+                deliveryPrice: z.coerce.number().optional(),
+            }),
+            {
+                id: formData.get("id"),
+                isActive: formData.get("isActive"),
+                deliveryPrice: formData.get("deliveryPrice"),
+            },
+            "Invalid toggle payload"
+        );
+        if (!toggleParsed.ok) {
+            return data({ success: false, message: "Invalid toggle payload" }, { status: 400 });
+        }
+        const id = toggleParsed.data.id;
+        const isActive = toggleParsed.data.isActive === "true";
+        const currentPrice = toggleParsed.data.deliveryPrice;
 
         const fallbackPriceRow = await context.cloudflare.env.DB
             .prepare(`
@@ -205,7 +242,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
             .bind(effectiveCompanyId, id)
             .first() as { company_delivery_price?: number | null; district_delivery_price?: number | null } | null;
         const fallbackPrice = fallbackPriceRow?.company_delivery_price ?? fallbackPriceRow?.district_delivery_price ?? 0;
-        const deliveryPrice = Number.isFinite(currentPrice) ? currentPrice : Number(fallbackPrice);
+        const deliveryPrice =
+            typeof currentPrice === "number" && Number.isFinite(currentPrice)
+                ? currentPrice
+                : Number(fallbackPrice);
 
         await upsertCompanyDeliverySetting(id, isActive, deliveryPrice);
 
@@ -216,8 +256,22 @@ export async function action({ request, context }: ActionFunctionArgs) {
         if (!canManageCompanyDelivery || !effectiveCompanyId) {
             return data({ success: false, message: "Forbidden" }, { status: 403 });
         }
-        const id = Number(formData.get("id"));
-        const deliveryPrice = Number(formData.get("deliveryPrice"));
+        const priceParsed = parseWithSchema(
+            z.object({
+                id: z.coerce.number().int().positive("District id is required"),
+                deliveryPrice: z.coerce.number(),
+            }),
+            {
+                id: formData.get("id"),
+                deliveryPrice: formData.get("deliveryPrice"),
+            },
+            "Invalid price payload"
+        );
+        if (!priceParsed.ok) {
+            return data({ success: false, message: "Invalid price payload" }, { status: 400 });
+        }
+        const id = priceParsed.data.id;
+        const deliveryPrice = priceParsed.data.deliveryPrice;
         const safeDeliveryPrice = Number.isFinite(deliveryPrice) ? deliveryPrice : 0;
         const districtResult = await context.cloudflare.env.DB
             .prepare(`
@@ -239,7 +293,19 @@ export async function action({ request, context }: ActionFunctionArgs) {
         if (!canManageDistrictTemplates) {
             return data({ success: false, message: "Forbidden" }, { status: 403 });
         }
-        const id = Number(formData.get("id"));
+        const deleteParsed = parseWithSchema(
+            z.object({
+                id: z.coerce.number().int().positive("District id is required"),
+            }),
+            {
+                id: formData.get("id"),
+            },
+            "Invalid delete payload"
+        );
+        if (!deleteParsed.ok) {
+            return data({ success: false, message: "Invalid delete payload" }, { status: 400 });
+        }
+        const id = deleteParsed.data.id;
         await context.cloudflare.env.DB.prepare("DELETE FROM districts WHERE id = ?").bind(id).run();
         return data({ success: true, message: "District deleted successfully" });
     }
@@ -248,11 +314,29 @@ export async function action({ request, context }: ActionFunctionArgs) {
         if (!canManageDistrictTemplates) {
             return data({ success: false, message: "Forbidden" }, { status: 403 });
         }
-        const id = Number(formData.get("id"));
-        const name = formData.get("name") as string;
-        const beaches = formData.get("beaches") as string;
-        const streets = formData.get("streets") as string;
-        const deliveryPrice = Number(formData.get("deliveryPrice"));
+        const updateParsed = parseWithSchema(
+            z.object({
+                id: z.coerce.number().int().positive("District id is required"),
+                name: z.string().trim().min(1, "District name is required").max(200, "District name is too long"),
+                beaches: z.string().trim().optional().nullable(),
+                streets: z.string().trim().optional().nullable(),
+                deliveryPrice: z.coerce.number().min(0, "Delivery price must be 0 or greater"),
+            }),
+            {
+                id: formData.get("id"),
+                name: formData.get("name"),
+                beaches: formData.get("beaches"),
+                streets: formData.get("streets"),
+                deliveryPrice: formData.get("deliveryPrice"),
+            },
+            "Invalid update payload"
+        );
+        if (!updateParsed.ok) {
+            return data({ success: false, message: updateParsed.error }, { status: 400 });
+        }
+        const { id, name, deliveryPrice } = updateParsed.data;
+        const beaches = updateParsed.data.beaches || "";
+        const streets = updateParsed.data.streets || "";
 
         const beachesArray = beaches.split(",").map(b => b.trim()).filter(b => b);
         const beachesJson = JSON.stringify(beachesArray);
@@ -276,10 +360,27 @@ export async function action({ request, context }: ActionFunctionArgs) {
         if (!canManageDistrictTemplates) {
             return data({ success: false, message: "Forbidden" }, { status: 403 });
         }
-        const name = formData.get("name") as string;
-        const beaches = formData.get("beaches") as string;
-        const streets = formData.get("streets") as string;
-        const deliveryPrice = Number(formData.get("deliveryPrice"));
+        const createParsed = parseWithSchema(
+            z.object({
+                name: z.string().trim().min(1, "District name is required").max(200, "District name is too long"),
+                beaches: z.string().trim().optional().nullable(),
+                streets: z.string().trim().optional().nullable(),
+                deliveryPrice: z.coerce.number().min(0, "Delivery price must be 0 or greater"),
+            }),
+            {
+                name: formData.get("name"),
+                beaches: formData.get("beaches"),
+                streets: formData.get("streets"),
+                deliveryPrice: formData.get("deliveryPrice"),
+            },
+            "Invalid create payload"
+        );
+        if (!createParsed.ok) {
+            return data({ success: false, message: createParsed.error }, { status: 400 });
+        }
+        const { name, deliveryPrice } = createParsed.data;
+        const beaches = createParsed.data.beaches || "";
+        const streets = createParsed.data.streets || "";
 
         const beachesArray = beaches.split(",").map(b => b.trim()).filter(b => b);
         const beachesJson = JSON.stringify(beachesArray);
@@ -447,23 +548,14 @@ export default function LocationsPage() {
                     key: "actions",
                     label: "Actions",
                     render: (item: District) => (
-                        <div className="flex gap-2">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handleEdit(item)}
-                            >
-                                Edit
-                            </Button>
-                            <Form method="post" className="inline">
-                                <input type="hidden" name="intent" value="delete" />
-                                <input type="hidden" name="id" value={item.id} />
-                                <Button type="submit" variant="secondary" size="sm">
-                                    Delete
-                                </Button>
-                            </Form>
-                        </div>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleEdit(item)}
+                        >
+                            Edit
+                        </Button>
                     ),
                 },
             ]
@@ -563,11 +655,22 @@ export default function LocationsPage() {
                         />
 
                         <div className="flex justify-end gap-3 pt-4">
+                            {editingDistrict && (
+                                <Button type="submit" form="delete-district-form" variant="secondary">
+                                    Delete
+                                </Button>
+                            )}
                             <Button type="submit" variant="primary">
-                                {editingDistrict ? "Update District" : "Create District"}
+                                {editingDistrict ? "Update" : "Create"}
                             </Button>
                         </div>
                     </Form>
+                    {editingDistrict && (
+                        <Form id="delete-district-form" method="post" className="hidden" onSubmit={handleCloseModal}>
+                            <input type="hidden" name="intent" value="delete" />
+                            <input type="hidden" name="id" value={editingDistrict.id} />
+                        </Form>
+                    )}
                 </Modal>
             )}
         </div>

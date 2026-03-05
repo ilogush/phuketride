@@ -1,15 +1,16 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, data, redirect } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
-import { useState } from "react";
+import { requireAdmin, requireAuth } from "~/lib/auth.server";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
-import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
-import PageHeader from "~/components/dashboard/PageHeader";
-import { TrashIcon, PlusIcon, PencilIcon, ClockIcon as HeroClockIcon } from "@heroicons/react/24/outline";
+import AdminCrudModalPage from "~/components/dashboard/AdminCrudModalPage";
+import { TrashIcon, PencilIcon, ClockIcon as HeroClockIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { QUERY_LIMITS } from "~/lib/query-limits";
+import { useCrudModal } from "~/lib/useCrudModal";
+import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
+import { parseFormIntent, runMutationWithFeedback } from "~/lib/admin-actions";
 
 interface RentalDuration {
     id: number;
@@ -79,12 +80,7 @@ function validateDurationsCoverage(durations: Array<{ minDays: number, maxDays: 
 }
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-
-    // Only admin can access durations page
-    if (user.role !== "admin") {
-        throw new Response("Access denied", { status: 403 });
-    }
+    const user = await requireAdmin(request);
 
     // Get all durations (global, not company-specific)
     const durationsResult = await context.cloudflare.env.DB
@@ -115,7 +111,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     const formData = await request.formData();
-    const intent = formData.get("intent");
+    const intentParsed = parseFormIntent(formData, ["delete", "create", "update", "seed"], "Invalid action");
+    if (!intentParsed.ok) {
+        return data({ success: false, message: "Invalid action" }, { status: 400 });
+    }
+    const intent = intentParsed.data.intent;
 
     if (intent === "delete") {
         const id = Number(formData.get("id"));
@@ -131,15 +131,23 @@ export async function action({ request, context }: ActionFunctionArgs) {
         if (remainingDurations.length > 0) {
             const validation = validateDurationsCoverage(remainingDurations);
             if (!validation.valid) {
-                return redirect(`/durations?error=${encodeURIComponent(validation.message!)}`);
+                return redirectWithError("/durations", validation.message || "Invalid durations coverage");
             }
         }
 
-        await context.cloudflare.env.DB
-            .prepare("DELETE FROM rental_durations WHERE id = ?")
-            .bind(id)
-            .run();
-        return redirect("/durations?success=Duration deleted successfully");
+        return runMutationWithFeedback(
+            async () => {
+                await context.cloudflare.env.DB
+                    .prepare("DELETE FROM rental_durations WHERE id = ?")
+                    .bind(id)
+                    .run();
+            },
+            {
+                successPath: "/durations",
+                successMessage: "Duration deleted successfully",
+                errorMessage: "Failed to delete duration",
+            }
+        );
     }
 
     if (intent === "create") {
@@ -166,27 +174,34 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         const validation = validateDurationsCoverage(allDurations);
         if (!validation.valid) {
-            return redirect(`/durations?error=${encodeURIComponent(validation.message!)}`);
+            return redirectWithError("/durations", validation.message || "Invalid durations coverage");
         }
 
-        await context.cloudflare.env.DB
-            .prepare(`
-                INSERT INTO rental_durations (
-                    range_name, min_days, max_days, price_multiplier, discount_label, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            `)
-            .bind(
-                rangeName,
-                minDays,
-                normalizedMaxDays,
-                priceMultiplier,
-                discountLabel || null,
-                new Date().toISOString(),
-                new Date().toISOString()
-            )
-            .run();
-
-        return redirect("/durations?success=Duration created successfully");
+        return runMutationWithFeedback(
+            async () => {
+                await context.cloudflare.env.DB
+                    .prepare(`
+                        INSERT INTO rental_durations (
+                            range_name, min_days, max_days, price_multiplier, discount_label, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    `)
+                    .bind(
+                        rangeName,
+                        minDays,
+                        normalizedMaxDays,
+                        priceMultiplier,
+                        discountLabel || null,
+                        new Date().toISOString(),
+                        new Date().toISOString()
+                    )
+                    .run();
+            },
+            {
+                successPath: "/durations",
+                successMessage: "Duration created successfully",
+                errorMessage: "Failed to create duration",
+            }
+        );
     }
 
     if (intent === "update") {
@@ -215,28 +230,35 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
         const validation = validateDurationsCoverage(durationsToValidate);
         if (!validation.valid) {
-            return redirect(`/durations?error=${encodeURIComponent(validation.message!)}`);
+            return redirectWithError("/durations", validation.message || "Invalid durations coverage");
         }
 
-        await context.cloudflare.env.DB
-            .prepare(`
-                UPDATE rental_durations
-                SET range_name = ?, min_days = ?, max_days = ?, price_multiplier = ?,
-                    discount_label = ?, updated_at = ?
-                WHERE id = ?
-            `)
-            .bind(
-                rangeName,
-                minDays,
-                normalizedMaxDays,
-                priceMultiplier,
-                discountLabel || null,
-                new Date().toISOString(),
-                id
-            )
-            .run();
-
-        return redirect("/durations?success=Duration updated successfully");
+        return runMutationWithFeedback(
+            async () => {
+                await context.cloudflare.env.DB
+                    .prepare(`
+                        UPDATE rental_durations
+                        SET range_name = ?, min_days = ?, max_days = ?, price_multiplier = ?,
+                            discount_label = ?, updated_at = ?
+                        WHERE id = ?
+                    `)
+                    .bind(
+                        rangeName,
+                        minDays,
+                        normalizedMaxDays,
+                        priceMultiplier,
+                        discountLabel || null,
+                        new Date().toISOString(),
+                        id
+                    )
+                    .run();
+            },
+            {
+                successPath: "/durations",
+                successMessage: "Duration updated successfully",
+                errorMessage: "Failed to update duration",
+            }
+        );
     }
 
     if (intent === "seed") {
@@ -250,26 +272,33 @@ export async function action({ request, context }: ActionFunctionArgs) {
             { rangeName: "29+ days", minDays: 29, maxDays: null, priceMultiplier: 0.75, discountLabel: "25% off" },
         ];
 
-        for (const duration of defaultDurations) {
-            await context.cloudflare.env.DB
-                .prepare(`
-                    INSERT INTO rental_durations (
-                        range_name, min_days, max_days, price_multiplier, discount_label, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                `)
-                .bind(
-                    duration.rangeName,
-                    duration.minDays,
-                    duration.maxDays,
-                    duration.priceMultiplier,
-                    duration.discountLabel,
-                    new Date().toISOString(),
-                    new Date().toISOString()
-                )
-                .run();
-        }
-
-        return redirect("/durations?success=Default durations created successfully");
+        return runMutationWithFeedback(
+            async () => {
+                for (const duration of defaultDurations) {
+                    await context.cloudflare.env.DB
+                        .prepare(`
+                            INSERT INTO rental_durations (
+                                range_name, min_days, max_days, price_multiplier, discount_label, created_at, updated_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        `)
+                        .bind(
+                            duration.rangeName,
+                            duration.minDays,
+                            duration.maxDays,
+                            duration.priceMultiplier,
+                            duration.discountLabel,
+                            new Date().toISOString(),
+                            new Date().toISOString()
+                        )
+                        .run();
+                }
+            },
+            {
+                successPath: "/durations",
+                successMessage: "Default durations created successfully",
+                errorMessage: "Failed to create default durations",
+            }
+        );
     }
 
     return data({ success: false, message: "Invalid action" }, { status: 400 });
@@ -278,39 +307,30 @@ export async function action({ request, context }: ActionFunctionArgs) {
 export default function DurationsPage() {
     const { user, durations } = useLoaderData<typeof loader>();
     useUrlToast();
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingDuration, setEditingDuration] = useState<RentalDuration | null>(null);
-    const [formData, setFormData] = useState({
-        rangeName: "",
-        minDays: "",
-        maxDays: "",
-        priceMultiplier: "1",
-        discountLabel: "",
-    });
-
-    const handleEdit = (duration: RentalDuration) => {
-        setEditingDuration(duration);
-        setFormData({
-            rangeName: duration.rangeName,
-            minDays: String(duration.minDays),
-            maxDays: duration.maxDays ? String(duration.maxDays) : "",
-            priceMultiplier: String(duration.priceMultiplier),
-            discountLabel: duration.discountLabel || "",
-        });
-        setIsModalOpen(true);
-    };
-
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setEditingDuration(null);
-        setFormData({
+    const {
+        isModalOpen,
+        editingEntity: editingDuration,
+        formData,
+        setFormData,
+        openCreateModal,
+        openEditModal,
+        closeModal,
+    } = useCrudModal<RentalDuration, { rangeName: string; minDays: string; maxDays: string; priceMultiplier: string; discountLabel: string }>({
+        initialFormData: {
             rangeName: "",
             minDays: "",
             maxDays: "",
             priceMultiplier: "1",
             discountLabel: "",
-        });
-    };
+        },
+        mapEntityToFormData: (duration) => ({
+            rangeName: duration.rangeName,
+            minDays: String(duration.minDays),
+            maxDays: duration.maxDays ? String(duration.maxDays) : "",
+            priceMultiplier: String(duration.priceMultiplier),
+            discountLabel: duration.discountLabel || "",
+        }),
+    });
 
     const columns: Column<RentalDuration>[] = [
         {
@@ -364,7 +384,7 @@ export default function DurationsPage() {
                     type="button"
                     variant="secondary"
                     size="sm"
-                    onClick={() => handleEdit(item)}
+                    onClick={() => openEditModal(item)}
                 >
                     Edit
                 </Button>
@@ -373,60 +393,50 @@ export default function DurationsPage() {
     ];
 
     return (
-        <div className="space-y-4">
-            <PageHeader
-                title="Rental Durations"
-                rightActions={
-                    <div className="flex gap-3">
-                        {durations.length === 0 && (
-                            <Form method="post">
-                                <input type="hidden" name="intent" value="seed" />
-                                <Button type="submit" variant="secondary">
-                                    Load Default Data
-                                </Button>
-                            </Form>
-                        )}
-                        <Button
-                            variant="primary"
-                            icon={<PlusIcon className="w-5 h-5" />}
-                            onClick={() => setIsModalOpen(true)}
-                        >
-                            Add
+        <AdminCrudModalPage
+            title="Rental Durations"
+            addLabel="Add"
+            onAdd={openCreateModal}
+            headerExtras={
+                durations.length === 0 ? (
+                    <Form method="post">
+                        <input type="hidden" name="intent" value="seed" />
+                        <Button type="submit" variant="secondary">
+                            Load Default Data
                         </Button>
+                    </Form>
+                ) : null
+            }
+            tableContent={
+                durations.length > 0 ? (
+                    <DataTable
+                        columns={columns}
+                        data={durations}
+                        disablePagination={true}
+                        emptyTitle="No durations configured"
+                        emptyDescription="Add rental duration periods to get started"
+                    />
+                ) : (
+                    <div className="bg-white rounded-3xl shadow-sm p-12 py-4">
+                        <div className="text-center">
+                            <ClockIcon />
+                            <h3 className="mt-4 text-lg font-medium text-gray-900">No durations configured</h3>
+                            <p className="mt-2 text-sm text-gray-500">
+                                Set up rental duration periods and pricing rules
+                            </p>
+                        </div>
                     </div>
-                }
-            />
-
-            {durations.length > 0 ? (
-                <DataTable
-                    columns={columns}
-                    data={durations}
-                    disablePagination={true}
-                    emptyTitle="No durations configured"
-                    emptyDescription="Add rental duration periods to get started"
-                />
-            ) : (
-                <div className="bg-white rounded-3xl shadow-sm p-12 py-4">
-                    <div className="text-center">
-                        <ClockIcon />
-                        <h3 className="mt-4 text-lg font-medium text-gray-900">No durations configured</h3>
-                        <p className="mt-2 text-sm text-gray-500">
-                            Set up rental duration periods and pricing rules
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            <Modal
-                title={editingDuration ? "Edit Rental Duration" : "Add Rental Duration"}
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                size="md"
-            >
-                <Form method="post" className="space-y-4" onSubmit={handleCloseModal}>
-                    <input type="hidden" name="intent" value={editingDuration ? "update" : "create"} />
-                    {editingDuration && <input type="hidden" name="id" value={editingDuration.id} />}
-
+                )
+            }
+            modalTitle={editingDuration ? "Edit Rental Duration" : "Add Rental Duration"}
+            isModalOpen={isModalOpen}
+            onCloseModal={closeModal}
+            formIntent={editingDuration ? "update" : "create"}
+            editingId={editingDuration?.id}
+            onFormSubmit={closeModal}
+            submitLabel={editingDuration ? "Update Duration" : "Create Duration"}
+            formChildren={
+                <>
                     <Input
                         label="Range Name"
                         name="rangeName"
@@ -452,7 +462,6 @@ export default function DurationsPage() {
                         type="number"
                         value={formData.maxDays}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, maxDays: e.target.value })}
-
                     />
 
                     <Input
@@ -473,15 +482,9 @@ export default function DurationsPage() {
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, discountLabel: e.target.value })}
                         placeholder="e.g., -5%"
                     />
-
-                    <div className="flex justify-end gap-3 pt-4">
-                        <Button type="submit" variant="primary">
-                            {editingDuration ? "Update Duration" : "Create Duration"}
-                        </Button>
-                    </div>
-                </Form>
-            </Modal>
-        </div>
+                </>
+            }
+        />
     );
 }
 

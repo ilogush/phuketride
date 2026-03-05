@@ -9,6 +9,7 @@ import type { CarRuleItem } from "~/components/public/car/types";
 
 interface CarRulesSectionProps {
   rules: CarRuleItem[];
+  policyLinks?: Array<{ href: string; label: string }>;
 }
 
 const iconMap: Record<string, ComponentType<{ className?: string }>> = {
@@ -18,7 +19,7 @@ const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   offroad: ExclamationTriangleIcon,
 };
 
-export default function CarRulesSection({ rules }: CarRulesSectionProps) {
+export default function CarRulesSection({ rules, policyLinks = [] }: CarRulesSectionProps) {
   if (!rules.length) {
     return null;
   }
@@ -26,11 +27,15 @@ export default function CarRulesSection({ rules }: CarRulesSectionProps) {
   return (
     <section className="rounded-2xl border border-gray-200 p-4 space-y-4">
       <h2 className="text-xl font-semibold text-gray-800">Rules of the road</h2>
-      <div className="text-sm text-gray-500 flex flex-wrap gap-3">
-        <a href="/legal" className="underline hover:text-gray-700">Terms & Policies</a>
-        <a href="/insurance-protection" className="underline hover:text-gray-700">Insurance Docs</a>
-        <a href="/contact-support" className="underline hover:text-gray-700">Support Guidelines</a>
-      </div>
+      {policyLinks.length ? (
+        <div className="text-sm text-gray-500 flex flex-wrap gap-3">
+          {policyLinks.map((link) => (
+            <a key={`${link.href}-${link.label}`} href={link.href} className="underline hover:text-gray-700">
+              {link.label}
+            </a>
+          ))}
+        </div>
+      ) : null}
       <div className="space-y-4 text-gray-800">
         {rules.map((rule) => {
           const Icon = iconMap[rule.iconKey] || ExclamationTriangleIcon;

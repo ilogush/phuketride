@@ -1,18 +1,20 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { useState } from "react";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
-import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
-import PageHeader from "~/components/dashboard/PageHeader";
-import { PlusIcon } from "@heroicons/react/24/outline";
+import AdminCrudModalPage from "~/components/dashboard/AdminCrudModalPage";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { getRequestMetadata, quickAudit } from "~/lib/audit-logger";
 import { QUERY_LIMITS } from "~/lib/query-limits";
+import { z } from "zod";
+import { useCrudModal } from "~/lib/useCrudModal";
+import { parseWithSchema } from "~/lib/validation.server";
+import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
+import { runMutationWithFeedback } from "~/lib/admin-actions";
 
 interface Hotel {
     id: number;
@@ -59,120 +61,159 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
     const formData = await request.formData();
-    const intent = formData.get("intent");
+    const parsed = parseWithSchema(
+        z
+        .discriminatedUnion("intent", [
+            z.object({
+                intent: z.literal("delete"),
+                id: z.coerce.number().int().positive("Hotel id is required"),
+            }),
+            z.object({
+                intent: z.literal("create"),
+                name: z.string().trim().min(1, "Hotel name is required").max(200, "Hotel name is too long"),
+                locationId: z.coerce.number().int().positive("Location is required"),
+                districtId: z.coerce.number().int().positive("District is required"),
+                address: z.string().trim().max(500, "Address is too long").optional().nullable(),
+            }),
+            z.object({
+                intent: z.literal("update"),
+                id: z.coerce.number().int().positive("Hotel id is required"),
+                name: z.string().trim().min(1, "Hotel name is required").max(200, "Hotel name is too long"),
+                locationId: z.coerce.number().int().positive("Location is required"),
+                districtId: z.coerce.number().int().positive("District is required"),
+                address: z.string().trim().max(500, "Address is too long").optional().nullable(),
+            }),
+        ]),
+        {
+            intent: formData.get("intent"),
+            id: formData.get("id"),
+            name: formData.get("name"),
+            locationId: formData.get("locationId"),
+            districtId: formData.get("districtId"),
+            address: formData.get("address"),
+        },
+        "Invalid action payload"
+    );
+    if (!parsed.ok) {
+        return redirectWithError("/hotels", parsed.error);
+    }
     const metadata = getRequestMetadata(request);
 
-    if (intent === "delete") {
-        const id = Number(formData.get("id"));
-        try {
-            await context.cloudflare.env.DB
-                .prepare("DELETE FROM hotels WHERE id = ?")
-                .bind(id)
-                .run();
-            quickAudit({
-                db: context.cloudflare.env.DB,
-                userId: user.id,
-                role: user.role,
-                companyId: user.companyId,
-                entityType: "hotel",
-                entityId: id,
-                action: "delete",
-                ...metadata,
-            });
-            return redirect("/hotels?success=Hotel deleted successfully");
-        } catch {
-            return redirect("/hotels?error=Failed to delete hotel");
-        }
+    if (parsed.data.intent === "delete") {
+        const id = parsed.data.id;
+        return runMutationWithFeedback(
+            async () => {
+                await context.cloudflare.env.DB
+                    .prepare("DELETE FROM hotels WHERE id = ?")
+                    .bind(id)
+                    .run();
+                quickAudit({
+                    db: context.cloudflare.env.DB,
+                    userId: user.id,
+                    role: user.role,
+                    companyId: user.companyId,
+                    entityType: "hotel",
+                    entityId: id,
+                    action: "delete",
+                    ...metadata,
+                });
+            },
+            {
+                successPath: "/hotels",
+                successMessage: "Hotel deleted successfully",
+                errorMessage: "Failed to delete hotel",
+            }
+        );
     }
 
-    if (intent === "create") {
-        const name = formData.get("name") as string;
-        const locationId = Number(formData.get("locationId"));
-        const districtId = Number(formData.get("districtId"));
-        const address = formData.get("address") as string | null;
+    if (parsed.data.intent === "create") {
+        const { name, locationId, districtId } = parsed.data;
+        const address = parsed.data.address || null;
 
-        try {
-            await context.cloudflare.env.DB
-                .prepare("INSERT INTO hotels (name, location_id, district_id, address) VALUES (?, ?, ?, ?)")
-                .bind(name, locationId, districtId, address || null)
-                .run();
-            quickAudit({
-                db: context.cloudflare.env.DB,
-                userId: user.id,
-                role: user.role,
-                companyId: user.companyId,
-                entityType: "hotel",
-                action: "create",
-                afterState: { name, locationId, districtId, address: address || null },
-                ...metadata,
-            });
-            return redirect("/hotels?success=Hotel created successfully");
-        } catch {
-            return redirect("/hotels?error=Failed to create hotel");
-        }
+        return runMutationWithFeedback(
+            async () => {
+                await context.cloudflare.env.DB
+                    .prepare("INSERT INTO hotels (name, location_id, district_id, address) VALUES (?, ?, ?, ?)")
+                    .bind(name, locationId, districtId, address || null)
+                    .run();
+                quickAudit({
+                    db: context.cloudflare.env.DB,
+                    userId: user.id,
+                    role: user.role,
+                    companyId: user.companyId,
+                    entityType: "hotel",
+                    action: "create",
+                    afterState: { name, locationId, districtId, address: address || null },
+                    ...metadata,
+                });
+            },
+            {
+                successPath: "/hotels",
+                successMessage: "Hotel created successfully",
+                errorMessage: "Failed to create hotel",
+            }
+        );
     }
 
-    if (intent === "update") {
-        const id = Number(formData.get("id"));
-        const name = formData.get("name") as string;
-        const locationId = Number(formData.get("locationId"));
-        const districtId = Number(formData.get("districtId"));
-        const address = formData.get("address") as string | null;
+    if (parsed.data.intent === "update") {
+        const { id, name, locationId, districtId } = parsed.data;
+        const address = parsed.data.address || null;
 
-        try {
-            await context.cloudflare.env.DB
-                .prepare("UPDATE hotels SET name = ?, location_id = ?, district_id = ?, address = ? WHERE id = ?")
-                .bind(name, locationId, districtId, address || null, id)
-                .run();
-            quickAudit({
-                db: context.cloudflare.env.DB,
-                userId: user.id,
-                role: user.role,
-                companyId: user.companyId,
-                entityType: "hotel",
-                entityId: id,
-                action: "update",
-                afterState: { name, locationId, districtId, address: address || null },
-                ...metadata,
-            });
-            return redirect("/hotels?success=Hotel updated successfully");
-        } catch {
-            return redirect("/hotels?error=Failed to update hotel");
-        }
+        return runMutationWithFeedback(
+            async () => {
+                await context.cloudflare.env.DB
+                    .prepare("UPDATE hotels SET name = ?, location_id = ?, district_id = ?, address = ? WHERE id = ?")
+                    .bind(name, locationId, districtId, address || null, id)
+                    .run();
+                quickAudit({
+                    db: context.cloudflare.env.DB,
+                    userId: user.id,
+                    role: user.role,
+                    companyId: user.companyId,
+                    entityType: "hotel",
+                    entityId: id,
+                    action: "update",
+                    afterState: { name, locationId, districtId, address: address || null },
+                    ...metadata,
+                });
+            },
+            {
+                successPath: "/hotels",
+                successMessage: "Hotel updated successfully",
+                errorMessage: "Failed to update hotel",
+            }
+        );
     }
 
-    return redirect("/hotels?error=Invalid action");
+    return redirectWithError("/hotels", "Invalid action");
 }
 
 export default function HotelsPage() {
     const { hotels, locations, districts } = useLoaderData<typeof loader>();
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingHotel, setEditingHotel] = useState<Hotel | null>(null);
     useUrlToast();
     const { validateLatinInput } = useLatinValidation();
-    const [formData, setFormData] = useState({
-        name: "",
-        locationId: "1",
-        districtId: "1",
-        address: "",
-    });
-
-    const handleEdit = (hotel: Hotel) => {
-        setEditingHotel(hotel);
-        setFormData({
+    const {
+        isModalOpen,
+        editingEntity: editingHotel,
+        formData,
+        setFormData,
+        openCreateModal,
+        openEditModal,
+        closeModal,
+    } = useCrudModal<Hotel, { name: string; locationId: string; districtId: string; address: string }>({
+        initialFormData: {
+            name: "",
+            locationId: "1",
+            districtId: "1",
+            address: "",
+        },
+        mapEntityToFormData: (hotel) => ({
             name: hotel.name,
             locationId: String(hotel.locationId),
             districtId: String(hotel.districtId),
             address: hotel.address || "",
-        });
-        setIsModalOpen(true);
-    };
-
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setEditingHotel(null);
-        setFormData({ name: "", locationId: "1", districtId: "1", address: "" });
-    };
+        }),
+    });
 
     const getLocationName = (locationId: number) => {
         return locations.find((l) => l.id === locationId)?.name || "-";
@@ -226,7 +267,7 @@ export default function HotelsPage() {
                         type="button"
                         variant="secondary"
                         size="sm"
-                        onClick={() => handleEdit(item)}
+                        onClick={() => openEditModal(item)}
                     >
                         Edit
                     </Button>
@@ -243,38 +284,28 @@ export default function HotelsPage() {
     ];
 
     return (
-        <div className="space-y-4">
-            <PageHeader
-                title="Hotels"
-                rightActions={
-                    <Button
-                        variant="primary"
-                        icon={<PlusIcon className="w-5 h-5" />}
-                        onClick={() => setIsModalOpen(true)}
-                    >
-                        Add
-                    </Button>
-                }
-            />
-
-            <DataTable
-                columns={columns}
-                data={hotels}
-                disablePagination={true}
-                emptyTitle="No hotels configured"
-                emptyDescription="Add hotels to get started"
-            />
-
-            <Modal
-                title={editingHotel ? "Edit Hotel" : "Add Hotel"}
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                size="md"
-            >
-                <Form method="post" className="space-y-4" onSubmit={handleCloseModal}>
-                    <input type="hidden" name="intent" value={editingHotel ? "update" : "create"} />
-                    {editingHotel && <input type="hidden" name="id" value={editingHotel.id} />}
-
+        <AdminCrudModalPage
+            title="Hotels"
+            addLabel="Add"
+            onAdd={openCreateModal}
+            tableContent={
+                <DataTable
+                    columns={columns}
+                    data={hotels}
+                    disablePagination={true}
+                    emptyTitle="No hotels configured"
+                    emptyDescription="Add hotels to get started"
+                />
+            }
+            modalTitle={editingHotel ? "Edit Hotel" : "Add Hotel"}
+            isModalOpen={isModalOpen}
+            onCloseModal={closeModal}
+            formIntent={editingHotel ? "update" : "create"}
+            editingId={editingHotel?.id}
+            onFormSubmit={closeModal}
+            submitLabel={editingHotel ? "Update Hotel" : "Create Hotel"}
+            formChildren={
+                <>
                     <Input
                         label="Hotel Name"
                         name="name"
@@ -321,14 +352,8 @@ export default function HotelsPage() {
                         }}
                         placeholder="Hotel address"
                     />
-
-                    <div className="flex justify-end gap-3 pt-4">
-                        <Button type="submit" variant="primary">
-                            {editingHotel ? "Update Hotel" : "Create Hotel"}
-                        </Button>
-                    </div>
-                </Form>
-            </Modal>
-        </div>
+                </>
+            }
+        />
     );
 }

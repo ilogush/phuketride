@@ -29,6 +29,8 @@ import {
     DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
+import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
 type ExistingContractRow = {
     id: number;
     client_id: string;
@@ -206,6 +208,28 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 
     try {
         const formData = await request.formData();
+        const parsedEnvelope = parseWithSchema(
+            z
+            .object({
+                company_car_id: z.coerce.number().int().positive().optional(),
+                start_date: z.string().trim().optional(),
+                end_date: z.string().trim().optional(),
+                client_name: z.string().trim().optional(),
+                client_surname: z.string().trim().optional(),
+                client_phone: z.string().trim().optional(),
+            }),
+            {
+                company_car_id: formData.get("company_car_id"),
+                start_date: formData.get("start_date"),
+                end_date: formData.get("end_date"),
+                client_name: formData.get("client_name"),
+                client_surname: formData.get("client_surname"),
+                client_phone: formData.get("client_phone"),
+            }
+        );
+        if (!parsedEnvelope.ok) {
+            return redirect(`/contracts?error=${encodeURIComponent(parsedEnvelope.error)}`);
+        }
         const existingContract = await context.cloudflare.env.DB
             .prepare(`
             SELECT

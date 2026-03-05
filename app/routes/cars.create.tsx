@@ -21,6 +21,7 @@ import { calculateSeasonalPrice, getAverageDays } from "~/lib/pricing";
 import { uploadToR2 } from "~/lib/r2.server";
 import { QUERY_LIMITS } from "~/lib/query-limits";
 import { getCachedColors, getCachedFuelTypes } from "~/lib/dictionaries-cache.server";
+import { parseWithSchema } from "~/lib/validation.server";
 
 interface TemplateQueryRow {
     id: number;
@@ -144,9 +145,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
         insuranceExpiry: (formData.get("insuranceExpiry") as string) || null,
         registrationExpiry: (formData.get("registrationExpiry") as string) || null,
         taxRoadExpiry: (formData.get("taxRoadExpiry") as string) || null,
-        fullInsuranceMinDays: formData.get("fullInsuranceMinDays") ? Number(formData.get("fullInsuranceMinDays")) : null,
-        minInsurancePrice: formData.get("fullInsuranceEnabled") === "true"
-            ? (formData.get("minInsurancePrice") ? Number(formData.get("minInsurancePrice")) : null)
+        minRentalDays: formData.get("minRentalDays") ? Number(formData.get("minRentalDays")) : null,
+        insurancePricePerDay: formData.get("fullInsuranceEnabled") === "true"
+            ? (formData.get("insurancePricePerDay") ? Number(formData.get("insurancePricePerDay")) : null)
             : null,
         maxInsurancePrice: formData.get("fullInsuranceEnabled") === "true"
             ? (formData.get("maxInsurancePrice") ? Number(formData.get("maxInsurancePrice")) : null)
@@ -154,10 +155,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
     };
 
     // Validate with Zod
-    const validation = carSchema.safeParse(rawData);
-    if (!validation.success) {
-        const firstError = validation.error.errors[0];
-        return redirect(`/cars/create?error=${encodeURIComponent(firstError.message)}`);
+    const validation = parseWithSchema(carSchema, rawData, "Validation failed");
+    if (!validation.ok) {
+        return redirect(`/cars/create?error=${encodeURIComponent(validation.error)}`);
     }
 
     const validData = validation.data;
@@ -214,8 +214,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
                     company_id, template_id, color_id, license_plate, transmission, engine_volume, fuel_type_id,
                     status, mileage, next_oil_change_mileage, oil_change_interval, price_per_day, deposit,
                     insurance_type, insurance_expiry_date, registration_expiry, tax_road_expiry_date,
-                    min_insurance_price, max_insurance_price, marketing_headline, description, photos, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    insurance_price_per_day, max_insurance_price, min_rental_days, marketing_headline, description, photos, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `)
             .bind(
                 companyId,
@@ -235,8 +235,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 validData.insuranceExpiry ? new Date(validData.insuranceExpiry.split('-').reverse().join('-')).toISOString() : null,
                 validData.registrationExpiry ? new Date(validData.registrationExpiry.split('-').reverse().join('-')).toISOString() : null,
                 validData.taxRoadExpiry ? new Date(validData.taxRoadExpiry.split('-').reverse().join('-')).toISOString() : null,
-                validData.minInsurancePrice,
+                validData.insurancePricePerDay,
                 validData.maxInsurancePrice,
+                validData.minRentalDays,
                 marketingHeadline,
                 description,
                 photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
@@ -555,11 +556,12 @@ export default function CreateCarPage() {
                         <Select
                             label="Insurance Type"
                             name="insuranceType"
+                            hidePlaceholderOption
                             options={[
-                                { id: "Business Insurance", name: "Business Insurance" },
                                 { id: "First Class Insurance", name: "First Class Insurance" },
+                                { id: "Business Insurance", name: "Business Insurance" },
                             ]}
-                            placeholder="Select Insurance Type"
+                            defaultValue="First Class Insurance"
                         />
                         <Input
                             label="Insurance Expiry"
@@ -585,6 +587,15 @@ export default function CreateCarPage() {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <Input
+                            label="Min Rental Days"
+                            name="minRentalDays"
+                            type="number"
+                            min={1}
+                            step={1}
+                            placeholder="1"
+                            defaultValue="1"
+                        />
                         <div>
                             <label className="block text-sm text-gray-500 mb-1">Full Insurance</label>
                             <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
@@ -596,17 +607,8 @@ export default function CreateCarPage() {
                         {fullInsuranceEnabled && (
                             <>
                                 <Input
-                                    label="Min Days"
-                                    name="fullInsuranceMinDays"
-                                    type="number"
-                                    min={1}
-                                    step={1}
-                                    placeholder="5"
-                                    defaultValue="5"
-                                />
-                                <Input
-                                    label="Price (short term)"
-                                    name="minInsurancePrice"
+                                    label="Insurance Price per day"
+                                    name="insurancePricePerDay"
                                     type="number"
                                     min={0}
                                     step={0.01}
@@ -615,7 +617,7 @@ export default function CreateCarPage() {
                                     addonRight="฿"
                                 />
                                 <Input
-                                    label="Price (long term)"
+                                    label="Max Insurance Price"
                                     name="maxInsurancePrice"
                                     type="number"
                                     min={0}

@@ -19,6 +19,7 @@ import { useToast } from "~/lib/toast";
 import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
 import { calculateBaseTripTotal } from "~/lib/pricing";
 import { QUERY_LIMITS } from "~/lib/query-limits";
+import { parseWithSchema } from "~/lib/validation.server";
 
 const bookingSchema = z.object({
     carId: z.string().min(1, "Car is required"),
@@ -111,9 +112,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
     const data = Object.fromEntries(formData);
 
-    const result = bookingSchema.safeParse(data);
-    if (!result.success) {
-        return { error: "Validation failed", details: result.error.flatten() };
+    const result = parseWithSchema(bookingSchema, data, "Validation failed");
+    if (!result.ok) {
+        return { error: result.error };
     }
 
     const { carId, startDate, endDate, clientName, clientSurname, clientPhone, clientEmail,

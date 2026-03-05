@@ -117,6 +117,14 @@ export async function requireRole(
     return user;
 }
 
+export async function requireAdmin(request: Request): Promise<SessionUser> {
+    const user = await requireAuth(request);
+    if (user.role !== "admin") {
+        throw new Response("Forbidden", { status: 403 });
+    }
+    return user;
+}
+
 // Login user
 export async function login(
     db: D1Database,

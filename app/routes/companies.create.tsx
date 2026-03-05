@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdmin } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
@@ -17,6 +17,7 @@ import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { formatContactPhone } from "~/lib/phone";
 import { QUERY_LIMITS } from "~/lib/query-limits";
+import { parseWithSchema } from "~/lib/validation.server";
 import {
     BuildingOfficeIcon,
     BanknotesIcon,
@@ -46,10 +47,7 @@ interface UserRow {
 }
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    if (user.role !== "admin") {
-        throw new Response("Forbidden", { status: 403 });
-    }
+    const user = await requireAdmin(request);
     const [locationsList, districtsList, usersList] = await Promise.all([
         context.cloudflare.env.DB.prepare(`SELECT id, name FROM locations ORDER BY name ASC LIMIT ${QUERY_LIMITS.LARGE}`).all().then((r: { results?: LocationRow[] }) => r.results || []),
         context.cloudflare.env.DB.prepare(`SELECT id, name, location_id AS locationId, delivery_price AS deliveryPrice FROM districts ORDER BY name ASC LIMIT ${QUERY_LIMITS.XL}`).all().then((r: { results?: DistrictRow[] }) => r.results || []),
@@ -69,10 +67,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    if (user.role !== "admin") {
-        throw new Response("Forbidden", { status: 403 });
-    }
+    const user = await requireAdmin(request);
     const formData = await request.formData();
 
     const parseMoneyValue = (value: FormDataEntryValue | null): number | null => {
@@ -114,10 +109,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
     };
 
     // Validate with Zod
-    const validation = companySchema.safeParse(rawData);
-    if (!validation.success) {
-        const firstError = validation.error.errors[0];
-        return redirect(`/companies/create?error=${encodeURIComponent(firstError.message)}`);
+    const validation = parseWithSchema(companySchema, rawData, "Validation failed");
+    if (!validation.ok) {
+        return redirect(`/companies/create?error=${encodeURIComponent(validation.error)}`);
     }
 
     const validData = validation.data;

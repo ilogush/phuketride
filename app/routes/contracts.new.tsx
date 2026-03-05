@@ -31,6 +31,8 @@ import {
 import { getCachedActiveCurrenciesForCompany } from "~/lib/dictionaries-cache.server";
 import type { CurrencyRow as ContractNewCurrencyRow } from "~/lib/db-types";
 import { parseDisplayDateTimeToDate } from "~/lib/date-windows";
+import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
 import {
     TruckIcon,
     CalendarIcon,
@@ -106,6 +108,33 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
 
     try {
+        const parsedEnvelope = parseWithSchema(
+            z
+            .object({
+                company_car_id: z.coerce.number().int().positive("Car is required"),
+                client_passport: z.string().trim().min(1, "Client passport is required"),
+                client_name: z.string().trim().min(1, "Client name is required"),
+                client_surname: z.string().trim().min(1, "Client surname is required"),
+                client_phone: z.string().trim().min(1, "Client phone is required"),
+                start_date: z.string().trim().min(1, "Start date is required"),
+                end_date: z.string().trim().min(1, "End date is required"),
+                total_amount: z.coerce.number().positive("Total amount must be greater than 0"),
+            }),
+            {
+                company_car_id: formData.get("company_car_id"),
+                client_passport: formData.get("client_passport"),
+                client_name: formData.get("client_name"),
+                client_surname: formData.get("client_surname"),
+                client_phone: formData.get("client_phone"),
+                start_date: formData.get("start_date"),
+                end_date: formData.get("end_date"),
+                total_amount: formData.get("total_amount"),
+            }
+        );
+        if (!parsedEnvelope.ok) {
+            throw new Error(parsedEnvelope.error);
+        }
+
         const parseDocPhotos = (value: FormDataEntryValue | null): UploadPhotoItem[] => {
             if (typeof value !== "string") return [];
             const trimmed = value.trim();

@@ -7,6 +7,7 @@ import Button from "~/components/dashboard/Button";
 import { useState } from "react";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { colorSchema } from "~/schemas/dictionary";
+import { parseWithSchema } from "~/lib/validation.server";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     await requireAuth(request);
@@ -47,10 +48,9 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     };
 
     // Validate with Zod
-    const validation = colorSchema.safeParse(rawData);
-    if (!validation.success) {
-        const firstError = validation.error.errors[0];
-        return redirect(`/colors/${colorId}/edit?error=${encodeURIComponent(firstError.message)}`);
+    const validation = parseWithSchema(colorSchema, rawData, "Validation failed");
+    if (!validation.ok) {
+        return redirect(`/colors/${colorId}/edit?error=${encodeURIComponent(validation.error)}`);
     }
 
     const validData = validation.data;

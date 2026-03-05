@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import Button from "~/components/public/Button";
 import DateRangePicker from "~/components/public/DateRangePicker";
@@ -8,6 +8,7 @@ import {
   ChevronDownIcon,
   HeartIcon,
 } from "@heroicons/react/24/outline";
+import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import { calculateBaseTripTotal } from "~/lib/pricing";
 
 interface CarTripSidebarProps {
@@ -18,6 +19,9 @@ interface CarTripSidebarProps {
   returnDistricts: Array<{ id: number; name: string; isActive?: boolean; deliveryPrice?: number }>;
   initialReturnDistrictId?: number | null;
   pricePerDay: number | null;
+  hostPhone?: string | null;
+  hostEmail?: string | null;
+  hostTelegram?: string | null;
 }
 
 const money = (value: number) => `฿${Math.round(value).toLocaleString()}`;
@@ -54,8 +58,12 @@ export default function CarTripSidebar({
   returnDistricts,
   initialReturnDistrictId,
   pricePerDay,
+  hostPhone,
+  hostEmail,
+  hostTelegram,
 }: CarTripSidebarProps) {
   const [trip, setTrip] = useState<DateRangeValue>(initialRange);
+  const [isFavorite, setIsFavorite] = useState(false);
   const activeDistricts = returnDistricts.filter((d) => d.isActive);
   const districtOptions = activeDistricts.length ? activeDistricts : returnDistricts;
   const initialDistrictId = initialReturnDistrictId && districtOptions.some((d) => d.id === initialReturnDistrictId)
@@ -69,6 +77,13 @@ export default function CarTripSidebar({
   const returnDistrictLabel = districtOptions.find((d) => d.id === returnDistrictId)?.name || pickupDistrict;
   const pickupFee = Number(districtOptions.find((d) => d.id === pickupDistrictId)?.deliveryPrice || 0);
   const returnFee = Number(districtOptions.find((d) => d.id === returnDistrictId)?.deliveryPrice || 0);
+  const favoriteKey = `favorite-car:${carPathSegment || carId}`;
+  const cleanTelegram = String(hostTelegram || "").trim().replace(/^@/, "");
+  const chatHref = cleanTelegram
+    ? `https://t.me/${cleanTelegram}`
+    : hostPhone
+      ? `tel:${hostPhone}`
+      : `mailto:${hostEmail || "host+test@phuketride.com"}`;
 
   const { days, baseTotal, finalTotal } = useMemo(() => {
     const start = parseDateTime(trip.startDate, trip.startTime);
@@ -81,6 +96,32 @@ export default function CarTripSidebar({
       finalTotal: base + pickupFee + returnFee,
     };
   }, [trip, baseDaily, pickupFee, returnFee]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(favoriteKey);
+    setIsFavorite(stored === "1");
+  }, [favoriteKey]);
+
+  const toggleFavorite = () => {
+    const next = !isFavorite;
+    setIsFavorite(next);
+    if (typeof window === "undefined") return;
+    if (next) {
+      window.localStorage.setItem(favoriteKey, "1");
+    } else {
+      window.localStorage.removeItem(favoriteKey);
+    }
+  };
+
+  const checkoutSearch = new URLSearchParams({
+    pickupDistrictId: String(pickupDistrictId),
+    returnDistrictId: String(returnDistrictId),
+    startDate: trip.startDate,
+    endDate: trip.endDate,
+    startTime: trip.startTime,
+    endTime: trip.endTime,
+  }).toString();
 
   return (
     <aside className="lg:col-span-1">
@@ -162,7 +203,7 @@ export default function CarTripSidebar({
         </div>
 
         <Link
-          to={`/cars/${carPathSegment || carId}/checkout?pickupDistrictId=${pickupDistrictId}&returnDistrictId=${returnDistrictId}`}
+          to={`/cars/${carPathSegment || carId}/checkout?${checkoutSearch}`}
           className="w-full inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"
         >
           Continue
@@ -171,14 +212,19 @@ export default function CarTripSidebar({
 
         <div className="pt-4 border-t border-gray-200">
           <div className="flex items-center gap-3">
-            <Button type="button" className="flex-1 inline-flex items-center justify-center rounded-xl border border-green-600 text-green-600 px-5 py-3 text-base font-medium bg-white hover:bg-green-50 gap-2">
-              <HeartIcon className="w-5 h-5" />
+            <Button type="button" onClick={toggleFavorite} className="flex-1 inline-flex items-center justify-center rounded-xl border border-green-600 text-green-600 px-5 py-3 text-base font-medium bg-white hover:bg-green-50 gap-2">
+              {isFavorite ? <HeartSolidIcon className="w-5 h-5" /> : <HeartIcon className="w-5 h-5" />}
               Favorites
             </Button>
-            <Button type="button" className="flex-1 inline-flex items-center justify-center rounded-xl border border-green-600 text-green-600 px-5 py-3 text-base font-medium bg-white hover:bg-green-50 gap-2">
+            <a
+              href={chatHref}
+              target={chatHref.startsWith("http") ? "_blank" : undefined}
+              rel={chatHref.startsWith("http") ? "noreferrer" : undefined}
+              className="flex-1 inline-flex items-center justify-center rounded-xl border border-green-600 text-green-600 px-5 py-3 text-base font-medium bg-white hover:bg-green-50 gap-2"
+            >
               <ChatBubbleBottomCenterTextIcon className="w-5 h-5" />
               Chat
-            </Button>
+            </a>
           </div>
         </div>
       </div>

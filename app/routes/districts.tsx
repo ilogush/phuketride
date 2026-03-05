@@ -1,16 +1,18 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
-import { useState } from "react";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
-import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
-import PageHeader from "~/components/dashboard/PageHeader";
-import { PlusIcon } from "@heroicons/react/24/outline";
+import AdminCrudModalPage from "~/components/dashboard/AdminCrudModalPage";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { QUERY_LIMITS } from "~/lib/query-limits";
+import { districtActionSchema } from "~/schemas/dictionary";
+import { useCrudModal } from "~/lib/useCrudModal";
+import { parseWithSchema } from "~/lib/validation.server";
+import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
+import { runMutationWithFeedback } from "~/lib/admin-actions";
 
 interface District {
     id: number;
@@ -41,83 +43,96 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 export async function action({ request, context }: ActionFunctionArgs) {
     await requireAuth(request);
     const formData = await request.formData();
-    const intent = formData.get("intent");
+    const parsed = parseWithSchema(
+        districtActionSchema,
+        {
+            intent: formData.get("intent"),
+            id: formData.get("id"),
+            name: formData.get("name"),
+            locationId: formData.get("locationId"),
+            deliveryPrice: formData.get("deliveryPrice"),
+        },
+        "Invalid request data"
+    );
 
-    if (intent === "delete") {
-        const id = Number(formData.get("id"));
-        try {
-            await context.cloudflare.env.DB
-                .prepare("DELETE FROM districts WHERE id = ?")
-                .bind(id)
-                .run();
-            return redirect("/districts?success=District deleted successfully");
-        } catch {
-            return redirect("/districts?error=Failed to delete district");
-        }
+    if (!parsed.ok) {
+        return redirectWithError("/districts", parsed.error);
     }
 
-    if (intent === "create") {
-        const name = formData.get("name") as string;
-        const locationId = Number(formData.get("locationId"));
-        const deliveryPrice = Number(formData.get("deliveryPrice"));
-
-        try {
-            await context.cloudflare.env.DB
-                .prepare("INSERT INTO districts (name, location_id, delivery_price) VALUES (?, ?, ?)")
-                .bind(name, locationId, deliveryPrice)
-                .run();
-            return redirect("/districts?success=District created successfully");
-        } catch {
-            return redirect("/districts?error=Failed to create district");
-        }
+    if (parsed.data.intent === "delete") {
+        return runMutationWithFeedback(
+            async () => {
+                await context.cloudflare.env.DB
+                    .prepare("DELETE FROM districts WHERE id = ?")
+                    .bind(parsed.data.id)
+                    .run();
+            },
+            {
+                successPath: "/districts",
+                successMessage: "District deleted successfully",
+                errorMessage: "Failed to delete district",
+            }
+        );
     }
 
-    if (intent === "update") {
-        const id = Number(formData.get("id"));
-        const name = formData.get("name") as string;
-        const locationId = Number(formData.get("locationId"));
-        const deliveryPrice = Number(formData.get("deliveryPrice"));
-
-        try {
-            await context.cloudflare.env.DB
-                .prepare("UPDATE districts SET name = ?, location_id = ?, delivery_price = ? WHERE id = ?")
-                .bind(name, locationId, deliveryPrice, id)
-                .run();
-            return redirect("/districts?success=District updated successfully");
-        } catch {
-            return redirect("/districts?error=Failed to update district");
-        }
+    if (parsed.data.intent === "create") {
+        return runMutationWithFeedback(
+            async () => {
+                await context.cloudflare.env.DB
+                    .prepare("INSERT INTO districts (name, location_id, delivery_price) VALUES (?, ?, ?)")
+                    .bind(parsed.data.name, parsed.data.locationId, parsed.data.deliveryPrice)
+                    .run();
+            },
+            {
+                successPath: "/districts",
+                successMessage: "District created successfully",
+                errorMessage: "Failed to create district",
+            }
+        );
     }
 
-    return redirect("/districts?error=Invalid action");
+    if (parsed.data.intent === "update") {
+        return runMutationWithFeedback(
+            async () => {
+                await context.cloudflare.env.DB
+                    .prepare("UPDATE districts SET name = ?, location_id = ?, delivery_price = ? WHERE id = ?")
+                    .bind(parsed.data.name, parsed.data.locationId, parsed.data.deliveryPrice, parsed.data.id)
+                    .run();
+            },
+            {
+                successPath: "/districts",
+                successMessage: "District updated successfully",
+                errorMessage: "Failed to update district",
+            }
+        );
+    }
+
+    return redirectWithError("/districts", "Invalid action");
 }
 
 export default function DistrictsPage() {
     const { districts, locations } = useLoaderData<typeof loader>();
     useUrlToast();
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingDistrict, setEditingDistrict] = useState<District | null>(null);
-    const [formData, setFormData] = useState({
-        name: "",
-        locationId: "1",
-        deliveryPrice: "500",
-    });
-
-    const handleEdit = (district: District) => {
-        setEditingDistrict(district);
-        setFormData({
+    const {
+        isModalOpen,
+        editingEntity: editingDistrict,
+        formData,
+        setFormData,
+        openCreateModal,
+        openEditModal,
+        closeModal,
+    } = useCrudModal<District, { name: string; locationId: string; deliveryPrice: string }>({
+        initialFormData: {
+            name: "",
+            locationId: "1",
+            deliveryPrice: "500",
+        },
+        mapEntityToFormData: (district) => ({
             name: district.name,
             locationId: String(district.locationId),
             deliveryPrice: String(district.deliveryPrice),
-        });
-        setIsModalOpen(true);
-    };
-
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setEditingDistrict(null);
-        setFormData({ name: "", locationId: "1", deliveryPrice: "500" });
-    };
+        }),
+    });
 
     const columns: Column<District>[] = [
         {
@@ -157,7 +172,7 @@ export default function DistrictsPage() {
                         type="button"
                         variant="secondary"
                         size="sm"
-                        onClick={() => handleEdit(item)}
+                        onClick={() => openEditModal(item)}
                     >
                         Edit
                     </Button>
@@ -174,38 +189,28 @@ export default function DistrictsPage() {
     ];
 
     return (
-        <div className="space-y-4">
-            <PageHeader
-                title="Districts"
-                rightActions={
-                    <Button
-                        variant="primary"
-                        icon={<PlusIcon className="w-5 h-5" />}
-                        onClick={() => setIsModalOpen(true)}
-                    >
-                        Add
-                    </Button>
-                }
-            />
-
-            <DataTable
-                columns={columns}
-                data={districts}
-                disablePagination={true}
-                emptyTitle="No districts configured"
-                emptyDescription="Adds to get started"
-            />
-
-            <Modal
-                title={editingDistrict ? "Edit District" : "Add"}
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                size="md"
-            >
-                <Form method="post" className="space-y-4" onSubmit={handleCloseModal}>
-                    <input type="hidden" name="intent" value={editingDistrict ? "update" : "create"} />
-                    {editingDistrict && <input type="hidden" name="id" value={editingDistrict.id} />}
-
+        <AdminCrudModalPage
+            title="Districts"
+            addLabel="Add"
+            onAdd={openCreateModal}
+            tableContent={
+                <DataTable
+                    columns={columns}
+                    data={districts}
+                    disablePagination={true}
+                    emptyTitle="No districts configured"
+                    emptyDescription="Adds to get started"
+                />
+            }
+            modalTitle={editingDistrict ? "Edit District" : "Add"}
+            isModalOpen={isModalOpen}
+            onCloseModal={closeModal}
+            formIntent={editingDistrict ? "update" : "create"}
+            editingId={editingDistrict?.id}
+            onFormSubmit={closeModal}
+            submitLabel={editingDistrict ? "Update District" : "Create District"}
+            formChildren={
+                <>
                     <Input
                         label="District Name"
                         name="name"
@@ -237,14 +242,8 @@ export default function DistrictsPage() {
                         placeholder="500"
                         required
                     />
-
-                    <div className="flex justify-end gap-3 pt-4">
-                        <Button type="submit" variant="primary">
-                            {editingDistrict ? "Update District" : "Create District"}
-                        </Button>
-                    </div>
-                </Form>
-            </Modal>
-        </div>
+                </>
+            }
+        />
     );
 }

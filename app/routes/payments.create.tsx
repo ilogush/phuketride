@@ -13,6 +13,7 @@ import { useUrlToast } from "~/lib/useUrlToast";
 import { paymentSchema } from "~/schemas/payment";
 import { QUERY_LIMITS } from "~/lib/query-limits";
 import { getCachedCurrencies, getCachedPaymentTypes } from "~/lib/dictionaries-cache.server";
+import { parseWithSchema } from "~/lib/validation.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     await requireAuth(request);
@@ -45,10 +46,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
     };
 
     // Validate with Zod
-    const validation = paymentSchema.safeParse(rawData);
-    if (!validation.success) {
-        const firstError = validation.error.errors[0];
-        return redirect(`/payments/create?error=${encodeURIComponent(firstError.message)}`);
+    const validation = parseWithSchema(paymentSchema, rawData, "Validation failed");
+    if (!validation.ok) {
+        return redirect(`/payments/create?error=${encodeURIComponent(validation.error)}`);
     }
 
     const validData = validation.data;

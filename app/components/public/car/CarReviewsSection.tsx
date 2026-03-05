@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Button from "~/components/public/Button";
 import { ChevronDownIcon, StarIcon } from "@heroicons/react/24/solid";
 import type { CarRatingSummary, CarReviewItem } from "~/components/public/car/types";
@@ -8,6 +9,9 @@ interface CarReviewsSectionProps {
 }
 
 export default function CarReviewsSection({ rating, reviews }: CarReviewsSectionProps) {
+  const INITIAL_REVIEWS_COUNT = 3;
+  const [visibleCount, setVisibleCount] = useState(INITIAL_REVIEWS_COUNT);
+
   if (!rating && !reviews.length) {
     return null;
   }
@@ -19,6 +23,9 @@ export default function CarReviewsSection({ rating, reviews }: CarReviewsSection
     ["Convenience", rating?.convenience || 0],
     ["Accuracy", rating?.accuracy || 0],
   ] as const;
+
+  const visibleReviews = reviews.slice(0, visibleCount);
+  const hasMoreReviews = visibleCount < reviews.length;
 
   return (
     <section className="rounded-2xl border border-gray-200 p-4 space-y-4">
@@ -47,7 +54,7 @@ export default function CarReviewsSection({ rating, reviews }: CarReviewsSection
 
       {reviews.length ? (
         <div className="pt-4 border-t border-gray-200 space-y-6">
-          {reviews.map((review) => (
+          {visibleReviews.map((review) => (
             <div key={review.id} className="space-y-2">
               <div className="flex items-center gap-3">
                 {review.reviewerAvatarUrl ? (
@@ -79,15 +86,18 @@ export default function CarReviewsSection({ rating, reviews }: CarReviewsSection
               <p className="text-sm text-gray-800 leading-relaxed">{review.reviewText}</p>
             </div>
           ))}
-          <div className="pt-2">
-            <Button
-              type="button"
-              className="inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"
-            >
-              See more
-              <ChevronDownIcon className="w-5 h-5" />
-            </Button>
-          </div>
+          {hasMoreReviews ? (
+            <div className="pt-2">
+              <Button
+                type="button"
+                onClick={() => setVisibleCount(reviews.length)}
+                className="inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"
+              >
+                Show all
+                <ChevronDownIcon className="w-5 h-5" />
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

@@ -1,5 +1,8 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
+import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
+import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
     await requireAuth(request);
@@ -21,21 +24,34 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     }
 
     if (sessionUser.role !== "admin") {
-        return redirect(`/users/${userId}/edit?error=Access denied`);
+        return redirectWithError(`/users/${userId}/edit`, "Access denied");
     }
 
     const formData = await request.formData();
-    const intent = formData.get("intent");
+    const parsed = parseWithSchema(
+        z
+        .object({
+            intent: z.enum(["archive", "unarchive"]),
+        }),
+        {
+            intent: formData.get("intent"),
+        },
+        "Invalid action"
+    );
+    if (!parsed.ok) {
+        return redirectWithError(`/users/${userId}/edit`, "Invalid action");
+    }
+    const intent = parsed.data.intent;
 
     if (intent === "archive") {
         const { archiveUser } = await import("~/lib/archive.server");
         const result = await archiveUser(context.cloudflare.env.DB, userId);
 
         if (result.success) {
-            return redirect(`/users?success=${encodeURIComponent(result.message || "User archived successfully")}`);
+            return redirectWithSuccess("/users", result.message || "User archived successfully");
         }
 
-        return redirect(`/users/${userId}/edit?error=${encodeURIComponent(result.message || result.error || "Failed to archive user")}`);
+        return redirectWithError(`/users/${userId}/edit`, result.message || result.error || "Failed to archive user");
     }
 
     if (intent === "unarchive") {
@@ -43,10 +59,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         const result = await unarchiveUser(context.cloudflare.env.DB, userId);
 
         if (result.success) {
-            return redirect(`/users/${userId}/edit?success=${encodeURIComponent(result.message || "User unarchived successfully")}`);
+            return redirectWithSuccess(`/users/${userId}/edit`, result.message || "User unarchived successfully");
         }
 
-        return redirect(`/users/${userId}/edit?error=${encodeURIComponent(result.message || result.error || "Failed to unarchive user")}`);
+        return redirectWithError(`/users/${userId}/edit`, result.message || result.error || "Failed to unarchive user");
     }
 
     return redirect(`/users/${userId}/edit`);

@@ -10,6 +10,8 @@ import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { formatContactPhone } from "~/lib/phone";
 import { EXTRA_TYPES, getCreateExtraPaymentStmt } from "~/lib/contract-extras.server";
 import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
+import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
 type BookingDetailRow = {
     id: number;
     status: string;
@@ -137,7 +139,20 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
     const bookingId = Number(params.id);
     const formData = await request.formData();
-    const action = formData.get("_action");
+    const actionParsed = parseWithSchema(
+        z
+        .object({
+            action: z.enum(["cancel", "convert"]),
+        }),
+        {
+            action: formData.get("_action"),
+        },
+        "Invalid action"
+    );
+    if (!actionParsed.ok) {
+        return { error: "Invalid action" };
+    }
+    const action = actionParsed.data.action;
 
     try {
         const booking = await context.cloudflare.env.DB

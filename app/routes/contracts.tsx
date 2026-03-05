@@ -138,7 +138,7 @@ export default function ContractsPage() {
             key: "totalAmount",
             label: "Total Amount",
             sortable: true,
-            render: (contract) => contract.totalAmount ? `${contract.totalAmount} THB` : "-"
+            render: (contract) => contract.totalAmount ? `${contract.totalAmount} ฿` : "-"
         },
         {
             key: "status",

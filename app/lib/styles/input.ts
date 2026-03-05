@@ -12,4 +12,4 @@ export const selectBaseStyles = `block w-full h-10 rounded-xl text-sm py-2.5 px-
 
 export const selectErrorStyles = `block w-full h-10 rounded-xl text-sm py-2.5 px-4 bg-white text-gray-800 border border-gray-300 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors ${autofillStyles} ${stateModifiers}`
 
-export const textareaBaseStyles = `block w-full rounded-3xl text-sm py-2.5 px-4 bg-white text-gray-800 border border-gray-300 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-sm placeholder:text-gray-400 resize-vertical ${autofillStyles} ${stateModifiers}`
+export const textareaBaseStyles = `block w-full rounded-xl text-sm py-2.5 px-4 bg-white text-gray-800 border border-gray-300 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-sm placeholder:text-gray-400 resize-vertical ${autofillStyles} ${stateModifiers}`

@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdmin } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -8,10 +8,7 @@ import { PlusIcon, SwatchIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    if (user.role !== "admin") {
-        throw new Response("Forbidden", { status: 403 });
-    }
+    const user = await requireAdmin(request);
     return { user };
 }
 

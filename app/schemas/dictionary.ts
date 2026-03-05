@@ -21,6 +21,26 @@ export const districtSchema = z.object({
     isActive: z.boolean().optional(),
 });
 
+const districtActionBaseSchema = z.object({
+    name: z.string().trim().min(1, "District name is required").max(200, "District name is too long"),
+    locationId: z.coerce.number().int().positive("Location is required"),
+    deliveryPrice: z.coerce.number().min(0, "Delivery price must be 0 or greater"),
+});
+
+export const districtActionSchema = z.discriminatedUnion("intent", [
+    z.object({
+        intent: z.literal("delete"),
+        id: z.coerce.number().int().positive("District id is required"),
+    }),
+    districtActionBaseSchema.extend({
+        intent: z.literal("create"),
+    }),
+    districtActionBaseSchema.extend({
+        intent: z.literal("update"),
+        id: z.coerce.number().int().positive("District id is required"),
+    }),
+]);
+
 export const hotelSchema = z.object({
     name: z.string().min(1, "Name is required").max(200, "Name is too long"),
     districtId: z.number().int().positive("District is required"),

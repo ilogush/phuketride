@@ -1,4 +1,6 @@
 import type { ActionFunctionArgs } from "react-router";
+import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
 
 export async function action({ request, context }: ActionFunctionArgs) {
   if (request.method.toUpperCase() !== "POST") {
@@ -6,15 +8,27 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
 
   try {
-    const payload = (await request.json()) as {
-      district?: unknown;
-      query?: unknown;
-      source?: unknown;
-    };
+    const payload = await request.json();
+    const parsed = parseWithSchema(
+      z
+      .object({
+        district: z.string().trim().min(1, "district is required"),
+        query: z.string().trim().optional().nullable(),
+        source: z.string().trim().optional().nullable(),
+      }),
+      payload,
+      "invalid payload"
+    );
+    if (!parsed.ok) {
+      return new Response(JSON.stringify({ ok: false, error: parsed.error }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      });
+    }
 
-    const district = typeof payload.district === "string" ? payload.district.trim() : "";
-    const query = typeof payload.query === "string" ? payload.query.trim() : "";
-    const source = typeof payload.source === "string" ? payload.source.trim() : "hero-search";
+    const district = parsed.data.district;
+    const query = parsed.data.query || "";
+    const source = parsed.data.source || "hero-search";
 
     if (!district) {
       return new Response(JSON.stringify({ ok: false, error: "district is required" }), {

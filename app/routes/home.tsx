@@ -170,7 +170,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 export default function Home() {
   const { cars, districts } = useLoaderData<typeof loader>();
   const [activeBodyType, setActiveBodyType] = useState("All");
-  const [openFaqId, setOpenFaqId] = useState<string | null>("faq-1");
+  const [openFaqId, setOpenFaqId] = useState<string | null>(null);
 
   const bodyTypes = useMemo(() => {
     const unique = Array.from(new Set(cars.map((car) => car.bodyType).filter((type) => Boolean(type))));

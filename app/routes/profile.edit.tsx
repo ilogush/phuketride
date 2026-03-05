@@ -1,21 +1,17 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { useLoaderData, Form } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
+import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import BackButton from "~/components/dashboard/BackButton";
-import { Input } from "~/components/dashboard/Input";
-import FormSection from "~/components/dashboard/FormSection";
-import PhotoUpload from "~/components/dashboard/PhotoUpload";
-import DocumentPhotosUpload from "~/components/dashboard/DocumentPhotosUpload";
-import { UserIcon, BuildingOfficeIcon, DocumentTextIcon, LockClosedIcon } from "@heroicons/react/24/outline";
-import { uploadAvatarFromBase64, deleteAvatar, uploadPhotoItemsToR2, type UploadPhotoItem } from "~/lib/r2.server";
+import { uploadAvatarFromBase64, deleteAvatar, uploadPhotoItemsToR2 } from "~/lib/r2.server";
 import ProfileForm from "~/components/dashboard/ProfileForm";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { userSchema } from "~/schemas/user";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
-import { PASSWORD_MIN_LENGTH } from "~/lib/password";
-import { hashPassword } from "~/lib/password.server";
+import { loadProfileReferenceData, parseUploadPhotoItems, resolvePasswordHash } from "~/lib/user-profile.server";
+import { parseWithSchema } from "~/lib/validation.server";
+import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
 
 interface ProfileUserRow {
     id: string;
@@ -56,11 +52,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const fullUser: ProfileUserRow = { ...rawUser };
 
     // Load reference data
-    const [hotels, locations, districts] = await Promise.all([
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM hotels ORDER BY name ASC").all().then((r: { results?: Array<{ id: number; name: string }> }) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT id, name FROM locations ORDER BY name ASC").all().then((r: { results?: Array<{ id: number; name: string }> }) => r.results || []),
-        context.cloudflare.env.DB.prepare("SELECT id, name, location_id AS locationId FROM districts ORDER BY name ASC").all().then((r: { results?: Array<{ id: number; name: string; locationId: number }> }) => r.results || []),
-    ]);
+    const { hotels, locations, districts } = await loadProfileReferenceData(context.cloudflare.env.DB);
 
     return {
         user: fullUser,
@@ -138,44 +130,23 @@ export async function action({ request, context }: ActionFunctionArgs) {
         address: (formData.get("address") as string) || null,
     };
 
-    const parseDocPhotos = (value: FormDataEntryValue | null): UploadPhotoItem[] => {
-        if (typeof value !== "string") return [];
-        const trimmed = value.trim();
-        if (!trimmed) return [];
-        try {
-            const parsed = JSON.parse(trimmed);
-            if (!Array.isArray(parsed)) return [];
-            return parsed.filter((p) => p && typeof p.base64 === "string" && typeof p.fileName === "string");
-        } catch {
-            return [];
-        }
-    };
-
-    const passportPhotosInput = parseDocPhotos(formData.get("passportPhotos"));
-    const driverLicensePhotosInput = parseDocPhotos(formData.get("driverLicensePhotos"));
+    const passportPhotosInput = parseUploadPhotoItems(formData.get("passportPhotos"));
+    const driverLicensePhotosInput = parseUploadPhotoItems(formData.get("driverLicensePhotos"));
     const newPassword = (formData.get("newPassword") as string | null) || "";
     const confirmPassword = (formData.get("confirmPassword") as string | null) || "";
 
     // Validate with Zod
-    const validation = userSchema.safeParse(rawData);
-    if (!validation.success) {
-        const firstError = validation.error.errors[0];
-        return redirect(`/profile/edit?error=${encodeURIComponent(firstError.message)}`);
+    const validation = parseWithSchema(userSchema, rawData, "Validation failed");
+    if (!validation.ok) {
+        return redirectWithError("/profile/edit", validation.error);
     }
 
     const validData = validation.data;
 
     try {
-        const passwordChanged = !!(newPassword || confirmPassword);
-        let passwordHash: string | null = null;
-        if (newPassword || confirmPassword) {
-            if (newPassword.length < PASSWORD_MIN_LENGTH) {
-                return redirect(`/profile/edit?error=${encodeURIComponent(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`)}`);
-            }
-            if (newPassword !== confirmPassword) {
-                return redirect(`/profile/edit?error=${encodeURIComponent("Passwords do not match")}`);
-            }
-            passwordHash = await hashPassword(newPassword);
+        const { passwordChanged, passwordHash, error } = await resolvePasswordHash(newPassword, confirmPassword);
+        if (error) {
+            return redirectWithError("/profile/edit", error);
         }
 
         // Only admin can change role
@@ -247,9 +218,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
             ...metadata,
         });
 
-        return redirect(`/profile?success=${encodeURIComponent("Profile updated successfully")}`);
+        return redirectWithSuccess("/profile", "Profile updated successfully");
     } catch {
-        return redirect(`/profile/edit?error=${encodeURIComponent("Failed to update profile")}`);
+        return redirectWithError("/profile/edit", "Failed to update profile");
     }
 }
 

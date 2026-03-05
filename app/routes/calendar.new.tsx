@@ -12,6 +12,8 @@ import { useUrlToast } from "~/lib/useUrlToast";
 import { CalendarIcon } from "@heroicons/react/24/outline";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { parseDateTimeFromDisplay } from "~/lib/formatters";
+import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -23,11 +25,32 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
 
     try {
-        const title = formData.get("title") as string;
-        const description = formData.get("description") as string || null;
-        const eventType = formData.get("eventType") as string;
-        const startRaw = formData.get("startDate") as string;
-        const endRaw = formData.get("endDate") as string;
+        const parsed = parseWithSchema(
+            z
+            .object({
+                title: z.string().trim().min(1, "Title is required").max(200, "Title is too long"),
+                description: z.string().trim().max(2000, "Description is too long").optional().nullable(),
+                eventType: z.string().trim().min(1, "Event type is required"),
+                startDate: z.string().trim().min(1, "Start date is required"),
+                endDate: z.string().trim().optional().nullable(),
+                color: z.string().trim().optional().nullable(),
+            }),
+            {
+                title: formData.get("title"),
+                description: formData.get("description"),
+                eventType: formData.get("eventType"),
+                startDate: formData.get("startDate"),
+                endDate: formData.get("endDate"),
+                color: formData.get("color"),
+            }
+        );
+        if (!parsed.ok) {
+            throw new Error(parsed.error);
+        }
+        const { title, eventType } = parsed.data;
+        const description = parsed.data.description || null;
+        const startRaw = parsed.data.startDate;
+        const endRaw = parsed.data.endDate || "";
 
         const startDate = new Date(parseDateTimeFromDisplay(startRaw));
         const endDate = endRaw ? new Date(parseDateTimeFromDisplay(endRaw)) : null;
@@ -36,7 +59,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             throw new Error("Invalid start date");
         }
 
-        const color = formData.get("color") as string || "#3B82F6";
+        const color = parsed.data.color || "#3B82F6";
 
         await context.cloudflare.env.DB
             .prepare(

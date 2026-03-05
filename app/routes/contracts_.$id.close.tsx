@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
-import { Form, useLoaderData, useNavigate, useParams } from "react-router";
-import { useState } from "react";
+import { Form, useLoaderData, useNavigate } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import Modal from "~/components/dashboard/Modal";
 import FormSection from "~/components/dashboard/FormSection";
@@ -11,11 +10,13 @@ import { Textarea } from "~/components/dashboard/Textarea";
 import Button from "~/components/dashboard/Button";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { getQuickAuditStmt } from "~/lib/audit-logger";
-import { BanknotesIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { DocumentTextIcon } from "@heroicons/react/24/outline";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { formatDateForDisplay, parseDateTimeFromDisplay } from "~/lib/formatters";
 import { format } from "date-fns";
 import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
+import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
 type CloseContractLoaderRow = {
     id: number;
     companyId: number;
@@ -66,37 +67,6 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
         throw new Response("Forbidden", { status: 403 });
     }
 
-    // Get payment templates for contract closing (show_on_close = 1)
-    const paymentTemplates = await context.cloudflare.env.DB
-        .prepare(`
-            SELECT
-                id, name, sign, description,
-                show_on_create AS showOnCreate,
-                show_on_close AS showOnClose,
-                is_active AS isActive,
-                is_system AS isSystem,
-                company_id AS companyId
-            FROM payment_types
-            WHERE is_active = 1 AND show_on_close = 1 AND (company_id IS NULL OR company_id = ?)
-        `)
-        .bind(user.companyId ?? null)
-        .all()
-        .then((r: { results?: Array<Record<string, unknown>> }) => r.results || []);
-
-    // Get active currencies
-    const currencies = await context.cloudflare.env.DB
-        .prepare(`
-            SELECT
-                id, name, code, symbol,
-                is_active AS isActive,
-                company_id AS companyId
-            FROM currencies
-            WHERE is_active = 1 AND (company_id IS NULL OR company_id = ?)
-        `)
-        .bind(user.companyId ?? null)
-        .all()
-        .then((r: { results?: Array<Record<string, unknown>> }) => r.results || []);
-
     return {
         contract: {
             ...contract,
@@ -115,8 +85,6 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
             },
             client: { name: contract.clientName, surname: contract.clientSurname },
         },
-        paymentTemplates,
-        currencies,
     };
 }
 
@@ -126,6 +94,24 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
     const formData = await request.formData();
 
     try {
+        const parsedEnvelope = parseWithSchema(
+            z
+            .object({
+                actualEndDate: z.string().trim().min(1, "Actual end date is required"),
+                endMileage: z.coerce.number().min(0, "End mileage is required"),
+                fuelLevel: z.string().trim().min(1, "Fuel level is required"),
+                cleanliness: z.string().trim().min(1, "Cleanliness is required"),
+            }),
+            {
+                actualEndDate: formData.get("actualEndDate"),
+                endMileage: formData.get("endMileage"),
+                fuelLevel: formData.get("fuelLevel"),
+                cleanliness: formData.get("cleanliness"),
+            }
+        );
+        if (!parsedEnvelope.ok) {
+            return redirect(`/contracts/${contractId}/close?error=${encodeURIComponent(parsedEnvelope.error)}`);
+        }
         // Parse closing data
         const actualEndDate = new Date(parseDateTimeFromDisplay(formData.get("actualEndDate") as string));
         const endMileage = Number(formData.get("endMileage"));
@@ -166,36 +152,6 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 .bind(actualEndDate.toISOString(), endMileage, fuelLevel, cleanliness, notes, new Date().toISOString(), contractId)
         );
 
-        // Create payments from selected templates
-        const paymentCount = Number(formData.get("paymentCount")) || 0;
-        for (let i = 0; i < paymentCount; i++) {
-            const paymentTypeId = Number(formData.get(`payment_${i}_type`));
-            const amount = Number(formData.get(`payment_${i}_amount`));
-            const currencyId = Number(formData.get(`payment_${i}_currency`));
-            const paymentMethod = formData.get(`payment_${i}_method`) as string;
-
-            if (paymentTypeId && amount > 0) {
-                stmts.push(
-                    context.cloudflare.env.DB
-                        .prepare(`
-                            INSERT INTO payments (
-                                contract_id, payment_type_id, amount, currency_id, payment_method, status, created_by, created_at, updated_at
-                            ) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?)
-                        `)
-                        .bind(
-                            contractId,
-                            paymentTypeId,
-                            amount,
-                            currencyId || null,
-                            paymentMethod || null,
-                            user.id,
-                            new Date().toISOString(),
-                            new Date().toISOString()
-                        )
-                );
-            }
-        }
-
         // Update car status to available
         stmts.push(getUpdateCarStatusStmt(context.cloudflare.env.DB, contract.companyCarId, 'available'));
 
@@ -225,10 +181,9 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
 }
 
 export default function CloseContract() {
-    const { contract, paymentTemplates, currencies } = useLoaderData<typeof loader>();
+    const { contract } = useLoaderData<typeof loader>();
     const navigate = useNavigate();
     const { maskDateTimeInput } = useDateMasking();
-    const [selectedPayments, setSelectedPayments] = useState<Array<{ templateId: number; amount: number; currencyId: number; method: string }>>([]);
 
     const fuelLevels = [
         { id: "full", name: "Full (8/8)" },
@@ -245,12 +200,6 @@ export default function CloseContract() {
     const cleanlinessOptions = [
         { id: "clean", name: "Clean" },
         { id: "dirty", name: "Dirty" },
-    ];
-
-    const paymentMethods = [
-        { id: "cash", name: "Cash" },
-        { id: "bank_transfer", name: "Bank Transfer" },
-        { id: "card", name: "Card" },
     ];
 
     return (
@@ -329,62 +278,6 @@ export default function CloseContract() {
                             defaultValue={contract.cleanliness || "clean"}
                             required
                         />
-                    </div>
-                </FormSection>
-
-                {/* Payments */}
-                <FormSection
-                    title="Payments"
-                    icon={<BanknotesIcon className="w-6 h-6" />}
-                >
-                    <div className="space-y-3">
-                        {paymentTemplates.map((template: { id: number; name: string; sign?: string | null }, index: number) => (
-                            <div key={template.id} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                <div className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        id={`payment_${index}`}
-                                        className="w-4 h-4 text-gray-800 border-gray-300 rounded focus:ring-gray-800"
-                                        onChange={(e) => {
-                                            if (e.target.checked) {
-                                                setSelectedPayments([...selectedPayments, {
-                                                    templateId: template.id,
-                                                    amount: 0,
-                                                    currencyId: currencies[0]?.id || 1,
-                                                    method: 'cash'
-                                                }]);
-                                            } else {
-                                                setSelectedPayments(selectedPayments.filter(p => p.templateId !== template.id));
-                                            }
-                                        }}
-                                    />
-                                    <label htmlFor={`payment_${index}`} className="ml-2 text-sm font-medium text-gray-700">
-                                        {template.name} ({template.sign})
-                                    </label>
-                                </div>
-                                <FormInput
-                                    label="Amount"
-                                    name={`payment_${index}_amount`}
-                                    type="number"
-                                    placeholder="0.00"
-                                    disabled={!selectedPayments.find(p => p.templateId === template.id)}
-                                />
-                                <FormSelect
-                                    label="Currency"
-                                    name={`payment_${index}_currency`}
-                                    options={currencies.map((c: { id: number; code: string; symbol: string }) => ({ id: c.id, name: `${c.code} (${c.symbol})` }))}
-                                    disabled={!selectedPayments.find(p => p.templateId === template.id)}
-                                />
-                                <FormSelect
-                                    label="Method"
-                                    name={`payment_${index}_method`}
-                                    options={paymentMethods}
-                                    disabled={!selectedPayments.find(p => p.templateId === template.id)}
-                                />
-                                <input type="hidden" name={`payment_${index}_type`} value={template.id} />
-                            </div>
-                        ))}
-                        <input type="hidden" name="paymentCount" value={paymentTemplates.length} />
                     </div>
                 </FormSection>
 

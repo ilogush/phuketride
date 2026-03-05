@@ -209,20 +209,22 @@ export default function CarsPage() {
         },
         {
             key: "insuranceType",
-            label: "Insurance Type",
-            render: (car) => car.insuranceType || "-"
+            label: "Insurance",
+            render: (car) => car.insuranceType
+                ? car.insuranceType.replace(/\s+Insurance$/i, "")
+                : "-"
         },
         {
             key: "pricePerDay",
             label: "Price per Day",
             sortable: true,
-            render: (car) => `${Number(car.pricePerDay || 0).toLocaleString("en-US")} THB`
+            render: (car) => `฿${Number(car.pricePerDay || 0).toLocaleString("en-US")}`
         },
         {
             key: "deposit",
             label: "Deposit",
             sortable: true,
-            render: (car) => `${Number(car.deposit || 0).toLocaleString("en-US")} THB`
+            render: (car) => `฿${Number(car.deposit || 0).toLocaleString("en-US")}`
         },
         {
             key: "status",

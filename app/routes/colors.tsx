@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form, Link, Outlet } from "react-router";
 
 import { requireAuth } from "~/lib/auth.server";
@@ -9,6 +9,10 @@ import { PlusIcon, SwatchIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getRequestMetadata, quickAudit } from "~/lib/audit-logger";
 import { QUERY_LIMITS } from "~/lib/query-limits";
+import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
+import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
+import { runMutationWithFeedback } from "~/lib/admin-actions";
 
 interface Color {
     id: number;
@@ -29,35 +33,57 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
     const formData = await request.formData();
-    const intent = formData.get("intent");
+    const parsed = parseWithSchema(
+        z
+        .discriminatedUnion("intent", [
+            z.object({
+                intent: z.literal("delete"),
+                id: z.coerce.number().int().positive("Color id is required"),
+            }),
+            z.object({
+                intent: z.literal("seed"),
+            }),
+        ]),
+        {
+            intent: formData.get("intent"),
+            id: formData.get("id"),
+        },
+        "Invalid action payload"
+    );
+    if (!parsed.ok) {
+        return redirectWithError("/colors", "Invalid action payload");
+    }
     const metadata = getRequestMetadata(request);
 
-    if (intent === "delete") {
-        const id = Number(formData.get("id"));
+    if (parsed.data.intent === "delete") {
+        const id = parsed.data.id;
 
-        try {
-            await context.cloudflare.env.DB
-                .prepare("DELETE FROM colors WHERE id = ?")
-                .bind(id)
-                .run();
-            quickAudit({
-                db: context.cloudflare.env.DB,
-                userId: user.id,
-                role: user.role,
-                companyId: user.companyId,
-                entityType: "color",
-                entityId: id,
-                action: "delete",
-                ...metadata,
-            });
-
-            return redirect("/colors?success=Color deleted successfully");
-        } catch {
-            return redirect("/colors?error=Failed to delete color");
-        }
+        return runMutationWithFeedback(
+            async () => {
+                await context.cloudflare.env.DB
+                    .prepare("DELETE FROM colors WHERE id = ?")
+                    .bind(id)
+                    .run();
+                quickAudit({
+                    db: context.cloudflare.env.DB,
+                    userId: user.id,
+                    role: user.role,
+                    companyId: user.companyId,
+                    entityType: "color",
+                    entityId: id,
+                    action: "delete",
+                    ...metadata,
+                });
+            },
+            {
+                successPath: "/colors",
+                successMessage: "Color deleted successfully",
+                errorMessage: "Failed to delete color",
+            }
+        );
     }
 
-    if (intent === "seed") {
+    if (parsed.data.intent === "seed") {
         const defaultColors = [
             { name: "Yellow", hexCode: "#FFFF00" },
             { name: "White", hexCode: "#FFFFFF" },
@@ -75,30 +101,34 @@ export async function action({ request, context }: ActionFunctionArgs) {
             { name: "Beige", hexCode: "#F5F5DC" },
         ];
 
-        try {
-            for (const color of defaultColors) {
-                await context.cloudflare.env.DB
-                    .prepare("INSERT INTO colors (name, hex_code) VALUES (?, ?)")
-                    .bind(color.name, color.hexCode)
-                    .run();
+        return runMutationWithFeedback(
+            async () => {
+                for (const color of defaultColors) {
+                    await context.cloudflare.env.DB
+                        .prepare("INSERT INTO colors (name, hex_code) VALUES (?, ?)")
+                        .bind(color.name, color.hexCode)
+                        .run();
+                }
+                quickAudit({
+                    db: context.cloudflare.env.DB,
+                    userId: user.id,
+                    role: user.role,
+                    companyId: user.companyId,
+                    entityType: "color",
+                    action: "create",
+                    afterState: { count: defaultColors.length, source: "seed" },
+                    ...metadata,
+                });
+            },
+            {
+                successPath: "/colors",
+                successMessage: "Default colors created successfully",
+                errorMessage: "Failed to create default colors",
             }
-            quickAudit({
-                db: context.cloudflare.env.DB,
-                userId: user.id,
-                role: user.role,
-                companyId: user.companyId,
-                entityType: "color",
-                action: "create",
-                afterState: { count: defaultColors.length, source: "seed" },
-                ...metadata,
-            });
-            return redirect("/colors?success=Default colors created successfully");
-        } catch {
-            return redirect("/colors?error=Failed to create default colors");
-        }
+        );
     }
 
-    return redirect("/colors?error=Invalid action");
+    return redirectWithError("/colors", "Invalid action");
 }
 
 export default function ColorsPage() {

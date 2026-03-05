@@ -4,36 +4,46 @@ import type { CarFeatureItem } from "~/components/public/car/types";
 
 interface CarHostSectionProps {
   title: string;
-  year: number | null;
   companyName: string;
   ownerName: string | null;
   companySlug: string;
   hostTrips: number;
   hostJoinedAt: string | null;
   hostAvatarUrl: string | null;
+  hostRating: number;
   features: CarFeatureItem[];
   specifications: string[];
 }
 
 export default function CarHostSection({
   title,
-  year,
   companyName,
   ownerName,
   companySlug,
   hostTrips,
   hostJoinedAt,
   hostAvatarUrl,
+  hostRating,
   features,
   specifications,
 }: CarHostSectionProps) {
-  const grouped = features.reduce<Record<string, string[]>>((acc, item) => {
-    if (!acc[item.category]) {
-      acc[item.category] = [];
+  const featureNames = features.map((item) => item.name.trim()).filter(Boolean);
+  const merged = [...specifications, ...featureNames];
+  const uniqueItems: string[] = [];
+  const seen = new Set<string>();
+  for (const item of merged) {
+    const key = item.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueItems.push(item);
     }
-    acc[item.category].push(item.name);
-    return acc;
-  }, {});
+  }
+  const chunkSize = Math.ceil(uniqueItems.length / 3);
+  const columns = [
+    uniqueItems.slice(0, chunkSize),
+    uniqueItems.slice(chunkSize, chunkSize * 2),
+    uniqueItems.slice(chunkSize * 2),
+  ] as [string[], string[], string[]];
 
   const displayHostName = ownerName || companyName;
 
@@ -53,7 +63,7 @@ export default function CarHostSection({
             </div>
           )}
           <div className="absolute -bottom-2 left-2 bg-white rounded-full px-2 py-1 border border-gray-200 text-sm font-medium text-gray-800 flex items-center gap-1">
-            5.0 <StarIcon className="w-4 h-4 text-green-600" />
+            {hostRating.toFixed(1)} <StarIcon className="w-4 h-4 text-green-600" />
           </div>
         </div>
         <div>
@@ -71,30 +81,19 @@ export default function CarHostSection({
         </div>
       </div>
 
-      {Object.keys(grouped).length > 0 || specifications.length > 0 ? (
+      {uniqueItems.length > 0 ? (
         <div className="pt-4 border-t border-gray-200 space-y-3">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
-            <span className="text-xl font-semibold text-gray-500">{year ?? ""}</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-gray-800">
-            <div>
-              <p className="font-semibold text-sm mb-1">Specifications</p>
+            {columns.map((items, columnIndex) => (
+              <div key={`col-${columnIndex}`}>
               <div className="space-y-1">
-                {specifications.map((value) => (
+                {items.map((value) => (
                   <p key={`spec-${value}`} className="text-sm">{value}</p>
                 ))}
               </div>
-            </div>
-
-            {Object.entries(grouped).map(([category, values]) => (
-              <div key={category}>
-                <p className="font-semibold text-sm mb-1">{category}</p>
-                <div className="space-y-1">
-                  {values.map((value) => (
-                    <p key={`${category}-${value}`} className="text-sm">{value}</p>
-                  ))}
-                </div>
               </div>
             ))}
           </div>

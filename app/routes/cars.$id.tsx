@@ -11,13 +11,13 @@ import CarReviewsSection from "~/components/public/car/CarReviewsSection";
 import CarTripSidebar from "~/components/public/car/CarTripSidebar";
 import type {
   CarFeatureItem,
-  CarIncludedItem,
   CarRatingSummary,
   CarReviewItem,
-  CarRuleItem,
 } from "~/components/public/car/types";
 import { buildCarPathSegment, buildCompanySlug, parseCarPathSegment } from "~/lib/car-path";
 import { getCarPhotoUrls } from "~/lib/car-photos";
+import { ensureCarDemoContent } from "~/lib/car-demo-content.server";
+import { STATIC_INCLUDED_ITEMS, STATIC_RULES } from "~/components/public/car/static-policy-content";
 
 const formatDate = (date: Date | null) => {
   if (!date) {
@@ -52,6 +52,11 @@ const toDateOrNull = (value: unknown): Date | null => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+const FALLBACK_SEAT_OPTIONS = [4, 5, 7];
+const FALLBACK_FUEL_OPTIONS = ["Petrol", "Hybrid", "Diesel"];
+const FALLBACK_TRANSMISSION_OPTIONS = ["Automatic", "Manual"];
+const FALLBACK_BODY_OPTIONS = ["Sedan", "SUV", "Hatchback"];
+
 export function meta({ data }: Route.MetaArgs) {
   if (!data?.car) {
     return [
@@ -61,7 +66,9 @@ export function meta({ data }: Route.MetaArgs) {
   }
 
   const car = data.car;
-  const carName = `${car.brandName || "Car"} ${car.modelName || "Model"} ${String(car.licensePlate || "").trim() || `#${car.id}`}`.trim();
+  const rawPlate = String(car.licensePlate || "").trim();
+  const displayPlate = rawPlate ? (rawPlate.startsWith("#") ? rawPlate : `#${rawPlate}`) : `#${car.id}`;
+  const carName = `${car.brandName || "Car"} ${car.modelName || "Model"} ${displayPlate}`.trim();
   const district = car.districtName || car.locationName || "Phuket";
   const title = `${carName} | Rent in ${district} | Phuket Ride`;
   const description = `Rent ${carName} in ${district}. Price from ฿${Math.round(car.pricePerDay || 0).toLocaleString()}/day on Phuket Ride.`;
@@ -108,10 +115,18 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
         cc.engine_volume AS engineVolume,
         ct.seats AS seats,
         ct.doors AS doors,
+        ct.drivetrain AS drivetrain,
+        ct.luggage_capacity AS luggageCapacity,
+        ct.rear_camera AS rearCamera,
+        ct.bluetooth_enabled AS bluetoothEnabled,
+        ct.carplay_enabled AS carplayEnabled,
+        ct.android_auto_enabled AS androidAutoEnabled,
+        ct.feature_airbags AS featureAirbags,
         cc.price_per_day AS pricePerDay,
         cc.deposit AS deposit,
-        cc.min_insurance_price AS minInsurancePrice,
+        cc.insurance_price_per_day AS insurancePricePerDay,
         cc.max_insurance_price AS maxInsurancePrice,
+        cc.min_rental_days AS minRentalDays,
         cc.full_insurance_min_price AS fullInsuranceMinPrice,
         cc.full_insurance_max_price AS fullInsuranceMaxPrice,
         cc.photos AS photos,
@@ -119,6 +134,9 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
         c.location_id AS locationId,
         l.name AS locationName,
         d.name AS districtName,
+        c.email AS companyEmail,
+        c.phone AS companyPhone,
+        c.telegram AS companyTelegram,
         u.name AS ownerName,
         u.avatar_url AS ownerAvatarUrl,
         u.created_at AS ownerCreatedAt,
@@ -175,6 +193,12 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
     throw new Response("Car not found", { status: 404 });
   }
   const carId = Number(car.id || 0);
+  await ensureCarDemoContent({
+    db: d1,
+    carId,
+    carTitle: `${String(car.brandName || "Car")} ${String(car.modelName || "Model")}`.trim(),
+    requestUrl: request.url,
+  });
 
   const parsedLocationId = Number(car.locationId);
   const parsedCompanyId = Number(car.companyId);
@@ -205,8 +229,6 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
     tripStatsResult,
     ratingMetricsResult,
     reviewsResult,
-    includedResult,
-    rulesResult,
     featuresResult,
   ] = await Promise.all([
     districtPromise,
@@ -237,33 +259,8 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
         review_date AS reviewDate
       FROM car_reviews
       WHERE company_car_id = ?
-      ORDER BY sort_order ASC, id ASC
+      ORDER BY COALESCE(review_date, 0) DESC, id DESC
       LIMIT 12
-      `
-    ).bind(carId).all(),
-    d1.prepare(
-      `
-      SELECT
-        id,
-        category,
-        title,
-        description,
-        icon_key AS iconKey
-      FROM car_included_items
-      WHERE company_car_id = ?
-      ORDER BY sort_order ASC, id ASC
-      `
-    ).bind(carId).all(),
-    d1.prepare(
-      `
-      SELECT
-        id,
-        title,
-        description,
-        icon_key AS iconKey
-      FROM car_rules
-      WHERE company_car_id = ?
-      ORDER BY sort_order ASC, id ASC
       `
     ).bind(carId).all(),
     d1.prepare(
@@ -283,16 +280,15 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
   const tripStats = (tripStatsResult.results ?? []) as Array<Record<string, unknown>>;
   const ratingMetricsRows = (ratingMetricsResult.results ?? []) as Array<Record<string, unknown>>;
   const reviewRows = (reviewsResult.results ?? []) as Array<Record<string, unknown>>;
-  const includedRows = (includedResult.results ?? []) as Array<Record<string, unknown>>;
-  const rulesRows = (rulesResult.results ?? []) as Array<Record<string, unknown>>;
   const featureRows = (featuresResult.results ?? []) as Array<Record<string, unknown>>;
 
   const photos = getCarPhotoUrls(car.photos, request.url);
 
-  const ratingSummary: CarRatingSummary | null = ratingMetricsRows[0]
+  const totalRatings = Number(ratingMetricsRows[0]?.totalRatings || 0);
+  const ratingSummary: CarRatingSummary | null = totalRatings > 0
     ? {
         totalRating: Number(ratingMetricsRows[0].totalRating || 0),
-        totalRatings: Number(ratingMetricsRows[0].totalRatings || 0),
+        totalRatings,
         cleanliness: Number(ratingMetricsRows[0].cleanliness || 0),
         maintenance: Number(ratingMetricsRows[0].maintenance || 0),
         communication: Number(ratingMetricsRows[0].communication || 0),
@@ -310,26 +306,27 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
     reviewDate: formatDate(toDateOrNull(row.reviewDate)),
   }));
 
-  const includedItems: CarIncludedItem[] = includedRows.map((row) => ({
-    id: Number(row.id),
-    category: (row.category as string) || "General",
-    title: String(row.title || ""),
-    description: (row.description as string | null) ?? null,
-    iconKey: String(row.iconKey || ""),
-  }));
-
-  const rules: CarRuleItem[] = rulesRows.map((row) => ({
-    id: Number(row.id),
-    title: String(row.title || ""),
-    description: (row.description as string | null) ?? null,
-    iconKey: String(row.iconKey || ""),
-  }));
+  const includedItems = STATIC_INCLUDED_ITEMS;
+  const rules = STATIC_RULES;
 
   const features: CarFeatureItem[] = featureRows.map((row) => ({
     id: Number(row.id),
     category: String(row.category || ""),
     name: String(row.name || ""),
   }));
+  const normalizedFeatureNames = new Set(features.map((feature) => feature.name.toLowerCase()));
+  if (car.rearCamera && !normalizedFeatureNames.has("rear camera")) {
+    features.push({ id: -1, category: "Safety", name: "Rear camera" });
+  }
+  if (car.bluetoothEnabled && !normalizedFeatureNames.has("bluetooth")) {
+    features.push({ id: -2, category: "Specifications", name: "Bluetooth" });
+  }
+  if (Number(car.carplayEnabled || 0) && !normalizedFeatureNames.has("apple carplay") && !normalizedFeatureNames.has("carplay")) {
+    features.push({ id: -3, category: "Specifications", name: "Apple CarPlay" });
+  }
+  if (Number(car.androidAutoEnabled || 0) && !normalizedFeatureNames.has("android auto")) {
+    features.push({ id: -4, category: "Specifications", name: "Android Auto" });
+  }
 
   return {
     car: {
@@ -345,10 +342,18 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
       engineVolume: Number(car.engineVolume || 0) || null,
       seats: (car.seats as number | null) ?? null,
       doors: (car.doors as number | null) ?? null,
+      drivetrain: (car.drivetrain as string | null) ?? null,
+      luggageCapacity: (car.luggageCapacity as string | null) ?? null,
+      rearCamera: Number(car.rearCamera || 0),
+      bluetoothEnabled: Number(car.bluetoothEnabled || 0),
+      carplayEnabled: Number(car.carplayEnabled || 0),
+      androidAutoEnabled: Number(car.androidAutoEnabled || 0),
+      featureAirbags: Number(car.featureAirbags || 0),
       pricePerDay: Number(car.pricePerDay || 0),
       deposit: Number(car.deposit || 0),
-      minInsurancePrice: car.minInsurancePrice ? Number(car.minInsurancePrice) : null,
+      insurancePricePerDay: car.insurancePricePerDay ? Number(car.insurancePricePerDay) : null,
       maxInsurancePrice: car.maxInsurancePrice ? Number(car.maxInsurancePrice) : null,
+      minRentalDays: car.minRentalDays ? Number(car.minRentalDays) : 1,
       fullInsuranceMinPrice: car.fullInsuranceMinPrice ? Number(car.fullInsuranceMinPrice) : null,
       fullInsuranceMaxPrice: car.fullInsuranceMaxPrice ? Number(car.fullInsuranceMaxPrice) : null,
       companyName: String(car.companyName || ""),
@@ -358,6 +363,9 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
       ownerName: (car.ownerName as string | null) ?? null,
       ownerAvatarUrl: (car.ownerAvatarUrl as string | null) ?? null,
       ownerCreatedAt: toDateOrNull(car.ownerCreatedAt),
+      companyEmail: (car.companyEmail as string | null) ?? null,
+      companyPhone: (car.companyPhone as string | null) ?? null,
+      companyTelegram: (car.companyTelegram as string | null) ?? null,
       marketingHeadline: (car.marketingHeadline as string | null) ?? null,
       description: (car.description as string | null) ?? null,
       companySlug: buildCompanySlug(String(car.companyName || "")),
@@ -389,7 +397,8 @@ export default function PublicCarPage() {
   const { car, photos, returnDistricts, hostTrips, ratingSummary, reviews, includedItems, rules, features } = useLoaderData<typeof loader>();
 
   const carNumber = String(car.licensePlate || "").trim();
-  const title = `${car.brandName || "Car"} ${car.modelName || "Model"} ${carNumber || `#${car.id}`}`;
+  const displayCarNumber = carNumber ? (carNumber.startsWith("#") ? carNumber : `#${carNumber}`) : `#${car.id}`;
+  const title = `${car.brandName || "Car"} ${car.modelName || "Model"} ${displayCarNumber}`;
   const breadcrumbTitle = `${car.brandName || "Car"} ${car.modelName || "Model"}`.trim();
   const breadcrumbs = [
     { label: "Home", to: "/" },
@@ -397,14 +406,27 @@ export default function PublicCarPage() {
     { label: breadcrumbTitle },
   ];
   const pickupDistrict = car.districtName || car.locationName || car.companyName;
+  const fallbackIndex = Math.abs(car.id || 0) % 3;
+  const fallbackSeats = FALLBACK_SEAT_OPTIONS[fallbackIndex];
+  const fallbackFuel = FALLBACK_FUEL_OPTIONS[fallbackIndex];
+  const fallbackTransmission = FALLBACK_TRANSMISSION_OPTIONS[fallbackIndex % 2];
+  const fallbackBody = FALLBACK_BODY_OPTIONS[fallbackIndex];
+  const hostRating = Number(ratingSummary?.totalRating || 4.8);
+  const policyLinks = [
+    { href: `/legal?company=${encodeURIComponent(car.companySlug)}`, label: "Terms & Policies" },
+    { href: `/insurance-protection?company=${encodeURIComponent(car.companySlug)}`, label: "Insurance Docs" },
+    { href: `/contact-support?company=${encodeURIComponent(car.companySlug)}`, label: "Support Guidelines" },
+  ];
+  const engineFormatted = car.engineVolume == null ? null : String(car.engineVolume).replace(".", ",");
   const specifications = [
-    `${car.seats || 4} seats`,
-    car.fuelType || "Gas",
-    car.transmission || "Automatic",
-    car.bodyType || "Car",
-    car.engineVolume ? `${car.engineVolume}L` : null,
-    car.doors ? `${car.doors} doors` : null,
-  ].filter((item): item is string => Boolean(item));
+    `Year - ${car.year ?? "N/A"}`,
+    `Body Type - ${car.bodyType || fallbackBody}`,
+    `Fuel Type - ${car.fuelType || fallbackFuel}`,
+    `Engine Volume (L) - ${engineFormatted || "N/A"}`,
+    `Seats - ${String(car.seats || fallbackSeats)}`,
+    `Doors - ${String(car.doors || 4)}`,
+    `Luggage Capacity - ${car.luggageCapacity ? `${car.luggageCapacity[0].toUpperCase()}${car.luggageCapacity.slice(1)}` : "Medium"}`,
+  ];
 
   return (
     <div className="min-h-screen">
@@ -417,19 +439,19 @@ export default function PublicCarPage() {
           <section className="lg:col-span-2 space-y-6">
             <CarHostSection
               title={title}
-              year={car.year}
               companyName={car.companyName}
               ownerName={car.ownerName}
               companySlug={car.companySlug}
               hostTrips={hostTrips}
               hostJoinedAt={formatMonthYear(car.ownerCreatedAt || null)}
               hostAvatarUrl={car.ownerAvatarUrl}
+              hostRating={hostRating}
               features={features}
               specifications={specifications}
             />
 
             <CarIncludedSection items={includedItems} />
-            <CarRulesSection rules={rules} />
+            <CarRulesSection rules={rules} policyLinks={policyLinks} />
             <CarReviewsSection rating={ratingSummary} reviews={reviews} />
           </section>
 
@@ -441,6 +463,9 @@ export default function PublicCarPage() {
             returnDistricts={returnDistricts}
             initialReturnDistrictId={returnDistricts.find((district) => district.name === car.districtName)?.id ?? null}
             pricePerDay={car.pricePerDay}
+            hostPhone={car.companyPhone || "+66610000000"}
+            hostEmail={car.companyEmail || "host+test@phuketride.com"}
+            hostTelegram={car.companyTelegram || "@phuketride_support_test"}
           />
         </div>
       </main>

@@ -8,6 +8,7 @@ interface FormSelectProps {
     defaultValue?: string | number | null;
     options: Array<{ id: number | string; name: string }>;
     placeholder?: string;
+    showPlaceholderOption?: boolean;
     required?: boolean;
     disabled?: boolean;
     isEdit?: boolean;
@@ -22,6 +23,7 @@ const FormSelect = memo(function FormSelect({
     defaultValue,
     options,
     placeholder,
+    showPlaceholderOption = false,
     required = false,
     disabled = false,
     isEdit = true,
@@ -47,7 +49,7 @@ const FormSelect = memo(function FormSelect({
                 required={required}
                 onChange={onChange}
             >
-                <option value="">{placeholder || `Select ${label}`}</option>
+                {showPlaceholderOption && <option value="">{placeholder || `Select ${label}`}</option>}
                 {options.map((option) => (
                     <option key={option.id} value={option.id}>
                         {option.name}

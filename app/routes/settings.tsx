@@ -32,6 +32,7 @@ import { isPhuketName, normalizeCompanyRow, normalizeCurrencyRow } from "~/lib/s
 import type { Currency } from "~/lib/settings-normalizers";
 import { getCachedCurrenciesDetailed, getCachedPaymentTemplatesForCompany } from "~/lib/dictionaries-cache.server";
 import type { PaymentTemplateRow } from "~/lib/db-types";
+import { parseWithSchema } from "~/lib/validation.server";
 
 type CompanySettings = {
     id: number;
@@ -60,8 +61,6 @@ type PaymentType = {
     name: string;
     sign: "+" | "-";
     description: string | null;
-    showOnCreate: boolean | number | null;
-    showOnClose: boolean | number | null;
     isActive?: boolean | number | null;
     isSystem?: boolean | number | null;
     companyId?: number | null;
@@ -221,10 +220,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
         };
 
         // Validate with Zod
-        const validation = companySchema.safeParse(rawData);
-        if (!validation.success) {
-            const firstError = validation.error.errors[0];
-            return redirect(withMode(`/settings?error=${encodeURIComponent(firstError.message)}`));
+        const validation = parseWithSchema(companySchema, rawData, "Validation failed");
+        if (!validation.ok) {
+            return redirect(withMode(`/settings?error=${encodeURIComponent(validation.error)}`));
         }
 
         const validData = validation.data;
@@ -444,9 +442,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
     // Payment templates actions
     if (intent === "updatePaymentTemplate") {
         const id = Number(formData.get("id"));
-        const showOnCreate = formData.get("showOnCreate") === "true";
-        const showOnClose = formData.get("showOnClose") === "true";
-        const isActive = formData.get("isActive") === "true";
+        const name = (formData.get("name") as string || "").trim();
+        const sign = (formData.get("sign") as "+" | "-") || "+";
+        const description = (formData.get("description") as string || "").trim() || null;
 
         try {
             // Check if this is a system template
@@ -472,14 +470,20 @@ export async function action({ request, context }: ActionFunctionArgs) {
             if (template.companyId !== null && template.companyId !== companyId) {
                 return redirect(withMode("/settings?error=Unauthorized"));
             }
+            if (template.isSystem) {
+                return redirect(withMode("/settings?error=Cannot edit system templates"));
+            }
 
+            if (!name) {
+                return redirect(withMode("/settings?error=Payment template name is required"));
+            }
             await context.cloudflare.env.DB
                 .prepare(`
                     UPDATE payment_types
-                    SET show_on_create = ?, show_on_close = ?, is_active = ?, updated_at = ?
+                    SET name = ?, sign = ?, description = ?, is_active = 1, updated_at = ?
                     WHERE id = ?
                 `)
-                .bind(showOnCreate ? 1 : 0, showOnClose ? 1 : 0, isActive ? 1 : 0, new Date().toISOString(), id)
+                .bind(name, sign, description, new Date().toISOString(), id)
                 .run();
 
             return redirect(withMode("/settings?success=Payment template updated successfully"));
@@ -492,8 +496,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const name = formData.get("name") as string;
         const sign = formData.get("sign") as "+" | "-";
         const description = (formData.get("description") as string) || null;
-        const showOnCreate = formData.get("showOnCreate") === "true";
-        const showOnClose = formData.get("showOnClose") === "true";
 
         try {
             await context.cloudflare.env.DB
@@ -508,8 +510,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
                     sign,
                     description,
                     companyId,
-                    showOnCreate ? 1 : 0,
-                    showOnClose ? 1 : 0,
+                    0,
+                    0,
                     new Date().toISOString(),
                     new Date().toISOString()
                 )
@@ -584,8 +586,6 @@ export default function SettingsPage() {
         name: "",
         sign: "+",
         description: "",
-        showOnCreate: false,
-        showOnClose: false,
     });
     const [isCurrencyModalOpen, setIsCurrencyModalOpen] = useState(false);
     const toast = useToast();
@@ -624,19 +624,6 @@ export default function SettingsPage() {
         form.submit();
     };
 
-    const handleTogglePaymentTemplate = (id: number, field: 'showOnCreate' | 'showOnClose' | 'isActive', currentValue: boolean | null) => {
-        const template = paymentTypes.find((t) => t.id === id);
-        if (!template) return;
-
-        postWithReload({
-            intent: "updatePaymentTemplate",
-            id: String(id),
-            showOnCreate: field === "showOnCreate" ? String(!currentValue) : String(template.showOnCreate ?? false),
-            showOnClose: field === "showOnClose" ? String(!currentValue) : String(template.showOnClose ?? false),
-            isActive: field === "isActive" ? String(!currentValue) : String(template.isActive ?? true),
-        });
-    };
-
     const handleToggleCurrency = (id: number, field: 'isActive' | 'isDefault') => {
         if (field === 'isDefault') {
             postWithReload({
@@ -673,8 +660,6 @@ export default function SettingsPage() {
                             name: "",
                             sign: "+",
                             description: "",
-                            showOnCreate: false,
-                            showOnClose: false,
                         });
                         setIsPaymentModalOpen(true);
                     }}
@@ -711,168 +696,173 @@ export default function SettingsPage() {
             {activeTab === "general" && (
                 <Form id="settings-form" method="post" action={settingsActionUrl} className="space-y-4" reloadDocument>
                     <input type="hidden" name="intent" value="updateGeneral" />
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <div className="lg:col-span-2 space-y-4">
+                            {/* Company Information */}
+                            <FormSection title="Company Information" icon={<BuildingOfficeIcon />}>
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <Input
+                                            label="Company Name"
+                                            name="name"
+                                            defaultValue={company.name}
+                                            placeholder="e.g., Andaman Rentals"
+                                            onChange={(e) => validateLatinInput(e, "Company Name")}
+                                            required
+                                        />
+                                        <Input
+                                            label="Email Address"
+                                            name="email"
+                                            type="email"
+                                            defaultValue={company.email}
+                                            placeholder="company@example.com"
+                                            required
+                                        />
+                                        <Input
+                                            label="Phone Number"
+                                            name="phone"
+                                            defaultValue={company.phone}
+                                            placeholder="+66..."
+                                            required
+                                        />
+                                        <Input
+                                            label="Telegram"
+                                            name="telegram"
+                                            defaultValue={company.telegram || ""}
+                                            placeholder="@company_bot"
+                                        />
+                                    </div>
 
-                    {/* Company Information */}
-                    <FormSection title="Company Information" icon={<BuildingOfficeIcon />}>
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <Input
-                                    label="Company Name"
-                                    name="name"
-                                    defaultValue={company.name}
-                                    placeholder="e.g., Andaman Rentals"
-                                    onChange={(e) => validateLatinInput(e, "Company Name")}
-                                    required
-                                />
-                                <Input
-                                    label="Email Address"
-                                    name="email"
-                                    type="email"
-                                    defaultValue={company.email}
-                                    placeholder="company@example.com"
-                                    required
-                                />
-                                <Input
-                                    label="Phone Number"
-                                    name="phone"
-                                    defaultValue={company.phone}
-                                    placeholder="+66..."
-                                    required
-                                />
-                                <Input
-                                    label="Telegram"
-                                    name="telegram"
-                                    defaultValue={company.telegram || ""}
-                                    placeholder="@company_bot"
-                                />
-                            </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <Select
+                                            label="Location"
+                                            name="locationId"
+                                            value={String(selectedLocationId || "")}
+                                            onChange={(e) => {
+                                                const nextLocationId = Number(e.target.value) || 0;
+                                                setSelectedLocationId(nextLocationId);
+                                                const firstDistrict = districts.find(
+                                                    (d) => Number(d.locationId ?? d.location_id) === nextLocationId
+                                                );
+                                                setSelectedDistrictId(Number(firstDistrict?.id ?? 0));
+                                            }}
+                                            options={locations}
+                                            required
+                                        />
+                                        <Select
+                                            label="District"
+                                            name="districtId"
+                                            value={String(selectedDistrictId || "")}
+                                            onChange={(e) => setSelectedDistrictId(Number(e.target.value) || 0)}
+                                            options={filteredDistricts}
+                                            required
+                                        />
+                                        <Input
+                                            label="Street"
+                                            name="street"
+                                            defaultValue={company.street}
+                                            placeholder="e.g., Beach Road"
+                                            onChange={(e) => validateLatinInput(e, "Street")}
+                                            required
+                                        />
+                                        <Input
+                                            label="House Number"
+                                            name="houseNumber"
+                                            defaultValue={company.houseNumber}
+                                            placeholder="e.g., 45/1"
+                                            onChange={(e) => validateLatinInput(e, "House Number")}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            </FormSection>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <Select
-                                    label="Location"
-                                    name="locationId"
-                                    value={String(selectedLocationId || "")}
-                                    onChange={(e) => {
-                                        const nextLocationId = Number(e.target.value) || 0;
-                                        setSelectedLocationId(nextLocationId);
-                                        const firstDistrict = districts.find(
-                                            (d) => Number(d.locationId ?? d.location_id) === nextLocationId
-                                        );
-                                        setSelectedDistrictId(Number(firstDistrict?.id ?? 0));
-                                    }}
-                                    options={locations}
-                                    required
-                                />
-                                <Select
-                                    label="District"
-                                    name="districtId"
-                                    value={String(selectedDistrictId || "")}
-                                    onChange={(e) => setSelectedDistrictId(Number(e.target.value) || 0)}
-                                    options={filteredDistricts}
-                                    required
-                                />
-                                <Input
-                                    label="Street"
-                                    name="street"
-                                    defaultValue={company.street}
-                                    placeholder="e.g., Beach Road"
-                                    onChange={(e) => validateLatinInput(e, "Street")}
-                                    required
-                                />
-                                <Input
-                                    label="House Number"
-                                    name="houseNumber"
-                                    defaultValue={company.houseNumber}
-                                    placeholder="e.g., 45/1"
-                                    onChange={(e) => validateLatinInput(e, "House Number")}
-                                    required
-                                />
-                            </div>
+                            {/* Bank Details */}
+                            <FormSection title="Bank Details" icon={<BanknotesIcon />}>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <Input
+                                        label="Bank Name"
+                                        name="bankName"
+                                        defaultValue={company.bankName || ""}
+                                        placeholder="e.g., Bangkok Bank"
+                                        onChange={(e) => validateLatinInput(e, "Bank Name")}
+                                    />
+                                    <Input
+                                        label="Account Number"
+                                        name="accountNumber"
+                                        defaultValue={company.accountNumber || ""}
+                                        placeholder="e.g., 123-456-7890"
+                                    />
+                                    <Input
+                                        label="Account Name"
+                                        name="accountName"
+                                        defaultValue={company.accountName || ""}
+                                        placeholder="e.g., Company Ltd."
+                                        onChange={(e) => validateLatinInput(e, "Account Name")}
+                                    />
+                                    <Input
+                                        label="SWIFT / BIC Code"
+                                        name="swiftCode"
+                                        defaultValue={company.swiftCode || ""}
+                                        placeholder="e.g., BKKBTHBK"
+                                    />
+                                </div>
+                            </FormSection>
+
+                            {/* Extras */}
+                            <FormSection title="Extras" icon={<Cog6ToothIcon />}>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <Input
+                                        label="Delivery Fee (After Hours)"
+                                        name="deliveryFeeAfterHours"
+                                        type="number"
+                                        step="0.01"
+                                        defaultValue={company.deliveryFeeAfterHours?.toString() || "0"}
+
+                                        addonLeft="฿"
+                                    />
+                                    <Input
+                                        label="Island Trip Cost"
+                                        name="islandTripPrice"
+                                        type="number"
+                                        step="0.01"
+                                        defaultValue={company.islandTripPrice?.toString() || "0"}
+
+                                        addonLeft="฿"
+                                    />
+                                    <Input
+                                        label="Krabi Trip Cost"
+                                        name="krabiTripPrice"
+                                        type="number"
+                                        step="0.01"
+                                        defaultValue={company.krabiTripPrice?.toString() || "0"}
+
+                                        addonLeft="฿"
+                                    />
+                                    <Input
+                                        label="Baby Seat Cost (per day)"
+                                        name="babySeatPricePerDay"
+                                        type="number"
+                                        step="1"
+                                        min={0}
+                                        defaultValue={Math.max(0, Math.round(company.babySeatPricePerDay ?? 0)).toString()}
+
+                                        addonLeft="฿"
+                                    />
+                                </div>
+                            </FormSection>
+
+                            {/* Weekly Schedule */}
+                            <input type="hidden" name="weeklySchedule" value={weeklySchedule} />
+                            <WeeklySchedule value={weeklySchedule} onChange={setWeeklySchedule} />
                         </div>
-                    </FormSection>
 
-                    {/* Bank Details */}
-                    <FormSection title="Bank Details" icon={<BanknotesIcon />}>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <Input
-                                label="Bank Name"
-                                name="bankName"
-                                defaultValue={company.bankName || ""}
-                                placeholder="e.g., Bangkok Bank"
-                                onChange={(e) => validateLatinInput(e, "Bank Name")}
-                            />
-                            <Input
-                                label="Account Number"
-                                name="accountNumber"
-                                defaultValue={company.accountNumber || ""}
-                                placeholder="e.g., 123-456-7890"
-                            />
-                            <Input
-                                label="Account Name"
-                                name="accountName"
-                                defaultValue={company.accountName || ""}
-                                placeholder="e.g., Company Ltd."
-                                onChange={(e) => validateLatinInput(e, "Account Name")}
-                            />
-                            <Input
-                                label="SWIFT / BIC Code"
-                                name="swiftCode"
-                                defaultValue={company.swiftCode || ""}
-                                placeholder="e.g., BKKBTHBK"
-                            />
+                        <div className="space-y-4 lg:sticky lg:top-4 h-fit">
+                            {/* Holidays */}
+                            <input type="hidden" name="holidays" value={holidays} />
+                            <HolidaysManager value={holidays} onChange={setHolidays} />
                         </div>
-                    </FormSection>
-
-                    {/* Extras */}
-                    <FormSection title="Extras" icon={<Cog6ToothIcon />}>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <Input
-                                label="Delivery Fee (After Hours)"
-                                name="deliveryFeeAfterHours"
-                                type="number"
-                                step="0.01"
-                                defaultValue={company.deliveryFeeAfterHours?.toString() || "0"}
-
-                                addonLeft="฿"
-                            />
-                            <Input
-                                label="Island Trip Cost"
-                                name="islandTripPrice"
-                                type="number"
-                                step="0.01"
-                                defaultValue={company.islandTripPrice?.toString() || "0"}
-
-                                addonLeft="฿"
-                            />
-                            <Input
-                                label="Krabi Trip Cost"
-                                name="krabiTripPrice"
-                                type="number"
-                                step="0.01"
-                                defaultValue={company.krabiTripPrice?.toString() || "0"}
-
-                                addonLeft="฿"
-                            />
-                            <Input
-                                label="Baby Seat Cost (per day)"
-                                name="babySeatPricePerDay"
-                                type="number"
-                                step="1"
-                                min={0}
-                                defaultValue={Math.max(0, Math.round(company.babySeatPricePerDay ?? 0)).toString()}
-
-                                addonLeft="฿"
-                            />
-                        </div>
-                    </FormSection>
-
-                    {/* Weekly Schedule */}
-                    <input type="hidden" name="weeklySchedule" value={weeklySchedule} />
-                    <WeeklySchedule value={weeklySchedule} onChange={setWeeklySchedule} />
-
-                    {/* Holidays */}
-                    <input type="hidden" name="holidays" value={holidays} />
-                    <HolidaysManager value={holidays} onChange={setHolidays} />
+                    </div>
                 </Form>
             )
             }
@@ -894,12 +884,6 @@ export default function SettingsPage() {
                                                 </th>
                                                 <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight w-24">
                                                     <span>Sign</span>
-                                                </th>
-                                                <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight whitespace-nowrap">
-                                                    <span>On Create</span>
-                                                </th>
-                                                <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight whitespace-nowrap">
-                                                    <span>On Close</span>
                                                 </th>
                                                 <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
                                                     <span>Actions</span>
@@ -932,20 +916,6 @@ export default function SettingsPage() {
                                                             {template.sign}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
-                                                        <Toggle
-                                                            size="sm"
-                                                            enabled={Boolean(template.showOnCreate)}
-                                                            onChange={() => handleTogglePaymentTemplate(template.id, 'showOnCreate', Boolean(template.showOnCreate))}
-                                                        />
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
-                                                        <Toggle
-                                                            size="sm"
-                                                            enabled={Boolean(template.showOnClose)}
-                                                            onChange={() => handleTogglePaymentTemplate(template.id, 'showOnClose', Boolean(template.showOnClose))}
-                                                        />
-                                                    </td>
                                                     <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                                                         <div className="flex gap-2">
                                                             <Button
@@ -957,8 +927,6 @@ export default function SettingsPage() {
                                                                         name: template.name,
                                                                         sign: template.sign ?? "+",
                                                                         description: template.description || "",
-                                                                        showOnCreate: Boolean(template.showOnCreate),
-                                                                        showOnClose: Boolean(template.showOnClose),
                                                                     });
                                                                     setEditingPaymentTemplate(template);
                                                                     setIsPaymentModalOpen(true);
@@ -1026,26 +994,6 @@ export default function SettingsPage() {
                                     rows={3}
                                     placeholder="Optional description"
                                 />
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-gray-700">Show when creating contract</span>
-                                        <Toggle
-                                            size="sm"
-                                            enabled={paymentFormData.showOnCreate}
-                                            onChange={() => setPaymentFormData({ ...paymentFormData, showOnCreate: !paymentFormData.showOnCreate })}
-                                        />
-                                        <input type="hidden" name="showOnCreate" value={paymentFormData.showOnCreate ? "true" : "false"} />
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-gray-700">Show when closing contract</span>
-                                        <Toggle
-                                            size="sm"
-                                            enabled={paymentFormData.showOnClose}
-                                            onChange={() => setPaymentFormData({ ...paymentFormData, showOnClose: !paymentFormData.showOnClose })}
-                                        />
-                                        <input type="hidden" name="showOnClose" value={paymentFormData.showOnClose ? "true" : "false"} />
-                                    </div>
-                                </div>
                                 <div className="flex justify-end gap-3 pt-4">
                                     <Button type="submit" variant="primary">{editingPaymentTemplate ? "Update" : "Create"}</Button>
                                 </div>
@@ -1082,6 +1030,7 @@ export default function SettingsPage() {
                                             {currencies.map((currency) => {
                                                 const isThbCurrency = String(currency.code || "").toUpperCase() === "THB";
                                                 const lockThbForPhuket = isPhuketCompany && isThbCurrency;
+                                                const currencyCodeLabel = isThbCurrency ? "฿" : currency.code;
                                                 return (
                                                     <tr key={currency.id} className="group hover:bg-white transition-all">
                                                         <td className="pl-4 py-3 text-sm text-gray-900 whitespace-nowrap">
@@ -1092,7 +1041,7 @@ export default function SettingsPage() {
                                                         <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                                                             <div className="flex flex-col">
                                                                 <span className="font-medium text-gray-900">{currency.name}</span>
-                                                                <span className="text-xs text-gray-500 uppercase">{currency.code} ({currency.symbol})</span>
+                                                                <span className="text-xs text-gray-500 uppercase">{currencyCodeLabel} ({currency.symbol})</span>
                                                             </div>
                                                         </td>
                                                         <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">

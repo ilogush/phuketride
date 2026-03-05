@@ -16,19 +16,36 @@ import StatCard from "~/components/dashboard/StatCard";
 import TasksWidget from "~/components/dashboard/TasksWidget";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
+import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAuth(request);
     const formData = await request.formData();
-    const taskId = formData.get("taskId") as string;
-    const intent = formData.get("intent") as string;
+    const parsed = parseWithSchema(
+        z
+        .object({
+            taskId: z.coerce.number().int().positive().optional(),
+            intent: z.enum(["delete"]).optional(),
+        }),
+        {
+            taskId: formData.get("taskId"),
+            intent: formData.get("intent"),
+        },
+        "Invalid action"
+    );
+    if (!parsed.ok) {
+        return redirect("/home?error=Invalid action");
+    }
+    const taskId = parsed.data.taskId;
+    const intent = parsed.data.intent;
 
     if (intent === "delete" && taskId) {
         try {
             // Delete calendar event (task)
             await context.cloudflare.env.DB
                 .prepare("DELETE FROM calendar_events WHERE id = ?")
-                .bind(parseInt(taskId))
+                .bind(taskId)
                 .run();
 
             return redirect("/home?success=Task deleted successfully");
