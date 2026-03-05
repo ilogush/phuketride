@@ -114,26 +114,39 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
     }, [template])
 
     useEffect(() => {
+        if (template?.brand_id) return
         if (!formData.brand_id && brands.length > 0) {
             setFormData(prev => ({ ...prev, brand_id: String(brands[0].id) }))
         }
-    }, [formData.brand_id, brands])
+    }, [template, formData.brand_id, brands])
 
     useEffect(() => {
         if (formData.brand_id) {
-            const filtered = models.filter(m => m.brand_id === parseInt(formData.brand_id))
+            const filtered = models.filter(m => Number(m.brand_id) === Number(formData.brand_id))
             setFilteredModels(filtered)
-            
-            if (!filtered.find(m => m.id === parseInt(formData.model_id))) {
+
+            if (template?.model_id) {
+                const templateModelId = Number(template.model_id)
+                if (
+                    filtered.some((m) => Number(m.id) === templateModelId) &&
+                    Number(formData.model_id || 0) !== templateModelId
+                ) {
+                    setFormData(prev => ({ ...prev, model_id: String(templateModelId) }))
+                }
+                return
+            }
+
+            if (!filtered.find(m => Number(m.id) === Number(formData.model_id))) {
                 setFormData(prev => ({ ...prev, model_id: filtered.length > 0 ? String(filtered[0].id) : '' }))
             }
         } else {
             setFilteredModels([])
             setFormData(prev => ({ ...prev, model_id: '' }))
         }
-    }, [formData.brand_id, models])
+    }, [template, formData.brand_id, formData.model_id, models])
 
     useEffect(() => {
+        if (template?.body_type_id && template?.fuel_type_id) return
         const hasBodyType = bodyTypes.some((item) => String(item.id) === formData.body_type_id)
         if ((!formData.body_type_id || !hasBodyType) && bodyTypes.length > 0) {
             setFormData(prev => ({ ...prev, body_type_id: String(bodyTypes[0].id) }))
@@ -142,7 +155,7 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
         if ((!formData.fuel_type_id || !hasFuelType) && fuelTypes.length > 0) {
             setFormData(prev => ({ ...prev, fuel_type_id: String(fuelTypes[0].id) }))
         }
-    }, [formData.body_type_id, formData.fuel_type_id, bodyTypes, fuelTypes])
+    }, [template, formData.body_type_id, formData.fuel_type_id, bodyTypes, fuelTypes])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target
