@@ -16,7 +16,6 @@ import ContractCarDetailsFields from "~/components/dashboard/contracts/ContractC
 import ContractCarPhotosCard from "~/components/dashboard/contracts/ContractCarPhotosCard";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { formatDateForDisplay } from "~/lib/formatters";
-import { EXTRA_TYPES, mapExtrasByType } from "~/lib/contract-extras.server";
 import { handleEditContractAction } from "~/lib/contracts-edit-action.server";
 import {
     TruckIcon,
@@ -63,9 +62,12 @@ type ContractLoaderRow = {
     notes: string | null;
     photos: string | null;
 };
+
+type ExtraType = "full_insurance" | "baby_seat" | "island_trip" | "krabi_trip";
+
 type ContractExtraRow = {
     id: number;
-    extraType: (typeof EXTRA_TYPES)[number];
+    extraType: ExtraType;
     extraPrice: number | null;
     amount: number | null;
     paymentTypeId: number | null;
@@ -75,6 +77,14 @@ type ContractExtraRow = {
     status: string | null;
     notes: string | null;
 };
+
+const mapExtrasByType = (rows: Array<Partial<ContractExtraRow> & { extraType?: string }>) => (
+    Object.fromEntries(
+        rows
+            .filter((row) => typeof row.extraType === "string")
+            .map((row) => [row.extraType as ExtraType, row])
+    ) as Partial<Record<ExtraType, Partial<ContractExtraRow>>>
+);
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const user = await requireAuth(request);

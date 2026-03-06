@@ -17,7 +17,6 @@ import ContractCarPhotosCard from "~/components/dashboard/contracts/ContractCarP
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { EXTRA_TYPES } from "~/lib/contract-extras.server";
 import { getCachedActiveCurrenciesForCompany } from "~/lib/dictionaries-cache.server";
 import type { CurrencyRow as ContractNewCurrencyRow } from "~/lib/db-types";
 import { handleCreateContractAction } from "~/lib/contracts-new-action.server";
