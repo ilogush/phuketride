@@ -26,6 +26,7 @@ export default function CarReviewsSection({ rating, reviews }: CarReviewsSection
 
   const visibleReviews = reviews.slice(0, visibleCount);
   const hasMoreReviews = visibleCount < reviews.length;
+  const canCollapseReviews = reviews.length > INITIAL_REVIEWS_COUNT && !hasMoreReviews;
 
   return (
     <section className="space-y-4">
@@ -86,15 +87,15 @@ export default function CarReviewsSection({ rating, reviews }: CarReviewsSection
               <p className="text-sm text-gray-800 leading-relaxed">{review.reviewText}</p>
             </div>
           ))}
-          {hasMoreReviews ? (
+          {hasMoreReviews || canCollapseReviews ? (
             <div className="pt-2">
               <Button
                 type="button"
-                onClick={() => setVisibleCount(reviews.length)}
+                onClick={() => setVisibleCount(hasMoreReviews ? reviews.length : INITIAL_REVIEWS_COUNT)}
                 className="inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"
               >
-                Show all
-                <ChevronDownIcon className="w-5 h-5" />
+                {hasMoreReviews ? "Show all" : "Hide part of reviews"}
+                <ChevronDownIcon className={`w-5 h-5 ${hasMoreReviews ? "" : "rotate-180"}`} />
               </Button>
             </div>
           ) : null}

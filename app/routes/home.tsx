@@ -203,7 +203,7 @@ export default function Home() {
             </h2>
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {WHY_CHOOSE_ITEMS.map((item) => (
-                <article key={item.title} className="rounded-2xl bg-gray-100 p-4">
+                <article key={item.title} className="rounded-2xl bg-gray-50 p-4">
                   <h3 className="font-semibold text-gray-900">{item.title}</h3>
                   <p className="mt-2 text-sm text-gray-700">{item.text}</p>
                 </article>
@@ -218,7 +218,7 @@ export default function Home() {
                   {column.map((item) => {
                     const isOpen = openFaqId === item.id;
                     return (
-                      <article key={item.id} className="rounded-2xl bg-gray-100 px-4 py-3">
+                      <article key={item.id} className="rounded-2xl bg-gray-50 px-4 py-3">
                         <button
                           type="button"
                           onClick={() => setOpenFaqId((prev) => (prev === item.id ? null : item.id))}

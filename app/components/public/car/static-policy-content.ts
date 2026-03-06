@@ -42,13 +42,13 @@ export const STATIC_RULES: CarRuleItem[] = [
   {
     id: 1,
     title: "No smoking allowed",
-    description: "Smoking may result in a fine.",
+    description: "Smoking in any Turo vehicle will result in a $150 fine.",
     iconKey: "no_smoking",
   },
   {
     id: 2,
     title: "Keep the vehicle tidy",
-    description: "Unreasonably dirty vehicles may result in a fee.",
+    description: "Unreasonably dirty vehicles may result in a $150 fine.",
     iconKey: "tidy",
   },
   {
@@ -60,7 +60,7 @@ export const STATIC_RULES: CarRuleItem[] = [
   {
     id: 4,
     title: "No off-roading",
-    description: "Vehicle tracking may be used for recovery and protection.",
+    description: "Vehicle may have a device that collects driving and location data. Data may be shared with third parties for vehicle recovery or protection purposes.",
     iconKey: "offroad",
   },
 ];
