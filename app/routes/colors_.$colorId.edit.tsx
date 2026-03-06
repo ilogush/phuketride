@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useNavigate, useLoaderData } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdmin } from "~/lib/auth.server";
 import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
 import Button from "~/components/dashboard/Button";
@@ -8,37 +8,29 @@ import { useState } from "react";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { colorSchema } from "~/schemas/dictionary";
 import { parseWithSchema } from "~/lib/validation.server";
+import { requireAdminDb, runAdminMutationAction } from "~/lib/admin-crud.server";
+import { loadAdminColorById } from "~/lib/admin-dictionaries.server";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
-    await requireAuth(request);
+    await requireAdmin(request);
+    const { db } = await requireAdminDb(request, context);
     const colorId = Number(params.colorId);
-
-    const colorResult = await context.cloudflare.env.DB
-        .prepare("SELECT id, name, hex_code AS hexCode FROM colors WHERE id = ? LIMIT 1")
-        .bind(colorId)
-        .all();
-    const color = (colorResult.results ?? []) as Array<{ id: number; name: string; hexCode: string | null }>;
-
-    if (!color[0]) {
+    const color = await loadAdminColorById(db, colorId);
+    if (!color) {
         throw new Response("Color not found", { status: 404 });
     }
 
-    return { color: color[0] };
+    return { color };
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
-    await requireAuth(request);
+    await requireAdmin(request);
     const formData = await request.formData();
     const colorId = Number(params.colorId);
+    const { db } = await requireAdminDb(request, context);
+    const currentColor = await loadAdminColorById(db, colorId);
 
-    // Get current color for audit log
-    const currentColorResult = await context.cloudflare.env.DB
-        .prepare("SELECT id, name, hex_code AS hexCode FROM colors WHERE id = ? LIMIT 1")
-        .bind(colorId)
-        .all();
-    const currentColor = (currentColorResult.results ?? []) as Array<{ id: number; name: string; hexCode: string | null }>;
-
-    if (!currentColor[0]) {
+    if (!currentColor) {
         return redirect("/colors?error=Color not found");
     }
 
@@ -55,16 +47,29 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 
     const validData = validation.data;
 
-    try {
-        await context.cloudflare.env.DB
-            .prepare("UPDATE colors SET name = ?, hex_code = ? WHERE id = ?")
-            .bind(validData.name, validData.hexCode, colorId)
-            .run();
-
-        return redirect("/colors?success=Color updated successfully");
-    } catch {
-        return redirect(`/colors/${colorId}/edit?error=Failed to update color`);
-    }
+    return runAdminMutationAction({
+        request,
+        context,
+        mutate: async ({ db: mutationDb }) => {
+            await mutationDb
+                .prepare("UPDATE colors SET name = ?, hex_code = ? WHERE id = ?")
+                .bind(validData.name, validData.hexCode, colorId)
+                .run();
+        },
+        feedback: {
+            successPath: "/colors",
+            successMessage: "Color updated successfully",
+            errorPath: `/colors/${colorId}/edit`,
+            errorMessage: "Failed to update color",
+        },
+        audit: {
+            entityType: "color",
+            entityId: colorId,
+            action: "update",
+            beforeState: currentColor,
+            afterState: validData,
+        },
+    });
 }
 
 export default function EditColorModal() {

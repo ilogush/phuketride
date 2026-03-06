@@ -1,5 +1,4 @@
 import { data } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
 import { redirectWithError } from "~/lib/route-feedback";
 import { parseFormIntent, runMutationWithFeedback } from "~/lib/admin-actions";
 
@@ -49,19 +48,12 @@ function validateDurationsCoverage(durations: Array<{ minDays: number; maxDays: 
 }
 
 export async function handleDurationsAction({
-  request,
-  context,
+  db,
+  formData,
 }: {
-  request: Request;
-  context: { cloudflare: { env: { DB: D1Database } } };
+  db: D1Database;
+  formData: FormData;
 }) {
-  const user = await requireAuth(request);
-
-  if (user.role !== "admin") {
-    return data({ success: false, message: "Access denied" }, { status: 403 });
-  }
-
-  const formData = await request.formData();
   const intentParsed = parseFormIntent(formData, ["delete", "create", "update", "seed"], "Invalid action");
   if (!intentParsed.ok) {
     return data({ success: false, message: "Invalid action" }, { status: 400 });
@@ -70,7 +62,7 @@ export async function handleDurationsAction({
 
   if (intent === "delete") {
     const id = Number(formData.get("id"));
-    const allDurationsResult = (await context.cloudflare.env.DB
+    const allDurationsResult = (await db
       .prepare("SELECT id, min_days AS minDays, max_days AS maxDays FROM rental_durations")
       .all()) as { results?: DurationRangeRow[] };
     const allDurations = allDurationsResult.results || [];
@@ -85,7 +77,7 @@ export async function handleDurationsAction({
 
     return runMutationWithFeedback(
       async () => {
-        await context.cloudflare.env.DB.prepare("DELETE FROM rental_durations WHERE id = ?").bind(id).run();
+        await db.prepare("DELETE FROM rental_durations WHERE id = ?").bind(id).run();
       },
       {
         successPath: "/durations",
@@ -103,7 +95,7 @@ export async function handleDurationsAction({
     const discountLabel = formData.get("discountLabel") as string | null;
     const normalizedMaxDays = maxDays === 0 ? null : maxDays;
 
-    const existingDurationsResult = (await context.cloudflare.env.DB
+    const existingDurationsResult = (await db
       .prepare("SELECT min_days AS minDays, max_days AS maxDays FROM rental_durations")
       .all()) as { results?: Array<{ minDays: number; maxDays: number | null }> };
     const existingDurations = existingDurationsResult.results || [];
@@ -115,7 +107,7 @@ export async function handleDurationsAction({
 
     return runMutationWithFeedback(
       async () => {
-        await context.cloudflare.env.DB
+        await db
           .prepare(`
             INSERT INTO rental_durations (
               range_name, min_days, max_days, price_multiplier, discount_label, created_at, updated_at
@@ -149,7 +141,7 @@ export async function handleDurationsAction({
     const discountLabel = formData.get("discountLabel") as string | null;
     const normalizedMaxDays = maxDays === 0 ? null : maxDays;
 
-    const allDurationsResult = (await context.cloudflare.env.DB
+    const allDurationsResult = (await db
       .prepare("SELECT id, min_days AS minDays, max_days AS maxDays FROM rental_durations")
       .all()) as { results?: DurationRangeRow[] };
     const allDurations = allDurationsResult.results || [];
@@ -162,7 +154,7 @@ export async function handleDurationsAction({
 
     return runMutationWithFeedback(
       async () => {
-        await context.cloudflare.env.DB
+        await db
           .prepare(`
             UPDATE rental_durations
             SET range_name = ?, min_days = ?, max_days = ?, price_multiplier = ?,
@@ -201,7 +193,7 @@ export async function handleDurationsAction({
     return runMutationWithFeedback(
       async () => {
         for (const duration of defaultDurations) {
-          await context.cloudflare.env.DB
+          await db
             .prepare(`
               INSERT INTO rental_durations (
                 range_name, min_days, max_days, price_multiplier, discount_label, created_at, updated_at

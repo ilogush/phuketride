@@ -1,27 +1,19 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireAdmin, requireAuth } from "~/lib/auth.server";
+import { requireAdmin } from "~/lib/auth.server";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { Input } from "~/components/dashboard/Input";
 import AdminCrudModalPage from "~/components/dashboard/AdminCrudModalPage";
-import { PlusIcon, SunIcon } from "@heroicons/react/24/outline";
+import { SunIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { QUERY_LIMITS } from "~/lib/query-limits";
 import { useCrudModal } from "~/lib/useCrudModal";
 import { handleSeasonsAction } from "~/lib/seasons-actions.server";
+import { loadAdminPageData, requireAdminDb } from "~/lib/admin-crud.server";
+import { loadAdminSeasons, type AdminSeasonRow } from "~/lib/admin-dictionaries.server";
 
 
-interface Season {
-    id: number;
-    seasonName: string;
-    startMonth: number;
-    startDay: number;
-    endMonth: number;
-    endDay: number;
-    priceMultiplier: number;
-    discountLabel: string | null;
-}
+type Season = AdminSeasonRow;
 const MONTHS = [
     { value: "1", label: "Jan" },
     { value: "2", label: "Feb" },
@@ -43,40 +35,21 @@ const DAYS = Array.from({ length: 31 }, (_, i) => ({
 }));
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAdmin(request);
-
-    // Get all seasons (global, not company-specific)
-    const seasonsResult = await context.cloudflare.env.DB
-        .prepare(`
-            SELECT
-                id,
-                season_name AS seasonName,
-                start_month AS startMonth,
-                start_day AS startDay,
-                end_month AS endMonth,
-                end_day AS endDay,
-                price_multiplier AS priceMultiplier,
-                discount_label AS discountLabel
-            FROM seasons
-            ORDER BY id ASC
-            LIMIT ${QUERY_LIMITS.LARGE}
-        `)
-        .all() as { results?: Season[] };
-    const seasons = seasonsResult.results || [];
-
-    return { user, seasons };
+    await requireAdmin(request);
+    return loadAdminPageData({
+        request,
+        context,
+        loaders: {
+            seasons: loadAdminSeasons,
+        },
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-
-    // Only admin can modify seasons
-    if (user.role !== "admin") {
-        return data({ success: false, message: "Access denied" }, { status: 403 });
-    }
-
+    await requireAdmin(request);
+    const { db } = await requireAdminDb(request, context);
     const formData = await request.formData();
-    return handleSeasonsAction({ context, formData });
+    return handleSeasonsAction({ db, formData });
 }
 
 export default function SeasonsPage() {

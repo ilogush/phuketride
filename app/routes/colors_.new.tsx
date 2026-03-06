@@ -1,6 +1,6 @@
 import { type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useNavigate } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdmin } from "~/lib/auth.server";
 import Modal from "~/components/dashboard/Modal";
 import { Input } from "~/components/dashboard/Input";
 import Button from "~/components/dashboard/Button";
@@ -8,9 +8,10 @@ import { useState } from "react";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { colorSchema } from "~/schemas/dictionary";
 import { parseWithSchema } from "~/lib/validation.server";
+import { runAdminMutationAction } from "~/lib/admin-crud.server";
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    await requireAuth(request);
+    await requireAdmin(request);
     const formData = await request.formData();
 
     const rawData = {
@@ -26,16 +27,27 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     const validData = validation.data;
 
-    try {
-        await context.cloudflare.env.DB
-            .prepare("INSERT INTO colors (name, hex_code) VALUES (?, ?)")
-            .bind(validData.name, validData.hexCode)
-            .run();
-
-        return redirect("/colors?success=Color created successfully");
-    } catch {
-        return redirect("/colors/new?error=Failed to create color");
-    }
+    return runAdminMutationAction({
+        request,
+        context,
+        mutate: async ({ db }) => {
+            await db
+                .prepare("INSERT INTO colors (name, hex_code) VALUES (?, ?)")
+                .bind(validData.name, validData.hexCode)
+                .run();
+        },
+        feedback: {
+            successPath: "/colors",
+            successMessage: "Color created successfully",
+            errorPath: "/colors/new",
+            errorMessage: "Failed to create color",
+        },
+        audit: {
+            entityType: "color",
+            action: "create",
+            afterState: validData,
+        },
+    });
 }
 
 export default function NewColorModal() {

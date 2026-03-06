@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdmin } from "~/lib/auth.server";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { Input } from "~/components/dashboard/Input";
@@ -8,58 +8,39 @@ import { Select } from "~/components/dashboard/Select";
 import AdminCrudModalPage from "~/components/dashboard/AdminCrudModalPage";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
-import { getRequestMetadata, quickAudit } from "~/lib/audit-logger";
-import { QUERY_LIMITS } from "~/lib/query-limits";
 import { z } from "zod";
 import { useCrudModal } from "~/lib/useCrudModal";
 import { parseWithSchema } from "~/lib/validation.server";
-import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
-import { runMutationWithFeedback } from "~/lib/admin-actions";
+import { redirectWithError } from "~/lib/route-feedback";
+import { loadAdminPageData, runAdminMutationAction } from "~/lib/admin-crud.server";
+import {
+    loadAdminDistricts,
+    loadAdminHotels,
+    loadAdminLocations,
+    type AdminDistrictRow,
+    type AdminHotelRow,
+    type AdminLocationRow,
+} from "~/lib/admin-dictionaries.server";
 
-interface Hotel {
-    id: number;
-    name: string;
-    locationId: number;
-    districtId: number;
-    address: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-}
-
-interface Location {
-    id: number;
-    name: string;
-}
-
-interface District {
-    id: number;
-    name: string;
-    locationId: number;
-}
+type Hotel = AdminHotelRow;
+type Location = AdminLocationRow;
+type District = Pick<AdminDistrictRow, "id" | "name" | "locationId">;
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    const [hotelsResult, locationsResult, districtsResult] = await Promise.all([
-        context.cloudflare.env.DB
-            .prepare(`SELECT id, name, location_id AS locationId, district_id AS districtId, address, created_at AS createdAt, updated_at AS updatedAt FROM hotels LIMIT ${QUERY_LIMITS.LARGE}`)
-            .all(),
-        context.cloudflare.env.DB
-            .prepare(`SELECT id, name FROM locations LIMIT ${QUERY_LIMITS.LARGE}`)
-            .all(),
-        context.cloudflare.env.DB
-            .prepare(`SELECT id, name, location_id AS locationId FROM districts LIMIT ${QUERY_LIMITS.LARGE}`)
-            .all(),
-    ]);
-
-    const hotels = (hotelsResult.results ?? []) as Hotel[];
-    const locations = (locationsResult.results ?? []) as Location[];
-    const districts = (districtsResult.results ?? []) as District[];
-
-    return { user, hotels, locations, districts };
+    await requireAdmin(request);
+    return loadAdminPageData({
+        request,
+        context,
+        loaders: {
+            hotels: loadAdminHotels,
+            locations: loadAdminLocations,
+            districts: (db) => loadAdminDistricts(db) as Promise<District[]>,
+        },
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
+    await requireAdmin(request);
     const formData = await request.formData();
     const parsed = parseWithSchema(
         z
@@ -97,92 +78,79 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (!parsed.ok) {
         return redirectWithError("/hotels", parsed.error);
     }
-    const metadata = getRequestMetadata(request);
 
     if (parsed.data.intent === "delete") {
         const id = parsed.data.id;
-        return runMutationWithFeedback(
-            async () => {
-                await context.cloudflare.env.DB
-                    .prepare("DELETE FROM hotels WHERE id = ?")
-                    .bind(id)
-                    .run();
-                quickAudit({
-                    db: context.cloudflare.env.DB,
-                    userId: user.id,
-                    role: user.role,
-                    companyId: user.companyId,
-                    entityType: "hotel",
-                    entityId: id,
-                    action: "delete",
-                    ...metadata,
-                });
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                await db.prepare("DELETE FROM hotels WHERE id = ?").bind(id).run();
             },
-            {
+            feedback: {
                 successPath: "/hotels",
                 successMessage: "Hotel deleted successfully",
                 errorMessage: "Failed to delete hotel",
-            }
-        );
+            },
+            audit: {
+                entityType: "hotel",
+                entityId: id,
+                action: "delete",
+            },
+        });
     }
 
     if (parsed.data.intent === "create") {
         const { name, locationId, districtId } = parsed.data;
         const address = parsed.data.address || null;
 
-        return runMutationWithFeedback(
-            async () => {
-                await context.cloudflare.env.DB
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                await db
                     .prepare("INSERT INTO hotels (name, location_id, district_id, address) VALUES (?, ?, ?, ?)")
                     .bind(name, locationId, districtId, address || null)
                     .run();
-                quickAudit({
-                    db: context.cloudflare.env.DB,
-                    userId: user.id,
-                    role: user.role,
-                    companyId: user.companyId,
-                    entityType: "hotel",
-                    action: "create",
-                    afterState: { name, locationId, districtId, address: address || null },
-                    ...metadata,
-                });
             },
-            {
+            feedback: {
                 successPath: "/hotels",
                 successMessage: "Hotel created successfully",
                 errorMessage: "Failed to create hotel",
-            }
-        );
+            },
+            audit: {
+                entityType: "hotel",
+                action: "create",
+                afterState: { name, locationId, districtId, address },
+            },
+        });
     }
 
     if (parsed.data.intent === "update") {
         const { id, name, locationId, districtId } = parsed.data;
         const address = parsed.data.address || null;
 
-        return runMutationWithFeedback(
-            async () => {
-                await context.cloudflare.env.DB
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                await db
                     .prepare("UPDATE hotels SET name = ?, location_id = ?, district_id = ?, address = ? WHERE id = ?")
                     .bind(name, locationId, districtId, address || null, id)
                     .run();
-                quickAudit({
-                    db: context.cloudflare.env.DB,
-                    userId: user.id,
-                    role: user.role,
-                    companyId: user.companyId,
-                    entityType: "hotel",
-                    entityId: id,
-                    action: "update",
-                    afterState: { name, locationId, districtId, address: address || null },
-                    ...metadata,
-                });
             },
-            {
+            feedback: {
                 successPath: "/hotels",
                 successMessage: "Hotel updated successfully",
                 errorMessage: "Failed to update hotel",
-            }
-        );
+            },
+            audit: {
+                entityType: "hotel",
+                entityId: id,
+                action: "update",
+                afterState: { name, locationId, districtId, address },
+            },
+        });
     }
 
     return redirectWithError("/hotels", "Invalid action");

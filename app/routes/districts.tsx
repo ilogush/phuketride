@@ -1,47 +1,40 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdmin } from "~/lib/auth.server";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
 import AdminCrudModalPage from "~/components/dashboard/AdminCrudModalPage";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { QUERY_LIMITS } from "~/lib/query-limits";
 import { districtActionSchema } from "~/schemas/dictionary";
 import { useCrudModal } from "~/lib/useCrudModal";
 import { parseWithSchema } from "~/lib/validation.server";
-import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
-import { runMutationWithFeedback } from "~/lib/admin-actions";
+import { redirectWithError } from "~/lib/route-feedback";
+import { loadAdminPageData, runAdminMutationAction } from "~/lib/admin-crud.server";
+import {
+    loadAdminDistricts,
+    loadAdminLocations,
+    type AdminDistrictRow,
+    type AdminLocationRow,
+} from "~/lib/admin-dictionaries.server";
 
-interface District {
-    id: number;
-    name: string;
-    locationId: number;
-    beaches: string | null;
-    deliveryPrice: number | null;
-    createdAt: Date;
-    updatedAt: Date;
-}
+type District = Required<Pick<AdminDistrictRow, "id" | "name" | "locationId" | "beaches" | "deliveryPrice" | "createdAt" | "updatedAt">>;
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    const [districtsResult, locationsResult] = await Promise.all([
-        context.cloudflare.env.DB
-            .prepare(`SELECT id, name, location_id AS locationId, beaches, delivery_price AS deliveryPrice, created_at AS createdAt, updated_at AS updatedAt FROM districts LIMIT ${QUERY_LIMITS.LARGE}`)
-            .all(),
-        context.cloudflare.env.DB
-            .prepare(`SELECT id, name FROM locations LIMIT ${QUERY_LIMITS.LARGE}`)
-            .all(),
-    ]);
-    const districts = (districtsResult.results ?? []) as District[];
-    const locations = (locationsResult.results ?? []) as Array<{ id: number; name: string }>;
-
-    return { user, districts, locations };
+    await requireAdmin(request);
+    return loadAdminPageData({
+        request,
+        context,
+        loaders: {
+            districts: (db) => loadAdminDistricts(db, { includeDetails: true }) as Promise<District[]>,
+            locations: loadAdminLocations as (db: D1Database) => Promise<AdminLocationRow[]>,
+        },
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    await requireAuth(request);
+    await requireAdmin(request);
     const formData = await request.formData();
     const parsed = parseWithSchema(
         districtActionSchema,
@@ -62,53 +55,72 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     if (data.intent === "delete") {
         const { id } = data;
-        return runMutationWithFeedback(
-            async () => {
-                await context.cloudflare.env.DB
-                    .prepare("DELETE FROM districts WHERE id = ?")
-                    .bind(id)
-                    .run();
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                await db.prepare("DELETE FROM districts WHERE id = ?").bind(id).run();
             },
-            {
+            feedback: {
                 successPath: "/districts",
                 successMessage: "District deleted successfully",
                 errorMessage: "Failed to delete district",
-            }
-        );
+            },
+            audit: {
+                entityType: "district",
+                entityId: id,
+                action: "delete",
+            },
+        });
     }
 
     if (data.intent === "create") {
         const { name, locationId, deliveryPrice } = data;
-        return runMutationWithFeedback(
-            async () => {
-                await context.cloudflare.env.DB
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                await db
                     .prepare("INSERT INTO districts (name, location_id, delivery_price) VALUES (?, ?, ?)")
                     .bind(name, locationId, deliveryPrice)
                     .run();
             },
-            {
+            feedback: {
                 successPath: "/districts",
                 successMessage: "District created successfully",
                 errorMessage: "Failed to create district",
-            }
-        );
+            },
+            audit: {
+                entityType: "district",
+                action: "create",
+                afterState: { name, locationId, deliveryPrice },
+            },
+        });
     }
 
     if (data.intent === "update") {
         const { id, name, locationId, deliveryPrice } = data;
-        return runMutationWithFeedback(
-            async () => {
-                await context.cloudflare.env.DB
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                await db
                     .prepare("UPDATE districts SET name = ?, location_id = ?, delivery_price = ? WHERE id = ?")
                     .bind(name, locationId, deliveryPrice, id)
                     .run();
             },
-            {
+            feedback: {
                 successPath: "/districts",
                 successMessage: "District updated successfully",
                 errorMessage: "Failed to update district",
-            }
-        );
+            },
+            audit: {
+                entityType: "district",
+                entityId: id,
+                action: "update",
+                afterState: { name, locationId, deliveryPrice },
+            },
+        });
     }
 
     return redirectWithError("/districts", "Invalid action");

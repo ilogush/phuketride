@@ -7,48 +7,44 @@ import { Input } from "~/components/dashboard/Input";
 import AdminCrudModalPage from "~/components/dashboard/AdminCrudModalPage";
 import { ClockIcon as HeroClockIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { QUERY_LIMITS } from "~/lib/query-limits";
 import { useCrudModal } from "~/lib/useCrudModal";
 import { handleDurationsAction } from "~/lib/durations-actions.server";
+import { loadAdminPageData, requireAdminDb } from "~/lib/admin-crud.server";
+import { loadAdminDurations, type AdminDurationRow } from "~/lib/admin-dictionaries.server";
+import { z } from "zod";
+import { parseWithSchema } from "~/lib/validation.server";
 
-interface RentalDuration {
-    id: number;
-    rangeName: string;
-    minDays: number;
-    maxDays: number | null;
-    priceMultiplier: number;
-    discountLabel: string | null;
-}
+type RentalDuration = AdminDurationRow;
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAdmin(request);
-
-    // Get all durations (global, not company-specific)
-    const durationsResult = await context.cloudflare.env.DB
-        .prepare(`
-            SELECT
-                id,
-                range_name AS rangeName,
-                min_days AS minDays,
-                max_days AS maxDays,
-                price_multiplier AS priceMultiplier,
-                discount_label AS discountLabel
-            FROM rental_durations
-            ORDER BY min_days ASC
-            LIMIT ${QUERY_LIMITS.LARGE}
-        `)
-        .all() as { results?: RentalDuration[] };
-    const durations = durationsResult.results || [];
-
-    return { user, durations };
+    await requireAdmin(request);
+    return loadAdminPageData({
+        request,
+        context,
+        loaders: {
+            durations: loadAdminDurations,
+        },
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    return handleDurationsAction({ request, context });
+    await requireAdmin(request);
+    const { db } = await requireAdminDb(request, context);
+    const formData = await request.formData();
+    parseWithSchema(
+        z.object({
+            intent: z.string().min(1),
+        }),
+        {
+            intent: formData.get("intent"),
+        },
+        "Invalid action"
+    );
+    return handleDurationsAction({ db, formData });
 }
 
 export default function DurationsPage() {
-    const { user, durations } = useLoaderData<typeof loader>();
+    const { durations } = useLoaderData<typeof loader>();
     useUrlToast();
     const {
         isModalOpen,

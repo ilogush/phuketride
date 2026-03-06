@@ -18,7 +18,7 @@ export function parseFormIntent<TIntents extends [string, ...string[]]>(
     );
 }
 
-interface MutationFeedbackOptions {
+export interface MutationFeedbackOptions {
     successPath: string;
     successMessage: string;
     errorPath?: string;

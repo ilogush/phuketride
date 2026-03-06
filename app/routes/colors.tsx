@@ -1,37 +1,33 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form, Link, Outlet } from "react-router";
 
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdmin } from "~/lib/auth.server";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon, SwatchIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { getRequestMetadata, quickAudit } from "~/lib/audit-logger";
-import { QUERY_LIMITS } from "~/lib/query-limits";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
-import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
-import { runMutationWithFeedback } from "~/lib/admin-actions";
+import { redirectWithError } from "~/lib/route-feedback";
+import { loadAdminPageData, runAdminMutationAction } from "~/lib/admin-crud.server";
+import { loadAdminColors, type AdminColorRow } from "~/lib/admin-dictionaries.server";
 
-interface Color {
-    id: number;
-    name: string;
-    hexCode: string | null;
-}
+type Color = AdminColorRow;
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    const colorsResult = await context.cloudflare.env.DB
-        .prepare(`SELECT id, name, hex_code AS hexCode FROM colors LIMIT ${QUERY_LIMITS.LARGE}`)
-        .all();
-    const colors = (colorsResult.results ?? []) as Color[];
-
-    return { user, colors };
+    await requireAdmin(request);
+    return loadAdminPageData({
+        request,
+        context,
+        loaders: {
+            colors: loadAdminColors,
+        },
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
+    await requireAdmin(request);
     const formData = await request.formData();
     const parsed = parseWithSchema(
         z
@@ -53,34 +49,27 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (!parsed.ok) {
         return redirectWithError("/colors", "Invalid action payload");
     }
-    const metadata = getRequestMetadata(request);
 
     if (parsed.data.intent === "delete") {
         const id = parsed.data.id;
 
-        return runMutationWithFeedback(
-            async () => {
-                await context.cloudflare.env.DB
-                    .prepare("DELETE FROM colors WHERE id = ?")
-                    .bind(id)
-                    .run();
-                quickAudit({
-                    db: context.cloudflare.env.DB,
-                    userId: user.id,
-                    role: user.role,
-                    companyId: user.companyId,
-                    entityType: "color",
-                    entityId: id,
-                    action: "delete",
-                    ...metadata,
-                });
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                await db.prepare("DELETE FROM colors WHERE id = ?").bind(id).run();
             },
-            {
+            feedback: {
                 successPath: "/colors",
                 successMessage: "Color deleted successfully",
                 errorMessage: "Failed to delete color",
-            }
-        );
+            },
+            audit: {
+                entityType: "color",
+                entityId: id,
+                action: "delete",
+            },
+        });
     }
 
     if (parsed.data.intent === "seed") {
@@ -101,31 +90,28 @@ export async function action({ request, context }: ActionFunctionArgs) {
             { name: "Beige", hexCode: "#F5F5DC" },
         ];
 
-        return runMutationWithFeedback(
-            async () => {
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
                 for (const color of defaultColors) {
-                    await context.cloudflare.env.DB
+                    await db
                         .prepare("INSERT INTO colors (name, hex_code) VALUES (?, ?)")
                         .bind(color.name, color.hexCode)
                         .run();
                 }
-                quickAudit({
-                    db: context.cloudflare.env.DB,
-                    userId: user.id,
-                    role: user.role,
-                    companyId: user.companyId,
-                    entityType: "color",
-                    action: "create",
-                    afterState: { count: defaultColors.length, source: "seed" },
-                    ...metadata,
-                });
             },
-            {
+            feedback: {
                 successPath: "/colors",
                 successMessage: "Default colors created successfully",
                 errorMessage: "Failed to create default colors",
-            }
-        );
+            },
+            audit: {
+                entityType: "color",
+                action: "create",
+                afterState: { count: defaultColors.length, source: "seed" },
+            },
+        });
     }
 
     return redirectWithError("/colors", "Invalid action");

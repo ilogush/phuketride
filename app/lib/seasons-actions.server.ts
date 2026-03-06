@@ -1,9 +1,9 @@
-import { data, type ActionFunctionArgs } from "react-router";
+import { data } from "react-router";
 import { redirectWithError } from "~/lib/route-feedback";
 import { parseFormIntent, runMutationWithFeedback } from "~/lib/admin-actions";
 
 type SeasonsActionArgs = {
-  context: ActionFunctionArgs["context"];
+  db: D1Database;
   formData: FormData;
 };
 
@@ -77,7 +77,7 @@ function validateSeasonsCoverage(seasons: Array<{ startMonth: number; startDay: 
   return { valid: true };
 }
 
-export async function handleSeasonsAction({ context, formData }: SeasonsActionArgs) {
+export async function handleSeasonsAction({ db, formData }: SeasonsActionArgs) {
   const intentParsed = parseFormIntent(formData, ["delete", "create", "update", "seed"], "Invalid action");
   if (!intentParsed.ok) {
     return data({ success: false, message: "Invalid action" }, { status: 400 });
@@ -88,7 +88,7 @@ export async function handleSeasonsAction({ context, formData }: SeasonsActionAr
   if (intent === "delete") {
     const id = Number(formData.get("id"));
 
-    const allSeasonsResult = await context.cloudflare.env.DB
+    const allSeasonsResult = await db
       .prepare(`
         SELECT id, start_month AS startMonth, start_day AS startDay, end_month AS endMonth, end_day AS endDay
         FROM seasons
@@ -106,7 +106,7 @@ export async function handleSeasonsAction({ context, formData }: SeasonsActionAr
 
     return runMutationWithFeedback(
       async () => {
-        await context.cloudflare.env.DB
+        await db
           .prepare("DELETE FROM seasons WHERE id = ?")
           .bind(id)
           .run();
@@ -135,7 +135,7 @@ export async function handleSeasonsAction({ context, formData }: SeasonsActionAr
       return redirectWithError("/seasons", "Invalid end date");
     }
 
-    const existingSeasonsResult = await context.cloudflare.env.DB
+    const existingSeasonsResult = await db
       .prepare("SELECT start_month AS startMonth, start_day AS startDay, end_month AS endMonth, end_day AS endDay FROM seasons")
       .all() as { results?: SeasonCoverageRow[] };
     const existingSeasons = existingSeasonsResult.results || [];
@@ -148,7 +148,7 @@ export async function handleSeasonsAction({ context, formData }: SeasonsActionAr
 
     return runMutationWithFeedback(
       async () => {
-        await context.cloudflare.env.DB
+        await db
           .prepare(`
             INSERT INTO seasons (
               season_name, start_month, start_day, end_month, end_day,
@@ -193,7 +193,7 @@ export async function handleSeasonsAction({ context, formData }: SeasonsActionAr
       return redirectWithError("/seasons", "Invalid end date");
     }
 
-    const existingSeasonsResult = await context.cloudflare.env.DB
+    const existingSeasonsResult = await db
       .prepare(`
         SELECT id, start_month AS startMonth, start_day AS startDay, end_month AS endMonth, end_day AS endDay
         FROM seasons
@@ -210,7 +210,7 @@ export async function handleSeasonsAction({ context, formData }: SeasonsActionAr
 
     return runMutationWithFeedback(
       async () => {
-        await context.cloudflare.env.DB
+        await db
           .prepare(`
             UPDATE seasons
             SET season_name = ?, start_month = ?, start_day = ?, end_month = ?, end_day = ?,
@@ -249,7 +249,7 @@ export async function handleSeasonsAction({ context, formData }: SeasonsActionAr
     return runMutationWithFeedback(
       async () => {
         for (const season of defaultSeasons) {
-          await context.cloudflare.env.DB
+          await db
             .prepare(`
               INSERT INTO seasons (
                 season_name, start_month, start_day, end_month, end_day,
