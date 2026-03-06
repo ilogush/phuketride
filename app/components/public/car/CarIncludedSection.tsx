@@ -39,7 +39,9 @@ export default function CarIncludedSection({ items }: CarIncludedSectionProps) {
               const Icon = iconMap[item.iconKey] || SparklesIcon;
               return (
                 <div key={item.id} className="flex items-start gap-3 text-gray-800">
-                  <Icon className="w-6 h-6 mt-0.5" />
+                  <div className="w-7 h-7 shrink-0 flex items-center justify-center">
+                    <Icon className="w-7 h-7" />
+                  </div>
                   <div>
                     <p className="font-medium text-sm">{item.title}</p>
                     {item.description ? <p className="text-sm text-gray-500">{item.description}</p> : null}

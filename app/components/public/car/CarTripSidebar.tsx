@@ -93,7 +93,7 @@ export default function CarTripSidebar({
       ? `tel:${hostPhone}`
       : `mailto:${hostEmail || "host+test@phuketride.com"}`;
 
-  const { days, baseTotal, pickupAfterHoursFee, returnAfterHoursFee, finalTotal } = useMemo(() => {
+  const { days, pickupAfterHoursFee, returnAfterHoursFee, finalTotal } = useMemo(() => {
     const start = parseDateTime(trip.startDate, trip.startTime);
     const end = parseDateTime(trip.endDate, trip.endTime);
     const { days: safeDays, total: base } = calculateBaseTripTotal(baseDaily, start, end);
@@ -112,7 +112,6 @@ export default function CarTripSidebar({
 
     return {
       days: safeDays,
-      baseTotal: base,
       pickupAfterHoursFee: pickupExtra,
       returnAfterHoursFee: returnExtra,
       finalTotal: base + pickupFee + returnFee + pickupExtra + returnExtra,
@@ -172,7 +171,7 @@ export default function CarTripSidebar({
           />
         </div>
 
-        <div className="pt-4 border-t border-gray-200 space-y-2">
+        <div className="pt-4 space-y-2">
           <div>
             <h3 className="text-xl font-semibold text-gray-800">Pickup & return location</h3>
             <p className="text-sm text-gray-500">Pickup district</p>
@@ -204,10 +203,9 @@ export default function CarTripSidebar({
           </div>
         </div>
 
-        <div className="pt-4 border-t border-gray-200 space-y-2">
-          <div className="flex items-center justify-between">
+        <div className="pt-4 space-y-2">
+          <div>
             <p className="text-sm text-gray-500">Trip ({days} days)</p>
-            <p className="text-base text-gray-800">{money(baseTotal)}</p>
           </div>
           {pickupFee > 0 ? (
             <div className="flex items-center justify-between">

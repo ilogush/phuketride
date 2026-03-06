@@ -10,6 +10,7 @@ import type { CarRuleItem } from "~/components/public/car/types";
 interface CarRulesSectionProps {
   rules: CarRuleItem[];
   policyLinks?: Array<{ href: string; label: string }>;
+  footerNote?: string | null;
 }
 
 const iconMap: Record<string, ComponentType<{ className?: string }>> = {
@@ -19,7 +20,7 @@ const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   offroad: ExclamationTriangleIcon,
 };
 
-export default function CarRulesSection({ rules, policyLinks = [] }: CarRulesSectionProps) {
+export default function CarRulesSection({ rules, policyLinks = [], footerNote = null }: CarRulesSectionProps) {
   if (!rules.length) {
     return null;
   }
@@ -41,7 +42,9 @@ export default function CarRulesSection({ rules, policyLinks = [] }: CarRulesSec
           const Icon = iconMap[rule.iconKey] || ExclamationTriangleIcon;
           return (
             <div key={rule.id} className="flex items-start gap-3">
-              <Icon className="w-6 h-6 mt-0.5" />
+              <div className="w-7 h-7 shrink-0 flex items-center justify-center">
+                <Icon className="w-7 h-7" />
+              </div>
               <div>
                 <p className="font-medium text-sm">{rule.title}</p>
                 {rule.description ? <p className="text-sm text-gray-500">{rule.description}</p> : null}
@@ -50,6 +53,9 @@ export default function CarRulesSection({ rules, policyLinks = [] }: CarRulesSec
           );
         })}
       </div>
+      {footerNote ? (
+        <p className="text-sm text-gray-500">{footerNote}</p>
+      ) : null}
     </section>
   );
 }

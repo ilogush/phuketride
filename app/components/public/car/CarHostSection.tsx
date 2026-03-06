@@ -26,27 +26,21 @@ export default function CarHostSection({
   specifications,
 }: CarHostSectionProps) {
   const featureNames = features.map((item) => item.name.trim()).filter(Boolean);
-  const merged = [...specifications, ...featureNames];
-  const uniqueItems: string[] = [];
-  const seen = new Set<string>();
-  for (const item of merged) {
+  const uniqueFeatureNames: string[] = [];
+  const seenFeatures = new Set<string>();
+  for (const item of featureNames) {
     const key = item.toLowerCase();
-    if (!seen.has(key)) {
-      seen.add(key);
-      uniqueItems.push(item);
+    if (!seenFeatures.has(key)) {
+      seenFeatures.add(key);
+      uniqueFeatureNames.push(item);
     }
   }
-  const chunkSize = Math.ceil(uniqueItems.length / 3);
-  const columns = [
-    uniqueItems.slice(0, chunkSize),
-    uniqueItems.slice(chunkSize, chunkSize * 2),
-    uniqueItems.slice(chunkSize * 2),
-  ] as [string[], string[], string[]];
 
   const displayHostName = ownerName || companyName;
 
   return (
-    <section className="space-y-5 bg-gray-50 p-4 rounded-2xl">
+    <section className="space-y-8 border-t border-gray-200 pt-8">
+      <h3 className="text-xl font-semibold text-gray-800">Hosted by</h3>
       <div className="flex items-center gap-4">
         <div className="relative">
           {hostAvatarUrl ? (
@@ -70,27 +64,39 @@ export default function CarHostSection({
             {hostTrips} trips
             {hostJoinedAt ? ` • Joined ${hostJoinedAt}` : ""}
           </p>
-          <Link
-            to={`/company/${companySlug}`}
-            className="mt-2 inline-flex items-center rounded-lg border border-green-600 px-3 py-1.5 text-sm font-medium text-green-700 hover:bg-green-50 transition-colors"
-          >
-            View all user cars
-          </Link>
+          <p className="mt-1 text-base text-gray-600">
+            All-Star Hosts like {displayHostName} are top-rated and experienced hosts on Phuket Ride.
+          </p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            {ownerName && ownerName.trim().toLowerCase() !== companyName.trim().toLowerCase() ? (
+              <p className="text-xl font-semibold text-gray-800 whitespace-nowrap">{companyName}</p>
+            ) : <span />}
+            <Link
+              to={`/company/${companySlug}`}
+              className="text-sm text-green-700 underline hover:text-green-800 transition-colors"
+            >
+              View all user cars
+            </Link>
+          </div>
         </div>
       </div>
 
-      {uniqueItems.length > 0 ? (
-        <div className="pt-4 border-t border-gray-200 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-gray-800">
-            {columns.map((items, columnIndex) => (
-              <div key={`col-${columnIndex}`}>
-              <div className="space-y-1">
-                {items.map((value) => (
-                  <p key={`spec-${value}`} className="text-sm">{value}</p>
+      {specifications.length || uniqueFeatureNames.length ? (
+        <div className="space-y-6 border-t border-b border-gray-200 pt-8 pb-8">
+          <h4 className="text-xl font-semibold text-gray-800">Vehicle features</h4>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 text-gray-900">
+            <div className="space-y-2">
+              {specifications.map((value) => (
+                <p key={`spec-${value}`} className="text-base">{value}</p>
+              ))}
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                {uniqueFeatureNames.map((value) => (
+                  <p key={`feature-${value}`} className="text-base">{value}</p>
                 ))}
               </div>
-              </div>
-            ))}
+            </div>
           </div>
         </div>
       ) : null}

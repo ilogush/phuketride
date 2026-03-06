@@ -697,12 +697,12 @@ export default function CheckoutPage() {
               <section className="p-1">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold text-gray-800">Primary driver</h2>
-                  <button
-                    type="button"
+                  <Link
+                    to="/register"
                     className="rounded-xl border border-green-600 px-5 py-2 text-base font-semibold text-green-600"
                   >
                     Log in
-                  </button>
+                  </Link>
                 </div>
                 <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
                   <label className="block">
@@ -844,7 +844,7 @@ export default function CheckoutPage() {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border-b border-gray-200 pb-4">
+                <div className="border-b border-gray-200 pb-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium text-gray-800">Unlimited trips</p>
@@ -863,7 +863,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <div className={`rounded-2xl border-b border-gray-200 pb-4 ${hasBabySeatOption ? "" : "opacity-60"}`}>
+                <div className={`border-b border-gray-200 pb-4 ${hasBabySeatOption ? "" : "opacity-60"}`}>
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium text-gray-800">Baby seat</p>
@@ -887,7 +887,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <div className={`rounded-2xl border-b border-gray-200 pb-4 ${hasIslandTripOption ? "" : "opacity-60"}`}>
+                <div className={`border-b border-gray-200 pb-4 ${hasIslandTripOption ? "" : "opacity-60"}`}>
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium text-gray-800">Island trip</p>
@@ -911,7 +911,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <div className={`rounded-2xl ${hasKrabiTripOption ? "" : "opacity-60"}`}>
+                <div className={`border-b border-gray-200 pb-4 ${hasKrabiTripOption ? "" : "opacity-60"}`}>
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium text-gray-800">Krabi trip</p>

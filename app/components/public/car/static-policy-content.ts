@@ -53,14 +53,14 @@ export const STATIC_RULES: CarRuleItem[] = [
   },
   {
     id: 3,
-    title: "Refuel the vehicle",
-    description: "Missing fuel may result in an additional fee.",
+    title: "Recharge the vehicle",
+    description: "Missing battery charge may result in an additional fee.",
     iconKey: "fuel",
   },
   {
     id: 4,
     title: "No off-roading",
-    description: "Vehicle may have a device that collects driving and location data. Data may be shared with third parties for vehicle recovery or protection purposes.",
+    description: null,
     iconKey: "offroad",
   },
 ];

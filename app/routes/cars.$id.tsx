@@ -1,5 +1,9 @@
 import type { Route } from "./+types/cars.$id";
-import { useLoaderData } from "react-router";
+import { Link, useLoaderData } from "react-router";
+import {
+  StarIcon,
+} from "@heroicons/react/24/outline";
+import { SparklesIcon } from "@heroicons/react/24/solid";
 import Header from "~/components/public/Header";
 import Footer from "~/components/public/Footer";
 import Breadcrumbs from "~/components/public/Breadcrumbs";
@@ -418,11 +422,13 @@ export default function PublicCarPage() {
   const fallbackTransmission = FALLBACK_TRANSMISSION_OPTIONS[fallbackIndex % 2];
   const fallbackBody = FALLBACK_BODY_OPTIONS[fallbackIndex];
   const hostRating = Number(ratingSummary?.totalRating || 4.8);
+  const formattedHostRating = hostRating.toFixed(2);
   const policyLinks = [
     { href: `/legal?company=${encodeURIComponent(car.companySlug)}`, label: "Terms & Policies" },
     { href: `/insurance-protection?company=${encodeURIComponent(car.companySlug)}`, label: "Insurance Docs" },
     { href: `/contact-support?company=${encodeURIComponent(car.companySlug)}`, label: "Support Guidelines" },
   ];
+  const rulesFooterNote = "Vehicle may have a device that collects driving and location data. Data may be shared with third parties for vehicle recovery or protection purposes.";
   const engineFormatted = car.engineVolume == null ? null : String(car.engineVolume).replace(".", ",");
   const specifications = [
     `Year - ${car.year ?? "N/A"}`,
@@ -443,7 +449,21 @@ export default function PublicCarPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <section className="lg:col-span-2 space-y-6">
-            <h2 className="text-xl font-semibold text-gray-800">{title}</h2>
+            <section className="space-y-4">
+              <h1 className="text-3xl font-semibold leading-tight tracking-tight text-gray-900 sm:text-4xl">
+                {title}
+              </h1>
+              <div className="flex flex-wrap items-center gap-2 text-gray-700">
+                <span>{car.year ?? "N/A"} {car.bodyType || fallbackBody}</span>
+                <span className="text-gray-400">•</span>
+                <span>{formattedHostRating}</span>
+                <StarIcon className="h-5 w-5 text-green-600" />
+                <span className="text-gray-500">({hostTrips} trips)</span>
+                <span className="text-gray-400">•</span>
+                <SparklesIcon className="h-5 w-5 text-green-600" />
+                <span className="text-base">All-Star Host</span>
+              </div>
+            </section>
             <CarHostSection
               companyName={car.companyName}
               ownerName={car.ownerName}
@@ -457,8 +477,20 @@ export default function PublicCarPage() {
             />
 
             <CarIncludedSection items={includedItems} />
-            <CarRulesSection rules={rules} policyLinks={policyLinks} />
+            <CarRulesSection rules={rules} policyLinks={policyLinks} footerNote={rulesFooterNote} />
             <CarReviewsSection rating={ratingSummary} reviews={reviews} />
+            <section className="rounded-2xl border border-gray-200 bg-gray-50 p-5 space-y-3">
+              <h3 className="text-xl font-semibold text-gray-800">Need help before booking?</h3>
+              <p className="text-sm text-gray-600">
+                Contact support and we will help with pickup details, insurance, and host communication.
+              </p>
+              <Link
+                to={`/contact-support?company=${encodeURIComponent(car.companySlug)}`}
+                className="inline-flex items-center rounded-lg border border-green-600 px-3 py-1.5 text-sm font-medium text-green-700 hover:bg-green-50 transition-colors"
+              >
+                Contact support
+              </Link>
+            </section>
           </section>
 
           <CarTripSidebar
