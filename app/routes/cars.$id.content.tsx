@@ -1,56 +1,13 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, Link, useLoaderData, useSearchParams } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
 import BackButton from "~/components/dashboard/BackButton";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Card from "~/components/dashboard/Card";
+import CarContentSections from "~/components/dashboard/cars/CarContentSections";
 import { recalcCarRatingMetrics } from "~/lib/car-reviews.server";
+import { requireCarAccess, withModCompanyId } from "~/lib/cars-content.server";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
-
-type CarRow = {
-  id: number;
-  companyId: number;
-  licensePlate: string | null;
-  brandName: string | null;
-  modelName: string | null;
-};
-
-function withModCompanyId(path: string, modCompanyId: string | null) {
-  if (!modCompanyId) return path;
-  const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}modCompanyId=${modCompanyId}`;
-}
-
-async function requireCarAccess(request: Request, context: LoaderFunctionArgs["context"], carId: number) {
-  const user = await requireAuth(request);
-  const car = (await context.cloudflare.env.DB
-    .prepare(
-      `
-      SELECT
-        cc.id,
-        cc.company_id AS companyId,
-        cc.license_plate AS licensePlate,
-        cb.name AS brandName,
-        cm.name AS modelName
-      FROM company_cars cc
-      LEFT JOIN car_templates ct ON ct.id = cc.template_id
-      LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-      LEFT JOIN car_models cm ON cm.id = ct.model_id
-      WHERE cc.id = ?
-      LIMIT 1
-      `
-    )
-    .bind(carId)
-    .first()) as CarRow | null;
-
-  if (!car) {
-    throw new Response("Car not found", { status: 404 });
-  }
-  if (user.role !== "admin" && car.companyId !== user.companyId) {
-    throw new Response("Access denied", { status: 403 });
-  }
-  return { user, car };
-}
+import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
   const carId = Number(params.id || 0);
@@ -371,6 +328,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 }
 
 export default function CarContentManagementPage() {
+    useUrlToast();
   const data = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
   const modCompanyId = searchParams.get("modCompanyId");
@@ -403,100 +361,12 @@ export default function CarContentManagementPage() {
         <p className="text-sm text-gray-600">Trips: {data.contractsCount} • Reviews: {data.reviews.length}</p>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card padding="lg">
-          <h2 className="text-lg font-semibold mb-3">Included in the price</h2>
-          <Form method="post" className="space-y-2 mb-4">
-            <input type="hidden" name="intent" value="add_included" />
-            <input name="category" placeholder="Category" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input name="title" placeholder="Title" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input name="description" placeholder="Description" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input name="iconKey" placeholder="Icon key (truck, users, clock...)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm text-white">Add</button>
-          </Form>
-          <div className="space-y-2">
-            {data.includedItems.map((item: Record<string, unknown>) => (
-              <div key={String(item.id)} className="rounded-lg border border-gray-200 p-3">
-                <p className="font-medium text-sm">{String(item.category)} • {String(item.title)}</p>
-                <p className="text-xs text-gray-600">{String(item.description || "")}</p>
-                <Form method="post" className="mt-2">
-                  <input type="hidden" name="intent" value="delete_included" />
-                  <input type="hidden" name="id" value={String(item.id)} />
-                  <button type="submit" className="text-xs text-red-600 hover:underline">Delete</button>
-                </Form>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card padding="lg">
-          <h2 className="text-lg font-semibold mb-3">Rules of the road</h2>
-          <Form method="post" className="space-y-2 mb-4">
-            <input type="hidden" name="intent" value="add_rule" />
-            <input name="title" placeholder="Title" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input name="description" placeholder="Description" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input name="iconKey" placeholder="Icon key (no_smoking, tidy...)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm text-white">Add</button>
-          </Form>
-          <div className="space-y-2">
-            {data.rules.map((item: Record<string, unknown>) => (
-              <div key={String(item.id)} className="rounded-lg border border-gray-200 p-3">
-                <p className="font-medium text-sm">{String(item.title)}</p>
-                <p className="text-xs text-gray-600">{String(item.description || "")}</p>
-                <Form method="post" className="mt-2">
-                  <input type="hidden" name="intent" value="delete_rule" />
-                  <input type="hidden" name="id" value={String(item.id)} />
-                  <button type="submit" className="text-xs text-red-600 hover:underline">Delete</button>
-                </Form>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card padding="lg">
-          <h2 className="text-lg font-semibold mb-3">Features</h2>
-          <Form method="post" className="space-y-2 mb-4">
-            <input type="hidden" name="intent" value="add_feature" />
-            <input name="category" placeholder="Category" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input name="name" placeholder="Feature name" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm text-white">Add</button>
-          </Form>
-          <div className="space-y-2">
-            {data.features.map((item: Record<string, unknown>) => (
-              <div key={String(item.id)} className="rounded-lg border border-gray-200 p-3">
-                <p className="font-medium text-sm">{String(item.category)} • {String(item.name)}</p>
-                <Form method="post" className="mt-2">
-                  <input type="hidden" name="intent" value="delete_feature" />
-                  <input type="hidden" name="id" value={String(item.id)} />
-                  <button type="submit" className="text-xs text-red-600 hover:underline">Delete</button>
-                </Form>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card padding="lg">
-          <h2 className="text-lg font-semibold mb-3">Reviews</h2>
-          <div className="space-y-2">
-            {data.reviews.map((item: Record<string, unknown>) => (
-              <div key={String(item.id)} className="rounded-lg border border-gray-200 p-3">
-                <p className="font-medium text-sm">
-                  {String(item.reviewerName)} • {String(item.rating)}/5 • Contract #{String(item.contractId || "n/a")}
-                </p>
-                <p className="text-xs text-gray-600">{String(item.reviewText || "")}</p>
-                <Form method="post" className="mt-2">
-                  <input type="hidden" name="intent" value="delete_review" />
-                  <input type="hidden" name="id" value={String(item.id)} />
-                  <button type="submit" className="text-xs text-red-600 hover:underline">Delete</button>
-                </Form>
-              </div>
-            ))}
-            {data.reviews.length === 0 ? <p className="text-sm text-gray-500">No reviews yet</p> : null}
-          </div>
-        </Card>
-      </div>
+      <CarContentSections
+        includedItems={data.includedItems as Record<string, unknown>[]}
+        rules={data.rules as Record<string, unknown>[]}
+        features={data.features as Record<string, unknown>[]}
+        reviews={data.reviews as Record<string, unknown>[]}
+      />
 
       <div className="pt-2">
         <Link to={editPath} className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2 text-sm text-gray-800 hover:bg-gray-200">

@@ -9,7 +9,6 @@ PhuketRide - система управления арендой автомоби
 - **Frontend**: React 19, React Router v7
 - **Backend**: Cloudflare Workers
 - **Database**: Cloudflare D1 (SQLite)
-- **ORM**: Drizzle ORM
 - **Storage**: Cloudflare R2
 - **Styling**: Tailwind CSS 4
 - **Validation**: Zod
@@ -36,7 +35,6 @@ npm run dev  # http://localhost:5173
 
 ```bash
 npm run db:migrate:remote  # Применить миграции
-wrangler d1 execute phuketride-bd --remote --file=./drizzle/<migration>.sql
 ```
 
 ## Деплой
@@ -72,7 +70,6 @@ npm run deploy
 
 ### База данных
 - [app/db/schema.ts](../app/db/schema.ts)
-- [drizzle/](../drizzle/)
 
 ### Роутинг
 - [app/routes.ts](../app/routes.ts)

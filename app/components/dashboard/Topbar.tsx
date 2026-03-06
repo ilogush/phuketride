@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, Form } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import {
     ArrowRightOnRectangleIcon,
     Bars3Icon,
     ChevronDownIcon,
-    MagnifyingGlassIcon,
     BellIcon,
     UserCircleIcon,
+    MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
 
 interface TopbarProps {
@@ -25,7 +25,11 @@ interface TopbarProps {
 
 export default function Topbar({ user, onToggleSidebar, isSidebarOpen, notificationsCount = 0 }: TopbarProps) {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const location = useLocation();
     const menuRef = useRef<HTMLDivElement>(null);
+    const [searchValue, setSearchValue] = useState(() => searchParams.get("search") || "");
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -41,6 +45,23 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen, notificat
         }
     }, [showProfileMenu]);
 
+    useEffect(() => {
+        setSearchValue(searchParams.get("search") || "");
+    }, [searchParams]);
+
+    const submitSearch = (rawValue: string) => {
+        const next = new URLSearchParams(searchParams);
+        const value = rawValue.trim();
+        if (value) {
+            next.set("search", value);
+        } else {
+            next.delete("search");
+        }
+        next.set("page", "1");
+        const query = next.toString();
+        navigate(`${location.pathname}${query ? `?${query}` : ""}`);
+    };
+
     const displayName = user.name && user.surname
         ? `${user.name} ${user.surname}`
         : user.name || user.email;
@@ -52,7 +73,6 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen, notificat
             <div className="flex items-center justify-between w-full">
                 {/* Menu Button + Search Bar */}
                 <div className="flex items-center gap-4 flex-1 max-w-md">
-                    {/* Menu Toggle Button */}
                     <button
                         onClick={onToggleSidebar}
                         className="w-10 h-10 flex items-center justify-center text-gray-900 hover:bg-gray-100 rounded-xl transition-all flex-shrink-0"
@@ -61,19 +81,32 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen, notificat
                         <Bars3Icon className="w-6 h-6" />
                     </button>
 
-                    {/* Search Bar */}
-                    <div className="relative flex-1 group">
-                        <input
-                            type="text"
-                            placeholder="Global search (companies, cars, users...)"
-                            className="w-full pl-4 pr-14 py-2.5 bg-white rounded-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-200 transition-all border border-gray-200"
-                        />
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            submitSearch(searchValue);
+                        }}
+                        className="relative flex-1 group hidden md:block"
+                    >
+                        <label className="block">
+                            <input
+                                type="text"
+                                value={searchValue}
+                                onChange={(e) => setSearchValue(e.target.value)}
+                                placeholder="Global search (companies, cars, users...)"
+                                className="w-full pl-4 pr-14 py-2.5 bg-white rounded-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-200 transition-all border border-gray-200"
+                            />
+                        </label>
                         <div className="absolute inset-y-2 right-1.5 flex items-center">
-                            <div className="w-8 h-8 text-white rounded-full bg-gray-800 flex items-center justify-center shadow-sm transition-transform group-focus-within:scale-105">
+                            <button
+                                type="submit"
+                                className="w-8 h-8 text-white rounded-full bg-gray-800 flex items-center justify-center shadow-sm transition-transform group-focus-within:scale-105"
+                                aria-label="Search"
+                            >
                                 <MagnifyingGlassIcon className="w-4 h-4" />
-                            </div>
+                            </button>
                         </div>
-                    </div>
+                    </form>
                 </div>
 
                 {/* Right Side - Notifications & Profile */}

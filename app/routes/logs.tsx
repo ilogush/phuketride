@@ -9,6 +9,7 @@ import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 import { QUERY_LIMITS } from "~/lib/query-limits";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 interface AuditLog {
     id: number;
@@ -158,6 +159,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function AuditLogsPage() {
+    useUrlToast();
     const { logs } = useLoaderData<typeof loader>();
 
     const columns: Column<AuditLog>[] = [

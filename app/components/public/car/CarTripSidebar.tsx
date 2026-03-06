@@ -10,6 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import { calculateBaseTripTotal } from "~/lib/pricing";
+import { isNonWorkingDateTime } from "~/lib/after-hours";
 
 interface CarTripSidebarProps {
   carId: number;
@@ -22,6 +23,9 @@ interface CarTripSidebarProps {
   hostPhone?: string | null;
   hostEmail?: string | null;
   hostTelegram?: string | null;
+  deliveryFeeAfterHours?: number | null;
+  weeklySchedule?: string | null;
+  holidays?: string | null;
 }
 
 const money = (value: number) => `฿${Math.round(value).toLocaleString()}`;
@@ -61,6 +65,9 @@ export default function CarTripSidebar({
   hostPhone,
   hostEmail,
   hostTelegram,
+  deliveryFeeAfterHours,
+  weeklySchedule,
+  holidays,
 }: CarTripSidebarProps) {
   const [trip, setTrip] = useState<DateRangeValue>(initialRange);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -77,6 +84,7 @@ export default function CarTripSidebar({
   const returnDistrictLabel = districtOptions.find((d) => d.id === returnDistrictId)?.name || pickupDistrict;
   const pickupFee = Number(districtOptions.find((d) => d.id === pickupDistrictId)?.deliveryPrice || 0);
   const returnFee = Number(districtOptions.find((d) => d.id === returnDistrictId)?.deliveryPrice || 0);
+  const afterHoursFee = Number(deliveryFeeAfterHours || 0);
   const favoriteKey = `favorite-car:${carPathSegment || carId}`;
   const cleanTelegram = String(hostTelegram || "").trim().replace(/^@/, "");
   const chatHref = cleanTelegram
@@ -85,17 +93,31 @@ export default function CarTripSidebar({
       ? `tel:${hostPhone}`
       : `mailto:${hostEmail || "host+test@phuketride.com"}`;
 
-  const { days, baseTotal, finalTotal } = useMemo(() => {
+  const { days, baseTotal, pickupAfterHoursFee, returnAfterHoursFee, finalTotal } = useMemo(() => {
     const start = parseDateTime(trip.startDate, trip.startTime);
     const end = parseDateTime(trip.endDate, trip.endTime);
     const { days: safeDays, total: base } = calculateBaseTripTotal(baseDaily, start, end);
+    const pickupNonWorking = afterHoursFee > 0 && isNonWorkingDateTime({
+      date: start,
+      weeklyScheduleRaw: weeklySchedule,
+      holidaysRaw: holidays,
+    });
+    const returnNonWorking = afterHoursFee > 0 && isNonWorkingDateTime({
+      date: end,
+      weeklyScheduleRaw: weeklySchedule,
+      holidaysRaw: holidays,
+    });
+    const pickupExtra = pickupNonWorking ? afterHoursFee : 0;
+    const returnExtra = returnNonWorking ? afterHoursFee : 0;
 
     return {
       days: safeDays,
       baseTotal: base,
-      finalTotal: base + pickupFee + returnFee,
+      pickupAfterHoursFee: pickupExtra,
+      returnAfterHoursFee: returnExtra,
+      finalTotal: base + pickupFee + returnFee + pickupExtra + returnExtra,
     };
-  }, [trip, baseDaily, pickupFee, returnFee]);
+  }, [trip, baseDaily, pickupFee, returnFee, afterHoursFee, weeklySchedule, holidays]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -187,14 +209,30 @@ export default function CarTripSidebar({
             <p className="text-sm text-gray-500">Trip ({days} days)</p>
             <p className="text-base text-gray-800">{money(baseTotal)}</p>
           </div>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Pickup ({pickupDistrictLabel})</p>
-            <p className="text-base text-gray-800">{money(pickupFee)}</p>
-          </div>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Return ({returnDistrictLabel})</p>
-            <p className="text-base text-gray-800">{money(returnFee)}</p>
-          </div>
+          {pickupFee > 0 ? (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">Pickup ({pickupDistrictLabel})</p>
+              <p className="text-base text-gray-800">{money(pickupFee)}</p>
+            </div>
+          ) : null}
+          {returnFee > 0 ? (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">Return ({returnDistrictLabel})</p>
+              <p className="text-base text-gray-800">{money(returnFee)}</p>
+            </div>
+          ) : null}
+          {afterHoursFee > 0 && pickupAfterHoursFee > 0 ? (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">Pickup after-hours extra</p>
+              <p className="text-base text-gray-800">{money(pickupAfterHoursFee)}</p>
+            </div>
+          ) : null}
+          {afterHoursFee > 0 && returnAfterHoursFee > 0 ? (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">Return after-hours extra</p>
+              <p className="text-base text-gray-800">{money(returnAfterHoursFee)}</p>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between pt-2 border-t border-gray-200">
             <p className="text-xl font-semibold text-gray-800">Total</p>
             <p className="text-xl font-semibold text-gray-800">{money(finalTotal)}</p>

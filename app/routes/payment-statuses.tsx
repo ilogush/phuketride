@@ -5,6 +5,7 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import { PlusIcon, BanknotesIcon } from "@heroicons/react/24/outline";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAdmin(request);
@@ -12,6 +13,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export default function PaymentStatusesPage() {
+    useUrlToast();
     const { user } = useLoaderData<typeof loader>();
 
     type PaymentStatusRow = {

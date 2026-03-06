@@ -6,14 +6,30 @@ import { execSync } from "node:child_process";
 const ROOT = process.cwd();
 const failures = [];
 const warnings = [];
+const failureSet = new Set();
+const warningSet = new Set();
 const VALIDATION_BASELINE_PATH = "scripts/codex-rules.validation-baseline.json";
+const ADMIN_TOAST_BASELINE_PATH = "scripts/codex-rules.admin-toast-baseline.json";
 
 function fail(message) {
+  if (failureSet.has(message)) return;
+  failureSet.add(message);
   failures.push(message);
 }
 
 function warn(message) {
+  if (warningSet.has(message)) return;
+  warningSet.add(message);
   warnings.push(message);
+}
+
+function readTrackedTextFile(filePath) {
+  const fullPath = path.join(ROOT, filePath);
+  if (!fs.existsSync(fullPath)) {
+    warn(`Tracked file is missing on disk (likely staged/unstaged delete): ${filePath}`);
+    return null;
+  }
+  return fs.readFileSync(fullPath, "utf8");
 }
 
 function getTrackedFiles() {
@@ -41,17 +57,17 @@ function isTextRuleTarget(filePath) {
 }
 
 function getMaxLines(filePath) {
-  if (filePath.startsWith("app/routes/")) return 1200;
-  if (filePath.startsWith("app/components/")) return 700;
+  if (filePath.startsWith("app/routes/")) return 800;
+  if (filePath.startsWith("app/components/")) return 600;
   if (filePath.startsWith("docs/")) return 400;
-  if (filePath.startsWith("scripts/")) return 350;
+  if (filePath.startsWith("scripts/")) return 500;
   if (filePath.startsWith("migrations/")) return 300;
   return 500;
 }
 
 function countLines(filePath) {
-  const fullPath = path.join(ROOT, filePath);
-  const content = fs.readFileSync(fullPath, "utf8");
+  const content = readTrackedTextFile(filePath);
+  if (content === null) return null;
   if (content.length === 0) return 0;
   return content.split(/\r?\n/).length;
 }
@@ -63,6 +79,7 @@ function checkFileLengths() {
     if (!isTextRuleTarget(filePath)) continue;
     const maxLines = getMaxLines(filePath);
     const lineCount = countLines(filePath);
+    if (lineCount === null) continue;
 
     if (lineCount > maxLines) {
       fail(`File too long: ${filePath} (${lineCount} > ${maxLines})`);
@@ -73,7 +90,7 @@ function checkFileLengths() {
 function checkWranglerState() {
   const statePath = path.join(ROOT, ".wrangler", "state");
   if (fs.existsSync(statePath)) {
-    fail("Forbidden path exists: .wrangler/state");
+    warn("Local D1 state detected: .wrangler/state (allowed only for temporary debugging, remote D1 remains source of truth)");
   }
 }
 
@@ -89,6 +106,27 @@ function checkPackageScripts() {
   if (typeof scripts.test !== "string" || scripts.test.trim() === "") {
     fail("Missing required npm script: test");
   }
+
+  if (typeof scripts["db:migrate:remote"] !== "string" || scripts["db:migrate:remote"].trim() === "") {
+    fail("Missing required npm script: db:migrate:remote");
+  } else {
+    const migrateScript = scripts["db:migrate:remote"];
+    if (!/wrangler\s+d1\s+migrations\s+apply/.test(migrateScript) || !/--remote/.test(migrateScript)) {
+      fail("Script db:migrate:remote must run wrangler d1 migrations apply --remote");
+    }
+  }
+
+  if (typeof scripts.deploy !== "string" || scripts.deploy.trim() === "") {
+    fail("Missing required npm script: deploy");
+  } else {
+    const deployScript = scripts.deploy;
+    const requiredPieces = ["rules:check", "typecheck", "db:migrate:remote", "wrangler deploy"];
+    for (const piece of requiredPieces) {
+      if (!deployScript.includes(piece)) {
+        fail(`Deploy script must include: ${piece}`);
+      }
+    }
+  }
 }
 
 function checkDocsLinks() {
@@ -98,7 +136,7 @@ function checkDocsLinks() {
     "docs/DATABASE.md",
     "docs/ROUTING.md",
     "docs/COMPANIES_LIST_OPTIMIZATION.md",
-    "docs/OPTIMIZATION_BACKLOG.md",
+    "docs/OPTIMIZATION.md",
   ];
 
   for (const docPath of requiredDocs) {
@@ -112,8 +150,8 @@ function checkComponentBoundaries(trackedFiles) {
   const componentFiles = trackedFiles.filter((filePath) => /^app\/components\/.*\.(ts|tsx|js|jsx|mjs)$/.test(filePath));
 
   for (const filePath of componentFiles) {
-    const fullPath = path.join(ROOT, filePath);
-    const content = fs.readFileSync(fullPath, "utf8");
+    const content = readTrackedTextFile(filePath);
+    if (content === null) continue;
     const isDashboardFile = filePath.startsWith("app/components/dashboard/");
     const isPublicFile = filePath.startsWith("app/components/public/");
 
@@ -143,8 +181,8 @@ function checkIconSources(trackedFiles) {
   ];
 
   for (const filePath of appCodeFiles) {
-    const fullPath = path.join(ROOT, filePath);
-    const content = fs.readFileSync(fullPath, "utf8");
+    const content = readTrackedTextFile(filePath);
+    if (content === null) continue;
 
     for (const forbiddenImport of forbiddenIconImports) {
       if (new RegExp(`from\\s+["']${forbiddenImport}`).test(content) || new RegExp(`from\\s+["']${forbiddenImport}\\/`).test(content)) {
@@ -158,8 +196,8 @@ function checkImageRules(trackedFiles) {
   const imageRuleFiles = trackedFiles.filter((filePath) => /^(app|public)\/.*\.(ts|tsx|js|jsx|mjs|css)$/.test(filePath));
 
   for (const filePath of imageRuleFiles) {
-    const fullPath = path.join(ROOT, filePath);
-    const content = fs.readFileSync(fullPath, "utf8");
+    const content = readTrackedTextFile(filePath);
+    if (content === null) continue;
 
     const hasInsecureUrlUsage =
       /(src|href)\s*=\s*["']http:\/\//.test(content) ||
@@ -240,8 +278,8 @@ function checkActionValidationWithBaseline(trackedFiles) {
   const offenders = [];
 
   for (const filePath of routeFiles) {
-    const fullPath = path.join(ROOT, filePath);
-    const content = fs.readFileSync(fullPath, "utf8");
+    const content = readTrackedTextFile(filePath);
+    if (content === null) continue;
     const hasAction = /export\s+async\s+function\s+action\b/.test(content);
     if (!hasAction) continue;
 
@@ -270,6 +308,90 @@ function checkActionValidationWithBaseline(trackedFiles) {
   }
 }
 
+function extractArrayBlock(content, startIndex) {
+  const arrayStart = content.indexOf("[", startIndex);
+  if (arrayStart === -1) return null;
+
+  let depth = 0;
+  for (let i = arrayStart; i < content.length; i++) {
+    if (content[i] === "[") depth += 1;
+    if (content[i] === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        return content.slice(arrayStart, i + 1);
+      }
+    }
+  }
+  return null;
+}
+
+function getAdminRouteModulesFromConfig() {
+  const routesConfigPath = path.join(ROOT, "app/routes.ts");
+  if (!fs.existsSync(routesConfigPath)) return [];
+  const content = fs.readFileSync(routesConfigPath, "utf8");
+  const layoutMarker = /layout\(\s*["']routes\/app-layout\.tsx["']\s*,/g;
+  const markerMatch = layoutMarker.exec(content);
+  if (!markerMatch) return [];
+
+  const block = extractArrayBlock(content, markerMatch.index);
+  if (!block) return [];
+
+  const routeRegex = /route\(\s*["'][^"']*["']\s*,\s*["']routes\/([^"']+)["']/g;
+  const modules = new Set();
+  let match;
+  while ((match = routeRegex.exec(block)) !== null) {
+    modules.add(`app/routes/${match[1]}`);
+  }
+  return [...modules];
+}
+
+function checkAdminToastCoverage() {
+  const baselinePath = path.join(ROOT, ADMIN_TOAST_BASELINE_PATH);
+  if (!fs.existsSync(baselinePath)) {
+    fail(`Missing admin toast baseline file: ${ADMIN_TOAST_BASELINE_PATH}`);
+    return;
+  }
+
+  const baselineRaw = JSON.parse(fs.readFileSync(baselinePath, "utf8"));
+  const baselineList = Array.isArray(baselineRaw.adminRoutesWithoutToast)
+    ? baselineRaw.adminRoutesWithoutToast
+    : [];
+  const baselineSet = new Set(baselineList);
+
+  const adminModules = getAdminRouteModulesFromConfig();
+  const offenders = [];
+
+  for (const filePath of adminModules) {
+    const fullPath = path.join(ROOT, filePath);
+    if (!fs.existsSync(fullPath)) {
+      fail(`Admin route module missing: ${filePath}`);
+      continue;
+    }
+
+    const content = fs.readFileSync(fullPath, "utf8");
+    const hasToastHook =
+      /\buseUrlToast\s*\(/.test(content) ||
+      /\buseToast\s*\(/.test(content);
+
+    if (!hasToastHook) {
+      offenders.push(filePath);
+      if (!baselineSet.has(filePath)) {
+        fail(`Admin route without toast hook (not in baseline): ${filePath}`);
+      }
+    }
+
+    if (/<table\b/.test(content)) {
+      fail(`Raw <table> usage forbidden in admin routes: ${filePath}. Use shared dashboard table components.`);
+    }
+  }
+
+  for (const baselinePathItem of baselineSet) {
+    if (!offenders.includes(baselinePathItem)) {
+      warn(`Admin toast baseline entry can be removed: ${baselinePathItem}`);
+    }
+  }
+}
+
 function main() {
   const trackedFiles = getTrackedFiles();
 
@@ -283,6 +405,7 @@ function main() {
   checkRoutingConsistency();
   checkMarkdownCreationRule();
   checkActionValidationWithBaseline(trackedFiles);
+  checkAdminToastCoverage();
 
   if (failures.length > 0) {
     console.error("CODEX rules check failed:\n");

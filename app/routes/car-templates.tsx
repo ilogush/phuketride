@@ -1,241 +1,39 @@
 import type { Route } from './+types/car-templates'
-import { Link, redirect, useNavigate, useSearchParams } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { requireAdmin } from '~/lib/auth.server'
 import PageHeader from '~/components/dashboard/PageHeader'
 import Button from '~/components/dashboard/Button'
 import DataTable from '~/components/dashboard/DataTable'
 import EmptyState from '~/components/dashboard/EmptyState'
 import Tabs from '~/components/dashboard/Tabs'
-import Modal from '~/components/dashboard/Modal'
 import IdBadge from '~/components/dashboard/IdBadge'
 import { PlusIcon, TruckIcon, TagIcon, CubeIcon } from '@heroicons/react/24/outline'
 import { GenericDictionaryForm, type FieldConfig } from '~/components/dashboard/GenericDictionaryForm'
 import { useState } from 'react'
 import { useToast } from '~/lib/toast'
-import { getRequestMetadata, quickAudit } from '~/lib/audit-logger'
+import { getRequestMetadata } from '~/lib/audit-logger'
 import type { Column } from '~/components/dashboard/DataTable'
-import { QUERY_LIMITS } from '~/lib/query-limits'
-import { z } from "zod";
-import { parseWithSchema } from "~/lib/validation.server";
-
-interface BrandRow {
-    id: number
-    name: string
-    logo_url?: string | null
-    created_at?: string
-}
-
-interface ModelRow {
-    id: number
-    name: string
-    brand_id: number
-    body_type_id?: number | null
-    created_at?: string
-    brand_name?: string | null
-}
-
-interface TemplateRow {
-    id: number
-    brand_id: number
-    model_id: number
-    transmission?: string | null
-    engine_volume?: number | null
-    body_type_id?: number | null
-    seats?: number | null
-    doors?: number | null
-    fuel_type_id?: number | null
-    photos?: string | null
-    created_at?: string
-    brand_name?: string | null
-    model_name?: string | null
-    fuel_type_name?: string | null
-}
+import { type BrandRow, type ModelRow, type TemplateRow, handleCarTemplatesAction, loadCarTemplatesData } from "~/lib/car-templates.server";
 
 type BrandFormData = { name: string }
 type ModelFormData = { name: string; brand_id: string }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
-    const user = await requireAdmin(request)
-
-    const [brands, models, templates] = await Promise.all([
-        context.cloudflare.env.DB
-            .prepare(`SELECT id, name, logo_url, created_at FROM car_brands ORDER BY name ASC LIMIT ${QUERY_LIMITS.LARGE}`)
-            .all()
-            .then((r) => (r.results || []) as unknown as BrandRow[]),
-        context.cloudflare.env.DB
-            .prepare(`
-                SELECT
-                    cm.id,
-                    cm.name,
-                    cm.brand_id,
-                    cm.body_type_id,
-                    cm.created_at,
-                    cb.name AS brand_name
-                FROM car_models cm
-                LEFT JOIN car_brands cb ON cb.id = cm.brand_id
-                ORDER BY cm.name ASC
-                LIMIT ${QUERY_LIMITS.XL}
-            `)
-            .all()
-            .then((r) => (r.results || []) as unknown as ModelRow[]),
-        context.cloudflare.env.DB
-            .prepare(`
-                SELECT
-                    ct.id,
-                    ct.brand_id,
-                    ct.model_id,
-                    ct.transmission,
-                    ct.engine_volume,
-                    ct.body_type_id,
-                    ct.seats,
-                    ct.doors,
-                    ct.fuel_type_id,
-                    ct.photos,
-                    ct.created_at,
-                    cb.name AS brand_name,
-                    cm.name AS model_name,
-                    ft.name AS fuel_type_name
-                FROM car_templates ct
-                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-                LEFT JOIN car_models cm ON cm.id = ct.model_id
-                LEFT JOIN fuel_types ft ON ft.id = ct.fuel_type_id
-                ORDER BY ct.created_at DESC
-                LIMIT ${QUERY_LIMITS.LARGE}
-            `)
-            .all()
-            .then((r) => (r.results || []) as unknown as TemplateRow[]),
-    ])
-
+    await requireAdmin(request)
+    const { brands, models, templates } = await loadCarTemplatesData(context.cloudflare.env.DB)
     return { brands, models, templates }
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
     const user = await requireAdmin(request)
-
     const formData = await request.formData()
-    const parsedIntent = parseWithSchema(
-        z.object({
-            intent: z.enum(["create_brand", "delete_brand", "create_model", "delete_model", "delete_template"]),
-        }),
-        {
-            intent: formData.get("intent"),
-        },
-        "Invalid intent"
-    )
-    if (!parsedIntent.ok) {
-        return { error: 'Invalid intent' }
-    }
-    const intent = parsedIntent.data.intent
     const metadata = getRequestMetadata(request)
-    // Brand actions
-    if (intent === 'create_brand') {
-        const name = formData.get('name') as string
-        if (!name) {
-            return { error: 'Brand name is required' }
-        }
-        await context.cloudflare.env.DB
-            .prepare("INSERT INTO car_brands (name, created_at, updated_at) VALUES (?, ?, ?)")
-            .bind(name, new Date().toISOString(), new Date().toISOString())
-            .run()
-        quickAudit({
-            db: context.cloudflare.env.DB,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId,
-            entityType: 'brand',
-            action: 'create',
-            afterState: { name },
-            ...metadata,
-        })
-        return { success: true, message: 'Brand created successfully' }
-    }
-
-    if (intent === 'delete_brand') {
-        const id = formData.get('id')
-        if (!id) {
-            return { error: 'Brand ID is required' }
-        }
-        const brandId = Number(id)
-        await context.cloudflare.env.DB.prepare("DELETE FROM car_brands WHERE id = ?").bind(brandId).run()
-        quickAudit({
-            db: context.cloudflare.env.DB,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId,
-            entityType: 'brand',
-            entityId: brandId,
-            action: 'delete',
-            ...metadata,
-        })
-        return { success: true, message: 'Brand deleted successfully' }
-    }
-
-    // Model actions
-    if (intent === 'create_model') {
-        const name = formData.get('name') as string
-        const brand_id = formData.get('brand_id') as string
-        if (!name || !brand_id) {
-            return { error: 'Model name and brand are required' }
-        }
-        await context.cloudflare.env.DB
-            .prepare("INSERT INTO car_models (name, brand_id, created_at, updated_at) VALUES (?, ?, ?, ?)")
-            .bind(name, Number(brand_id), new Date().toISOString(), new Date().toISOString())
-            .run()
-        quickAudit({
-            db: context.cloudflare.env.DB,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId,
-            entityType: 'model',
-            action: 'create',
-            afterState: { name, brandId: Number(brand_id) },
-            ...metadata,
-        })
-        return { success: true, message: 'Model created successfully' }
-    }
-
-    if (intent === 'delete_model') {
-        const id = formData.get('id')
-        if (!id) {
-            return { error: 'Model ID is required' }
-        }
-        const modelId = Number(id)
-        await context.cloudflare.env.DB.prepare("DELETE FROM car_models WHERE id = ?").bind(modelId).run()
-        quickAudit({
-            db: context.cloudflare.env.DB,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId,
-            entityType: 'model',
-            entityId: modelId,
-            action: 'delete',
-            ...metadata,
-        })
-        return { success: true, message: 'Model deleted successfully' }
-    }
-
-    // Template actions
-    if (intent === 'delete_template') {
-        const id = formData.get('id')
-        if (!id) {
-            return { error: 'Template ID is required' }
-        }
-        const templateId = Number(id)
-        await context.cloudflare.env.DB.prepare("DELETE FROM car_templates WHERE id = ?").bind(templateId).run()
-        quickAudit({
-            db: context.cloudflare.env.DB,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId,
-            entityType: 'car_template',
-            entityId: templateId,
-            action: 'delete',
-            ...metadata,
-        })
-        return { success: true, message: 'Template deleted successfully' }
-    }
-
-    return { error: 'Invalid intent' }
+    return handleCarTemplatesAction({
+        db: context.cloudflare.env.DB,
+        user,
+        formData,
+        metadata,
+    })
 }
 
 export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {

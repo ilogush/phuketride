@@ -12,6 +12,7 @@ import {
     loadClientContractsPage,
 } from "~/lib/my-contracts-list.server";
 import { parseListFilters } from "~/lib/query-filters.server";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 interface MyContractRow {
     id: number;
@@ -51,6 +52,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export default function MyContractsPage() {
+    useUrlToast();
     const { contracts, totalPages, currentPage, status } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
 

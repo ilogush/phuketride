@@ -137,6 +137,9 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
         c.email AS companyEmail,
         c.phone AS companyPhone,
         c.telegram AS companyTelegram,
+        c.delivery_fee_after_hours AS deliveryFeeAfterHours,
+        c.weekly_schedule AS weeklySchedule,
+        c.holidays AS holidays,
         u.name AS ownerName,
         u.avatar_url AS ownerAvatarUrl,
         u.created_at AS ownerCreatedAt,
@@ -366,6 +369,9 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
       companyEmail: (car.companyEmail as string | null) ?? null,
       companyPhone: (car.companyPhone as string | null) ?? null,
       companyTelegram: (car.companyTelegram as string | null) ?? null,
+      deliveryFeeAfterHours: Number(car.deliveryFeeAfterHours || 0),
+      weeklySchedule: (car.weeklySchedule as string | null) ?? null,
+      holidays: (car.holidays as string | null) ?? null,
       marketingHeadline: (car.marketingHeadline as string | null) ?? null,
       description: (car.description as string | null) ?? null,
       companySlug: buildCompanySlug(String(car.companyName || "")),
@@ -437,8 +443,8 @@ export default function PublicCarPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <section className="lg:col-span-2 space-y-6">
+            <h2 className="text-xl font-semibold text-gray-800">{title}</h2>
             <CarHostSection
-              title={title}
               companyName={car.companyName}
               ownerName={car.ownerName}
               companySlug={car.companySlug}
@@ -466,6 +472,9 @@ export default function PublicCarPage() {
             hostPhone={car.companyPhone || "+66610000000"}
             hostEmail={car.companyEmail || "host+test@phuketride.com"}
             hostTelegram={car.companyTelegram || "@phuketride_support_test"}
+            deliveryFeeAfterHours={Number(car.deliveryFeeAfterHours || 0)}
+            weeklySchedule={car.weeklySchedule || null}
+            holidays={car.holidays || null}
           />
         </div>
       </main>

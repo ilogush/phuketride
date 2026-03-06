@@ -195,7 +195,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export default function UsersPage() {
-    const { user, users: usersList, roleCounts, isModMode, activeTab, totalCount, search } = useLoaderData<typeof loader>();
+    const { user, users: usersList, roleCounts, isModMode, activeTab, totalCount } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
     useUrlToast();
     const isPartner = user.role === "partner" || isModMode;
@@ -263,16 +263,6 @@ export default function UsersPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Users Management"
-                withSearch
-                searchValue={search}
-                searchPlaceholder="Search users"
-                onSearchChange={(value) => {
-                    const next = new URLSearchParams(searchParams);
-                    if (value.trim()) next.set("search", value.trim());
-                    else next.delete("search");
-                    next.set("page", "1");
-                    setSearchParams(next);
-                }}
                 rightActions={
                     <Link to="/users/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>

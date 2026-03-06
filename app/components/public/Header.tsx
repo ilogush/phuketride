@@ -1,5 +1,5 @@
-import { Link, Form } from "react-router";
-import { GlobeAltIcon, Bars3Icon, UserIcon, ArrowRightOnRectangleIcon, TruckIcon, KeyIcon, GiftIcon, PhoneIcon, DocumentTextIcon, ShieldCheckIcon, WrenchScrewdriverIcon, CalculatorIcon } from "@heroicons/react/24/outline";
+import { Link } from "react-router";
+import { GlobeAltIcon, Bars3Icon, UserIcon, TruckIcon, KeyIcon, GiftIcon, PhoneIcon, DocumentTextIcon, ShieldCheckIcon, WrenchScrewdriverIcon, CalculatorIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 
 export default function Header() {
@@ -59,15 +59,6 @@ export default function Header() {
                     <UserIcon className="h-5 w-5 text-gray-500" />
                     <span className="text-sm font-medium text-gray-800">Login</span>
                   </Link>
-                  <Form method="post" action="/logout">
-                    <button
-                      type="submit"
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-green-100 transition-colors text-left"
-                    >
-                      <ArrowRightOnRectangleIcon className="h-5 w-5 text-gray-500" />
-                      <span className="text-sm font-medium text-gray-800">Log out</span>
-                    </button>
-                  </Form>
 
                   <div className="border-t border-gray-200 my-2"></div>
 

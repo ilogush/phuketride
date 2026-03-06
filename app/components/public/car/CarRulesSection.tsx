@@ -25,7 +25,7 @@ export default function CarRulesSection({ rules, policyLinks = [] }: CarRulesSec
   }
 
   return (
-    <section className="rounded-2xl border border-gray-200 p-4 space-y-4">
+    <section className="space-y-4 border-b border-gray-200 pb-4">
       <h2 className="text-xl font-semibold text-gray-800">Rules of the road</h2>
       {policyLinks.length ? (
         <div className="text-sm text-gray-500 flex flex-wrap gap-3">

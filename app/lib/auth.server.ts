@@ -136,7 +136,7 @@ export async function login(
 
     let user: LoginUser | undefined;
     try {
-        // Use raw SQL query to avoid drizzle mapping issues
+        // Use raw SQL query to keep field mapping explicit
         const rawUser = await db
             .prepare(`
                 SELECT

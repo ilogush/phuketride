@@ -4,55 +4,15 @@ import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
-import Card from "~/components/dashboard/Card";
-import { format } from "date-fns";
+import BookingDetailsCard from "~/components/dashboard/bookings/BookingDetailsCard";
+import BookingSidebarCards from "~/components/dashboard/bookings/BookingSidebarCards";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
-import { formatContactPhone } from "~/lib/phone";
 import { EXTRA_TYPES, getCreateExtraPaymentStmt } from "~/lib/contract-extras.server";
 import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
+import { type BookingDetailRow, type BookingForConversionRow, mapBookingDetailRow } from "~/lib/bookings-detail.server";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
-type BookingDetailRow = {
-    id: number;
-    status: string;
-    companyId: number;
-    carId: number;
-    carLicensePlate: string;
-    carYear: number | null;
-    brandName: string | null;
-    modelName: string | null;
-    colorName: string | null;
-    pickupDistrictName: string | null;
-    returnDistrictName: string | null;
-    start_date: string;
-    end_date: string;
-    estimated_amount: number;
-    deposit_amount: number | null;
-    deposit_paid: number | boolean;
-    client_name: string | null;
-    client_surname: string | null;
-    client_phone: string | null;
-    client_email: string | null;
-    client_passport: string | null;
-    pickup_district_id: number | null;
-    pickup_hotel: string | null;
-    pickup_room: string | null;
-    return_district_id: number | null;
-    return_hotel: string | null;
-    return_room: string | null;
-    notes: string | null;
-    created_at: string;
-    updated_at: string;
-    currency: string | null;
-    full_insurance_enabled: number | boolean | null;
-    full_insurance_price: number | null;
-    baby_seat_enabled: number | boolean | null;
-    baby_seat_price: number | null;
-    island_trip_enabled: number | boolean | null;
-    island_trip_price: number | null;
-    krabi_trip_enabled: number | boolean | null;
-    krabi_trip_price: number | null;
-};
+import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -84,49 +44,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
         `)
         .bind(bookingId)
         .first() as BookingDetailRow | null;
-    const booking = bookingRaw
-        ? {
-            ...bookingRaw,
-            startDate: bookingRaw.start_date,
-            endDate: bookingRaw.end_date,
-            estimatedAmount: bookingRaw.estimated_amount,
-            depositAmount: bookingRaw.deposit_amount,
-            depositPaid: !!bookingRaw.deposit_paid,
-            clientName: bookingRaw.client_name,
-            clientSurname: bookingRaw.client_surname,
-            clientPhone: bookingRaw.client_phone,
-            clientEmail: bookingRaw.client_email,
-            clientPassport: bookingRaw.client_passport,
-            pickupDistrictId: bookingRaw.pickup_district_id,
-            pickupHotel: bookingRaw.pickup_hotel,
-            pickupRoom: bookingRaw.pickup_room,
-            returnDistrictId: bookingRaw.return_district_id,
-            returnHotel: bookingRaw.return_hotel,
-            returnRoom: bookingRaw.return_room,
-            notes: bookingRaw.notes,
-            createdAt: bookingRaw.created_at,
-            updatedAt: bookingRaw.updated_at,
-            currency: bookingRaw.currency || "THB",
-            fullInsuranceEnabled: !!bookingRaw.full_insurance_enabled,
-            fullInsurancePrice: bookingRaw.full_insurance_price,
-            babySeatEnabled: !!bookingRaw.baby_seat_enabled,
-            babySeatPrice: bookingRaw.baby_seat_price,
-            islandTripEnabled: !!bookingRaw.island_trip_enabled,
-            islandTripPrice: bookingRaw.island_trip_price,
-            krabiTripEnabled: !!bookingRaw.krabi_trip_enabled,
-            krabiTripPrice: bookingRaw.krabi_trip_price,
-            companyCar: {
-                id: bookingRaw.carId,
-                companyId: bookingRaw.companyId,
-                licensePlate: bookingRaw.carLicensePlate,
-                year: bookingRaw.carYear,
-                template: { brand: { name: bookingRaw.brandName }, model: { name: bookingRaw.modelName } },
-                color: { name: bookingRaw.colorName },
-            },
-            pickupDistrict: { name: bookingRaw.pickupDistrictName },
-            returnDistrict: { name: bookingRaw.returnDistrictName },
-        }
-        : null;
+    const booking = bookingRaw ? mapBookingDetailRow(bookingRaw) : null;
 
     if (!booking) {
         throw new Response("Booking not found", { status: 404 });
@@ -173,40 +91,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
                 LIMIT 1
             `)
             .bind(bookingId)
-            .first() as {
-                id: number;
-                status: string;
-                companyCarId: number;
-                clientId: string | null;
-                startDate: string;
-                endDate: string;
-                estimatedAmount: number;
-                currency: string | null;
-                depositAmount: number | null;
-                depositPaymentMethod: string | null;
-                fullInsuranceEnabled: number | boolean | null;
-                fullInsurancePrice: number | null;
-                babySeatEnabled: number | boolean | null;
-                babySeatPrice: number | null;
-                islandTripEnabled: number | boolean | null;
-                islandTripPrice: number | null;
-                krabiTripEnabled: number | boolean | null;
-                krabiTripPrice: number | null;
-                pickupDistrictId: number | null;
-                pickupHotel: string | null;
-                pickupRoom: string | null;
-                deliveryCost: number | null;
-                returnDistrictId: number | null;
-                returnHotel: string | null;
-                returnRoom: string | null;
-                returnCost: number | null;
-                notes: string | null;
-                clientName: string | null;
-                clientSurname: string | null;
-                clientPhone: string | null;
-                clientEmail: string | null;
-                clientPassport: string | null;
-            } | null;
+            .first() as BookingForConversionRow | null;
 
         if (!booking) {
             return { error: "Booking not found" };
@@ -281,17 +166,16 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
             const insertContractResult = await context.cloudflare.env.DB
                 .prepare(`
                     INSERT INTO contracts (
-                        company_car_id, client_id, manager_id, booking_id, start_date, end_date, total_amount, total_currency,
+                        company_car_id, client_id, manager_id, start_date, end_date, total_amount, total_currency,
                         deposit_amount, deposit_currency, deposit_payment_method,
                         pickup_district_id, pickup_hotel, pickup_room, delivery_cost, return_district_id, return_hotel, return_room, return_cost,
                         status, notes, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
                 `)
                 .bind(
                     booking.companyCarId,
                     clientId,
                     user.id,
-                    booking.id,
                     booking.startDate,
                     booking.endDate,
                     booking.estimatedAmount,
@@ -384,14 +268,8 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
 }
 
 export default function BookingDetailsPage() {
+    useUrlToast();
     const { booking, user } = useLoaderData<typeof loader>();
-
-    const statusColors = {
-        pending: "bg-yellow-100 text-yellow-800",
-        confirmed: "bg-blue-100 text-blue-800",
-        converted: "bg-green-100 text-green-800",
-        cancelled: "bg-red-100 text-red-800",
-    };
 
     const canConvert = booking.status === "pending" || booking.status === "confirmed";
     const canCancel = booking.status === "pending" || booking.status === "confirmed";
@@ -426,166 +304,12 @@ export default function BookingDetailsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Main Info */}
                 <div className="lg:col-span-2 space-y-6">
-                    <Card>
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold text-gray-900">Booking Details</h2>
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[booking.status as keyof typeof statusColors]}`}>
-                                {booking.status}
-                            </span>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <h3 className="text-sm text-gray-500">Car</h3>
-                                <p className="text-base text-gray-900">
-                                    {booking.companyCar.template?.brand?.name} {booking.companyCar.template?.model?.name} {booking.companyCar.year}
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                    {booking.companyCar.licensePlate} • {booking.companyCar.color?.name}
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <h3 className="text-sm text-gray-500">Start Date</h3>
-                                    <p className="text-base text-gray-900">
-                                        {format(new Date(booking.startDate), "MMM dd, yyyy")}
-                                    </p>
-                                </div>
-                                <div>
-                                    <h3 className="text-sm text-gray-500">End Date</h3>
-                                    <p className="text-base text-gray-900">
-                                        {format(new Date(booking.endDate), "MMM dd, yyyy")}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 className="text-sm text-gray-500">Client</h3>
-                                <p className="text-base text-gray-900">
-                                    {booking.clientName} {booking.clientSurname}
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                    {formatContactPhone(booking.clientPhone)} {booking.clientEmail && `• ${booking.clientEmail}`}
-                                </p>
-                                {booking.clientPassport && (
-                                    <p className="text-sm text-gray-600">
-                                        Passport: {booking.clientPassport}
-                                    </p>
-                                )}
-                            </div>
-
-                            {(booking.pickupDistrictId || booking.pickupHotel) && (
-                                <div>
-                                    <h3 className="text-sm text-gray-500">Pickup</h3>
-                                    <p className="text-sm text-gray-900">
-                                        {booking.pickupDistrict?.name}
-                                        {booking.pickupHotel && ` • ${booking.pickupHotel}`}
-                                        {booking.pickupRoom && ` • Room ${booking.pickupRoom}`}
-                                    </p>
-                                </div>
-                            )}
-
-                            {(booking.returnDistrictId || booking.returnHotel) && (
-                                <div>
-                                    <h3 className="text-sm text-gray-500">Return</h3>
-                                    <p className="text-sm text-gray-900">
-                                        {booking.returnDistrict?.name}
-                                        {booking.returnHotel && ` • ${booking.returnHotel}`}
-                                        {booking.returnRoom && ` • Room ${booking.returnRoom}`}
-                                    </p>
-                                </div>
-                            )}
-
-                            {booking.notes && (
-                                <div>
-                                    <h3 className="text-sm text-gray-500">Notes</h3>
-                                    <p className="text-sm text-gray-900">{booking.notes}</p>
-                                </div>
-                            )}
-                        </div>
-                    </Card>
+                    <BookingDetailsCard booking={booking} />
                 </div>
 
                 {/* Sidebar */}
                 <div className="space-y-6">
-                    <Card>
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment Summary</h2>
-                        <div className="space-y-3">
-                            <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">Estimated Amount</span>
-                                <span className="text-sm font-medium text-gray-900">
-                                    {booking.currency} {booking.estimatedAmount.toFixed(2)}
-                                </span>
-                            </div>
-                            {(booking.depositAmount ?? 0) > 0 && (
-                                <>
-                                    <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Deposit</span>
-                                        <span className="text-sm font-medium text-gray-900">
-                                            {booking.currency} {(booking.depositAmount ?? 0).toFixed(2)}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Deposit Status</span>
-                                        <span className={`text-sm font-medium ${booking.depositPaid ? 'text-green-600' : 'text-red-600'}`}>
-                                            {booking.depositPaid ? 'Paid' : 'Unpaid'}
-                                        </span>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </Card>
-
-                    {(booking.fullInsuranceEnabled || booking.babySeatEnabled || booking.islandTripEnabled || booking.krabiTripEnabled) && (
-                        <Card>
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Extras</h2>
-                            <div className="space-y-2">
-                                {booking.fullInsuranceEnabled && (
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Full Insurance</span>
-                                        <span className="text-gray-900">{booking.currency} {(booking.fullInsurancePrice ?? 0).toFixed(2)}</span>
-                                    </div>
-                                )}
-                                {booking.babySeatEnabled && (
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Baby Seat</span>
-                                        <span className="text-gray-900">{booking.currency} {(booking.babySeatPrice ?? 0).toFixed(2)}</span>
-                                    </div>
-                                )}
-                                {booking.islandTripEnabled && (
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Island Trip</span>
-                                        <span className="text-gray-900">{booking.currency} {(booking.islandTripPrice ?? 0).toFixed(2)}</span>
-                                    </div>
-                                )}
-                                {booking.krabiTripEnabled && (
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Krabi Trip</span>
-                                        <span className="text-gray-900">{booking.currency} {(booking.krabiTripPrice ?? 0).toFixed(2)}</span>
-                                    </div>
-                                )}
-                            </div>
-                        </Card>
-                    )}
-
-                    <Card>
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Timeline</h2>
-                        <div className="space-y-2 text-sm">
-                            <div>
-                                <span className="text-gray-600">Created:</span>
-                                <span className="text-gray-900 ml-2">
-                                    {format(new Date(booking.createdAt), "MMM dd, yyyy HH:mm")}
-                                </span>
-                            </div>
-                            <div>
-                                <span className="text-gray-600">Updated:</span>
-                                <span className="text-gray-900 ml-2">
-                                    {format(new Date(booking.updatedAt), "MMM dd, yyyy HH:mm")}
-                                </span>
-                            </div>
-                        </div>
-                    </Card>
+                    <BookingSidebarCards booking={booking} />
                 </div>
             </div>
         </div>

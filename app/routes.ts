@@ -17,11 +17,17 @@ export default [
     route("insurance-protection", "routes/insurance-protection.tsx"),
     route("host-tools", "routes/host-tools.tsx"),
     route("carculator", "routes/carculator.tsx"),
+    route("search-cars", "routes/search-cars.tsx"),
 
     // Public company fleet page
     route("company/:slug", "routes/company.$slug.tsx"),
     route("cars/:id", "routes/cars.$id.tsx"),
     route("cars/:id/checkout", "routes/cars.$id.checkout.tsx"),
+    route("booking-confirmation", "routes/booking-confirmation.tsx"),
+    route("booking-confirmation/:id", "routes/booking-confirmation.$id.tsx"),
+    route("api/search-events", "routes/api.search-events.tsx"),
+    route("api/metrics/dashboard-charts", "routes/api.metrics.dashboard-charts.tsx"),
+    route("api/calendar-events", "routes/api.calendar-events.tsx"),
     route("api/car-templates/:id/features", "routes/api.car-templates.$id.features.tsx"),
     // Protected routes with dashboard layout (root admin URLs)
     layout("routes/app-layout.tsx", [
@@ -39,6 +45,7 @@ export default [
         route("cars", "routes/cars.tsx"),
         route("cars/create", "routes/cars.create.tsx"),
         route("cars/:id", "routes/admin-cars.$id.tsx"),
+        route("cars/:id/content", "routes/cars.$id.content.tsx"),
         route("cars/:id/edit", "routes/cars.$id.edit.tsx"),
         route("brands", "routes/brands.tsx"),
         route("brands/create", "routes/brands.create.tsx"),
@@ -82,7 +89,6 @@ export default [
         route("profile/edit", "routes/profile.edit.tsx"),
 
         // User routes
-        route("search-cars", "routes/search-cars.tsx"),
         route("my-bookings", "routes/my-bookings.tsx"),
         route("my-contracts", "routes/my-contracts.tsx"),
         route("my-contracts/:id", "routes/my-contracts.$id.tsx"),

@@ -28,7 +28,7 @@ export default function CarReviewsSection({ rating, reviews }: CarReviewsSection
   const hasMoreReviews = visibleCount < reviews.length;
 
   return (
-    <section className="rounded-2xl border border-gray-200 p-4 space-y-4">
+    <section className="space-y-4">
       <h2 className="text-xl font-semibold text-gray-800">Ratings and reviews</h2>
 
       {rating ? (

@@ -66,8 +66,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 `
                 INSERT INTO calendar_events (
                   company_id, event_type, title, description,
-                  start_date, end_date, color, status, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+                  start_date, end_date, color, status, created_by, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
                 `
             )
             .bind(
@@ -78,7 +78,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 startDate.getTime(),
                 endDate ? endDate.getTime() : null,
                 color,
-                user.id
+                user.id,
+                new Date().toISOString(),
+                new Date().toISOString()
             )
             .run();
 

@@ -3,7 +3,6 @@ import { Link } from "react-router";
 import type { CarFeatureItem } from "~/components/public/car/types";
 
 interface CarHostSectionProps {
-  title: string;
   companyName: string;
   ownerName: string | null;
   companySlug: string;
@@ -16,7 +15,6 @@ interface CarHostSectionProps {
 }
 
 export default function CarHostSection({
-  title,
   companyName,
   ownerName,
   companySlug,
@@ -48,7 +46,7 @@ export default function CarHostSection({
   const displayHostName = ownerName || companyName;
 
   return (
-    <section className="rounded-2xl border border-gray-200 p-4 space-y-5">
+    <section className="space-y-5 bg-gray-50 p-4 rounded-2xl">
       <div className="flex items-center gap-4">
         <div className="relative">
           {hostAvatarUrl ? (
@@ -83,9 +81,6 @@ export default function CarHostSection({
 
       {uniqueItems.length > 0 ? (
         <div className="pt-4 border-t border-gray-200 space-y-3">
-          <div className="flex items-center gap-3">
-            <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
-          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-gray-800">
             {columns.map((items, columnIndex) => (
               <div key={`col-${columnIndex}`}>

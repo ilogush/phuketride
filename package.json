@@ -6,13 +6,16 @@
     "build": "react-router build",
     "cf-typegen": "wrangler types",
     "db:check:companies-car-count": "tsx scripts/check-companies-car-count.ts",
-    "deploy": "npm run typecheck && npm run build && wrangler deploy",
+    "db:migrate:remote": "wrangler d1 migrations apply phuketride-bd --remote",
+    "deploy": "npm run rules:check && npm run typecheck && npm test && npm run db:migrate:remote && npm run build && wrangler deploy",
     "dev": "vite",
     "lint": "npm run typecheck",
     "postinstall": "npm run cf-typegen",
     "preview": "npm run build && vite preview",
     "rules:check": "node scripts/check-codex-rules.mjs",
-    "test": "node --test",
+    "test": "node --test && npm run test:smoke:client && npm run test:smoke:api-search-events",
+    "test:smoke:api-search-events": "tsx --tsconfig tsconfig.cloudflare.json scripts/smoke-api-search-events.ts",
+    "test:smoke:client": "tsx scripts/smoke-client.ts",
     "typecheck": "npm run cf-typegen && react-router typegen && tsc -b"
   },
   "dependencies": {

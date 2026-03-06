@@ -9,6 +9,7 @@ import SimplePagination from "~/components/dashboard/SimplePagination";
 import { formatContactPhone } from "~/lib/phone";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 const BOOKING_STATUSES = ["all", "pending", "confirmed", "converted", "cancelled"] as const;
 type BookingStatusFilter = typeof BOOKING_STATUSES[number];
@@ -104,6 +105,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export default function BookingsPage() {
+    useUrlToast();
     const { bookings, totalPages, currentPage, status } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
 

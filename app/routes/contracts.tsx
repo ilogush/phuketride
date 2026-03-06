@@ -103,7 +103,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export default function ContractsPage() {
-    const { contracts: contractsList, statusCounts, activeTab, totalCount, search } = useLoaderData<typeof loader>();
+    const { contracts: contractsList, statusCounts, activeTab, totalCount } = useLoaderData<typeof loader>();
     useUrlToast();
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -168,16 +168,6 @@ export default function ContractsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Contracts"
-                withSearch
-                searchValue={search}
-                searchPlaceholder="Search contracts"
-                onSearchChange={(value) => {
-                    const next = new URLSearchParams(searchParams);
-                    if (value.trim()) next.set("search", value.trim());
-                    else next.delete("search");
-                    next.set("page", "1");
-                    setSearchParams(next);
-                }}
                 rightActions={
                     <Link to="/contracts/new">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>

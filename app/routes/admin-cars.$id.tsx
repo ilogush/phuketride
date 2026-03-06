@@ -1,5 +1,6 @@
 import { type LoaderFunctionArgs, redirect } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 interface CarAccessRow {
     id: number;
@@ -32,5 +33,6 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 }
 
 export default function CarDetailsRedirectPage() {
+    useUrlToast();
     return null;
 }

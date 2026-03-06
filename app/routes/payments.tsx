@@ -130,7 +130,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export default function PaymentsPage() {
-    const { payments: paymentsList, statusCounts, activeTab, totalCount, search } = useLoaderData<typeof loader>();
+    const { payments: paymentsList, statusCounts, activeTab, totalCount } = useLoaderData<typeof loader>();
     useUrlToast();
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -227,16 +227,6 @@ export default function PaymentsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Payments"
-                withSearch
-                searchValue={search}
-                searchPlaceholder="Search payments"
-                onSearchChange={(value) => {
-                    const next = new URLSearchParams(searchParams);
-                    if (value.trim()) next.set("search", value.trim());
-                    else next.delete("search");
-                    next.set("page", "1");
-                    setSearchParams(next);
-                }}
                 rightActions={
                     <Link to="/payments/create">
                         <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>

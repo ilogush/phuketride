@@ -3,7 +3,6 @@
 ## Технологии
 
 - **СУБД**: Cloudflare D1 (SQLite)
-- **ORM**: Drizzle ORM
 - **Миграции**: SQL-файлы + Wrangler D1
 - **Именование**: snake_case
 
@@ -11,7 +10,6 @@
 
 ```bash
 npm run db:migrate:remote  # Применить миграции (ТОЛЬКО remote!)
-wrangler d1 execute phuketride-bd --remote --file=./drizzle/<migration>.sql
 ```
 
 **ВАЖНО**: Работаем ТОЛЬКО с удаленной БД (--remote). Локальной БД НЕТ.
@@ -312,7 +310,7 @@ await db.batch([stmt1, stmt2]);
 
 ```bash
 # 1. Изменить schema.ts
-# 2. Добавить SQL миграцию в drizzle/*.sql
+# 2. Добавить SQL миграцию в каталог миграций
 # 3. Применить на remote
 npm run db:migrate:remote
 ```
@@ -329,7 +327,7 @@ CREATE INDEX idx_contracts_company_dates
 ON contracts(company_car_id, start_date, end_date);
 ```
 
-**Файл**: [drizzle/0037_add_performance_indexes.sql](../drizzle/0037_add_performance_indexes.sql)
+**Файл**: SQL-миграция `0037_add_performance_indexes.sql`
 
 ## Лучшие практики
 

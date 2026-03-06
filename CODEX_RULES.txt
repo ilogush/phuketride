@@ -4,88 +4,128 @@ CODEX Rules (короткий, проверяемый формат)
 
 [AUTO] R1: Обязательные npm-скрипты
 - В `package.json` должны быть `scripts.lint` и `scripts.test`.
+- В `package.json` должны быть `scripts.db:migrate:remote` и `scripts.deploy`.
+- `scripts.db:migrate:remote` должен использовать `wrangler d1 migrations apply ... --remote`.
+- `scripts.deploy` должен включать: `rules:check`, `typecheck`, `db:migrate:remote`, `wrangler deploy`.
 
 [AUTO] R2: Локальный D1 state запрещен
-- Путь `.wrangler/state` не должен существовать в рабочем каталоге.
+- Наличие `.wrangler/state` помечается как warning (`rules:check`), а не hard-fail.
+- Source of truth для проекта — только remote D1.
 
-[AUTO] R3: Лимиты размера файлов (строки)
-- `app/routes/*`: до 1200 строк.
-- `app/components/*`: до 700 строк.
-- `scripts/*`: до 350 строк.
-- `migrations/*`: до 300 строк.
-- Остальные текстовые файлы (`.ts/.tsx/.js/.mjs/.json/.jsonc/.md/.txt/.sql/.css`): до 500 строк.
-
-[AUTO] R4: Базовая архитектурная целостность
+[AUTO] R3: Базовая архитектурная целостность
 - В `app/components/dashboard/*` запрещены импорты из `app/components/public/*`.
 - В `app/components/public/*` запрещены импорты из `app/components/dashboard/*`.
 
-[AUTO] R5: Иконки
+[AUTO] R4: Иконки
 - Запрещены icon-библиотеки, кроме `@heroicons/react`.
 - Проверка блокирует импорты из `react-icons`, `lucide-react`, `@tabler/icons*`, `phosphor-react`.
 
-[AUTO] R6: Базовые стандарты картинок
+[AUTO] R5: Базовые стандарты картинок
 - Запрещены небезопасные ссылки `http://` в `app/*` и `public/*`.
 - Каждый `<img>` в `app/*` должен иметь `alt`.
 
-[AUTO] R7: Роутинг-консистентность
+[AUTO] R6: Роутинг-консистентность
 - Маршруты должны объявляться централизованно в `app/routes.ts`.
 - Все `index/route/layout` ссылки на route-модули должны указывать на существующие файлы.
 
-[AUTO] R8: Новые markdown-файлы
+[AUTO] R7: Новые markdown-файлы
 - Новые (`untracked`) `.md` разрешены только в `docs/*`.
 
-[AUTO] R9: Строгая action-валидация (baseline-контроль)
+[AUTO] R8: Строгая action-валидация (baseline-контроль)
 - Для `action`, читающих `request.formData()/json()/text()`, обязательна schema-валидация (`app/schemas` + `safeParse`).
 - Текущий техдолг фиксируется в `scripts/codex-rules.validation-baseline.json`.
 - Любой новый маршрут вне baseline без schema-валидации блокирует `npm run rules:check`.
 
-[MANUAL] R10: Язык контента
+[AUTO] R9: Бюджет размера файлов
+- `app/routes/*` <= 800 строк.
+- `app/components/*` <= 600 строк.
+- `docs/*` <= 400 строк.
+- `scripts/*` <= 350 строк.
+- `scripts/*` <= 500 строк.
+- `migrations/*` <= 300 строк.
+
+[AUTO] R10: Обязательные docs-файлы
+- В проекте должны существовать:
+- `docs/README.md`
+- `docs/BUSINESS_LOGIC.md`
+- `docs/DATABASE.md`
+- `docs/ROUTING.md`
+- `docs/COMPANIES_LIST_OPTIMIZATION.md`
+- `docs/OPTIMIZATION.md`
+
+[AUTO] R11: Toast-покрытие админ-роутов (baseline-контроль)
+- Для каждого route-модуля внутри `layout("routes/app-layout.tsx", [...])` обязателен `useUrlToast()` или `useToast()`.
+- Текущий техдолг фиксируется в `scripts/codex-rules.admin-toast-baseline.json`.
+- Любой новый админ-роут без toast-хука вне baseline блокирует `npm run rules:check`.
+
+[AUTO] R12: Унификация таблиц в админке
+- В route-модулях админки запрещен raw `<table>`.
+- Табличные UI должны строиться через общие dashboard-компоненты.
+
+[MANUAL] R13: Язык контента
 - UI/публичный текст приложения: английский.
 - Внутренняя документация проекта (`docs/*`) и правила: русский.
 
-[MANUAL] R11: Границы UI-слоев
+[MANUAL] R14: Границы UI-слоев
 - Проект состоит из двух частей: клиентская и админская.
 - Dashboard UI: `app/components/dashboard/*`.
 - Public UI: `app/components/public/*`.
 - Компоненты и ссылки (routes/paths/navigation) клиентской и админской частей не должны пересекаться.
 
-[MANUAL] R11.1: Иконки
+[MANUAL] R15: Иконки
 - Все иконки брать только с https://heroicons.com.
 
-[MANUAL] R12: Cloudflare D1 discipline
+[MANUAL] R16: Cloudflare D1 discipline
 - D1-операции выполнять через `wrangler d1 ... --remote`.
 - Не работать с локальными SQLite-файлами из `.wrangler/state`.
+- Если нужен локальный анализ, разрешен только read-only snapshot из remote:
+- `wrangler d1 export phuketride-bd --remote --output ./tmp/d1-snapshots/<timestamp>.sql`
+- Snapshot не является источником истины, источник истины только remote D1.
 
-[MANUAL] R13: Единые стандарты валидации
+[MANUAL] R17: Единые стандарты валидации
 - Для `action/loader` использовать схемы валидации из `app/schemas` (`zod`).
 - Для чувствительных маршрутов сохранять проверки auth/role/rate-limit.
 - Ошибки валидации и служебные сообщения показывать через toast без дублирования inline-блоками.
 
-[MANUAL] R14: Единые стандарты работы с изображениями
+[MANUAL] R18: Единые стандарты работы с изображениями
 - Статические изображения хранить в `public/*`.
 - Для пользовательских/динамических изображений использовать серверные helper-утилиты проекта (`app/lib/r2.server.ts`, `app/lib/image-optimizer.ts`, `app/lib/asset-url.ts`).
 - Не использовать небезопасные URL и не смешивать источники изображений без явной причины.
 
-[MANUAL] R15: Единые стандарты роутинга
+[MANUAL] R19: Единые стандарты роутинга
 - Файл `app/routes.ts` — единственный источник декларации маршрутов.
 - Dashboard-маршруты должны оставаться в защищённом layout (`routes/app-layout.tsx`) с обязательной auth/rbac-проверкой.
 - Public и dashboard навигация не должны ссылаться друг на друга напрямую без явного бизнес-обоснования.
 
-[MANUAL] R16: Деплой-гейт
+[MANUAL] R20: Деплой-гейт
 - Перед деплоем обязателен успешный `npm run typecheck`.
 
-[MANUAL] R17: Документация (ссылки)
+[MANUAL] R21: Документация (ссылки)
 - Перед изменением логики сверяться с `docs/README.md`.
 - После крупных изменений обновлять основные документы проекта:
 - `docs/BUSINESS_LOGIC.md`
 - `docs/DATABASE.md`
 - `docs/ROUTING.md`
 - `docs/COMPANIES_LIST_OPTIMIZATION.md`
-- `docs/OPTIMIZATION_BACKLOG.md`
+- `docs/OPTIMIZATION.md`
 
-[MANUAL] R18: Создание markdown-файлов
-- Не создавать файлы в формате `.md` без прямого разрешения.
+[MANUAL] R22: Создание markdown-файлов
+- Новые `.md` создавать только после прямого разрешения владельца проекта и только в `docs/*`.
 
-[MANUAL] R19: Автовыполнение миграций
+[MANUAL] R23: Автовыполнение миграций
 - Если в задаче добавлены/изменены SQL-файлы в `migrations/*`, их нужно сразу применять в remote D1 командой `npx wrangler d1 execute phuketride-bd --remote --file=<migration.sql>`.
 - После применения миграций обязательно проверять схему (`PRAGMA table_info(...)`) и ключевые данные, зависящие от новых полей.
+
+[MANUAL] R24: Унификация админ-таблиц и CRUD
+- Для табличных админ-страниц использовать общие компоненты (например, `DataTable`, `AdminCrudModalPage`, единые pagination/filter controls).
+- Не внедрять уникальные кастомные таблицы, если кейс покрывается общими компонентами.
+- Любая новая кастомизация должна быть вынесена в reusable-компонент, а не оставаться внутри одного route.
+
+[MANUAL] R25: Производительность (админка + клиент)
+- В hot-path loader/action избегать лишних запросов и `SELECT *` без необходимости.
+- Для частых сортировок/фильтров поддерживать релевантные индексы в D1.
+- Для тяжелых операций использовать декомпозицию route -> server helper (`app/lib/*`) и повторно используемые компоненты.
+
+[MANUAL] R26: Уведомления
+- Все пользовательские уведомления в UI показывать только через toast (`useToast`/`useUrlToast`).
+- Не использовать inline-блоки ошибок/успеха как основной канал уведомлений.

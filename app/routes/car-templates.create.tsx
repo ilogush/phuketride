@@ -9,6 +9,7 @@ import { getCachedBodyTypes, getCachedCarBrands, getCachedCarModels, getCachedFu
 import type { DictionaryRow as OptionRow, ModelRow } from '~/lib/db-types'
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 async function getTemplateFeatureSchema(db: D1Database) {
     const cols = await db.prepare("PRAGMA table_info(car_templates)").all() as {
@@ -199,6 +200,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function CreateCarTemplatePage({ loaderData }: Route.ComponentProps) {
+    useUrlToast();
     const { brands, models, bodyTypes, fuelTypes } = loaderData
 
     return (

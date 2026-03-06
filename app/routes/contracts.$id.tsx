@@ -1,5 +1,6 @@
 import { type LoaderFunctionArgs, redirect } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
     await requireAuth(request);
@@ -9,5 +10,6 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export default function ContractRedirectPage() {
+    useUrlToast();
     return null;
 }

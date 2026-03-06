@@ -3,6 +3,7 @@ import { requireAuth } from "~/lib/auth.server";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
     await requireAuth(request);
@@ -69,5 +70,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 }
 
 export default function UserRedirectPage() {
+    useUrlToast();
     return null;
 }

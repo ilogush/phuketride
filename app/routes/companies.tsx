@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Link, useSearchParams } from "react-router";
+import { useLoaderData, Link } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -56,9 +56,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export default function CompaniesPage() {
-    const { companies: companiesList, showArchived, totalCount, search } = useLoaderData<typeof loader>();
+    const { companies: companiesList, showArchived, totalCount } = useLoaderData<typeof loader>();
     useUrlToast();
-    const [searchParams, setSearchParams] = useSearchParams();
 
     const columns: Column<typeof companiesList[0]>[] = [
         {
@@ -133,16 +132,6 @@ export default function CompaniesPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Companies"
-                withSearch
-                searchValue={search}
-                searchPlaceholder="Search companies"
-                onSearchChange={(value) => {
-                    const next = new URLSearchParams(searchParams);
-                    if (value.trim()) next.set("search", value.trim());
-                    else next.delete("search");
-                    next.set("page", "1");
-                    setSearchParams(next);
-                }}
                 rightActions={
                     <Link to={showArchived ? "/companies" : "/companies?archived=true"}>
                         <Button variant="secondary">

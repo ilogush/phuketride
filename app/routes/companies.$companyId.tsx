@@ -8,14 +8,10 @@ import Sidebar from "~/components/dashboard/Sidebar";
 import Topbar from "~/components/dashboard/Topbar";
 import Avatar from "~/components/dashboard/Avatar";
 import Tabs from "~/components/dashboard/Tabs";
+import CompanyOverviewStats from "~/components/dashboard/company/CompanyOverviewStats";
+import CompanyRecentActivity from "~/components/dashboard/company/CompanyRecentActivity";
 import {
     ArrowLeftIcon,
-    TruckIcon,
-    CalendarIcon,
-    UserGroupIcon,
-    BanknotesIcon,
-    ClockIcon,
-    ArrowRightIcon,
 } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import { formatContactPhone } from "~/lib/phone";
@@ -447,108 +443,8 @@ export default function CompanyDetailPage() {
                         {/* Tab Content */}
                         {activeTab === "overview" && (
                             <div className="space-y-6">
-                                {/* Stats Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    {/* Total Vehicles */}
-                                    <div className="bg-white rounded-2xl border border-gray-200 p-5">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm text-gray-500">Total Vehicles</p>
-                                                <p className="text-3xl font-bold text-gray-900 mt-1">
-                                                    {stats.totalVehicles}
-                                                </p>
-                                                <p className="text-sm text-gray-400 mt-1">
-                                                    {stats.inWorkshop} in workshop
-                                                </p>
-                                            </div>
-                                            <div className="w-12 h-12 bg-gray-900 rounded-full flex items-center justify-center">
-                                                <TruckIcon className="w-6 h-6 text-white" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Active Bookings */}
-                                    <div className="bg-white rounded-2xl border border-gray-200 p-5">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm text-gray-500">Active Bookings</p>
-                                                <p className="text-3xl font-bold text-gray-900 mt-1">
-                                                    {stats.activeBookings}
-                                                </p>
-                                                <p className="text-sm text-gray-400 mt-1">
-                                                    {stats.upcomingBookings} upcoming
-                                                </p>
-                                            </div>
-                                            <div className="w-12 h-12 bg-gray-900 rounded-full flex items-center justify-center">
-                                                <CalendarIcon className="w-6 h-6 text-white" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Revenue */}
-                                    <div className="bg-white rounded-2xl border border-gray-200 p-5">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm text-gray-500">Revenue</p>
-                                                <p className="text-3xl font-bold text-gray-900 mt-1">
-                                                    ฿{stats.totalRevenue.toLocaleString()}
-                                                </p>
-                                                <p className="text-sm text-gray-400 mt-1">
-                                                    ฿{stats.thisMonthRevenue.toLocaleString()} this month
-                                                </p>
-                                            </div>
-                                            <div className="w-12 h-12 bg-gray-900 rounded-full flex items-center justify-center">
-                                                <BanknotesIcon className="w-6 h-6 text-white" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Customers */}
-                                    <div className="bg-white rounded-2xl border border-gray-200 p-5">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm text-gray-500">Customers</p>
-                                                <p className="text-3xl font-bold text-gray-900 mt-1">
-                                                    {stats.totalCustomers}
-                                                </p>
-                                                <p className="text-sm text-gray-400 mt-1">
-                                                    Total customers
-                                                </p>
-                                            </div>
-                                            <div className="w-12 h-12 bg-gray-900 rounded-full flex items-center justify-center">
-                                                <UserGroupIcon className="w-6 h-6 text-white" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Recent Activity */}
-                                <div className="p-6">
-                                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
-                                    {recentActivity.length > 0 ? (
-                                        <div className="space-y-4">
-                                            {recentActivity.map((activity) => (
-                                                <div key={activity.id} className="flex items-start gap-3">
-                                                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                                        <ClockIcon className="w-4 h-4 text-gray-500" />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <p className="font-medium text-gray-900">{activity.title}</p>
-                                                        {activity.description && (
-                                                            <p className="text-sm text-gray-500 mt-0.5">{activity.description}</p>
-                                                        )}
-                                                        <p className="text-xs text-gray-400 mt-1">
-                                                            {new Date(activity.startDate).toLocaleDateString()}
-                                                        </p>
-                                                    </div>
-                                                    <ArrowRightIcon className="w-5 h-5 text-gray-400" />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-gray-400 text-center py-8">No recent activity</p>
-                                    )}
-                                </div>
+                                <CompanyOverviewStats stats={stats} />
+                                <CompanyRecentActivity recentActivity={recentActivity} />
                             </div>
                         )}
 

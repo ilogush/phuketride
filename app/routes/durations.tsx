@@ -1,16 +1,15 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireAdmin, requireAuth } from "~/lib/auth.server";
+import { requireAdmin } from "~/lib/auth.server";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { Input } from "~/components/dashboard/Input";
 import AdminCrudModalPage from "~/components/dashboard/AdminCrudModalPage";
-import { TrashIcon, PencilIcon, ClockIcon as HeroClockIcon } from "@heroicons/react/24/outline";
+import { ClockIcon as HeroClockIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { QUERY_LIMITS } from "~/lib/query-limits";
 import { useCrudModal } from "~/lib/useCrudModal";
-import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
-import { parseFormIntent, runMutationWithFeedback } from "~/lib/admin-actions";
+import { handleDurationsAction } from "~/lib/durations-actions.server";
 
 interface RentalDuration {
     id: number;
@@ -19,64 +18,6 @@ interface RentalDuration {
     maxDays: number | null;
     priceMultiplier: number;
     discountLabel: string | null;
-}
-type DurationRangeRow = {
-    id: number;
-    minDays: number;
-    maxDays: number | null;
-};
-
-// Validate durations coverage - no gaps allowed
-function validateDurationsCoverage(durations: Array<{ minDays: number, maxDays: number | null }>): { valid: boolean, message?: string } {
-    if (durations.length === 0) {
-        return { valid: true };
-    }
-
-    // Sort by minDays
-    const sorted = [...durations].sort((a, b) => a.minDays - b.minDays);
-
-    // First duration must start at 1
-    if (sorted[0].minDays !== 1) {
-        return { valid: false, message: "First duration must start at day 1" };
-    }
-
-    // Check for gaps and overlaps
-    for (let i = 0; i < sorted.length; i++) {
-        const current = sorted[i];
-
-        // Validate minDays > 0
-        if (current.minDays < 1) {
-            return { valid: false, message: "Min days must be at least 1" };
-        }
-
-        // Validate maxDays >= minDays (if maxDays is set)
-        if (current.maxDays !== null && current.maxDays < current.minDays) {
-            return { valid: false, message: "Max days must be greater than or equal to min days" };
-        }
-
-        // Check next duration
-        if (i < sorted.length - 1) {
-            const next = sorted[i + 1];
-
-            // Current duration must have maxDays if not last
-            if (current.maxDays === null) {
-                return { valid: false, message: "Only the last duration can have unlimited max days" };
-            }
-
-            // Check for gap
-            if (next.minDays !== current.maxDays + 1) {
-                return { valid: false, message: `Gap detected: duration ends at day ${current.maxDays} but next starts at day ${next.minDays}` };
-            }
-        }
-    }
-
-    // Last duration should have maxDays = null (unlimited)
-    const last = sorted[sorted.length - 1];
-    if (last.maxDays !== null) {
-        return { valid: false, message: "Last duration should have unlimited max days (0 or empty)" };
-    }
-
-    return { valid: true };
 }
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
@@ -103,205 +44,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-
-    // Only admin can modify durations
-    if (user.role !== "admin") {
-        return data({ success: false, message: "Access denied" }, { status: 403 });
-    }
-
-    const formData = await request.formData();
-    const intentParsed = parseFormIntent(formData, ["delete", "create", "update", "seed"], "Invalid action");
-    if (!intentParsed.ok) {
-        return data({ success: false, message: "Invalid action" }, { status: 400 });
-    }
-    const intent = intentParsed.data.intent;
-
-    if (intent === "delete") {
-        const id = Number(formData.get("id"));
-
-        // Get all durations except the one being deleted
-        const allDurationsResult = await context.cloudflare.env.DB
-            .prepare("SELECT id, min_days AS minDays, max_days AS maxDays FROM rental_durations")
-            .all() as { results?: DurationRangeRow[] };
-        const allDurations = allDurationsResult.results || [];
-        const remainingDurations = allDurations.filter(d => d.id !== id);
-
-        // Validate coverage after deletion
-        if (remainingDurations.length > 0) {
-            const validation = validateDurationsCoverage(remainingDurations);
-            if (!validation.valid) {
-                return redirectWithError("/durations", validation.message || "Invalid durations coverage");
-            }
-        }
-
-        return runMutationWithFeedback(
-            async () => {
-                await context.cloudflare.env.DB
-                    .prepare("DELETE FROM rental_durations WHERE id = ?")
-                    .bind(id)
-                    .run();
-            },
-            {
-                successPath: "/durations",
-                successMessage: "Duration deleted successfully",
-                errorMessage: "Failed to delete duration",
-            }
-        );
-    }
-
-    if (intent === "create") {
-        const rangeName = formData.get("rangeName") as string;
-        const minDays = Number(formData.get("minDays"));
-        const maxDays = formData.get("maxDays") ? Number(formData.get("maxDays")) : null;
-        const priceMultiplier = Number(formData.get("priceMultiplier"));
-        const discountLabel = formData.get("discountLabel") as string | null;
-
-        // Convert 0 to null for unlimited
-        const normalizedMaxDays = maxDays === 0 ? null : maxDays;
-
-        // Get existing durations
-        const existingDurationsResult = await context.cloudflare.env.DB
-            .prepare("SELECT min_days AS minDays, max_days AS maxDays FROM rental_durations")
-            .all() as { results?: Array<{ minDays: number; maxDays: number | null }> };
-        const existingDurations = existingDurationsResult.results || [];
-
-        // Add new duration to validation
-        const allDurations = [
-            ...existingDurations,
-            { minDays, maxDays: normalizedMaxDays }
-        ];
-
-        const validation = validateDurationsCoverage(allDurations);
-        if (!validation.valid) {
-            return redirectWithError("/durations", validation.message || "Invalid durations coverage");
-        }
-
-        return runMutationWithFeedback(
-            async () => {
-                await context.cloudflare.env.DB
-                    .prepare(`
-                        INSERT INTO rental_durations (
-                            range_name, min_days, max_days, price_multiplier, discount_label, created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                    `)
-                    .bind(
-                        rangeName,
-                        minDays,
-                        normalizedMaxDays,
-                        priceMultiplier,
-                        discountLabel || null,
-                        new Date().toISOString(),
-                        new Date().toISOString()
-                    )
-                    .run();
-            },
-            {
-                successPath: "/durations",
-                successMessage: "Duration created successfully",
-                errorMessage: "Failed to create duration",
-            }
-        );
-    }
-
-    if (intent === "update") {
-        const id = Number(formData.get("id"));
-        const rangeName = formData.get("rangeName") as string;
-        const minDays = Number(formData.get("minDays"));
-        const maxDays = formData.get("maxDays") ? Number(formData.get("maxDays")) : null;
-        const priceMultiplier = Number(formData.get("priceMultiplier"));
-        const discountLabel = formData.get("discountLabel") as string | null;
-
-        // Convert 0 to null for unlimited
-        const normalizedMaxDays = maxDays === 0 ? null : maxDays;
-
-        // Get all durations except the one being updated
-        const allDurationsResult = await context.cloudflare.env.DB
-            .prepare("SELECT id, min_days AS minDays, max_days AS maxDays FROM rental_durations")
-            .all() as { results?: DurationRangeRow[] };
-        const allDurations = allDurationsResult.results || [];
-        const otherDurations = allDurations.filter(d => d.id !== id);
-
-        // Add updated duration to validation
-        const durationsToValidate = [
-            ...otherDurations,
-            { minDays, maxDays: normalizedMaxDays }
-        ];
-
-        const validation = validateDurationsCoverage(durationsToValidate);
-        if (!validation.valid) {
-            return redirectWithError("/durations", validation.message || "Invalid durations coverage");
-        }
-
-        return runMutationWithFeedback(
-            async () => {
-                await context.cloudflare.env.DB
-                    .prepare(`
-                        UPDATE rental_durations
-                        SET range_name = ?, min_days = ?, max_days = ?, price_multiplier = ?,
-                            discount_label = ?, updated_at = ?
-                        WHERE id = ?
-                    `)
-                    .bind(
-                        rangeName,
-                        minDays,
-                        normalizedMaxDays,
-                        priceMultiplier,
-                        discountLabel || null,
-                        new Date().toISOString(),
-                        id
-                    )
-                    .run();
-            },
-            {
-                successPath: "/durations",
-                successMessage: "Duration updated successfully",
-                errorMessage: "Failed to update duration",
-            }
-        );
-    }
-
-    if (intent === "seed") {
-        // Insert default durations
-        const defaultDurations = [
-            { rangeName: "1-2 days", minDays: 1, maxDays: 2, priceMultiplier: 1, discountLabel: null },
-            { rangeName: "3-6 days", minDays: 3, maxDays: 6, priceMultiplier: 0.95, discountLabel: "5% off" },
-            { rangeName: "7-13 days", minDays: 7, maxDays: 13, priceMultiplier: 0.9, discountLabel: "10% off" },
-            { rangeName: "14-20 days", minDays: 14, maxDays: 20, priceMultiplier: 0.85, discountLabel: "15% off" },
-            { rangeName: "21-28 days", minDays: 21, maxDays: 28, priceMultiplier: 0.8, discountLabel: "20% off" },
-            { rangeName: "29+ days", minDays: 29, maxDays: null, priceMultiplier: 0.75, discountLabel: "25% off" },
-        ];
-
-        return runMutationWithFeedback(
-            async () => {
-                for (const duration of defaultDurations) {
-                    await context.cloudflare.env.DB
-                        .prepare(`
-                            INSERT INTO rental_durations (
-                                range_name, min_days, max_days, price_multiplier, discount_label, created_at, updated_at
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                        `)
-                        .bind(
-                            duration.rangeName,
-                            duration.minDays,
-                            duration.maxDays,
-                            duration.priceMultiplier,
-                            duration.discountLabel,
-                            new Date().toISOString(),
-                            new Date().toISOString()
-                        )
-                        .run();
-                }
-            },
-            {
-                successPath: "/durations",
-                successMessage: "Default durations created successfully",
-                errorMessage: "Failed to create default durations",
-            }
-        );
-    }
-
-    return data({ success: false, message: "Invalid action" }, { status: 400 });
+    return handleDurationsAction({ request, context });
 }
 
 export default function DurationsPage() {

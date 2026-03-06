@@ -5,6 +5,7 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import Card from "~/components/dashboard/Card";
 import { ChartBarIcon } from "@heroicons/react/24/outline";
 import Button from "~/components/dashboard/Button";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -12,6 +13,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export default function ReportsPage() {
+    useUrlToast();
     const { user } = useLoaderData<typeof loader>();
 
     const reports = [

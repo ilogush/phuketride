@@ -5,7 +5,7 @@ interface PublicToggleProps {
   size?: "sm" | "md" | "lg";
 }
 
-export default function Toggle({ checked, onChange, label, size = "md" }: PublicToggleProps) {
+export default function Toggle({ checked, onChange, label, size = "sm" }: PublicToggleProps) {
   const sizeClass = size === "lg"
     ? { root: "h-10 w-16", knob: "h-8 w-8", on: "translate-x-7", off: "translate-x-1" }
     : size === "sm"

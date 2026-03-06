@@ -11,6 +11,7 @@ import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 const PAYMENT_STATUSES = ["all", "completed", "pending", "cancelled"] as const;
 type PaymentStatusFilter = typeof PAYMENT_STATUSES[number];
@@ -97,6 +98,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export default function MyPayments() {
+    useUrlToast();
     const { payments, totalPages, currentPage, status } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
 

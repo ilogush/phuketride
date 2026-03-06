@@ -58,13 +58,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (!parsed.ok) {
         return redirectWithError("/districts", parsed.error);
     }
+    const data = parsed.data;
 
-    if (parsed.data.intent === "delete") {
+    if (data.intent === "delete") {
+        const { id } = data;
         return runMutationWithFeedback(
             async () => {
                 await context.cloudflare.env.DB
                     .prepare("DELETE FROM districts WHERE id = ?")
-                    .bind(parsed.data.id)
+                    .bind(id)
                     .run();
             },
             {
@@ -75,12 +77,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
         );
     }
 
-    if (parsed.data.intent === "create") {
+    if (data.intent === "create") {
+        const { name, locationId, deliveryPrice } = data;
         return runMutationWithFeedback(
             async () => {
                 await context.cloudflare.env.DB
                     .prepare("INSERT INTO districts (name, location_id, delivery_price) VALUES (?, ?, ?)")
-                    .bind(parsed.data.name, parsed.data.locationId, parsed.data.deliveryPrice)
+                    .bind(name, locationId, deliveryPrice)
                     .run();
             },
             {
@@ -91,12 +94,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
         );
     }
 
-    if (parsed.data.intent === "update") {
+    if (data.intent === "update") {
+        const { id, name, locationId, deliveryPrice } = data;
         return runMutationWithFeedback(
             async () => {
                 await context.cloudflare.env.DB
                     .prepare("UPDATE districts SET name = ?, location_id = ?, delivery_price = ? WHERE id = ?")
-                    .bind(parsed.data.name, parsed.data.locationId, parsed.data.deliveryPrice, parsed.data.id)
+                    .bind(name, locationId, deliveryPrice, id)
                     .run();
             },
             {

@@ -34,8 +34,8 @@ export function getCreateCalendarEventStmt(params: CreateEventParams): D1Prepare
             INSERT INTO calendar_events (
                 company_id, event_type, title, description,
                 start_date, end_date, related_id, color,
-                status, created_by, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                status, created_by, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
             `
         )
         .bind(
@@ -48,6 +48,7 @@ export function getCreateCalendarEventStmt(params: CreateEventParams): D1Prepare
             relatedId || null,
             color,
             createdBy,
+            new Date().toISOString(),
             new Date().toISOString()
         );
 }

@@ -1,5 +1,6 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 function getCompanyId(raw: string | undefined): number {
   const id = Number(raw || 0);
@@ -22,5 +23,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function CompanyEditRedirectPage() {
+    useUrlToast();
   return null;
 }

@@ -9,6 +9,7 @@ import { getCachedBodyTypes, getCachedCarBrands, getCachedCarModels, getCachedFu
 import type { DictionaryRow, ModelRow } from '~/lib/db-types'
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 interface CarTemplateRow {
     id: number
@@ -342,6 +343,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 }
 
 export default function EditCarTemplatePage({ loaderData }: Route.ComponentProps) {
+    useUrlToast();
     const { template, brands, models, bodyTypes, fuelTypes } = loaderData
     const formTemplate = {
         ...template,

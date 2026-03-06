@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
+import { useUrlToast } from "~/lib/useUrlToast";
 type CloseContractLoaderRow = {
     id: number;
     companyId: number;
@@ -181,6 +182,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
 }
 
 export default function CloseContract() {
+    useUrlToast();
     const { contract } = useLoaderData<typeof loader>();
     const navigate = useNavigate();
     const { maskDateTimeInput } = useDateMasking();

@@ -1,17 +1,34 @@
 import { Link } from "react-router";
 import { CheckIcon, MagnifyingGlassIcon, MapPinIcon } from "@heroicons/react/24/outline";
 import { useMemo, useState } from "react";
-import DateRangePicker from "~/components/public/DateRangePicker";
+import DateRangePicker, { type DateRangeValue } from "~/components/public/DateRangePicker";
 
 interface HeroSectionProps {
   districts: string[];
 }
+
+const pad = (value: number) => String(value).padStart(2, "0");
+const toDateInput = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+const buildDefaultTrip = (): DateRangeValue => {
+  const start = new Date();
+  const end = new Date(start);
+  end.setDate(start.getDate() + 3);
+
+  return {
+    startDate: toDateInput(start),
+    endDate: toDateInput(end),
+    startTime: "10:00",
+    endTime: "10:00",
+  };
+};
 
 export default function HeroSection({ districts }: HeroSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showLocations, setShowLocations] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [trip, setTrip] = useState<DateRangeValue>(buildDefaultTrip);
 
   const filteredDistricts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -38,6 +55,21 @@ export default function HeroSection({ districts }: HeroSectionProps) {
       }).catch(() => {});
     }
   };
+
+  const searchHref = useMemo(() => {
+    const params = new URLSearchParams();
+    const district = (selectedDistrict || searchQuery).trim();
+    if (district) {
+      params.set("district", district);
+    }
+    params.set("startDate", trip.startDate);
+    params.set("endDate", trip.endDate);
+    params.set("startTime", trip.startTime);
+    params.set("endTime", trip.endTime);
+
+    const queryString = params.toString();
+    return queryString ? `/search-cars?${queryString}` : "/search-cars";
+  }, [searchQuery, selectedDistrict, trip.endDate, trip.endTime, trip.startDate, trip.startTime]);
 
   return (
     <section className="relative z-30">
@@ -109,6 +141,8 @@ export default function HeroSection({ districts }: HeroSectionProps) {
               <div className="flex-1 pr-3">
                 <DateRangePicker
                   compact
+                  value={trip}
+                  onChange={setTrip}
                   dropdownFullWidth
                   portalTargetId="hero-search-shell"
                   compactLabelClassName="text-sm text-gray-500"
@@ -127,7 +161,7 @@ export default function HeroSection({ districts }: HeroSectionProps) {
 
               <Link
                 className="bg-green-600 hover:bg-green-700 transition text-white p-3 flex items-center justify-center rounded-xl"
-                to="/"
+                to={searchHref}
                 onClick={() => {
                   const district = selectedDistrict || searchQuery.trim();
                   if (!district || typeof window === "undefined") return;
