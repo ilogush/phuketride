@@ -9,6 +9,7 @@ type CreateCompanyActionArgs = {
   context: { cloudflare: { env: Env } };
   user: SessionUser;
   formData: FormData;
+  db?: any;
 };
 
 type DistrictRow = {
@@ -34,7 +35,12 @@ function parseIntegerValue(value: FormDataEntryValue | null, fallback: number): 
   return Math.max(0, Math.round(Math.abs(parsed)));
 }
 
-export async function createCompanyAction({ request, context, user, formData }: CreateCompanyActionArgs) {
+export async function createCompanyAction({ request, context, user, formData, db: providedDb }: CreateCompanyActionArgs) {
+  const db = providedDb || (context?.cloudflare?.env?.DB as any);
+  if (!db) {
+    throw new Error("Database not providing in createCompanyAction");
+  }
+
   const rawData = {
     name: formData.get("name") as string,
     email: formData.get("email") as string,
@@ -66,7 +72,7 @@ export async function createCompanyAction({ request, context, user, formData }: 
     const holidays = formData.get("holidays") as string;
     const managerIds = formData.getAll("managerIds") as string[];
 
-    const insertResult = await context.cloudflare.env.DB
+    const insertResult = await db
       .prepare(`
         INSERT INTO companies (
           name, owner_id, email, phone, telegram, location_id, district_id,
@@ -105,7 +111,7 @@ export async function createCompanyAction({ request, context, user, formData }: 
       throw new Error("Failed to create company - no ID returned");
     }
 
-    const allDistrictsResult = (await context.cloudflare.env.DB
+    const allDistrictsResult = (await db
       .prepare("SELECT id, delivery_price AS deliveryPrice FROM districts WHERE location_id = ?")
       .bind(validData.locationId)
       .all()) as { results?: DistrictRow[] };
@@ -113,7 +119,7 @@ export async function createCompanyAction({ request, context, user, formData }: 
 
     await Promise.all(
       allDistricts.map((district) =>
-        context.cloudflare.env.DB
+        db
           .prepare(`
             INSERT INTO company_delivery_settings (
               company_id, district_id, is_active, delivery_price, created_at, updated_at
@@ -134,14 +140,14 @@ export async function createCompanyAction({ request, context, user, formData }: 
     if (managerIds.length > 0) {
       const ownerId = managerIds[0];
 
-      await context.cloudflare.env.DB
+      await db
         .prepare("UPDATE companies SET owner_id = ?, updated_at = ? WHERE id = ?")
         .bind(ownerId, new Date().toISOString(), newCompany.id)
         .run();
 
       await Promise.all([
         ...managerIds.map((userId) =>
-          context.cloudflare.env.DB
+          db
             .prepare(`
               INSERT INTO managers (user_id, company_id, is_active, created_at, updated_at)
               VALUES (?, ?, 1, ?, ?)
@@ -150,7 +156,7 @@ export async function createCompanyAction({ request, context, user, formData }: 
             .run()
         ),
         ...managerIds.map((userId) =>
-          context.cloudflare.env.DB
+          db
             .prepare("UPDATE users SET role = 'partner', updated_at = ? WHERE id = ?")
             .bind(new Date().toISOString(), userId)
             .run()
@@ -160,7 +166,7 @@ export async function createCompanyAction({ request, context, user, formData }: 
 
     const metadata = getRequestMetadata(request);
     quickAudit({
-      db: context.cloudflare.env.DB,
+      db,
       userId: user.id,
       role: user.role,
       companyId: newCompany.id,

@@ -185,8 +185,11 @@ export async function countCarsPage(params: {
 export async function getEditableCarById(params: {
     db: D1DatabaseLike;
     carId: number;
+    companyId?: number | null;
 }) {
-    const { db, carId } = params;
+    const { db, carId, companyId } = params;
+    const binds: unknown[] = [carId];
+    if (companyId) binds.push(companyId);
     return await db
         .prepare(`
             SELECT
@@ -213,8 +216,9 @@ export async function getEditableCarById(params: {
             LEFT JOIN fuel_types ft ON ft.id = ct.fuel_type_id
             LEFT JOIN colors c ON c.id = cc.color_id
             WHERE cc.id = ?
+            ${companyId ? "AND cc.company_id = ?" : ""}
             LIMIT 1
         `)
-        .bind(carId)
+        .bind(...binds)
         .first() as EditableCarRow | null;
 }

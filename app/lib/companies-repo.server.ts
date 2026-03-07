@@ -105,3 +105,31 @@ export async function listCompaniesPage(params: {
     const orderMap = new Map<number, number>(companyIds.map((id, index) => [id, index]));
     return details.sort((a, b) => (orderMap.get(Number(a.id)) ?? Number.MAX_SAFE_INTEGER) - (orderMap.get(Number(b.id)) ?? Number.MAX_SAFE_INTEGER));
 }
+
+export async function getCompanyById(params: {
+    db: D1DatabaseLike;
+    id: number;
+}) {
+    const { db, id } = params;
+    return await db.prepare(`
+        SELECT
+            c.id,
+            c.name,
+            c.email,
+            c.phone,
+            c.location_id AS locationId,
+            c.district_id AS districtId,
+            c.owner_id AS ownerId,
+            c.archived_at AS archivedAt,
+            u.name AS ownerName,
+            u.surname AS ownerSurname,
+            u.archived_at AS ownerArchivedAt,
+            d.name AS districtName,
+            COALESCE(c.car_count, 0) AS carCount
+        FROM companies c
+        LEFT JOIN users u ON u.id = c.owner_id
+        LEFT JOIN districts d ON d.id = c.district_id
+        WHERE c.id = ?
+        LIMIT 1
+    `).bind(id).first() as CompanyListRow | null;
+}

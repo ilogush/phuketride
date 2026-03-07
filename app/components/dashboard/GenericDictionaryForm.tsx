@@ -24,6 +24,7 @@ export interface FieldConfig {
     className?: string
     rows?: number
     helpText?: string
+    step?: string | number
     transform?: (value: string) => unknown
 }
 
@@ -300,6 +301,7 @@ export function GenericDictionaryForm({
                             value={toInputValue(value)}
                             onChange={handleChange}
                             maxLength={field.maxLength}
+                            step={field.step}
                             placeholder={field.placeholder}
                             disabled={field.disabled}
                             error={error}

@@ -27,6 +27,7 @@ export default function DataTable<T>({
     emptyAction,
     searchQuery = '',
     serverPagination = false,
+    onRowClick,
     caption,
     ariaLabel
 }: DataTableProps<T>) {
@@ -141,7 +142,8 @@ export default function DataTable<T>({
                                 currentData.map((item, idx) => (
                                     <tr
                                         key={String(getPropertyValue(item, 'id') ?? idx)}
-                                        className={`group hover:bg-white transition-all ${isLoading ? 'opacity-50' : ''} ${getRowClassName ? getRowClassName(item, idx) : ''}`}
+                                        className={`group hover:bg-white transition-all ${isLoading ? 'opacity-50' : ''} ${onRowClick ? 'cursor-pointer' : ''} ${getRowClassName ? getRowClassName(item, idx) : ''}`}
+                                        onClick={() => onRowClick?.(item, idx)}
                                     >
                                         {currentColumns.map((col, cIdx) => {
                                             const cellValue = col.render

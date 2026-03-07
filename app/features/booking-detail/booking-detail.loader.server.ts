@@ -1,18 +1,22 @@
-import { requireBookingAccess } from "~/lib/access-policy.server";
+import { getScopedDb } from "~/lib/db-factory.server";
 import { mapBookingDetailRow } from "~/lib/bookings-detail.server";
-import { getBookingDetailById } from "~/lib/bookings-repo.server";
 
 export type BookingDetail = ReturnType<typeof mapBookingDetailRow>;
 
 export async function loadBookingDetailPage(args: {
-  db: D1Database;
+  db?: D1Database;
   request: Request;
   bookingIdParam: string | undefined;
+  context: any;
 }) {
-  const { db, request, bookingIdParam } = args;
+  const { request, bookingIdParam, context } = args;
   const bookingId = Number(bookingIdParam);
-  const { user } = await requireBookingAccess(request, db, bookingId);
-  const bookingRaw = await getBookingDetailById({ db, bookingId });
+  if (isNaN(bookingId)) {
+    throw new Response("Invalid booking ID", { status: 400 });
+  }
+
+  const { user, sdb } = await getScopedDb(request, context);
+  const bookingRaw = await sdb.bookings.getById(bookingId);
   const booking = bookingRaw ? mapBookingDetailRow(bookingRaw) : null;
 
   if (!booking) {

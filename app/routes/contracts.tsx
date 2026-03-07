@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams, Outlet } from "react-router";
-import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -8,17 +7,18 @@ import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
 import { ClipboardDocumentListIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
+import IdBadge from "~/components/dashboard/IdBadge";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
-import { countContractsPage, listContractsPage, listContractStatusCounts } from "~/lib/contracts-repo.server";
-import type { ContractListRow } from "~/lib/db-types";
+import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
+
 const CONTRACT_TABS = ["active", "closed"] as const;
 type ContractTab = typeof CONTRACT_TABS[number];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId: effectiveCompanyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
+    const { user, companyId, sdb } = await getScopedDb(request, context);
     const url = new URL(request.url);
     const { tab, search, sortBy, sortOrder } = parseListFilters(url, {
         tabs: CONTRACT_TABS,
@@ -35,50 +35,34 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         scope: "route.loader",
         request,
         userId: user.id,
-        companyId: effectiveCompanyId,
+        companyId,
         details: { route: "contracts", tab: activeTab, sortBy: sortBy || "createdAt" },
         run: async () => {
-            let contractsList: ContractListRow[] = [];
-            let statusCounts = { all: 0, active: 0, closed: 0 };
-            let totalCount = 0;
+            const [rows, countsResult, countResult] = await Promise.all([
+                sdb.contracts.list({
+                    status: activeTab,
+                    pageSize,
+                    offset,
+                    search,
+                    sortBy: sortBy || "createdAt",
+                    sortOrder,
+                }),
+                sdb.contracts.getStatusCounts(),
+                sdb.contracts.count({
+                    status: activeTab,
+                    search,
+                }),
+            ]);
 
-            try {
-                const [rows, countsResult, countResult] = await Promise.all([
-                    listContractsPage({
-                        db: context.cloudflare.env.DB,
-                        companyId: effectiveCompanyId,
-                        status: activeTab,
-                        pageSize,
-                        offset,
-                        search,
-                        sortBy: sortBy || "createdAt",
-                        sortOrder,
-                    }),
-                    listContractStatusCounts({
-                        db: context.cloudflare.env.DB,
-                        companyId: effectiveCompanyId,
-                    }),
-                    countContractsPage({
-                        db: context.cloudflare.env.DB,
-                        companyId: effectiveCompanyId,
-                        status: activeTab,
-                        search,
-                    }),
-                ]);
-                contractsList = rows;
-
-                for (const row of countsResult) {
-                    const count = Number(row.count || 0);
-                    statusCounts.all += count;
-                    if (row.status === "active") statusCounts.active = count;
-                    if (row.status === "closed") statusCounts.closed = count;
-                }
-                totalCount = countResult;
-            } catch {
-                contractsList = [];
+            const statusCounts = { all: 0, active: 0, closed: 0 };
+            for (const row of countsResult) {
+                const count = Number(row.count || 0);
+                statusCounts.all += count;
+                if (row.status === "active") statusCounts.active = count;
+                if (row.status === "closed") statusCounts.closed = count;
             }
 
-            return { user, contracts: contractsList, statusCounts, activeTab, totalCount, search };
+            return { user, contracts: rows, statusCounts, activeTab, totalCount: countResult, search };
         },
     });
 }
@@ -94,7 +78,16 @@ export default function ContractsPage() {
     ];
 
     const columns: Column<typeof contractsList[0]>[] = [
-        { key: "id", label: "ID", sortable: true },
+        {
+            key: "id",
+            label: "ID",
+            sortable: true,
+            render: (contract) => (
+                <IdBadge>
+                    {String(contract.id).padStart(3, '0')}
+                </IdBadge>
+            )
+        },
         {
             key: "startDate",
             label: "Start Date",
@@ -125,7 +118,16 @@ export default function ContractsPage() {
             key: "status",
             label: "Status",
             sortable: true,
-            render: (contract) => <StatusBadge variant={contract.status === "active" ? "success" : "neutral"}>{contract.status}</StatusBadge>
+            render: (contract) => {
+                const variantMap: Record<string, any> = {
+                    active: "success",
+                    closed: "closed",
+                    overdue: "overdue",
+                    cancelled: "error",
+                    draft: "draft",
+                };
+                return <StatusBadge variant={variantMap[contract.status] || "neutral"}>{contract.status}</StatusBadge>;
+            }
         },
         {
             key: "actions",

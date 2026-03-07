@@ -1,19 +1,25 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
-import { useLoaderData, Form } from "react-router";
-import { requireAdmin } from "~/lib/auth.server";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
+import { useLoaderData, useSubmit, useNavigation } from "react-router";
+
+export const meta: MetaFunction = () => [
+    { title: "Seasons — Phuket Ride Admin" },
+    { name: "description", content: "Manage rental seasons and seasonal pricing in Phuket Ride." },
+    { name: "robots", content: "noindex, nofollow" },
+];
+import { useState } from "react";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
-import { Input } from "~/components/dashboard/Input";
-import AdminCrudModalPage from "~/components/dashboard/AdminCrudModalPage";
-import { SunIcon } from "@heroicons/react/24/outline";
+import PageHeader from "~/components/dashboard/PageHeader";
+import { PlusIcon, SunIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { useCrudModal } from "~/lib/useCrudModal";
 import { handleSeasonsAction } from "~/lib/seasons-actions.server";
-import { loadAdminPageData, requireAdminDb } from "~/lib/admin-crud.server";
 import { loadAdminSeasons, type AdminSeasonRow } from "~/lib/admin-dictionaries.server";
-
+import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
+import { getScopedDb } from "~/lib/db-factory.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
 
 type Season = AdminSeasonRow;
+
 const MONTHS = [
     { value: "1", label: "Jan" },
     { value: "2", label: "Feb" },
@@ -35,70 +41,43 @@ const DAYS = Array.from({ length: 31 }, (_, i) => ({
 }));
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    await requireAdmin(request);
-    return loadAdminPageData({
+    const { user, companyId, sdb } = await getScopedDb(request, context);
+
+    return trackServerOperation({
+        event: "seasons.load",
+        scope: "route.loader",
         request,
-        context,
-        loaders: {
-            seasons: loadAdminSeasons,
+        userId: user.id,
+        companyId,
+        details: { route: "seasons" },
+        run: async () => {
+            const seasons = await loadAdminSeasons(sdb.db as any);
+            return { seasons };
         },
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    await requireAdmin(request);
-    const { db } = await requireAdminDb(request, context);
+    const { sdb } = await getScopedDb(request, context);
+    const db = sdb.db as any;
     const formData = await request.formData();
-    return handleSeasonsAction({ db, formData });
+    return handleSeasonsAction({ request, db, formData });
 }
 
 export default function SeasonsPage() {
     const { seasons } = useLoaderData<typeof loader>();
     useUrlToast();
-    const {
-        isModalOpen,
-        editingEntity: editingSeason,
-        formData,
-        setFormData,
-        openCreateModal,
-        openEditModal,
-        closeModal,
-    } = useCrudModal<Season, {
-        seasonName: string;
-        startMonth: string;
-        startDay: string;
-        endMonth: string;
-        endDay: string;
-        priceMultiplier: string;
-        discountLabel: string;
-    }>({
-        initialFormData: {
-            seasonName: "",
-            startMonth: "12",
-            startDay: "1",
-            endMonth: "1",
-            endDay: "31",
-            priceMultiplier: "1",
-            discountLabel: "",
-        },
-        mapEntityToFormData: (season) => ({
-            seasonName: season.seasonName,
-            startMonth: String(season.startMonth),
-            startDay: String(season.startDay),
-            endMonth: String(season.endMonth),
-            endDay: String(season.endDay),
-            priceMultiplier: String(season.priceMultiplier),
-            discountLabel: season.discountLabel || "",
-        }),
-    });
+    const submit = useSubmit();
+    const navigation = useNavigation();
+
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [editingSeason, setEditingSeason] = useState<Season | null>(null);
 
     const columns: Column<Season>[] = [
         {
             key: "seasonName",
             label: "Season Name",
-            render: (item) => (
-                <span className="font-medium text-gray-900">{item.seasonName}</span>
-            ),
+            render: (item) => <span className="font-medium text-gray-900">{item.seasonName}</span>,
         },
         {
             key: "startDate",
@@ -121,204 +100,139 @@ export default function SeasonsPage() {
         {
             key: "priceMultiplier",
             label: "Price Multiplier",
-            render: (item) => (
-                <span className="text-gray-700">{item.priceMultiplier}</span>
-            ),
+            render: (item) => <span className="text-gray-700">{item.priceMultiplier}</span>,
         },
         {
             key: "discountLabel",
             label: "Discount Label",
-            render: (item) => (
-                <span className="text-gray-600">{item.discountLabel || "-"}</span>
-            ),
-        },
-        {
-            key: "actions",
-            label: "Actions",
-            render: (item) => (
-                <div className="flex gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditModal(item)}
-                    >
-                        Edit
-                    </Button>
-                    <Form method="post" className="inline">
-                        <input type="hidden" name="intent" value="delete" />
-                        <input type="hidden" name="id" value={item.id} />
-                        <Button
-                            type="submit"
-                            variant="outline"
-                            size="sm"
-                        >
-                            Delete
-                        </Button>
-                    </Form>
-                </div>
-            ),
+            render: (item) => <span className="text-gray-600">{item.discountLabel || "-"}</span>,
         },
     ];
 
+    const fields: FieldConfig[] = [
+        { name: "seasonName", label: "Season Name", type: "text", required: true, className: "col-span-4", placeholder: "e.g., Peak Season" },
+        { 
+            name: "startMonth", 
+            label: "Start Month", 
+            type: "select", 
+            options: MONTHS.map(m => ({ id: m.value, name: m.label })), 
+            required: true,
+            className: "col-span-2"
+        },
+        { 
+            name: "startDay", 
+            label: "Start Day", 
+            type: "select", 
+            options: DAYS.map(d => ({ id: d.value, name: d.label })), 
+            required: true,
+            className: "col-span-2"
+        },
+        { 
+            name: "endMonth", 
+            label: "End Month", 
+            type: "select", 
+            options: MONTHS.map(m => ({ id: m.value, name: m.label })), 
+            required: true,
+            className: "col-span-2"
+        },
+        { 
+            name: "endDay", 
+            label: "End Day", 
+            type: "select", 
+            options: DAYS.map(d => ({ id: d.value, name: d.label })), 
+            required: true,
+            className: "col-span-2"
+        },
+        { name: "priceMultiplier", label: "Price Multiplier", type: "number", step: "0.01", required: true, className: "col-span-4", placeholder: "1" },
+        { name: "discountLabel", label: "Discount Label", type: "text", className: "col-span-4", placeholder: "e.g., +50%" },
+    ];
+
+    const handleFormSubmit = (data: Record<string, unknown>) => {
+        const formData = new FormData();
+        Object.entries(data).forEach(([key, value]) => formData.append(key, String(value || "")));
+        formData.append("intent", editingSeason ? "update" : "create");
+        if (editingSeason) formData.append("id", String(editingSeason.id));
+        submit(formData, { method: "post" });
+        setIsFormOpen(false);
+    };
+
     return (
-        <AdminCrudModalPage
-            title="Seasons"
-            addLabel="Add"
-            onAdd={openCreateModal}
-            headerExtras={
-                seasons.length === 0 ? (
-                    <Form method="post">
-                        <input type="hidden" name="intent" value="seed" />
-                        <Button type="submit" variant="outline">
-                            Load Default Data
+        <div className="space-y-4">
+            <PageHeader
+                title="Seasons"
+                rightActions={
+                    <div className="flex gap-2">
+                        {seasons.length === 0 && (
+                            <Button variant="outline" onClick={() => {
+                                const fd = new FormData();
+                                fd.append("intent", "seed");
+                                submit(fd, { method: "post" });
+                            }}>
+                                Seed Defaults
+                            </Button>
+                        )}
+                        <Button
+                            variant="solid"
+                            icon={<PlusIcon className="w-5 h-5" />}
+                            onClick={() => {
+                                setEditingSeason(null);
+                                setIsFormOpen(true);
+                            }}
+                        >
+                            Add
                         </Button>
-                    </Form>
-                ) : null
-            }
-            tableContent={
-                seasons.length > 0 ? (
-                    <DataTable
-                        columns={columns}
-                        data={seasons}
-                        pagination={false}
-                        emptyTitle="No seasons configured"
-                        emptyDescription="Addal pricing periods to get started"
-                    />
-                ) : (
-                    <div className="bg-white rounded-3xl shadow-sm p-12 py-4">
-                        <div className="text-center">
-                            <SeasonIcon />
-                            <h3 className="mt-4 text-lg font-medium text-gray-900">No seasons configured</h3>
-                            <p className="mt-2 text-sm text-gray-500">
-                                Define seasonal pricing periods for your rental business
-                            </p>
-                        </div>
                     </div>
-                )
-            }
-            modalTitle={editingSeason ? "Edit Season" : "Add"}
-            isModalOpen={isModalOpen}
-            onCloseModal={closeModal}
-            formIntent={editingSeason ? "update" : "create"}
-            editingId={editingSeason?.id}
-            onFormSubmit={closeModal}
-            submitLabel={editingSeason ? "Update Season" : "Create Season"}
-            formChildren={
-                <>
-                    <Input
-                        label="Season Name"
-                        name="seasonName"
-                        value={formData.seasonName}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, seasonName: e.target.value })}
-                        placeholder="e.g., Peak Season"
-                        required
-                    />
+                }
+            />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="col-span-2">
-                            <label className="block text-xs text-gray-600 mb-1">
-                                Start Month
-                            </label>
-                            <select
-                                name="startMonth"
-                                value={formData.startMonth}
-                                onChange={(e) => setFormData({ ...formData, startMonth: e.target.value })}
-                                className="w-full px-4 py-2 text-gray-500 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-800 focus:border-transparent"
-                                required
-                            >
-                                {MONTHS.map((month) => (
-                                    <option key={month.value} value={month.value}>
-                                        {month.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="col-span-2">
-                            <label className="block text-xs text-gray-600 mb-1">
-                                Start Day
-                            </label>
-                            <select
-                                name="startDay"
-                                value={formData.startDay}
-                                onChange={(e) => setFormData({ ...formData, startDay: e.target.value })}
-                                className="w-full px-4 py-2 text-gray-500 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-800 focus:border-transparent"
-                                required
-                            >
-                                {DAYS.map((day) => (
-                                    <option key={day.value} value={day.value}>
-                                        {day.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
+            <DataTable<Season>
+                columns={columns}
+                data={seasons}
+                pagination={false}
+                isLoading={navigation.state === "loading"}
+                emptyTitle="No seasons found"
+                emptyDescription="Define seasonal pricing periods for your rental business"
+                emptyIcon={<SunIcon className="w-10 h-10 text-gray-400" />}
+                getRowClassName={() => "cursor-pointer"}
+                onRowClick={(item) => {
+                    setEditingSeason(item);
+                    setIsFormOpen(true);
+                }}
+            />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="col-span-2">
-                            <label className="block text-xs text-gray-600 mb-1">
-                                End Month
-                            </label>
-                            <select
-                                name="endMonth"
-                                value={formData.endMonth}
-                                onChange={(e) => setFormData({ ...formData, endMonth: e.target.value })}
-                                className="w-full px-4 py-2 text-gray-500 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-800 focus:border-transparent"
-                                required
-                            >
-                                {MONTHS.map((month) => (
-                                    <option key={month.value} value={month.value}>
-                                        {month.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="col-span-2">
-                            <label className="block text-xs text-gray-600 mb-1">
-                                End Day
-                            </label>
-                            <select
-                                name="endDay"
-                                value={formData.endDay}
-                                onChange={(e) => setFormData({ ...formData, endDay: e.target.value })}
-                                className="w-full px-4 py-2 text-gray-500 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-800 focus:border-transparent"
-                                required
-                            >
-                                {DAYS.map((day) => (
-                                    <option key={day.value} value={day.value}>
-                                        {day.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <Input
-                        label="Price Multiplier"
-                        name="priceMultiplier"
-                        type="number"
-                        step="0.01"
-                        value={formData.priceMultiplier}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, priceMultiplier: e.target.value })}
-                        placeholder="1"
-                        required
-                    />
-
-                    <Input
-                        label="Discount Label"
-                        name="discountLabel"
-                        value={formData.discountLabel}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, discountLabel: e.target.value })}
-                        placeholder="e.g., +50%"
-                    />
-                </>
-            }
-        />
-    );
-}
-
-function SeasonIcon() {
-    return (
-        <SunIcon className="w-10 h-10 mx-auto text-gray-400" />
+            {isFormOpen && (
+                <GenericDictionaryForm
+                    title={editingSeason ? "Edit Season" : "Add Season"}
+                    fields={fields}
+                    gridCols={4}
+                    data={editingSeason ? {
+                        seasonName: editingSeason.seasonName,
+                        startMonth: String(editingSeason.startMonth),
+                        startDay: String(editingSeason.startDay),
+                        endMonth: String(editingSeason.endMonth),
+                        endDay: String(editingSeason.endDay),
+                        priceMultiplier: String(editingSeason.priceMultiplier),
+                        discountLabel: editingSeason.discountLabel || ""
+                    } : {
+                        startMonth: "12",
+                        startDay: "1",
+                        endMonth: "1",
+                        endDay: "31",
+                        priceMultiplier: "1"
+                    }}
+                    onSubmit={handleFormSubmit}
+                    onCancel={() => setIsFormOpen(false)}
+                    onDelete={editingSeason ? () => {
+                        if (confirm("Delete this season?")) {
+                            const fd = new FormData();
+                            fd.append("intent", "delete");
+                            fd.append("id", String(editingSeason.id));
+                            submit(fd, { method: "post" });
+                            setIsFormOpen(false);
+                        }
+                    } : undefined}
+                />
+            )}
+        </div>
     );
 }

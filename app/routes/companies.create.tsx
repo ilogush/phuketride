@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireAdmin } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
@@ -30,30 +29,32 @@ type DistrictRow = {
     deliveryPrice?: number | null;
 };
 
+import { getScopedDb } from "~/lib/db-factory.server";
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAdmin(request);
+    const { user, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
     return trackServerOperation({
         event: "companies.create.load",
         scope: "route.loader",
         request,
         userId: user.id,
-        companyId: user.companyId,
+        companyId,
         details: { route: "companies.create" },
-        run: async () => loadCreateCompanyPageData(context.cloudflare.env.DB),
+        run: async () => loadCreateCompanyPageData(sdb.db as any),
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAdmin(request);
+    const { user, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
     const formData = await request.formData();
     return trackServerOperation({
         event: "companies.create",
         scope: "route.action",
         request,
         userId: user.id,
-        companyId: user.companyId,
+        companyId,
         details: { route: "companies.create" },
-        run: async () => createCompanyAction({ request, context, user, formData }),
+        run: async () => createCompanyAction({ request, context, user, formData, db: sdb.db as any }),
     });
 }
 

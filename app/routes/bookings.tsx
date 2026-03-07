@@ -1,30 +1,28 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
-import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import { PlusIcon, BookmarkIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import SimplePagination from "~/components/dashboard/SimplePagination";
+import StatusBadge from "~/components/dashboard/StatusBadge";
 import { formatContactPhone } from "~/lib/phone";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { trackServerOperation } from "~/lib/telemetry.server";
-import { countBookingsPage, listBookingsPage } from "~/lib/bookings-repo.server";
-import type { BookingListRow } from "~/lib/db-types";
+import { getScopedDb } from "~/lib/db-factory.server";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+
 const BOOKING_STATUSES = ["all", "pending", "confirmed", "converted", "cancelled"] as const;
 type BookingStatusFilter = typeof BOOKING_STATUSES[number];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId } = await requireScopedDashboardAccess(request);
-    if (companyId === null) {
-        throw new Response("Forbidden", { status: 403 });
-    }
+    const { user, companyId, sdb } = await getScopedDb(request, context);
 
     const url = new URL(request.url);
     const { page, pageSize, offset } = getPaginationFromUrl(url);
-    const { status } = parseListFilters(url, {
+    const { status, search, sortBy, sortOrder } = parseListFilters(url, {
         statuses: BOOKING_STATUSES,
         defaultStatus: "all",
     });
@@ -36,43 +34,43 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         request,
         userId: user.id,
         companyId,
-        details: { route: "bookings", status: selectedStatus },
+        details: { route: "bookings", status: selectedStatus, search },
         run: async () => {
             const [totalItems, bookings] = await Promise.all([
-                countBookingsPage({
-                    db: context.cloudflare.env.DB,
-                    companyId,
+                sdb.bookings.count({
                     status: selectedStatus,
+                    search,
                 }),
-                listBookingsPage({
-                    db: context.cloudflare.env.DB,
-                    companyId,
+                sdb.bookings.list({
                     status: selectedStatus,
                     pageSize,
                     offset,
+                    search,
+                    sortBy: sortBy || "createdAt",
+                    sortOrder: sortOrder || "desc",
                 }),
             ]);
             const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
-            return { bookings, totalPages, currentPage: page, status: selectedStatus };
+            return { bookings, totalPages, currentPage: page, status: selectedStatus, search };
         },
     });
 }
 
 export default function BookingsPage() {
     useUrlToast();
-    const { bookings, totalPages, currentPage, status } = useLoaderData<typeof loader>();
+    const { bookings, totalPages, currentPage, status, search } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const handleStatusChange = (newStatus: string) => {
-        setSearchParams({ status: newStatus, page: "1" });
+        setSearchParams({ status: newStatus, page: "1", search: search || "" });
     };
 
-    const statusColors = {
-        pending: "bg-yellow-100 text-yellow-800",
-        confirmed: "bg-blue-100 text-blue-800",
-        converted: "bg-green-100 text-green-800",
-        cancelled: "bg-red-100 text-red-800",
+    const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const q = formData.get("search") as string;
+        setSearchParams({ status, page: "1", search: q });
     };
 
     return (
@@ -89,44 +87,34 @@ export default function BookingsPage() {
                 }
             />
 
-            {/* Filters */}
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-                <div className="flex items-center gap-4">
-                    <FunnelIcon className="h-5 w-5 text-gray-400" />
-                    <div className="flex gap-2">
-                        <Button
-                            type="button"
-                            variant="plain"
-                            onClick={() => handleStatusChange("all")}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "all" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                        >
-                            All
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="plain"
-                            onClick={() => handleStatusChange("pending")}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "pending" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                        >
-                            Pending
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="plain"
-                            onClick={() => handleStatusChange("confirmed")}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "confirmed" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                        >
-                            Confirmed
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="plain"
-                            onClick={() => handleStatusChange("converted")}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "converted" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                        >
-                            Converted
-                        </Button>
+            {/* Filters & Search */}
+            <div className="bg-white rounded-xl p-4 shadow-sm space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
+                        <FunnelIcon className="h-5 w-5 text-gray-400 shrink-0" />
+                        {BOOKING_STATUSES.map((s) => (
+                            <Button
+                                key={s}
+                                type="button"
+                                variant="plain"
+                                onClick={() => handleStatusChange(s)}
+                                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${status === s ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                            >
+                                {s.charAt(0).toUpperCase() + s.slice(1)}
+                            </Button>
+                        ))}
                     </div>
+
+                    <form onSubmit={handleSearch} className="relative flex-1 md:max-w-sm">
+                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <input
+                            type="text"
+                            name="search"
+                            defaultValue={search || ""}
+                            placeholder="Search by ID, name, phone..."
+                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-800 transition-all text-sm"
+                        />
+                    </form>
                 </div>
             </div>
 
@@ -134,7 +122,7 @@ export default function BookingsPage() {
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 {bookings.length > 0 ? (
                     <div className="divide-y divide-gray-200">
-                        {bookings.map((booking: BookingListRow) => (
+                        {bookings.map((booking) => (
                             <Link
                                 key={booking.id}
                                 to={`/bookings/${booking.id}`}
@@ -146,13 +134,13 @@ export default function BookingsPage() {
                                             <h3 className="font-semibold text-gray-900">
                                                 {booking.brandName} {booking.modelName} {booking.carYear}
                                             </h3>
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[booking.status as keyof typeof statusColors]}`}>
+                                            <StatusBadge variant={booking.status as any}>
                                                 {booking.status}
-                                            </span>
+                                            </StatusBadge>
                                             {booking.depositPaid && (
-                                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                <StatusBadge variant="success">
                                                     Deposit Paid
-                                                </span>
+                                                </StatusBadge>
                                             )}
                                         </div>
                                         <div className="space-y-1">

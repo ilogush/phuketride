@@ -125,3 +125,34 @@ export async function countPaymentsPage(params: {
 
     return Number(row?.count || 0);
 }
+
+export async function getPaymentById(params: {
+    db: D1DatabaseLike;
+    paymentId: number;
+    companyId?: number | null;
+}) {
+    const { db, paymentId, companyId } = params;
+    const binds: unknown[] = [paymentId];
+    if (companyId) binds.push(companyId);
+
+    return await db.prepare(`
+        SELECT
+            p.*,
+            c.id AS contractId,
+            pt.name AS paymentTypeName,
+            pt.sign AS paymentTypeSign,
+            cur.code AS currencyCode,
+            cur.symbol AS currencySymbol,
+            u.name AS creatorName,
+            u.surname AS creatorSurname
+        FROM payments p
+        LEFT JOIN contracts c ON c.id = p.contract_id
+        ${companyId ? "JOIN company_cars cc ON cc.id = c.company_car_id" : ""}
+        LEFT JOIN payment_types pt ON pt.id = p.payment_type_id
+        LEFT JOIN currencies cur ON cur.code = p.currency
+        LEFT JOIN users u ON u.id = p.created_by
+        WHERE p.id = ?
+        ${companyId ? "AND cc.company_id = ?" : ""}
+        LIMIT 1
+    `).bind(...binds).first() as PaymentListRow | null;
+}

@@ -35,12 +35,16 @@ export interface CarsPageData {
     companyId: number | null;
 }
 
+import type { ScopedDb } from "~/lib/db-factory.server";
+
 export async function loadCarsPageData(args: {
     request: Request;
-    db: D1Database;
+    user: SessionUser;
+    sdb: ScopedDb;
 }): Promise<CarsPageData> {
-    const { user, companyId } = await requireScopedDashboardAccess(args.request, { allowAdminGlobal: true });
-    const url = new URL(args.request.url);
+    const { sdb, request, user } = args;
+    const { companyId } = sdb;
+    const url = new URL(request.url);
     const { tab, search, sortBy, sortOrder } = parseListFilters(url, {
         tabs: CAR_TABS,
         defaultTab: "available",
@@ -57,13 +61,8 @@ export async function loadCarsPageData(args: {
 
     try {
         const [countsResult, result, countResult] = await Promise.all([
-            listCarStatusCounts({
-                db: args.db,
-                companyId,
-            }),
-            listCarsPage({
-                db: args.db,
-                companyId,
+            sdb.cars.getStatusCounts(),
+            sdb.cars.list({
                 status: activeStatus,
                 pageSize,
                 offset,
@@ -71,9 +70,7 @@ export async function loadCarsPageData(args: {
                 sortBy: sortBy || "createdAt",
                 sortOrder,
             }) as Promise<CarListRow[]>,
-            countCarsPage({
-                db: args.db,
-                companyId,
+            sdb.cars.count({
                 status: activeStatus,
                 search,
             }),
@@ -81,7 +78,7 @@ export async function loadCarsPageData(args: {
 
         cars = result.map((car) => ({
             ...car,
-            previewPhotoUrl: getPrimaryCarPhotoUrl(car.photos, args.request.url, null),
+            previewPhotoUrl: getPrimaryCarPhotoUrl(car.photos, request.url, null),
             licensePlate: car.license_plate,
             pricePerDay: car.price_per_day,
             insuranceType: car.insurance_type,

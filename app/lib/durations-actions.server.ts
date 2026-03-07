@@ -48,9 +48,11 @@ function validateDurationsCoverage(durations: Array<{ minDays: number; maxDays: 
 }
 
 export async function handleDurationsAction({
+  request,
   db,
   formData,
 }: {
+  request: Request;
   db: D1Database;
   formData: FormData;
 }) {
@@ -75,7 +77,7 @@ export async function handleDurationsAction({
       }
     }
 
-    return runMutationWithFeedback(
+    return runMutationWithFeedback(request,
       async () => {
         await db.prepare("DELETE FROM rental_durations WHERE id = ?").bind(id).run();
       },
@@ -105,7 +107,7 @@ export async function handleDurationsAction({
       return redirectWithError("/durations", validation.message || "Invalid durations coverage");
     }
 
-    return runMutationWithFeedback(
+    return runMutationWithFeedback(request,
       async () => {
         await db
           .prepare(`
@@ -152,7 +154,7 @@ export async function handleDurationsAction({
       return redirectWithError("/durations", validation.message || "Invalid durations coverage");
     }
 
-    return runMutationWithFeedback(
+    return runMutationWithFeedback(request,
       async () => {
         await db
           .prepare(`
@@ -190,7 +192,7 @@ export async function handleDurationsAction({
       { rangeName: "29+ days", minDays: 29, maxDays: null, priceMultiplier: 0.75, discountLabel: "25% off" },
     ];
 
-    return runMutationWithFeedback(
+    return runMutationWithFeedback(request,
       async () => {
         for (const duration of defaultDurations) {
           await db

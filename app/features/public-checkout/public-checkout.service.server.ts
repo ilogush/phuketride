@@ -18,7 +18,7 @@ import { parseWithSchema } from "~/lib/validation.server";
 
 const checkoutSubmitSchema = z.object({
   carId: z.coerce.number().int().positive("Car is required"),
-  bookingRate: z.enum(["non_refundable", "refundable"]),
+  bookingRate: z.enum(["non_refundable", "refundable"] as const),
   clientPhone: z.string().trim().min(8, "Mobile number is required"),
   clientEmail: z.string().trim().email("Invalid email").or(z.literal("")),
   clientName: z.string().trim().min(1, "First name is required"),
@@ -27,10 +27,10 @@ const checkoutSubmitSchema = z.object({
   returnAt: z.coerce.number().int().positive("Return date is invalid"),
   pickupDistrictId: z.coerce.number().int().nonnegative(),
   returnDistrictId: z.coerce.number().int().nonnegative(),
-  withFullInsurance: z.enum(["true", "false"]),
-  withBabySeat: z.enum(["true", "false"]),
-  withIslandTrip: z.enum(["true", "false"]),
-  withKrabiTrip: z.enum(["true", "false"]),
+  withFullInsurance: z.enum(["true", "false"] as const),
+  withBabySeat: z.enum(["true", "false"] as const),
+  withIslandTrip: z.enum(["true", "false"] as const),
+  withKrabiTrip: z.enum(["true", "false"] as const),
 });
 
 function failCheckoutRedirect(message: string) {

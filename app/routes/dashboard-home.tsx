@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import {
     BuildingOfficeIcon,
     UserGroupIcon,
@@ -22,8 +21,10 @@ import { deleteDashboardTaskFromForm } from "~/lib/admin-analytics.server";
 import { dashboardTaskDeleteSchema } from "~/schemas/admin-analytics";
 import { redirectWithRequestError } from "~/lib/route-feedback";
 
+import { getScopedDb } from "~/lib/db-factory.server";
+
 export async function action({ request, context }: ActionFunctionArgs) {
-    const { user, companyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
+    const { user, companyId, sdb } = await getScopedDb(request, context);
     return trackServerOperation({
         event: "dashboard-home.action",
         scope: "route.action",
@@ -42,7 +43,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             }
 
             return deleteDashboardTaskFromForm({
-                db: context.cloudflare.env.DB,
+                db: sdb.db as any,
                 request,
                 companyId,
                 taskId: parsed.data.taskId,
@@ -65,7 +66,7 @@ const ICON_MAP: Record<string, IconComponent> = {
 };
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
+    const { user, companyId, sdb } = await getScopedDb(request, context);
     return trackServerOperation({
         event: "dashboard-home.load",
         scope: "route.loader",
@@ -75,7 +76,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         details: { route: "dashboard-home", role: user.role },
         run: () => loadDashboardHomePageData({
             request,
-            db: context.cloudflare.env.DB,
+            db: sdb.db as any,
         }),
     });
 }

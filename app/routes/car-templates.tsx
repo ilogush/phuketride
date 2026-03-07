@@ -1,6 +1,5 @@
 import type { Route } from './+types/car-templates'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { requireAdmin } from '~/lib/auth.server'
 import PageHeader from '~/components/dashboard/PageHeader'
 import Button from '~/components/dashboard/Button'
 import DataTable from '~/components/dashboard/DataTable'
@@ -19,19 +18,35 @@ import { useUrlToast } from '~/lib/useUrlToast'
 type BrandFormData = { name: string }
 type ModelFormData = { name: string; brand_id: string }
 
+import { getScopedDb } from "~/lib/db-factory.server"
+import { trackServerOperation } from "~/lib/telemetry.server"
+
 export async function loader({ request, context }: Route.LoaderArgs) {
-    await requireAdmin(request)
-    const { brands, models, templates } = await loadCarTemplatesData(context.cloudflare.env.DB)
-    return { brands, models, templates }
+    const { user, companyId, sdb } = await getScopedDb(request, context)
+    
+    return trackServerOperation({
+        event: "car_templates.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId,
+        details: { route: "car-templates" },
+        run: async () => {
+            const { brands, models, templates } = await loadCarTemplatesData(sdb.db as any)
+            return { brands, models, templates }
+        },
+    })
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-    const user = await requireAdmin(request)
+    const { user, companyId, sdb } = await getScopedDb(request, context)
     const formData = await request.formData()
     const metadata = getRequestMetadata(request)
+    
     return handleCarTemplatesAction({
-        db: context.cloudflare.env.DB,
+        db: sdb.db as any,
         user,
+        companyId,
         formData,
         metadata,
     })

@@ -25,6 +25,7 @@ const districtActionBaseSchema = z.object({
     name: z.string().trim().min(1, "District name is required").max(200, "District name is too long"),
     locationId: z.coerce.number().int().positive("Location is required"),
     deliveryPrice: z.coerce.number().min(0, "Delivery price must be 0 or greater"),
+    beaches: z.string().trim().max(1000, "Beaches description is too long").optional().nullable(),
 });
 
 export const districtActionSchema = z.discriminatedUnion("intent", [

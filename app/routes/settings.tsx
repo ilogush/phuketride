@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, useSearchParams, useSubmit } from "react-router";
-import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import Button from "~/components/dashboard/Button";
@@ -55,8 +54,10 @@ type PaymentType = {
     companyId?: number | null;
 };
 type CompanyRow = Record<string, unknown>;
+import { getScopedDb } from "~/lib/db-factory.server";
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId } = await requireScopedDashboardAccess(request);
+    const { user, companyId, sdb } = await getScopedDb(request, context);
     const scopedCompanyId = companyId!;
 
     return trackServerOperation({
@@ -67,10 +68,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         companyId: scopedCompanyId,
         details: { route: "settings" },
         run: async () => {
-            // NOTE: In remote-preview mode (remote bindings), concurrent D1 requests can intermittently fail.
-            // This still uses Promise.all in production paths; if remote-preview flakiness returns, split these reads.
             const [companyRow, locations, districts, paymentTypes, currencies] = await Promise.all([
-                context.cloudflare.env.DB
+                sdb.db
                     .prepare(`
                         SELECT
                             id, name, email, phone, telegram, location_id, district_id, street, house_number,
@@ -82,10 +81,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     `)
                     .bind(scopedCompanyId)
                     .first() as Promise<CompanyRow | null>,
-                getCachedLocations(context.cloudflare.env.DB),
-                getCachedDistricts(context.cloudflare.env.DB),
-                getCachedPaymentTemplatesForCompany(context.cloudflare.env.DB, scopedCompanyId) as Promise<PaymentType[]>,
-                getCachedCurrenciesDetailed(context.cloudflare.env.DB) as Promise<Currency[]>,
+                getCachedLocations(sdb.db as any),
+                getCachedDistricts(sdb.db as any),
+                getCachedPaymentTemplatesForCompany(sdb.db as any, scopedCompanyId) as Promise<PaymentType[]>,
+                getCachedCurrenciesDetailed(sdb.db as any) as Promise<Currency[]>,
             ]);
 
             if (!companyRow) {
@@ -106,7 +105,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const { user, companyId, adminModCompanyId } = await requireScopedDashboardAccess(request);
+    const { user, companyId, adminModCompanyId, sdb } = await getScopedDb(request, context);
     const scopedCompanyId = companyId!;
     const formData = await request.formData();
     const withMode = (path: string) => {

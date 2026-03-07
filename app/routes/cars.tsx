@@ -1,18 +1,20 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
-import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
 import { TruckIcon, PlusIcon } from "@heroicons/react/24/outline";
+import IdBadge from "~/components/dashboard/IdBadge";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { loadCarsPageData, type CarsPageCar } from "~/lib/cars-page.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 
+import { getScopedDb } from "~/lib/db-factory.server";
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
+    const { user, sdb } = await getScopedDb(request, context);
     const url = new URL(request.url);
     const activeStatus = (url.searchParams.get("tab") || "available");
     const sortBy = url.searchParams.get("sortBy") || "createdAt";
@@ -25,7 +27,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         details: { route: "cars", tab: activeStatus, sortBy },
         run: () => loadCarsPageData({
             request,
-            db: context.cloudflare.env.DB,
+            user,
+            sdb,
         }),
     });
 }
@@ -72,7 +75,19 @@ export default function CarsPage() {
                 );
             }
         },
-        { key: "licensePlate", label: "License Plate", sortable: true },
+        {
+            key: "licensePlate",
+            label: "License Plate",
+            sortable: true,
+            render: (car) => (
+                <div className="flex items-center gap-2">
+                    <IdBadge className="bg-blue-800">
+                        {String(car.id).padStart(3, '0')}
+                    </IdBadge>
+                    <span className="font-mono font-medium">{car.licensePlate}</span>
+                </div>
+            )
+        },
         {
             key: "car",
             label: "Car",
@@ -126,7 +141,15 @@ export default function CarsPage() {
         {
             key: "status",
             label: "Status",
-            render: (car) => <StatusBadge variant={car.status === "available" ? "success" : "neutral"}>{car.status}</StatusBadge>
+            render: (car) => {
+                const variantMap: Record<string, any> = {
+                    available: "success",
+                    rented: "info",
+                    maintenance: "error",
+                    booked: "pending",
+                };
+                return <StatusBadge variant={variantMap[car.status] || "neutral"}>{car.status}</StatusBadge>;
+            }
         },
     ];
 

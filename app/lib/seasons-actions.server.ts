@@ -77,7 +77,7 @@ function validateSeasonsCoverage(seasons: Array<{ startMonth: number; startDay: 
   return { valid: true };
 }
 
-export async function handleSeasonsAction({ db, formData }: SeasonsActionArgs) {
+export async function handleSeasonsAction({ request, db, formData }: SeasonsActionArgs & { request: Request }) {
   const intentParsed = parseFormIntent(formData, ["delete", "create", "update", "seed"], "Invalid action");
   if (!intentParsed.ok) {
     return data({ success: false, message: "Invalid action" }, { status: 400 });
@@ -104,7 +104,7 @@ export async function handleSeasonsAction({ db, formData }: SeasonsActionArgs) {
       }
     }
 
-    return runMutationWithFeedback(
+    return runMutationWithFeedback(request,
       async () => {
         await db
           .prepare("DELETE FROM seasons WHERE id = ?")
@@ -146,7 +146,7 @@ export async function handleSeasonsAction({ db, formData }: SeasonsActionArgs) {
       return redirectWithError("/seasons", validation.message || "Invalid seasons coverage");
     }
 
-    return runMutationWithFeedback(
+    return runMutationWithFeedback(request,
       async () => {
         await db
           .prepare(`
@@ -208,7 +208,7 @@ export async function handleSeasonsAction({ db, formData }: SeasonsActionArgs) {
       return redirectWithError("/seasons", validation.message || "Invalid seasons coverage");
     }
 
-    return runMutationWithFeedback(
+    return runMutationWithFeedback(request,
       async () => {
         await db
           .prepare(`
@@ -246,10 +246,12 @@ export async function handleSeasonsAction({ db, formData }: SeasonsActionArgs) {
       { seasonName: "Shoulder Season", startMonth: 10, startDay: 21, endMonth: 12, endDay: 19, priceMultiplier: 1.1, discountLabel: "+10%" },
     ];
 
-    return runMutationWithFeedback(
+    return runMutationWithFeedback(request,
       async () => {
+        const batch: any[] = [];
+        const now = new Date().toISOString();
         for (const season of defaultSeasons) {
-          await db
+          batch.push(db
             .prepare(`
               INSERT INTO seasons (
                 season_name, start_month, start_day, end_month, end_day,
@@ -264,11 +266,11 @@ export async function handleSeasonsAction({ db, formData }: SeasonsActionArgs) {
               season.endDay,
               season.priceMultiplier,
               season.discountLabel,
-              new Date().toISOString(),
-              new Date().toISOString()
-            )
-            .run();
+              now,
+              now
+            ));
         }
+        await db.batch(batch);
       },
       {
         successPath: "/seasons",

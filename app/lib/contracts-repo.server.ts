@@ -169,8 +169,11 @@ export async function countContractsPage(params: {
 export async function getClosableContractById(params: {
     db: D1DatabaseLike;
     contractId: number;
+    companyId?: number | null;
 }) {
-    const { db, contractId } = params;
+    const { db, contractId, companyId } = params;
+    const binds: unknown[] = [contractId];
+    if (companyId) binds.push(companyId);
     return await db.prepare(`
         SELECT
             c.*,
@@ -186,15 +189,19 @@ export async function getClosableContractById(params: {
         LEFT JOIN car_models cm ON cm.id = ct.model_id
         LEFT JOIN users u ON u.id = c.client_id
         WHERE c.id = ?
+        ${companyId ? "AND cc.company_id = ?" : ""}
         LIMIT 1
-    `).bind(contractId).first() as ClosableContractRow | null;
+    `).bind(...binds).first() as ClosableContractRow | null;
 }
 
 export async function getEditableContractById(params: {
     db: D1DatabaseLike;
     contractId: number;
+    companyId?: number | null;
 }) {
-    const { db, contractId } = params;
+    const { db, contractId, companyId } = params;
+    const binds: unknown[] = [contractId];
+    if (companyId) binds.push(companyId);
     return await db
         .prepare(`
             SELECT
@@ -216,8 +223,9 @@ export async function getEditableContractById(params: {
             JOIN company_cars cc ON cc.id = c.company_car_id
             LEFT JOIN users u ON u.id = c.client_id
             WHERE c.id = ?
+            ${companyId ? "AND cc.company_id = ?" : ""}
             LIMIT 1
         `)
-        .bind(contractId)
+        .bind(...binds)
         .first() as EditableContractRow | null;
 }

@@ -18,12 +18,15 @@ export interface CompaniesPageData {
     search: string;
 }
 
+import type { ScopedDb } from "~/lib/db-factory.server";
+
 export async function loadCompaniesPageData(args: {
     request: Request;
-    db: D1Database;
+    sdb: ScopedDb;
     user: SessionUser;
 }): Promise<CompaniesPageData> {
-    const url = new URL(args.request.url);
+    const { sdb, request, user } = args;
+    const url = new URL(request.url);
     const showArchived = url.searchParams.get("archived") === "true";
     const { search, sortBy, sortOrder } = parseListFilters(url, {
         sortBy: ["createdAt", "id", "name", "carCount"] as const,
@@ -36,22 +39,22 @@ export async function loadCompaniesPageData(args: {
     let totalCount = 0;
 
     try {
-        totalCount = await countCompanies({
-            db: args.db,
-            showArchived,
-            search,
-        });
+        const [countResult, rows] = await Promise.all([
+            sdb.companies.count({
+                showArchived,
+                search,
+            }),
+            sdb.companies.list({
+                showArchived,
+                pageSize,
+                offset,
+                search,
+                sortBy: sortBy || "createdAt",
+                sortOrder,
+            }),
+        ]);
 
-        const rows = await listCompaniesPage({
-            db: args.db,
-            showArchived,
-            pageSize,
-            offset,
-            search,
-            sortBy: sortBy || "createdAt",
-            sortOrder,
-        });
-
+        totalCount = countResult;
         companies = rows.map((company) => ({
             ...company,
             partnerName: `${company.ownerName || ""} ${company.ownerSurname || ""}`.trim() || "-",

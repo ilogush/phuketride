@@ -1,6 +1,11 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
-import { useLoaderData, Form } from "react-router";
-import { requireLocationsAccess } from "~/lib/access-policy.server";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
+import { useLoaderData, Form, useSubmit } from "react-router";
+
+export const meta: MetaFunction = () => [
+    { title: "Locations — Phuket Ride Admin" },
+    { name: "description", content: "Manage delivery zones and locations in Phuket Ride." },
+    { name: "robots", content: "noindex, nofollow" },
+];
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -9,38 +14,59 @@ import { PlusIcon } from "@heroicons/react/24/outline";
 import Toggle from "~/components/dashboard/Toggle";
 import { handleLocationsAction } from "~/lib/locations-actions.server";
 import { loadLocationsPageData, type LocationsPageDistrict as District } from "~/lib/locations-page.server";
-import DistrictModal from "~/components/dashboard/locations/DistrictModal";
 import { useAsyncToastAction } from "~/lib/useAsyncToastAction";
 import { useUrlToast } from "~/lib/useUrlToast";
+import { getScopedDb } from "~/lib/db-factory.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const access = await requireLocationsAccess(request);
-    return loadLocationsPageData({
-        db: context.cloudflare.env.DB,
-        user: access.user,
-        companyId: access.companyId,
-        isModMode: access.isModMode,
+    const { user, companyId, isModMode, sdb } = await getScopedDb(request, context, async (r) => {
+        const { requireLocationsAccess } = await import("~/lib/access-policy.server");
+        return requireLocationsAccess(r);
+    });
+
+    return trackServerOperation({
+        event: "locations.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId,
+        details: { route: "locations" },
+        run: async () => {
+            return loadLocationsPageData({
+                db: sdb.db as any,
+                user,
+                companyId,
+                isModMode,
+            });
+        },
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const access = await requireLocationsAccess(request);
+    const { user, companyId, isModMode, sdb } = await getScopedDb(request, context, async (r) => {
+        const { requireLocationsAccess } = await import("~/lib/access-policy.server");
+        return requireLocationsAccess(r);
+    });
+
     const formData = await request.formData();
     return handleLocationsAction({
-        db: context.cloudflare.env.DB,
-        user: access.user,
+        db: sdb.db as any,
+        user,
         formData,
-        companyId: access.companyId,
-        isModMode: access.isModMode,
+        companyId,
+        isModMode,
     });
 }
 
 export default function LocationsPage() {
     const { districts, user, isModMode } = useLoaderData<typeof loader>();
     useUrlToast();
+    const submit = useSubmit();
+    
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDistrict, setEditingDistrict] = useState<District | null>(null);
-    const [formData, setFormData] = useState({ name: "", beaches: "", streets: "", deliveryPrice: "0" });
     const [localDistricts, setLocalDistricts] = useState(districts);
     const { notifySuccess } = useAsyncToastAction();
 
@@ -94,22 +120,29 @@ export default function LocationsPage() {
 
     const handleEdit = (district: District) => {
         setEditingDistrict(district);
-        const beaches = parseBeaches(district.beaches);
-        const streets = parseStreets(district.streets);
-        setFormData({
-            name: district.name,
-            beaches: beaches.join(", "),
-            streets: streets.join(", "),
-            deliveryPrice: String(district.deliveryPrice || 0)
-        });
         setIsModalOpen(true);
     };
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingDistrict(null);
-        setFormData({ name: "", beaches: "", streets: "", deliveryPrice: "0" });
     };
+
+    const handleFormSubmit = (data: Record<string, unknown>) => {
+        const formData = new FormData();
+        Object.entries(data).forEach(([key, value]) => formData.append(key, String(value || "")));
+        formData.append("intent", editingDistrict ? "update" : "create");
+        if (editingDistrict) formData.append("id", String(editingDistrict.id));
+        submit(formData, { method: "post" });
+        handleCloseModal();
+    };
+
+    const fields: FieldConfig[] = [
+        { name: "name", label: "District Name", type: "text", required: true, placeholder: "e.g., Patong" },
+        { name: "beaches", label: "Beaches / Locations (comma separated)", type: "textarea", required: true, rows: 3, placeholder: "e.g., Patong Beach, Kalim Beach" },
+        { name: "streets", label: "Streets / Roads (comma separated)", type: "textarea", rows: 3, placeholder: "e.g., Bangla Road, Beach Road" },
+        { name: "deliveryPrice", label: "Delivery Price (THB)", type: "number", required: true, placeholder: "e.g., 600" },
+    ];
 
     const columns: Column<District>[] = [
         {
@@ -182,14 +215,16 @@ export default function LocationsPage() {
                     key: "actions",
                     label: "Actions",
                     render: (item: District) => (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(item)}
-                        >
-                            Edit
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEdit(item)}
+                            >
+                                Edit
+                            </Button>
+                        </div>
                     ),
                 },
             ]
@@ -235,16 +270,27 @@ export default function LocationsPage() {
                 emptyDescription="Start by adding your first district"
             />
 
-            {isAdmin && (
-                <DistrictModal
-                    isOpen={isModalOpen}
-                    onClose={handleCloseModal}
-                    editingDistrict={editingDistrict}
-                    formData={formData}
-                    onNameChange={(value) => setFormData({ ...formData, name: value })}
-                    onBeachesChange={(value) => setFormData({ ...formData, beaches: value })}
-                    onStreetsChange={(value) => setFormData({ ...formData, streets: value })}
-                    onDeliveryPriceChange={(value) => setFormData({ ...formData, deliveryPrice: value })}
+            {isAdmin && isModalOpen && (
+                <GenericDictionaryForm
+                    title={editingDistrict ? "Edit District" : "Add District"}
+                    fields={fields}
+                    data={editingDistrict ? {
+                        name: editingDistrict.name,
+                        beaches: parseBeaches(editingDistrict.beaches).join(", "),
+                        streets: parseStreets(editingDistrict.streets).join(", "),
+                        deliveryPrice: String(editingDistrict.deliveryPrice || "0")
+                    } : null}
+                    onSubmit={handleFormSubmit}
+                    onCancel={handleCloseModal}
+                    onDelete={editingDistrict ? () => {
+                        if (confirm("Delete this district?")) {
+                            const fd = new FormData();
+                            fd.append("intent", "delete");
+                            fd.append("id", String(editingDistrict.id));
+                            submit(fd, { method: "post" });
+                            handleCloseModal();
+                        }
+                    } : undefined}
                 />
             )}
         </div>

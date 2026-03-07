@@ -50,14 +50,16 @@ type ContractExtraRow = {
     notes: string | null;
 };
 
-export async function loadEditContractPageData(db: D1Database, contractId: number, companyId: number | null) {
-    const contractRaw = await getEditableContractById({ db, contractId }) as ContractLoaderRow | null;
+import type { ScopedDb } from "~/lib/db-factory.server";
+
+export async function loadEditContractPageData(sdb: ScopedDb, contractId: number) {
+    const contractRaw = await sdb.contracts.getDetail(contractId) as ContractLoaderRow | null;
 
     if (!contractRaw) {
         throw new Response("Contract not found", { status: 404 });
     }
 
-    const extrasResult = await db
+    const extrasResult = await sdb.db
         .prepare(`
             SELECT
                 id,
@@ -125,15 +127,15 @@ export async function loadEditContractPageData(db: D1Database, contractId: numbe
     };
 
     const [cars, districts] = await Promise.all([
-        db
+        sdb.db
             .prepare("SELECT id, license_plate AS licensePlate FROM company_cars WHERE company_id = ? AND status = 'available' AND archived_at IS NULL")
-            .bind(companyId ?? contract.companyCar.companyId)
+            .bind(sdb.companyId ?? contract.companyCar.companyId)
             .all()
             .then((result) => ((result.results || []) as Array<{ id: number; licensePlate: string }>).map((row) => ({
                 id: row.id,
                 name: row.licensePlate,
             }))),
-        db
+        sdb.db
             .prepare("SELECT id, name FROM districts WHERE is_active = 1")
             .all()
             .then((result) => (result.results || []) as Array<{ id: number; name: string }>),

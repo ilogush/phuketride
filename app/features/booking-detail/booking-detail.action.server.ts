@@ -16,7 +16,7 @@ export async function submitBookingDetailAction(args: {
   const formData = await request.formData();
   const actionParsed = parseWithSchema(
     z.object({
-      action: z.enum(["cancel", "convert"]),
+      action: z.enum(["cancel", "convert"] as const),
     }),
     {
       action: formData.get("_action"),

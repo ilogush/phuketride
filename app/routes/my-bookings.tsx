@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
-import { requireSelfProfileAccess } from "~/lib/access-policy.server";
 import { PlusIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import Button from "~/components/dashboard/Button";

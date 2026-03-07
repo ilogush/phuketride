@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
-import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
+import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 
 export function parseFormIntent<TIntents extends [string, ...string[]]>(
     formData: FormData,
@@ -26,13 +26,14 @@ export interface MutationFeedbackOptions {
 }
 
 export async function runMutationWithFeedback(
+    request: Request,
     mutate: () => Promise<void>,
     options: MutationFeedbackOptions
 ) {
     try {
         await mutate();
-        return redirectWithSuccess(options.successPath, options.successMessage);
+        return redirectWithRequestSuccess(request, options.successPath, options.successMessage);
     } catch {
-        return redirectWithError(options.errorPath ?? options.successPath, options.errorMessage);
+        return redirectWithRequestError(request, options.errorPath ?? options.successPath, options.errorMessage);
     }
 }

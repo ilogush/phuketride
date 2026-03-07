@@ -42,22 +42,40 @@ export async function listUsersPage(params: {
     search: string;
     sortBy: string;
     sortOrder: SortOrder;
+    companyId?: number | null;
 }): Promise<UserListRow[]> {
-    const { db, role, pageSize, offset, search, sortBy, sortOrder } = params;
+    const { db, role, pageSize, offset, search, sortBy, sortOrder, companyId } = params;
+    
+    let fromSql = "FROM users u";
+    let whereSql = "WHERE u.role = ?";
+    const binds: unknown[] = [role];
+
+    if (companyId) {
+        if (role === "manager") {
+            fromSql = "FROM users u INNER JOIN managers m ON u.id = m.user_id";
+            whereSql = "WHERE u.role = ? AND m.company_id = ? AND m.is_active = 1";
+            binds.push(companyId);
+        } else if (role === "user") {
+            fromSql = "FROM users u INNER JOIN contracts c ON u.id = c.client_id INNER JOIN company_cars cc ON cc.id = c.company_car_id";
+            whereSql = "WHERE u.role = ? AND cc.company_id = ?";
+            binds.push(companyId);
+        }
+    }
+
     const sql = `
-        SELECT u.id, u.email, u.name, u.surname, u.role, u.phone, u.avatar_url AS avatarUrl
-        FROM users u
-        WHERE u.role = ?
+        SELECT ${role === "user" ? "DISTINCT" : ""} u.id, u.email, u.name, u.surname, u.role, u.phone, u.avatar_url AS avatarUrl
+        ${fromSql}
+        ${whereSql}
         ${search ? "AND (COALESCE(u.email,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR COALESCE(u.phone,'') LIKE ?)" : ""}
         ${getUserSortClause(sortBy, sortOrder)}
         LIMIT ? OFFSET ?
     `;
-    const binds: unknown[] = [role];
+
     if (search) {
-        const q = `%${search}%`;
-        binds.push(q, q, q, q);
+        binds.push(...getUserSearchBinds(search));
     }
     binds.push(pageSize, offset);
+
     const result = await db.prepare(sql).bind(...binds).all();
     return (result.results || []) as UserListRow[];
 }
@@ -66,17 +84,33 @@ export async function countUsersPage(params: {
     db: D1DatabaseLike;
     role: string;
     search: string;
+    companyId?: number | null;
 }) {
-    const { db, role, search } = params;
+    const { db, role, search, companyId } = params;
+    let fromSql = "FROM users u";
+    let whereSql = "WHERE u.role = ?";
     const binds: unknown[] = [role];
+
+    if (companyId) {
+        if (role === "manager") {
+            fromSql = "FROM users u INNER JOIN managers m ON u.id = m.user_id";
+            whereSql = "WHERE u.role = ? AND m.company_id = ? AND m.is_active = 1";
+            binds.push(companyId);
+        } else if (role === "user") {
+            fromSql = "FROM users u INNER JOIN contracts c ON u.id = c.client_id INNER JOIN company_cars cc ON cc.id = c.company_car_id";
+            whereSql = "WHERE u.role = ? AND cc.company_id = ?";
+            binds.push(companyId);
+        }
+    }
+
     if (search) {
         binds.push(...getUserSearchBinds(search));
     }
 
     const row = await db.prepare(`
-        SELECT COUNT(*) AS count
-        FROM users u
-        WHERE u.role = ?
+        SELECT COUNT(${role === "user" ? "DISTINCT u.id" : "*"}) AS count
+        ${fromSql}
+        ${whereSql}
         ${search ? "AND (COALESCE(u.email,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR COALESCE(u.phone,'') LIKE ?)" : ""}
     `).bind(...binds).first() as CountRow;
 
@@ -221,4 +255,31 @@ export async function countCompanyClientsPage(params: {
     `).bind(...binds).first() as CountRow;
 
     return Number(row?.count || 0);
+}
+
+export async function getUserById(params: {
+    db: D1DatabaseLike;
+    userId: string;
+    companyId?: number | null;
+}) {
+    const { db, userId, companyId } = params;
+    if (companyId) {
+        // Multi-tenant check: User must be a manager of this company or a client of this company
+        return await db.prepare(`
+            SELECT DISTINCT u.id, u.email, u.name, u.surname, u.role, u.phone, u.avatar_url AS avatarUrl
+            FROM users u
+            LEFT JOIN managers m ON u.id = m.user_id AND m.company_id = ?
+            LEFT JOIN contracts c ON u.id = c.client_id
+            LEFT JOIN company_cars cc ON c.company_car_id = cc.id AND cc.company_id = ?
+            WHERE u.id = ? AND (m.id IS NOT NULL OR cc.id IS NOT NULL)
+            LIMIT 1
+        `).bind(companyId, companyId, userId).first() as UserListRow | null;
+    }
+
+    return await db.prepare(`
+        SELECT id, email, name, surname, role, phone, avatar_url AS avatarUrl
+        FROM users
+        WHERE id = ?
+        LIMIT 1
+    `).bind(userId).first() as UserListRow | null;
 }

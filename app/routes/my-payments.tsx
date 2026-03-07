@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useSearchParams, Link } from "react-router";
-import { requireSelfProfileAccess } from "~/lib/access-policy.server";
 import { CurrencyDollarIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import SimplePagination from "~/components/dashboard/SimplePagination";

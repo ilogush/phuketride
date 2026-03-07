@@ -8,6 +8,10 @@ import { enforcePhuketCurrencyInvariant } from "~/lib/settings-currency-policy.s
 import { isPhuketName, normalizeCompanyRow } from "~/lib/settings-normalizers";
 import { parseWithSchema } from "~/lib/validation.server";
 import { companySchema } from "~/schemas/company";
+import { parseMoneyValue, parseIntegerValue } from "~/lib/form-input";
+import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
+import { runMutationWithFeedback } from "~/lib/admin-actions";
+import { getQuickAuditStmt } from "~/lib/audit-logger";
 
 type SettingsActionContext = ActionFunctionArgs["context"];
 type CompanyRow = Record<string, unknown>;
@@ -35,173 +39,121 @@ type SettingsActionState = {
   resolveIsPhuketCompany: () => Promise<boolean>;
 };
 
-function parseMoneyValue(value: FormDataEntryValue | null): number | null {
-  if (typeof value !== "string") return null;
-  const normalized = value.replace(",", ".").trim();
-  if (!normalized) return null;
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed)) return null;
-  return Math.round(Math.abs(parsed) * 100) / 100;
-}
-
-function parseIntegerValue(value: FormDataEntryValue | null, fallback: number): number {
-  if (typeof value !== "string") return fallback;
-  const normalized = value.replace(",", ".").trim();
-  if (!normalized) return fallback;
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(0, Math.round(Math.abs(parsed)));
-}
 
 async function handleUpdateGeneral(args: SettingsActionArgs, state: SettingsActionState) {
-  const { context, formData, companyId, request, user } = args;
-  const rawData = {
-    name: formData.get("name") as string,
-    email: formData.get("email") as string,
-    phone: formData.get("phone") as string,
-    telegram: (formData.get("telegram") as string) || null,
-    locationId: Number(formData.get("locationId")),
-    districtId: Number(formData.get("districtId")),
-    street: formData.get("street") as string,
-    houseNumber: formData.get("houseNumber") as string,
-    bankName: (formData.get("bankName") as string) || null,
-    accountNumber: (formData.get("accountNumber") as string) || null,
-    accountName: (formData.get("accountName") as string) || null,
-    swiftCode: (formData.get("swiftCode") as string) || null,
-    deliveryFeeAfterHours: parseMoneyValue(formData.get("deliveryFeeAfterHours")) ?? 0,
-    islandTripPrice: parseMoneyValue(formData.get("islandTripPrice")),
-    krabiTripPrice: parseMoneyValue(formData.get("krabiTripPrice")),
-    babySeatPricePerDay: parseIntegerValue(formData.get("babySeatPricePerDay"), 0),
-  };
+    const { context, formData, companyId, request, user } = args;
+    const db = context.cloudflare.env.DB;
 
-  const validation = parseWithSchema(companySchema, rawData, "Validation failed");
-  if (!validation.ok) {
-    return redirect(state.withMode(`/settings?error=${encodeURIComponent(validation.error)}`));
-  }
+    const rawData = {
+        name: formData.get("name") as string,
+        email: formData.get("email") as string,
+        phone: formData.get("phone") as string,
+        telegram: (formData.get("telegram") as string) || null,
+        locationId: Number(formData.get("locationId")),
+        districtId: Number(formData.get("districtId")),
+        street: formData.get("street") as string,
+        houseNumber: formData.get("houseNumber") as string,
+        bankName: (formData.get("bankName") as string) || null,
+        accountNumber: (formData.get("accountNumber") as string) || null,
+        accountName: (formData.get("accountName") as string) || null,
+        swiftCode: (formData.get("swiftCode") as string) || null,
+        deliveryFeeAfterHours: parseMoneyValue(formData.get("deliveryFeeAfterHours")) ?? 0,
+        islandTripPrice: parseMoneyValue(formData.get("islandTripPrice")),
+        krabiTripPrice: parseMoneyValue(formData.get("krabiTripPrice")),
+        babySeatPricePerDay: parseIntegerValue(formData.get("babySeatPricePerDay"), 0),
+    };
 
-  const validData = validation.data;
-  const weeklySchedule = formData.get("weeklySchedule") as string;
-  const holidays = formData.get("holidays") as string;
-
-  try {
-    await context.cloudflare.env.DB
-      .prepare(`
-        UPDATE companies
-        SET name = ?, email = ?, phone = ?, telegram = ?, location_id = ?, district_id = ?,
-            street = ?, house_number = ?, bank_name = ?, account_number = ?, account_name = ?,
-            swift_code = ?, delivery_fee_after_hours = ?, island_trip_price = ?,
-            krabi_trip_price = ?, baby_seat_price_per_day = ?, weekly_schedule = ?, holidays = ?,
-            updated_at = ?
-        WHERE id = ?
-      `)
-      .bind(
-        validData.name,
-        validData.email,
-        validData.phone,
-        validData.telegram,
-        validData.locationId,
-        validData.districtId,
-        validData.street,
-        validData.houseNumber,
-        validData.bankName,
-        validData.accountNumber,
-        validData.accountName,
-        validData.swiftCode,
-        validData.deliveryFeeAfterHours,
-        validData.islandTripPrice,
-        validData.krabiTripPrice,
-        validData.babySeatPricePerDay,
-        weeklySchedule,
-        holidays,
-        new Date().toISOString(),
-        companyId
-      )
-      .run();
-
-    const locationDistrictsResult = await context.cloudflare.env.DB
-      .prepare("SELECT id, delivery_price AS deliveryPrice FROM districts WHERE location_id = ?")
-      .bind(validData.locationId)
-      .all() as { results?: DeliveryDistrictRow[] };
-    const locationDistricts = locationDistrictsResult.results || [];
-
-    const existingCompanySettingsResult = await context.cloudflare.env.DB
-      .prepare(`
-        SELECT id, district_id AS districtId, delivery_price AS deliveryPrice
-        FROM company_delivery_settings
-        WHERE company_id = ?
-      `)
-      .bind(companyId)
-      .all() as { results?: CompanyDeliverySettingRow[] };
-    const existingCompanySettings = existingCompanySettingsResult.results || [];
-
-    const settingsByDistrictId = new Map(existingCompanySettings.map((row) => [row.districtId, row]));
-
-    for (const district of locationDistricts) {
-      const existing = settingsByDistrictId.get(district.id);
-      const isCompanyDistrict = district.id === validData.districtId;
-      const nextPrice = isCompanyDistrict ? 0 : (existing?.deliveryPrice ?? district.deliveryPrice ?? 0);
-
-      if (existing) {
-        await context.cloudflare.env.DB
-          .prepare(`
-            UPDATE company_delivery_settings
-            SET is_active = ?, delivery_price = ?, updated_at = ?
-            WHERE id = ?
-          `)
-          .bind(isCompanyDistrict ? 1 : 0, nextPrice, new Date().toISOString(), existing.id)
-          .run();
-      } else {
-        await context.cloudflare.env.DB
-          .prepare(`
-            INSERT INTO company_delivery_settings (
-              company_id, district_id, is_active, delivery_price, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?)
-          `)
-          .bind(
-            companyId,
-            district.id,
-            isCompanyDistrict ? 1 : 0,
-            nextPrice,
-            new Date().toISOString(),
-            new Date().toISOString()
-          )
-          .run();
-      }
+    const validation = parseWithSchema(companySchema, rawData, "Validation failed");
+    if (!validation.ok) {
+        return redirectWithRequestError(request, state.withMode("/settings"), validation.error);
     }
 
-    const locationName = await context.cloudflare.env.DB
-      .prepare("SELECT name FROM locations WHERE id = ? LIMIT 1")
-      .bind(validData.locationId)
-      .first() as { name?: string } | null;
+    const validData = validation.data;
+    const weeklySchedule = formData.get("weeklySchedule") as string;
+    const holidays = formData.get("holidays") as string;
 
-    if (isPhuketName(locationName?.name)) {
-      await enforcePhuketCurrencyInvariant(context.cloudflare.env.DB, companyId);
-    }
+    return runMutationWithFeedback(request, async () => {
+        const batch: any[] = [];
+        const now = new Date().toISOString();
 
-    invalidateSettingsCaches(companyId);
+        // 1. Update company general settings
+        batch.push(
+            db.prepare(`
+                UPDATE companies
+                SET name = ?, email = ?, phone = ?, telegram = ?, location_id = ?, district_id = ?,
+                    street = ?, house_number = ?, bank_name = ?, account_number = ?, account_name = ?,
+                    swift_code = ?, delivery_fee_after_hours = ?, island_trip_price = ?,
+                    krabi_trip_price = ?, baby_seat_price_per_day = ?, weekly_schedule = ?, holidays = ?,
+                    updated_at = ?
+                WHERE id = ?
+            `).bind(
+                validData.name, validData.email, validData.phone, validData.telegram,
+                validData.locationId, validData.districtId, validData.street, validData.houseNumber,
+                validData.bankName, validData.accountNumber, validData.accountName, validData.swiftCode,
+                validData.deliveryFeeAfterHours, validData.islandTripPrice, validData.krabiTripPrice,
+                validData.babySeatPricePerDay, weeklySchedule, holidays, now, companyId
+            )
+        );
 
-    const metadata = getRequestMetadata(request);
-    quickAudit({
-      db: context.cloudflare.env.DB,
-      userId: user.id,
-      role: user.role,
-      companyId,
-      entityType: "company",
-      entityId: companyId,
-      action: "update",
-      beforeState: state.currentCompany,
-      afterState: { ...validData, id: companyId },
-      ...metadata,
+        // 2. Fetch districts for the location to sync company_delivery_settings
+        const locationDistrictsResult = await db
+            .prepare("SELECT id, delivery_price AS deliveryPrice FROM districts WHERE location_id = ?")
+            .bind(validData.locationId).all() as { results?: DeliveryDistrictRow[] };
+        const locationDistricts = locationDistrictsResult.results || [];
+
+        const existingCompanySettingsResult = await db
+            .prepare("SELECT id, district_id AS districtId, delivery_price AS deliveryPrice FROM company_delivery_settings WHERE company_id = ?")
+            .bind(companyId).all() as { results?: CompanyDeliverySettingRow[] };
+        const existingCompanySettings = existingCompanySettingsResult.results || [];
+        const settingsByDistrictId = new Map(existingCompanySettings.map((row) => [row.districtId, row]));
+
+        for (const district of locationDistricts) {
+            const existing = settingsByDistrictId.get(district.id);
+            const isCompanyDistrict = district.id === validData.districtId;
+            const nextPrice = isCompanyDistrict ? 0 : (existing?.deliveryPrice ?? district.deliveryPrice ?? 0);
+
+            if (existing) {
+                batch.push(db.prepare(`
+                    UPDATE company_delivery_settings SET is_active = ?, delivery_price = ?, updated_at = ? WHERE id = ?
+                `).bind(isCompanyDistrict ? 1 : 0, nextPrice, now, existing.id));
+            } else {
+                batch.push(db.prepare(`
+                    INSERT INTO company_delivery_settings (company_id, district_id, is_active, delivery_price, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `).bind(companyId, district.id, isCompanyDistrict ? 1 : 0, nextPrice, now, now));
+            }
+        }
+
+        // 3. Phuket currency invariant check
+        const locationName = await db.prepare("SELECT name FROM locations WHERE id = ? LIMIT 1")
+            .bind(validData.locationId).first() as { name?: string } | null;
+
+        if (isPhuketName(locationName?.name)) {
+            // enforcePhuketCurrencyInvariant runs its own DB calls, we might want to stay consistent here
+            // For now, keep it async inside mutate as it's a side effect
+            await enforcePhuketCurrencyInvariant(db, companyId);
+        }
+
+        // 4. Audit Log
+        const metadata = getRequestMetadata(request);
+        batch.push(getQuickAuditStmt({
+            db, userId: user.id, role: user.role, companyId, entityType: "company", entityId: companyId,
+            action: "update", beforeState: state.currentCompany,
+            afterState: { ...validData, id: companyId }, ...metadata
+        }));
+
+        // Execute batch
+        await db.batch(batch);
+        invalidateSettingsCaches(companyId);
+    }, {
+        successPath: state.withMode("/settings"),
+        successMessage: "Settings updated successfully",
+        errorMessage: "Failed to update settings"
     });
-
-    return redirect(state.withMode("/settings?success=Settings updated successfully"));
-  } catch {
-    return redirect(state.withMode("/settings?error=Failed to update settings"));
-  }
 }
 
 async function handleSetDefaultCurrency(args: SettingsActionArgs, state: SettingsActionState) {
-  const { context, formData, companyId } = args;
+  const { context, formData, companyId, request } = args;
   const currencyId = Number(formData.get("currencyId"));
   const isPhuketCompany = await state.resolveIsPhuketCompany();
 
@@ -212,7 +164,7 @@ async function handleSetDefaultCurrency(args: SettingsActionArgs, state: Setting
         .bind(currencyId)
         .first() as { code?: string } | null;
       if (String(targetCurrency?.code || "").toUpperCase() !== "THB") {
-        return redirect(state.withMode("/settings?tab=currencies&error=Phuket companies must use THB as default currency"));
+        return redirectWithRequestError(request, "/settings?tab=currencies", "Phuket companies must use THB as default currency");
       }
     }
 
@@ -228,14 +180,14 @@ async function handleSetDefaultCurrency(args: SettingsActionArgs, state: Setting
 
     invalidateSettingsCaches(companyId);
 
-    return redirect(state.withMode("/settings?tab=currencies&success=Default currency updated"));
+    return redirectWithRequestSuccess(request, "/settings?tab=currencies", "Default currency updated");
   } catch {
-    return redirect(state.withMode("/settings?tab=currencies&error=Failed to update default currency"));
+    return redirectWithRequestError(request, "/settings?tab=currencies", "Failed to update default currency");
   }
 }
 
 async function handleToggleCurrencyActive(args: SettingsActionArgs, state: SettingsActionState) {
-  const { context, formData, companyId } = args;
+  const { context, formData, companyId, request } = args;
   const currencyId = Number(formData.get("currencyId"));
   const isActive = formData.get("isActive") === "true";
   const isPhuketCompany = await state.resolveIsPhuketCompany();
@@ -247,7 +199,7 @@ async function handleToggleCurrencyActive(args: SettingsActionArgs, state: Setti
         .bind(currencyId)
         .first() as { code?: string } | null;
       if (String(targetCurrency?.code || "").toUpperCase() === "THB") {
-        return redirect(state.withMode("/settings?tab=currencies&error=THB must stay active for Phuket companies"));
+        return redirectWithRequestError(request, "/settings?tab=currencies", "THB must stay active for Phuket companies");
       }
     }
 
@@ -262,20 +214,20 @@ async function handleToggleCurrencyActive(args: SettingsActionArgs, state: Setti
 
     invalidateSettingsCaches(companyId);
 
-    return redirect(state.withMode("/settings?tab=currencies&success=Currency status updated"));
+    return redirectWithRequestSuccess(request, "/settings?tab=currencies", "Currency status updated");
   } catch {
-    return redirect(state.withMode("/settings?tab=currencies&error=Failed to update currency status"));
+    return redirectWithRequestError(request, "/settings?tab=currencies", "Failed to update currency status");
   }
 }
 
 async function handleCreateCurrency(args: SettingsActionArgs, state: SettingsActionState) {
-  const { context, formData } = args;
+  const { context, formData, request } = args;
   const name = (formData.get("name") as string)?.trim();
   const code = (formData.get("code") as string)?.trim().toUpperCase();
   const symbol = (formData.get("symbol") as string)?.trim();
 
   if (!name || !code || !symbol) {
-    return redirect(state.withMode("/settings?tab=currencies&error=All currency fields are required"));
+    return redirectWithRequestError(request, "/settings?tab=currencies", "All currency fields are required");
   }
 
   try {
@@ -289,14 +241,14 @@ async function handleCreateCurrency(args: SettingsActionArgs, state: SettingsAct
 
     invalidateSettingsCaches();
 
-    return redirect(state.withMode("/settings?tab=currencies&success=Currency created successfully"));
+    return redirectWithRequestSuccess(request, "/settings?tab=currencies", "Currency created successfully");
   } catch {
-    return redirect(state.withMode("/settings?tab=currencies&error=Failed to create currency"));
+    return redirectWithRequestError(request, "/settings?tab=currencies", "Failed to create currency");
   }
 }
 
 async function handleUpdatePaymentTemplate(args: SettingsActionArgs, state: SettingsActionState) {
-  const { context, formData, companyId } = args;
+  const { context, formData, companyId, request } = args;
   const id = Number(formData.get("id"));
   const name = (formData.get("name") as string || "").trim();
   const sign = (formData.get("sign") as "+" | "-") || "+";
@@ -321,14 +273,14 @@ async function handleUpdatePaymentTemplate(args: SettingsActionArgs, state: Sett
     }
 
     if (template.companyId !== null && template.companyId !== companyId) {
-      return redirect(state.withMode("/settings?error=Unauthorized"));
+      return redirectWithRequestError(request, "/settings", "Unauthorized");
     }
     if (template.isSystem) {
-      return redirect(state.withMode("/settings?error=Cannot edit system templates"));
+      return redirectWithRequestError(request, "/settings", "Cannot edit system templates");
     }
 
     if (!name) {
-      return redirect(state.withMode("/settings?error=Payment template name is required"));
+      return redirectWithRequestError(request, "/settings", "Payment template name is required");
     }
 
     await context.cloudflare.env.DB
@@ -342,14 +294,14 @@ async function handleUpdatePaymentTemplate(args: SettingsActionArgs, state: Sett
 
     invalidateSettingsCaches(companyId);
 
-    return redirect(state.withMode("/settings?success=Payment template updated successfully"));
+    return redirectWithRequestSuccess(request, "/settings", "Payment template updated successfully");
   } catch {
-    return redirect(state.withMode("/settings?error=Failed to update payment template"));
+    return redirectWithRequestError(request, "/settings", "Failed to update payment template");
   }
 }
 
 async function handleCreatePaymentTemplate(args: SettingsActionArgs, state: SettingsActionState) {
-  const { context, formData, companyId } = args;
+  const { context, formData, companyId, request } = args;
   const name = formData.get("name") as string;
   const sign = formData.get("sign") as "+" | "-";
   const description = (formData.get("description") as string) || null;
@@ -376,14 +328,14 @@ async function handleCreatePaymentTemplate(args: SettingsActionArgs, state: Sett
 
     invalidateSettingsCaches(companyId);
 
-    return redirect(state.withMode("/settings?success=Payment template created successfully"));
+    return redirectWithRequestSuccess(request, "/settings", "Payment template created successfully");
   } catch {
-    return redirect(state.withMode("/settings?error=Failed to create payment template"));
+    return redirectWithRequestError(request, "/settings", "Failed to create payment template");
   }
 }
 
 async function handleDeletePaymentTemplate(args: SettingsActionArgs, state: SettingsActionState) {
-  const { context, formData, companyId } = args;
+  const { context, formData, companyId, request } = args;
   const id = Number(formData.get("id"));
 
   try {
@@ -405,11 +357,11 @@ async function handleDeletePaymentTemplate(args: SettingsActionArgs, state: Sett
     }
 
     if (template.isSystem || template.companyId === null) {
-      return redirect(state.withMode("/settings?error=Cannot delete system templates"));
+      return redirectWithRequestError(request, "/settings", "Cannot delete system templates");
     }
 
     if (template.companyId !== companyId) {
-      return redirect(state.withMode("/settings?error=Unauthorized"));
+      return redirectWithRequestError(request, "/settings", "Unauthorized");
     }
 
     await context.cloudflare.env.DB
@@ -419,9 +371,9 @@ async function handleDeletePaymentTemplate(args: SettingsActionArgs, state: Sett
 
     invalidateSettingsCaches(companyId);
 
-    return redirect(state.withMode("/settings?success=Payment template deleted successfully"));
+    return redirectWithRequestSuccess(request, "/settings", "Payment template deleted successfully");
   } catch {
-    return redirect(state.withMode("/settings?error=Failed to delete payment template"));
+    return redirectWithRequestError(request, "/settings", "Failed to delete payment template");
   }
 }
 
@@ -465,6 +417,10 @@ export async function handleSettingsAction(args: SettingsActionArgs) {
     return handleUpdateGeneral(args, state);
   }
 
+  // NOTE: Other intents (setDefaultCurrency, etc) should also be refactored to runMutationWithFeedback
+  // but for now they already use standard DB calls.
+  // The general settings update was the most critical due to N+1 loops.
+
   if (intent === "setDefaultCurrency") {
     return handleSetDefaultCurrency(args, state);
   }
@@ -489,5 +445,5 @@ export async function handleSettingsAction(args: SettingsActionArgs) {
     return handleDeletePaymentTemplate(args, state);
   }
 
-  return redirect(withMode("/settings?error=Invalid action"));
+  return redirectWithRequestError(request, state.withMode("/settings"), "Invalid action");
 }

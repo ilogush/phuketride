@@ -51,6 +51,7 @@ export interface DataTableProps<T> {
   };
   searchQuery?: string;
   serverPagination?: boolean;
+  onRowClick?: (item: T, index: number) => void;
   caption?: string;
   ariaLabel?: string;
 }

@@ -1,7 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { Form, useLoaderData } from "react-router";
 import { useState } from "react";
-import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import FormSection from "~/components/dashboard/FormSection";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";

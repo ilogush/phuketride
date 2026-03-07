@@ -36,11 +36,7 @@ export interface TemplateRow {
   fuel_type_name?: string | null;
 }
 
-type AdminUser = {
-  id: string;
-  role: string;
-  companyId?: number | null;
-};
+import { type SessionUser } from "~/lib/auth.server";
 
 type Metadata = {
   ipAddress?: string;
@@ -105,11 +101,13 @@ export async function loadCarTemplatesData(db: D1Database) {
 export async function handleCarTemplatesAction({
   db,
   user,
+  companyId,
   formData,
   metadata,
 }: {
   db: D1Database;
-  user: AdminUser;
+  user: SessionUser;
+  companyId: number | null;
   formData: FormData;
   metadata: Metadata;
 }): Promise<ActionResult> {
@@ -119,7 +117,7 @@ export async function handleCarTemplatesAction({
   };
   const parsedIntent = parseWithSchema(
     z.object({
-      intent: z.enum(["create_brand", "delete_brand", "create_model", "delete_model", "delete_template"]),
+      intent: z.enum(["create_brand", "delete_brand", "create_model", "delete_model", "delete_template"] as const),
     }),
     {
       intent: formData.get("intent"),
@@ -144,7 +142,7 @@ export async function handleCarTemplatesAction({
       db,
       userId: user.id,
       role: user.role,
-      companyId: user.companyId,
+      companyId: companyId,
       entityType: "brand",
       action: "create",
       afterState: { name },
@@ -164,7 +162,7 @@ export async function handleCarTemplatesAction({
       db,
       userId: user.id,
       role: user.role,
-      companyId: user.companyId,
+      companyId: companyId,
       entityType: "brand",
       entityId: brandId,
       action: "delete",
@@ -187,7 +185,7 @@ export async function handleCarTemplatesAction({
       db,
       userId: user.id,
       role: user.role,
-      companyId: user.companyId,
+      companyId: companyId,
       entityType: "model",
       action: "create",
       afterState: { name, brandId: Number(brand_id) },
@@ -207,7 +205,7 @@ export async function handleCarTemplatesAction({
       db,
       userId: user.id,
       role: user.role,
-      companyId: user.companyId,
+      companyId: companyId,
       entityType: "model",
       entityId: modelId,
       action: "delete",
@@ -227,7 +225,7 @@ export async function handleCarTemplatesAction({
       db,
       userId: user.id,
       role: user.role,
-      companyId: user.companyId,
+      companyId: companyId,
       entityType: "car_template",
       entityId: templateId,
       action: "delete",

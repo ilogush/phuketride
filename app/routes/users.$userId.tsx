@@ -1,8 +1,8 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
-import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
-import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
+import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
+import { runAdminMutationAction } from "~/lib/admin-crud.server";
 import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -28,41 +28,61 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const parsed = parseWithSchema(
         z
         .object({
-            intent: z.enum(["archive", "unarchive"]),
+            intent: z.enum(["archive", "unarchive"] as const),
         }),
         {
             intent: formData.get("intent"),
-        },
-        "Invalid action"
-    );
+    });
     if (!parsed.ok) {
-        return redirectWithError(`/users/${userId}/edit`, "Invalid action");
+        return redirectWithRequestError(request, `/users/${userId}/edit`, "Invalid action");
     }
     const intent = parsed.data.intent;
 
     if (intent === "archive") {
-        const { archiveUser } = await import("~/lib/archive.server");
-        const result = await archiveUser(context.cloudflare.env.DB, userId);
-
-        if (result.success) {
-            return redirectWithSuccess("/users", result.message || "User archived successfully");
-        }
-
-        return redirectWithError(`/users/${userId}/edit`, result.message || result.error || "Failed to archive user");
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                const { archiveUser } = await import("~/lib/archive.server");
+                const result = await archiveUser(db, userId);
+                if (!result.success) throw new Error(result.error);
+            },
+            feedback: {
+                successPath: "/users",
+                successMessage: "User archived successfully",
+                errorMessage: "Failed to archive user",
+            },
+            audit: {
+                entityType: "user",
+                entityId: Number(userId) || 0, // audit expects number id if possible, but user id is string (UUID)
+                action: "delete",
+            },
+        });
     }
 
     if (intent === "unarchive") {
-        const { unarchiveUser } = await import("~/lib/archive.server");
-        const result = await unarchiveUser(context.cloudflare.env.DB, userId);
-
-        if (result.success) {
-            return redirectWithSuccess(`/users/${userId}/edit`, result.message || "User unarchived successfully");
-        }
-
-        return redirectWithError(`/users/${userId}/edit`, result.message || result.error || "Failed to unarchive user");
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                const { unarchiveUser } = await import("~/lib/archive.server");
+                const result = await unarchiveUser(db, userId);
+                if (!result.success) throw new Error(result.error);
+            },
+            feedback: {
+                successPath: `/users/${userId}/edit`,
+                successMessage: "User unarchived successfully",
+                errorMessage: "Failed to unarchive user",
+            },
+            audit: {
+                entityType: "user",
+                entityId: Number(userId) || 0,
+                action: "update",
+            },
+        });
     }
 
-    return redirect(`/users/${userId}/edit`);
+    return redirectWithRequestError(request, `/users/${userId}/edit`, "Invalid action");
 }
 
 export default function UserRedirectPage() {

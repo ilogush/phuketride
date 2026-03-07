@@ -48,9 +48,7 @@ export default [
         route("cars/:id/content", "routes/cars.$id.content.tsx"),
         route("cars/:id/edit", "routes/cars.$id.edit.tsx"),
         route("brands", "routes/brands.tsx"),
-        route("brands/create", "routes/brands.create.tsx"),
         route("models", "routes/models.tsx"),
-        route("models/create", "routes/models.create.tsx"),
         route("car-templates", "routes/car-templates.tsx"),
         route("car-templates/create", "routes/car-templates.create.tsx"),
         route("car-templates/:id", "routes/car-templates.$id.tsx"),
@@ -63,11 +61,7 @@ export default [
         route("hotels", "routes/hotels.tsx"),
         route("durations", "routes/durations.tsx"),
         route("seasons", "routes/seasons.tsx"),
-        // Colors with nested modal routes
-        route("colors", "routes/colors.tsx", [
-            route("new", "routes/colors_.new.tsx"),
-            route(":colorId/edit", "routes/colors_.$colorId.edit.tsx"),
-        ]),
+        route("colors", "routes/colors.tsx"),
         route("reports", "routes/reports.tsx"),
         route("logs", "routes/logs.tsx"),
 

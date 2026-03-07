@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link } from "react-router";
-import { requireAdmin } from "~/lib/auth.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
@@ -9,8 +8,10 @@ import { useUrlToast } from "~/lib/useUrlToast";
 import { loadCompaniesPageData, type CompaniesPageRow } from "~/lib/companies-page.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 
+import { getScopedDb } from "~/lib/db-factory.server";
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAdmin(request);
+    const { user, sdb } = await getScopedDb(request, context);
     const url = new URL(request.url);
     const showArchived = url.searchParams.get("archived") === "true";
     const sortBy = url.searchParams.get("sortBy") || "createdAt";
@@ -24,7 +25,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         details: { route: "companies", showArchived, sortBy },
         run: () => loadCompaniesPageData({
             request,
-            db: context.cloudflare.env.DB,
+            sdb,
             user,
         }),
     });

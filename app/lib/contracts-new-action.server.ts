@@ -15,6 +15,7 @@ import {
 import { parseDisplayDateTimeToDate } from "~/lib/date-windows";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
+import { checkCarAvailability } from "~/lib/car-availability.server";
 
 type CreateContractActionArgs = {
   request: Request;
@@ -235,31 +236,14 @@ export async function handleCreateContractAction({ request, context, user, compa
       throw new Error("Car is not available for rent");
     }
 
-    const overlapping = await context.cloudflare.env.DB
-      .prepare(`
-        SELECT id
-        FROM contracts
-        WHERE company_car_id = ? AND status = 'active'
-          AND (
-            (start_date <= ? AND end_date >= ?)
-            OR (start_date <= ? AND end_date >= ?)
-            OR (start_date >= ? AND end_date <= ?)
-          )
-        LIMIT 1
-      `)
-      .bind(
-        companyCarId,
-        startDate.toISOString(),
-        startDate.toISOString(),
-        endDate.toISOString(),
-        endDate.toISOString(),
-        startDate.toISOString(),
-        endDate.toISOString()
-      )
-      .first() as { id: number } | null;
-
-    if (overlapping) {
-      throw new Error("Car is already booked for these dates");
+    const conflict = await checkCarAvailability(
+      context.cloudflare.env.DB,
+      companyCarId,
+      startDate,
+      endDate
+    );
+    if (conflict) {
+      throw new Error(`Car is already occupied by a ${conflict.type} (ID: ${conflict.id})`);
     }
 
     const contractPhotosValue = parsePhotoList(formData.get("photos"));

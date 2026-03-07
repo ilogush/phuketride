@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
-import { requireUserDirectoryAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -11,24 +10,15 @@ import { useUrlToast } from "~/lib/useUrlToast";
 import { formatContactPhone } from "~/lib/phone";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
-import {
-    countCompanyClients,
-    countCompanyClientsPage,
-    countCompanyManagers,
-    countCompanyManagersPage,
-    countUsersPage,
-    listCompanyClientsPage,
-    listCompanyManagersPage,
-    listUserRoleCounts,
-    listUsersPage,
-} from "~/lib/users-repo.server";
 import type { UserListRow } from "~/lib/db-types";
 import { trackServerOperation } from "~/lib/telemetry.server";
 const USER_TABS = ["admin", "partner", "manager", "user"] as const;
 type UserTab = typeof USER_TABS[number];
 
+import { getScopedDb } from "~/lib/db-factory.server";
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId: effectiveCompanyId, isModMode } = await requireUserDirectoryAccess(request);
+    const { user, companyId, isModMode, sdb } = await getScopedDb(request, context, requireUserDirectoryAccess);
     const url = new URL(request.url);
     const defaultTab = user.role === "partner" || isModMode ? "manager" : "admin";
     const { tab, search, sortBy, sortOrder } = parseListFilters(url, {
@@ -46,77 +36,47 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         scope: "route.loader",
         request,
         userId: user.id,
-        companyId: effectiveCompanyId,
+        companyId,
         details: { route: "users", tab: activeTab, sortBy: sortBy || "createdAt", isModMode },
         run: async () => {
             let usersList: UserListRow[] = [];
             let roleCounts = { all: 0, admin: 0, partner: 0, manager: 0, user: 0 };
             let totalCount = 0;
 
+            const isPartner = user.role === "partner" || isModMode;
+
             try {
-                if (user.role === "partner" || isModMode) {
-                    if (!effectiveCompanyId) {
+                if (isPartner) {
+                    if (!companyId) {
                         return { user, users: [], roleCounts, isModMode, activeTab, totalCount, page, pageSize };
                     }
 
-                    const [managerCount, userCount] = await Promise.all([
-                        countCompanyManagers({
-                            db: context.cloudflare.env.DB,
-                            companyId: effectiveCompanyId,
-                        }),
-                        countCompanyClients({
-                            db: context.cloudflare.env.DB,
-                            companyId: effectiveCompanyId,
-                        }),
+                    const [managerCount, clientCount] = await Promise.all([
+                        sdb.users.countByRole({ role: "manager" }),
+                        sdb.users.countByRole({ role: "user" }),
                     ]);
                     roleCounts.manager = managerCount;
-                    roleCounts.user = userCount;
+                    roleCounts.user = clientCount;
                     roleCounts.all = roleCounts.manager + roleCounts.user;
 
-                    if (activeTab === "manager") {
-                        const [rows, count] = await Promise.all([
-                            listCompanyManagersPage({
-                                db: context.cloudflare.env.DB,
-                                companyId: effectiveCompanyId,
-                                pageSize,
-                                offset,
-                                search,
-                                sortBy: sortBy || "createdAt",
-                                sortOrder,
-                            }),
-                            countCompanyManagersPage({
-                                db: context.cloudflare.env.DB,
-                                companyId: effectiveCompanyId,
-                                search,
-                            }),
-                        ]);
-                        usersList = rows;
-                        totalCount = count;
-                    } else {
-                        const [rows, count] = await Promise.all([
-                            listCompanyClientsPage({
-                                db: context.cloudflare.env.DB,
-                                companyId: effectiveCompanyId,
-                                pageSize,
-                                offset,
-                                search,
-                                sortBy: sortBy || "createdAt",
-                                sortOrder,
-                            }),
-                            countCompanyClientsPage({
-                                db: context.cloudflare.env.DB,
-                                companyId: effectiveCompanyId,
-                                search,
-                            }),
-                        ]);
-                        usersList = rows;
-                        totalCount = count;
-                    }
+                    const [rows, count] = await Promise.all([
+                        sdb.users.list({
+                            role: activeTab,
+                            pageSize,
+                            offset,
+                            search,
+                            sortBy: sortBy || "createdAt",
+                            sortOrder,
+                        }),
+                        sdb.users.count({
+                            role: activeTab,
+                            search,
+                        }),
+                    ]);
+                    usersList = rows;
+                    totalCount = count;
                 } else {
-                    const groupedResult = await listUserRoleCounts({
-                        db: context.cloudflare.env.DB,
-                    });
-
+                    const groupedResult = await sdb.users.getRoleCounts();
                     groupedResult.forEach((row) => {
                         const count = Number(row.count || 0);
                         if (row.role === "admin") roleCounts.admin = count;
@@ -126,20 +86,22 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                     });
                     roleCounts.all = roleCounts.admin + roleCounts.partner + roleCounts.manager + roleCounts.user;
 
-                    usersList = await listUsersPage({
-                        db: context.cloudflare.env.DB,
-                        role: activeTab,
-                        pageSize,
-                        offset,
-                        search,
-                        sortBy: sortBy || "createdAt",
-                        sortOrder,
-                    });
-                    totalCount = await countUsersPage({
-                        db: context.cloudflare.env.DB,
-                        role: activeTab,
-                        search,
-                    });
+                    const [rows, count] = await Promise.all([
+                        sdb.users.list({
+                            role: activeTab,
+                            pageSize,
+                            offset,
+                            search,
+                            sortBy: sortBy || "createdAt",
+                            sortOrder,
+                        }),
+                        sdb.users.count({
+                            role: activeTab,
+                            search,
+                        }),
+                    ]);
+                    usersList = rows;
+                    totalCount = count;
                 }
             } catch {
                 return { user, users: [], roleCounts, isModMode, activeTab, totalCount: 0, page, pageSize };

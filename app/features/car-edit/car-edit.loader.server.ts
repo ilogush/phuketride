@@ -4,25 +4,26 @@ import {
   getCachedRentalDurations,
   getCachedSeasons,
 } from "~/lib/dictionaries-cache.server";
-import { requireCarAccess } from "~/lib/access-policy.server";
+import { getScopedDb } from "~/lib/db-factory.server";
 import { type DurationRow, type SeasonRow } from "~/lib/cars-edit-types";
-import { getEditableCarById } from "~/lib/cars-repo.server";
 
 export async function loadCarEditPage(args: {
-  db: D1Database;
+  db?: D1Database;
   request: Request;
   carIdParam: string | undefined;
+  context: any;
 }) {
-  const { db, request, carIdParam } = args;
+  const { request, carIdParam, context } = args;
   const carId = Number(carIdParam);
 
   if (!Number.isFinite(carId) || carId <= 0) {
     throw new Response("Invalid car id", { status: 400 });
   }
 
-  await requireCarAccess(request, db, carId);
+  const { sdb } = await getScopedDb(request, context);
+  const carRaw = await sdb.cars.getEditable(carId);
+  const db = context.cloudflare.env.DB;
 
-  const carRaw = await getEditableCarById({ db, carId });
   if (!carRaw) {
     throw new Response("Car not found", { status: 404 });
   }

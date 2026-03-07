@@ -1,5 +1,4 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import { loadUpcomingCalendarFeed } from "~/lib/calendar-page.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 

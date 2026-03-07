@@ -1,93 +1,153 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
-import { useLoaderData, Form, Link, Outlet } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
+import { useLoaderData, useNavigation, useSearchParams } from "react-router";
+import { useState } from "react";
 
-import { requireAdmin } from "~/lib/auth.server";
+export const meta: MetaFunction = () => [
+    { title: "Car Colors — Phuket Ride Admin" },
+    { name: "description", content: "Manage car colors in the Phuket Ride dictionary." },
+    { name: "robots", content: "noindex, nofollow" },
+];
+
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
-import { PlusIcon, SwatchIcon } from "@heroicons/react/24/outline";
+import { PlusIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
-import { loadAdminPageData, runAdminMutationAction } from "~/lib/admin-crud.server";
-import { loadAdminColors, type AdminColorRow } from "~/lib/admin-dictionaries.server";
+import { runAdminMutationAction } from "~/lib/admin-crud.server";
+import { type AdminColorRow } from "~/lib/admin-dictionaries.server";
+import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
+import { getScopedDb } from "~/lib/db-factory.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { getPaginationFromUrl } from "~/lib/pagination.server";
+import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
+import { useSubmit } from "react-router";
 
 type Color = AdminColorRow;
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    await requireAdmin(request);
-    return loadAdminPageData({
+    const { user, companyId, sdb } = await getScopedDb(request, context);
+    const url = new URL(request.url);
+    const search = url.searchParams.get("search") || "";
+    const { page, pageSize, offset } = getPaginationFromUrl(url, { defaultPageSize: 50 });
+
+    return trackServerOperation({
+        event: "colors.load",
+        scope: "route.loader",
         request,
-        context,
-        loaders: {
-            colors: loadAdminColors,
+        userId: user.id,
+        companyId,
+        details: { route: "colors", search, page, pageSize },
+        run: async () => {
+            const [colors, totalCount] = await Promise.all([
+                sdb.colors.listPage({ limit: pageSize, offset, search }),
+                sdb.colors.count(search),
+            ]);
+            return { colors, totalCount, search, page, pageSize };
         },
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    await requireAdmin(request);
+    await getScopedDb(request, context);
     const formData = await request.formData();
+
     const parsed = parseWithSchema(
-        z
-        .discriminatedUnion("intent", [
+        z.discriminatedUnion("intent", [
             z.object({
                 intent: z.literal("delete"),
                 id: z.coerce.number().int().positive("Color id is required"),
             }),
             z.object({
+                intent: z.literal("create"),
+                name: z.string().trim().min(1, "Name is required").max(100, "Name is too long"),
+                hexCode: z.string().trim().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid hex code"),
+            }),
+            z.object({
+                intent: z.literal("update"),
+                id: z.coerce.number().int().positive("Color id is required"),
+                name: z.string().trim().min(1, "Name is required").max(100, "Name is too long"),
+                hexCode: z.string().trim().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid hex code"),
+            }),
+            z.object({
                 intent: z.literal("seed"),
             }),
         ]),
-        {
-            intent: formData.get("intent"),
-            id: formData.get("id"),
-        },
+        Object.fromEntries(formData),
         "Invalid action payload"
     );
+
     if (!parsed.ok) {
-        return redirectWithError("/colors", "Invalid action payload");
+        return redirectWithError("/colors", parsed.error);
     }
 
-    if (parsed.data.intent === "delete") {
-        const id = parsed.data.id;
+    const data = parsed.data;
 
+    if (data.intent === "delete") {
         return runAdminMutationAction({
             request,
             context,
             mutate: async ({ db }) => {
-                await db.prepare("DELETE FROM colors WHERE id = ?").bind(id).run();
+                await db.prepare("DELETE FROM colors WHERE id = ?").bind(data.id).run();
             },
             feedback: {
                 successPath: "/colors",
                 successMessage: "Color deleted successfully",
                 errorMessage: "Failed to delete color",
             },
-            audit: {
-                entityType: "color",
-                entityId: id,
-                action: "delete",
-            },
+            audit: { entityType: "color", entityId: data.id, action: "delete" },
         });
     }
 
-    if (parsed.data.intent === "seed") {
+    if (data.intent === "create") {
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                await db
+                    .prepare("INSERT INTO colors (name, hex_code) VALUES (?, ?)")
+                    .bind(data.name, data.hexCode)
+                    .run();
+            },
+            feedback: {
+                successPath: "/colors",
+                successMessage: "Color created successfully",
+                errorMessage: "Failed to create color",
+            },
+            audit: { entityType: "color", action: "create", afterState: data },
+        });
+    }
+
+    if (data.intent === "update") {
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                await db
+                    .prepare("UPDATE colors SET name = ?, hex_code = ? WHERE id = ?")
+                    .bind(data.name, data.hexCode, data.id)
+                    .run();
+            },
+            feedback: {
+                successPath: "/colors",
+                successMessage: "Color updated successfully",
+                errorMessage: "Failed to update color",
+            },
+            audit: { entityType: "color", entityId: data.id, action: "update", afterState: data },
+        });
+    }
+
+    if (data.intent === "seed") {
         const defaultColors = [
-            { name: "Yellow", hexCode: "#FFFF00" },
             { name: "White", hexCode: "#FFFFFF" },
-            { name: "Silver", hexCode: "#C0C0C0" },
-            { name: "Red", hexCode: "#FF0000" },
-            { name: "Purple", hexCode: "#800080" },
-            { name: "Orange", hexCode: "#FFA500" },
-            { name: "Green", hexCode: "#008000" },
-            { name: "Gray", hexCode: "#808080" },
-            { name: "Gold", hexCode: "#FFD700" },
-            { name: "Brown", hexCode: "#A52A2A" },
-            { name: "Bronze", hexCode: "#CD7F32" },
-            { name: "Blue", hexCode: "#0000FF" },
             { name: "Black", hexCode: "#000000" },
-            { name: "Beige", hexCode: "#F5F5DC" },
+            { name: "Silver", hexCode: "#C0C0C0" },
+            { name: "Gray", hexCode: "#808080" },
+            { name: "Red", hexCode: "#FF0000" },
+            { name: "Blue", hexCode: "#0000FF" },
+            { name: "Yellow", hexCode: "#FFFF00" },
         ];
 
         return runAdminMutationAction({
@@ -95,22 +155,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
             context,
             mutate: async ({ db }) => {
                 for (const color of defaultColors) {
-                    await db
-                        .prepare("INSERT INTO colors (name, hex_code) VALUES (?, ?)")
-                        .bind(color.name, color.hexCode)
-                        .run();
+                    await db.prepare("INSERT INTO colors (name, hex_code) VALUES (?, ?)").bind(color.name, color.hexCode).run();
                 }
             },
-            feedback: {
-                successPath: "/colors",
-                successMessage: "Default colors created successfully",
-                errorMessage: "Failed to create default colors",
-            },
-            audit: {
-                entityType: "color",
-                action: "create",
-                afterState: { count: defaultColors.length, source: "seed" },
-            },
+            feedback: { successPath: "/colors", successMessage: "Seeded colors", errorMessage: "Failed to seed colors" },
+            audit: { entityType: "color", action: "create" as any },
         });
     }
 
@@ -118,18 +167,27 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function ColorsPage() {
-    const { colors } = useLoaderData<typeof loader>();
+    const { colors, totalCount, search } = useLoaderData<typeof loader>();
     useUrlToast();
+    const submit = useSubmit();
+    const navigation = useNavigation();
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [editingColor, setEditingColor] = useState<Color | null>(null);
+
+    const { handleFormSubmit, handleDelete } = useDictionaryFormActions({
+        editingItem: editingColor,
+        setIsFormOpen,
+        setEditingItem: setEditingColor,
+    });
 
     const columns: Column<Color>[] = [
         {
             key: "id",
             label: "ID",
-            render: (item) => (
-                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold font-mono bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
-                    {String(item.id).padStart(3, "0")}
-                </span>
-            ),
+            className: "w-16",
+            render: (item) => String(item.id).padStart(3, "0")
         },
         {
             key: "name",
@@ -139,7 +197,7 @@ export default function ColorsPage() {
             ),
         },
         {
-            key: "color",
+            key: "hexCode",
             label: "Color",
             render: (item) => (
                 <div className="flex items-center gap-2">
@@ -147,101 +205,87 @@ export default function ColorsPage() {
                         className="w-6 h-6 rounded-full border border-gray-300"
                         style={{ backgroundColor: item.hexCode || "#000000" }}
                     />
-                    <span className="text-gray-700 font-mono text-sm">
+                    <span className="text-gray-700 font-mono text-xs uppercase">
                         {item.hexCode || "-"}
                     </span>
                 </div>
             ),
         },
-        {
-            key: "actions",
-            label: "Actions",
-            render: (item) => (
-                <div className="flex gap-2">
-                    <Link to={`/colors/${item.id}/edit`}>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                        >
-                            Edit
-                        </Button>
-                    </Link>
-                    <Form
-                        method="post"
-                        className="inline"
-                    >
-                        <input type="hidden" name="intent" value="delete" />
-                        <input type="hidden" name="id" value={item.id} />
-                        <Button
-                            type="submit"
-                            variant="outline"
-                            size="sm"
-                        >
-                            Delete
-                        </Button>
-                    </Form>
-                </div>
-            ),
-        },
     ];
 
-    return (
-        <>
-            <div className="space-y-4">
-                <PageHeader
-                    title="Car Colors"
-                    rightActions={
-                        <div className="flex gap-3">
-                            {colors.length === 0 && (
-                                <Form method="post">
-                                    <input type="hidden" name="intent" value="seed" />
-                                    <Button type="submit" variant="outline">
-                                        Load Default Data
-                                    </Button>
-                                </Form>
-                            )}
-                            <Link to="/colors/new">
-                                <Button
-                                    variant="solid"
-                                    icon={<PlusIcon className="w-5 h-5" />}
-                                >
-                                    Add
-                                </Button>
-                            </Link>
-                        </div>
-                    }
-                />
+    const fields: FieldConfig[] = [
+        { name: "name", label: "Color Name", type: "text", required: true, placeholder: "e.g., Pearl White" },
+        { name: "hexCode", label: "Color Value", type: "color", required: true, placeholder: "#FFFFFF" },
+    ];
 
-                {colors.length > 0 ? (
-                    <DataTable
-                        columns={columns}
-                        data={colors}
-                        pagination={false}
-                        emptyTitle="No colors configured"
-                        emptyDescription="Add available car colors to get started"
-                    />
-                ) : (
-                    <div className="bg-white rounded-3xl shadow-sm p-12 py-4">
-                        <div className="text-center">
-                            <ColorIcon />
-                            <h3 className="mt-4 text-lg font-medium text-gray-900">No colors configured</h3>
-                            <p className="mt-2 text-sm text-gray-500">
-                                Add available car colors for your rental system
-                            </p>
-                        </div>
+    const handleSearch = (val: string) => {
+        const next = new URLSearchParams(searchParams);
+        if (val) next.set("search", val);
+        else next.delete("search");
+        next.set("page", "1");
+        setSearchParams(next, { replace: true });
+    };
+
+    return (
+        <div className="space-y-4">
+            <PageHeader
+                title="Car Colors"
+                withSearch
+                searchValue={search}
+                onSearchChange={handleSearch}
+                searchPlaceholder="Search colors..."
+                rightActions={
+                    <div className="flex gap-2">
+                        {totalCount === 0 && (
+                            <Button variant="outline" onClick={() => {
+                                const fd = new FormData();
+                                fd.append("intent", "seed");
+                                submit(fd, { method: "post" });
+                            }}>
+                                Seed Defaults
+                            </Button>
+                        )}
+                        <Button
+                            variant="solid"
+                            icon={<PlusIcon className="w-5 h-5" />}
+                            onClick={() => {
+                                setEditingColor(null);
+                                setIsFormOpen(true);
+                            }}
+                        >
+                            Add
+                        </Button>
                     </div>
-                )}
-            </div>
+                }
+            />
 
-            {/* Nested route outlet for modals */}
-            <Outlet />
-        </>
-    );
-}
+            <DataTable<Color>
+                columns={columns}
+                data={colors}
+                totalCount={totalCount}
+                serverPagination={true}
+                isLoading={navigation.state === "loading"}
+                emptyTitle="No colors found"
+                getRowClassName={() => "cursor-pointer"}
+                onRowClick={(item) => {
+                    setEditingColor(item);
+                    setIsFormOpen(true);
+                }}
+            />
 
-function ColorIcon() {
-    return (
-        <SwatchIcon className="w-10 h-10 mx-auto text-gray-400" />
+            {isFormOpen && (
+                <GenericDictionaryForm
+                    title={editingColor ? "Edit Color" : "Add Color"}
+                    fields={fields}
+                    data={editingColor ? {
+                        name: editingColor.name,
+                        hexCode: editingColor.hexCode
+                    } : null}
+                    onSubmit={handleFormSubmit}
+                    onCancel={() => { setIsFormOpen(false); setEditingColor(null); }}
+                    onDelete={editingColor ? () => handleDelete("Are you sure you want to delete this color?") : undefined}
+                />
+            )}
+        </div>
     );
 }

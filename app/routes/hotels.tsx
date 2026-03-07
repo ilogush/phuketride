@@ -1,50 +1,78 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
-import { useLoaderData, Form } from "react-router";
-import { requireAdmin } from "~/lib/auth.server";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
+import { useLoaderData, useNavigation, useSearchParams } from "react-router";
+import { useState } from "react";
+
+export const meta: MetaFunction = () => [
+    { title: "Hotels — Phuket Ride Admin" },
+    { name: "description", content: "Manage hotels and accommodation in the Phuket Ride dictionary." },
+    { name: "robots", content: "noindex, nofollow" },
+];
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
-import { Input } from "~/components/dashboard/Input";
-import { Select } from "~/components/dashboard/Select";
-import AdminCrudModalPage from "~/components/dashboard/AdminCrudModalPage";
+import PageHeader from "~/components/dashboard/PageHeader";
+import { PlusIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { useLatinValidation } from "~/lib/useLatinValidation";
 import { z } from "zod";
-import { useCrudModal } from "~/lib/useCrudModal";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
-import { loadAdminPageData, runAdminMutationAction } from "~/lib/admin-crud.server";
+import { runAdminMutationAction } from "~/lib/admin-crud.server";
 import {
     loadAdminDistricts,
-    loadAdminHotels,
     loadAdminLocations,
     type AdminDistrictRow,
     type AdminHotelRow,
     type AdminLocationRow,
 } from "~/lib/admin-dictionaries.server";
+import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
+import { getScopedDb } from "~/lib/db-factory.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
 
 type Hotel = AdminHotelRow;
 type Location = AdminLocationRow;
 type District = Pick<AdminDistrictRow, "id" | "name" | "locationId">;
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    await requireAdmin(request);
-    return loadAdminPageData({
+    const { user, companyId, sdb } = await getScopedDb(request, context);
+    const url = new URL(request.url);
+    const search = url.searchParams.get("search") || "";
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const pageSize = parseInt(url.searchParams.get("pageSize") || "20");
+    const offset = (page - 1) * pageSize;
+
+    return trackServerOperation({
+        event: "hotels.load",
+        scope: "route.loader",
         request,
-        context,
-        loaders: {
-            hotels: loadAdminHotels,
-            locations: loadAdminLocations,
-            districts: (db) => loadAdminDistricts(db) as Promise<District[]>,
+        userId: user.id,
+        companyId,
+        details: { route: "hotels", search, page, pageSize },
+        run: async () => {
+            const [hotels, totalCount, locations, districts] = await Promise.all([
+                sdb.hotels.list({ limit: pageSize, offset, search }) as Promise<Hotel[]>,
+                sdb.hotels.count(search),
+                loadAdminLocations(sdb.db as any) as Promise<Location[]>,
+                loadAdminDistricts(sdb.db as any) as Promise<District[]>,
+            ]);
+
+            return {
+                hotels,
+                totalCount,
+                locations: locations.map(l => ({ id: l.id.toString(), name: l.name })),
+                districts: districts.map(d => ({ id: d.id.toString(), name: d.name, locationId: d.locationId.toString() })),
+                page,
+                pageSize,
+                search,
+            };
         },
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    await requireAdmin(request);
+    const { user, sdb } = await getScopedDb(request, context);
     const formData = await request.formData();
     const parsed = parseWithSchema(
-        z
-        .discriminatedUnion("intent", [
+        z.discriminatedUnion("intent", [
             z.object({
                 intent: z.literal("delete"),
                 id: z.coerce.number().int().positive("Hotel id is required"),
@@ -75,6 +103,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         },
         "Invalid action payload"
     );
+
     if (!parsed.ok) {
         return redirectWithError("/hotels", parsed.error);
     }
@@ -101,9 +130,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     if (parsed.data.intent === "create") {
-        const { name, locationId, districtId } = parsed.data;
-        const address = parsed.data.address || null;
-
+        const { name, locationId, districtId, address } = parsed.data;
         return runAdminMutationAction({
             request,
             context,
@@ -127,9 +154,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     if (parsed.data.intent === "update") {
-        const { id, name, locationId, districtId } = parsed.data;
-        const address = parsed.data.address || null;
-
+        const { id, name, locationId, districtId, address } = parsed.data;
         return runAdminMutationAction({
             request,
             context,
@@ -157,53 +182,26 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function HotelsPage() {
-    const { hotels, locations, districts } = useLoaderData<typeof loader>();
+    const { hotels, locations, districts, totalCount, search } = useLoaderData<typeof loader>();
     useUrlToast();
-    const { validateLatinInput } = useLatinValidation();
-    const {
-        isModalOpen,
-        editingEntity: editingHotel,
-        formData,
-        setFormData,
-        openCreateModal,
-        openEditModal,
-        closeModal,
-    } = useCrudModal<Hotel, { name: string; locationId: string; districtId: string; address: string }>({
-        initialFormData: {
-            name: "",
-            locationId: "1",
-            districtId: "1",
-            address: "",
-        },
-        mapEntityToFormData: (hotel) => ({
-            name: hotel.name,
-            locationId: String(hotel.locationId),
-            districtId: String(hotel.districtId),
-            address: hotel.address || "",
-        }),
+    const navigation = useNavigation();
+    const [searchParams, setSearchParams] = useSearchParams();
+    
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [editingHotel, setEditingHotel] = useState<Hotel | null>(null);
+
+    const { handleFormSubmit, handleDelete } = useDictionaryFormActions({
+        editingItem: editingHotel,
+        setIsFormOpen,
+        setEditingItem: setEditingHotel,
     });
-
-    const getLocationName = (locationId: number) => {
-        return locations.find((l) => l.id === locationId)?.name || "-";
-    };
-
-    const getDistrictName = (districtId: number) => {
-        return districts.find((d) => d.id === districtId)?.name || "-";
-    };
-
-    const filteredDistricts = districts.filter(
-        (d) => d.locationId === Number(formData.locationId)
-    );
 
     const columns: Column<Hotel>[] = [
         {
             key: "id",
             label: "ID",
-            render: (item) => (
-                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold font-mono bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
-                    {String(item.id).padStart(3, "0")}
-                </span>
-            ),
+            className: "w-16",
+            render: (item) => String(item.id).padStart(3, "0")
         },
         {
             key: "name",
@@ -213,115 +211,117 @@ export default function HotelsPage() {
             ),
         },
         {
-            key: "district",
+            key: "districtName",
             label: "District",
             render: (item) => (
-                <span className="text-gray-700">{getDistrictName(item.districtId)}</span>
+                <span className="text-gray-700">{item.districtName || `Dist #${item.districtId}`}</span>
             ),
         },
         {
-            key: "location",
+            key: "locationName",
             label: "Location",
             render: (item) => (
-                <span className="text-gray-700">{getLocationName(item.locationId)}</span>
-            ),
-        },
-        {
-            key: "actions",
-            label: "Actions",
-            render: (item) => (
-                <div className="flex gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditModal(item)}
-                    >
-                        Edit
-                    </Button>
-                    <Form method="post" className="inline">
-                        <input type="hidden" name="intent" value="delete" />
-                        <input type="hidden" name="id" value={item.id} />
-                        <Button type="submit" variant="outline" size="sm">
-                            Delete
-                        </Button>
-                    </Form>
-                </div>
+                <span className="text-gray-700">{item.locationName || `Loc #${item.locationId}`}</span>
             ),
         },
     ];
 
+    const [selectedLocationId, setSelectedLocationId] = useState<string>("1");
+
+    // Filter districts by selected location for the form
+    const filteredDistricts = districts.filter(d => String(d.locationId) === selectedLocationId);
+
+    const fields: FieldConfig[] = [
+        { name: "name", label: "Hotel Name", type: "text", required: true, placeholder: "e.g., Amanpuri" },
+        { 
+            name: "locationId", 
+            label: "Location", 
+            type: "select", 
+            options: locations, 
+            required: true,
+            // We'll need to handle the change externally or update GenericDictionaryForm
+        },
+        { 
+            name: "districtId", 
+            label: "District", 
+            type: "select", 
+            options: filteredDistricts, 
+            required: true 
+        },
+        { name: "address", label: "Address", type: "text", placeholder: "Full address" }
+    ];
+
+    const handleSearch = (val: string) => {
+        const next = new URLSearchParams(searchParams);
+        if (val) next.set("search", val);
+        else next.delete("search");
+        next.set("page", "1");
+        setSearchParams(next, { replace: true });
+    };
+
     return (
-        <AdminCrudModalPage
-            title="Hotels"
-            addLabel="Add"
-            onAdd={openCreateModal}
-            tableContent={
-                <DataTable
-                    columns={columns}
-                    data={hotels}
-                    pagination={false}
-                    emptyTitle="No hotels configured"
-                    emptyDescription="Add hotels to get started"
+        <div className="space-y-4">
+            <PageHeader
+                title="Hotels"
+                withSearch
+                searchValue={search}
+                onSearchChange={handleSearch}
+                searchPlaceholder="Search hotels..."
+                rightActions={
+                    <Button
+                        variant="solid"
+                        icon={<PlusIcon className="w-5 h-5" />}
+                        onClick={() => {
+                            setEditingHotel(null);
+                            setSelectedLocationId(locations[0]?.id || "1");
+                            setIsFormOpen(true);
+                        }}
+                    >
+                        Add
+                    </Button>
+                }
+            />
+
+            <DataTable<Hotel>
+                columns={columns}
+                data={hotels}
+                totalCount={totalCount}
+                serverPagination={true}
+                isLoading={navigation.state === "loading"}
+                emptyTitle="No hotels found"
+                getRowClassName={() => "cursor-pointer"}
+                onRowClick={(item) => {
+                    setEditingHotel(item);
+                    setSelectedLocationId(String(item.locationId));
+                    setIsFormOpen(true);
+                }}
+            />
+
+            {isFormOpen && (
+                <GenericDictionaryForm
+                    title={editingHotel ? "Edit Hotel" : "Add Hotel"}
+                    fields={[
+                        ...fields.slice(0, 1),
+                        {
+                            ...fields[1],
+                            transform: (val) => {
+                                setSelectedLocationId(val);
+                                return val;
+                            }
+                        },
+                        ...fields.slice(2)
+                    ]}
+                    data={editingHotel ? {
+                        name: editingHotel.name,
+                        locationId: String(editingHotel.locationId),
+                        districtId: String(editingHotel.districtId),
+                        address: editingHotel.address
+                    } : null}
+                    onSubmit={handleFormSubmit}
+                    onCancel={() => setIsFormOpen(false)}
+                    onDelete={editingHotel ? handleDelete : undefined}
                 />
-            }
-            modalTitle={editingHotel ? "Edit Hotel" : "Add Hotel"}
-            isModalOpen={isModalOpen}
-            onCloseModal={closeModal}
-            formIntent={editingHotel ? "update" : "create"}
-            editingId={editingHotel?.id}
-            onFormSubmit={closeModal}
-            submitLabel={editingHotel ? "Update Hotel" : "Create Hotel"}
-            formChildren={
-                <>
-                    <Input
-                        label="Hotel Name"
-                        name="name"
-                        value={formData.name}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            setFormData({ ...formData, name: e.target.value });
-                            validateLatinInput(e, 'Hotel Name');
-                        }}
-                        placeholder="e.g., Amanpuri"
-                        required
-                    />
-
-                    <Select
-                        label="Location"
-                        name="locationId"
-                        value={formData.locationId}
-                        onChange={(e) =>
-                            setFormData({
-                                ...formData,
-                                locationId: e.target.value,
-                                districtId: filteredDistricts[0]?.id.toString() || "1",
-                            })
-                        }
-                        options={locations}
-                        required
-                    />
-
-                    <Select
-                        label="District"
-                        name="districtId"
-                        value={formData.districtId}
-                        onChange={(e) => setFormData({ ...formData, districtId: e.target.value })}
-                        options={filteredDistricts}
-                        required
-                    />
-
-                    <Input
-                        label="Address (Optional)"
-                        name="address"
-                        value={formData.address}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            setFormData({ ...formData, address: e.target.value });
-                            validateLatinInput(e, 'Address');
-                        }}
-                        placeholder="Hotel address"
-                    />
-                </>
-            }
-        />
+            )}
+        </div>
     );
 }

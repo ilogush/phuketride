@@ -1,5 +1,4 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import { loadDashboardChartsData } from "~/lib/admin-analytics.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 

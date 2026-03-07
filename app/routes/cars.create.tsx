@@ -1,7 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
 import { useState } from "react";
-import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
@@ -23,8 +22,10 @@ import { type CarTemplateOption } from "~/lib/cars-create-types";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { loadCreateCarPageData } from "~/lib/cars-create-page.server";
 
+import { getScopedDb } from "~/lib/db-factory.server";
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId } = await requireScopedDashboardAccess(request);
+    const { user, companyId, sdb } = await getScopedDb(request, context);
     return trackServerOperation({
         event: "cars.create.load",
         scope: "route.loader",
@@ -32,12 +33,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId: companyId!,
         details: { route: "cars.create" },
-        run: async () => loadCreateCarPageData(context.cloudflare.env.DB),
+        run: async () => loadCreateCarPageData(sdb.db as any),
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const { user, companyId } = await requireScopedDashboardAccess(request);
+    const { user, companyId } = await getScopedDb(request, context);
     const formData = await request.formData();
     return trackServerOperation({
         event: "cars.create",

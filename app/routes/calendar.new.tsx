@@ -1,7 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useNavigate } from "react-router";
 
-import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import FormSection from "~/components/dashboard/FormSection";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";

@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import FormSection from "~/components/dashboard/FormSection";
 import { Input } from "~/components/dashboard/Input";
@@ -13,8 +12,10 @@ import { useUrlToast } from "~/lib/useUrlToast";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { createPaymentRecord, loadPaymentCreatePageData } from "~/lib/payments-create.server";
 
+import { getScopedDb } from "~/lib/db-factory.server";
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
+    const { user, companyId, sdb } = await getScopedDb(request, context);
     return trackServerOperation({
         event: "payments.create.load",
         scope: "route.loader",
@@ -22,12 +23,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId,
         details: { route: "payments.create" },
-        run: async () => loadPaymentCreatePageData({ db: context.cloudflare.env.DB, companyId }),
+        run: async () => loadPaymentCreatePageData({ db: sdb.db as any, companyId }),
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const { user, companyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
+    const { user, companyId, sdb } = await getScopedDb(request, context);
     return trackServerOperation({
         event: "payments.create",
         scope: "route.action",
@@ -37,9 +38,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
         details: { route: "payments.create" },
         run: async () => {
             const formData = await request.formData();
-            // parseWithSchema(paymentSchema, ...) is delegated to createPaymentRecord.
             return createPaymentRecord({
-                db: context.cloudflare.env.DB,
+                db: sdb.db as any,
                 request,
                 user,
                 companyId,

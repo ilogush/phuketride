@@ -7,9 +7,9 @@ import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     return loadCarEditPage({
-        db: context.cloudflare.env.DB,
         request,
         carIdParam: params.id,
+        context: context,
     });
 }
 

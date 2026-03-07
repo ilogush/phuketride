@@ -1,24 +1,24 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
-import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
-import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
+import StatusBadge from "~/components/dashboard/StatusBadge";
+import IdBadge from "~/components/dashboard/IdBadge";
 import { BanknotesIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { format, isValid } from "date-fns";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
-import { countPaymentsPage, listPaymentsPage, listPaymentStatusCounts } from "~/lib/payments-repo.server";
-import type { PaymentListRow } from "~/lib/db-types";
+import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
+
 const PAYMENT_TABS = ["completed", "pending", "cancelled"] as const;
 type PaymentTab = typeof PAYMENT_TABS[number];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId: effectiveCompanyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
+    const { user, companyId, sdb } = await getScopedDb(request, context);
     const url = new URL(request.url);
     const { tab, search, sortBy, sortOrder } = parseListFilters(url, {
         tabs: PAYMENT_TABS,
@@ -35,66 +35,45 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         scope: "route.loader",
         request,
         userId: user.id,
-        companyId: effectiveCompanyId,
+        companyId,
         details: { route: "payments", tab: activeTab },
         run: async () => {
-            let paymentsList: Array<PaymentListRow & {
-        createdAt: string | null;
-        paymentMethod: string | null;
-        contract: { id: number } | null;
-        paymentType: { name: string | null; sign: string | null } | null;
-        currency: { code: string | null; symbol: string | null } | null;
-        creator: { name: string | null; surname: string | null } | null;
-    }> = [];
-            let statusCounts = { all: 0, pending: 0, completed: 0, cancelled: 0 };
-            let totalCount = 0;
+            const [rawPayments, countsResult, countResult] = await Promise.all([
+                sdb.payments.list({
+                    status: activeTab,
+                    pageSize,
+                    offset,
+                    search,
+                    sortBy: sortBy || "createdAt",
+                    sortOrder,
+                }),
+                sdb.payments.getStatusCounts(),
+                sdb.payments.count({
+                    status: activeTab,
+                    search,
+                }),
+            ]);
 
-            try {
-                const [rawPayments, countsResult, countResult] = await Promise.all([
-                    listPaymentsPage({
-                        db: context.cloudflare.env.DB,
-                        companyId: effectiveCompanyId,
-                        status: activeTab,
-                        pageSize,
-                        offset,
-                        search,
-                        sortBy: sortBy || "createdAt",
-                        sortOrder,
-                    }),
-                    listPaymentStatusCounts({
-                        db: context.cloudflare.env.DB,
-                        companyId: effectiveCompanyId,
-                    }),
-                    countPaymentsPage({
-                        db: context.cloudflare.env.DB,
-                        companyId: effectiveCompanyId,
-                        status: activeTab,
-                        search,
-                    }),
-                ]);
-                paymentsList = rawPayments.map((p: PaymentListRow) => ({
-            ...p,
-            createdAt: p.created_at ?? p.createdAt ?? null,
-            paymentMethod: p.payment_method ?? p.paymentMethod ?? null,
-            contract: p.contractId ? { id: p.contractId } : null,
-            paymentType: p.paymentTypeName ? { name: p.paymentTypeName, sign: p.paymentTypeSign ?? null } : null,
-            currency: p.currencyCode ? { code: p.currencyCode, symbol: p.currencySymbol ?? null } : null,
-            creator: p.creatorName || p.creatorSurname ? { name: p.creatorName ?? null, surname: p.creatorSurname ?? null } : null,
-        }));
+            const paymentsList = rawPayments.map((p) => ({
+                ...p,
+                createdAt: p.created_at ?? p.createdAt ?? null,
+                paymentMethod: p.payment_method ?? p.paymentMethod ?? null,
+                contract: p.contractId ? { id: p.contractId } : null,
+                paymentType: p.paymentTypeName ? { name: p.paymentTypeName, sign: p.paymentTypeSign ?? null } : null,
+                currency: p.currencyCode ? { code: p.currencyCode, symbol: p.currencySymbol ?? null } : null,
+                creator: p.creatorName || p.creatorSurname ? { name: p.creatorName ?? null, surname: p.creatorSurname ?? null } : null,
+            }));
 
-                for (const row of countsResult) {
-                    const count = Number(row.count || 0);
-                    statusCounts.all += count;
-                    if (row.status === "pending") statusCounts.pending = count;
-                    if (row.status === "completed") statusCounts.completed = count;
-                    if (row.status === "cancelled") statusCounts.cancelled = count;
-                }
-                totalCount = countResult;
-            } catch {
-                paymentsList = [];
+            const statusCounts = { all: 0, pending: 0, completed: 0, cancelled: 0 };
+            for (const row of countsResult) {
+                const count = Number(row.count || 0);
+                statusCounts.all += count;
+                if (row.status === "pending") statusCounts.pending = count;
+                if (row.status === "completed") statusCounts.completed = count;
+                if (row.status === "cancelled") statusCounts.cancelled = count;
             }
 
-            return { user, payments: paymentsList, statusCounts, activeTab, totalCount, search };
+            return { user, payments: paymentsList, statusCounts, activeTab, totalCount: countResult, search };
         },
     });
 }
@@ -116,9 +95,9 @@ export default function PaymentsPage() {
             label: "ID",
             sortable: true,
             render: (payment) => (
-                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold font-mono bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
+                <IdBadge>
                     {String(payment.id).padStart(3, '0')}
-                </span>
+                </IdBadge>
             )
         },
         {
@@ -166,7 +145,11 @@ export default function PaymentsPage() {
             key: "status",
             label: "Status",
             sortable: true,
-            render: (payment) => <StatusBadge variant={payment.status === "completed" ? "success" : "warning"}>{payment.status}</StatusBadge>
+            render: (payment) => (
+                <StatusBadge variant={payment.status === "completed" ? "success" : payment.status === "pending" ? "pending" : "cancelled"}>
+                    {payment.status}
+                </StatusBadge>
+            )
         },
         {
             key: "createdBy",

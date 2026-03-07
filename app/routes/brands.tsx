@@ -1,58 +1,207 @@
-import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Link } from "react-router";
-import { requireAdmin } from "~/lib/auth.server";
-import PageHeader from "~/components/dashboard/PageHeader";
-import Button from "~/components/dashboard/Button";
-import DataTable, { type Column } from "~/components/dashboard/DataTable";
-import { PlusIcon, SwatchIcon } from "@heroicons/react/24/outline";
-import { useUrlToast } from "~/lib/useUrlToast";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
+import { useLoaderData, useNavigation } from "react-router";
 
-export async function loader({ request }: LoaderFunctionArgs) {
-    const user = await requireAdmin(request);
-    return { user };
+export const meta: MetaFunction = () => [
+    { title: "Brands — Phuket Ride Admin" },
+    { name: "description", content: "Manage car brands in the Phuket Ride dictionary." },
+    { name: "robots", content: "noindex, nofollow" },
+];
+import { useState } from "react";
+import DataTable, { type Column } from "~/components/dashboard/DataTable";
+import Button from "~/components/dashboard/Button";
+import PageHeader from "~/components/dashboard/PageHeader";
+import { PlusIcon, TagIcon } from "@heroicons/react/24/outline";
+import { useUrlToast } from "~/lib/useUrlToast";
+import { brandSchema } from "~/schemas/dictionary";
+import { parseWithSchema } from "~/lib/validation.server";
+import { redirectWithError } from "~/lib/route-feedback";
+import { runAdminMutationAction } from "~/lib/admin-crud.server";
+import { getScopedDb } from "~/lib/db-factory.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
+import { z } from "zod";
+import type { AdminBrandRow } from "~/lib/admin-dictionaries.server";
+import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
+
+type Brand = AdminBrandRow;
+
+
+export async function loader({ request, context }: LoaderFunctionArgs) {
+    const { user, companyId, sdb } = await getScopedDb(request, context);
+
+    return trackServerOperation({
+        event: "brands.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId,
+        details: { route: "brands" },
+        run: async () => {
+            const brands = await sdb.brands.list();
+            return { brands: brands as Brand[] };
+        },
+    });
+}
+
+export async function action({ request, context }: ActionFunctionArgs) {
+    const { sdb } = await getScopedDb(request, context);
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+
+    const parsed = parseWithSchema(
+        z.discriminatedUnion("intent", [
+            z.object({
+                intent: z.literal("delete"),
+                id: z.coerce.number().int().positive(),
+            }),
+            brandSchema.extend({
+                intent: z.literal("create"),
+                logoUrl: z.string().optional().nullable(),
+            }),
+            brandSchema.extend({
+                intent: z.literal("update"),
+                id: z.coerce.number().int().positive(),
+                logoUrl: z.string().optional().nullable(),
+            }),
+        ]),
+        Object.fromEntries(formData),
+        "Invalid action payload"
+    );
+
+    if (!parsed.ok) {
+        return redirectWithError("/brands", parsed.error);
+    }
+
+    const data = parsed.data;
+
+    if (data.intent === "delete") {
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                await db.prepare("DELETE FROM car_brands WHERE id = ?").bind(data.id).run();
+            },
+            feedback: { successPath: "/brands", successMessage: "Brand deleted", errorMessage: "Failed to delete brand" },
+            audit: { entityType: "brand", entityId: data.id, action: "delete" },
+        });
+    }
+
+    if (data.intent === "create") {
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                await db.prepare("INSERT INTO car_brands (name, logo_url) VALUES (?, ?)").bind(data.name, data.logoUrl || null).run();
+            },
+            feedback: { successPath: "/brands", successMessage: "Brand created", errorMessage: "Failed to create brand" },
+            audit: { entityType: "brand", action: "create", afterState: data },
+        });
+    }
+
+    if (data.intent === "update") {
+        return runAdminMutationAction({
+            request,
+            context,
+            mutate: async ({ db }) => {
+                await db.prepare("UPDATE car_brands SET name = ?, logo_url = ? WHERE id = ?").bind(data.name, data.logoUrl || null, data.id).run();
+            },
+            feedback: { successPath: "/brands", successMessage: "Brand updated", errorMessage: "Failed to update brand" },
+            audit: { entityType: "brand", entityId: data.id, action: "update", afterState: data },
+        });
+    }
+
+    return redirectWithError("/brands", "Invalid action");
 }
 
 export default function BrandsPage() {
-    const { user } = useLoaderData<typeof loader>();
+    const { brands } = useLoaderData<typeof loader>();
     useUrlToast();
+    const navigation = useNavigation();
 
-    type BrandRow = {
-        id: number;
-        name: string;
-        logo?: string | null;
-        modelsCount?: number;
-        createdAt?: string;
-    };
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
 
-    const columns: Column<BrandRow>[] = [
-        { key: "id", label: "ID" },
-        { key: "name", label: "Name" },
-        { key: "logo", label: "Logo", render: (item) => item.logo ? <img src={item.logo} alt={item.name} className="w-8 h-8 rounded object-contain" /> : <div className="w-8 h-8 bg-gray-100 rounded" /> },
-        { key: "modelsCount", label: "Models" },
-        { key: "createdAt", label: "Created At" },
+    const { handleFormSubmit, handleDelete } = useDictionaryFormActions({
+        editingItem: editingBrand,
+        setIsFormOpen,
+        setEditingItem: setEditingBrand,
+    });
+
+    const columns: Column<Brand>[] = [
+        { key: "id", label: "ID", className: "w-16" },
+        { 
+            key: "name", 
+            label: "Name",
+            render: (item) => (
+                <div className="flex items-center gap-3">
+                    {item.logo ? (
+                        <img src={item.logo} alt={item.name} className="w-8 h-8 rounded object-contain border border-gray-100" />
+                    ) : (
+                        <div className="w-8 h-8 bg-gray-50 rounded flex items-center justify-center">
+                            <TagIcon className="w-4 h-4 text-gray-300" />
+                        </div>
+                    )}
+                    <span className="font-medium text-gray-900">{item.name}</span>
+                </div>
+            )
+        },
+        { key: "modelsCount", label: "Models", className: "w-24 text-center" },
+        { 
+            key: "createdAt", 
+            label: "Created",
+            render: (item) => item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"
+        },
+    ];
+
+    const fields: FieldConfig[] = [
+        { name: "name", label: "Brand Name", type: "text", required: true, placeholder: "e.g., Toyota" },
+        { name: "logo", label: "Logo URL", type: "text", placeholder: "https://..." },
     ];
 
     return (
         <div className="space-y-4">
             <PageHeader
-                title="Car Brands"
+                title="Brands"
                 rightActions={
-                    <Link to="/brands/create">
-                        <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
-                            Add Brand
-                        </Button>
-                    </Link>
+                    <Button
+                        variant="solid"
+                        icon={<PlusIcon className="w-5 h-5" />}
+                        onClick={() => {
+                            setEditingBrand(null);
+                            setIsFormOpen(true);
+                        }}
+                    >
+                        Add
+                    </Button>
                 }
             />
 
-            <DataTable
-                data={[]}
+            <DataTable<Brand>
                 columns={columns}
-                totalCount={0}
+                data={brands}
+                pagination={false}
+                isLoading={navigation.state === "loading"}
                 emptyTitle="No brands found"
-                emptyDescription="Add your first car brand to get started"
-                emptyIcon={<SwatchIcon className="w-10 h-10" />}
+                getRowClassName={() => "cursor-pointer"}
+                onRowClick={(item) => {
+                    setEditingBrand(item);
+                    setIsFormOpen(true);
+                }}
             />
+
+            {isFormOpen && (
+                <GenericDictionaryForm
+                    title={editingBrand ? "Edit Brand" : "Add Brand"}
+                    fields={fields}
+                    data={editingBrand ? {
+                        name: editingBrand.name,
+                        logo: editingBrand.logo
+                    } : null}
+                    onSubmit={handleFormSubmit}
+                    onCancel={() => { setIsFormOpen(false); setEditingBrand(null); }}
+                    onDelete={editingBrand ? () => handleDelete("Delete this brand?") : undefined}
+                />
+            )}
         </div>
     );
 }

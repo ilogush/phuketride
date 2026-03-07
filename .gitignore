@@ -35,6 +35,7 @@ build
 
 # generated build caches
 *.tsbuildinfo
+build.log
 tmp/
 
 # IDE

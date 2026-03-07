@@ -1,4 +1,4 @@
-import { type SessionUser, requireAdmin } from "~/lib/auth.server";
+import { type SessionUser } from "~/lib/auth.server";
 import {
     getRequestMetadata,
     quickAudit,
@@ -13,14 +13,9 @@ import {
     invalidateEntityCache,
     type INVALIDATION_RULES,
 } from "~/lib/cache-invalidation.server";
+import type { AppLoadContext } from "~/types/context";
 
-type AdminRouteContext = {
-    cloudflare: {
-        env: {
-            DB: D1Database;
-        };
-    };
-};
+type AdminRouteContext = AppLoadContext;
 
 type AdminPageLoaderMap = Record<string, (db: D1Database) => Promise<unknown>>;
 
@@ -42,21 +37,26 @@ type AdminMutationCache = {
     invalidate?: Array<keyof typeof INVALIDATION_RULES>;
 };
 
+import { getScopedDb } from "~/lib/db-factory.server";
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
+
 export async function requireAdminDb(
     request: Request,
     context: AdminRouteContext
-): Promise<{ user: SessionUser; db: D1Database }> {
-    const user = await requireAdmin(request);
-    return { user, db: context.cloudflare.env.DB };
+): Promise<{ user: SessionUser; db: D1Database; companyId: number | null }> {
+    const { user, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
+    return { user, db: sdb.db as any, companyId };
 }
 
 export async function loadAdminPageData<TLoaders extends AdminPageLoaderMap>(params: {
     request: Request;
     context: AdminRouteContext;
     loaders: TLoaders;
+    db?: D1Database;
 }): Promise<{ user: SessionUser } & ResolvedAdminPageData<TLoaders>> {
-    const { request, context, loaders } = params;
-    const { user, db } = await requireAdminDb(request, context);
+    const { request, context, loaders, db: providedDb } = params;
+    const { user, db: factoryDb } = await requireAdminDb(request, context);
+    const db = providedDb || factoryDb;
 
     const entries = await Promise.all(
         Object.entries(loaders).map(async ([key, loader]) => [key, await loader(db)] as const)
@@ -71,24 +71,25 @@ export async function loadAdminPageData<TLoaders extends AdminPageLoaderMap>(par
 export async function runAdminMutationAction(params: {
     request: Request;
     context: AdminRouteContext;
-    mutate: (args: { db: D1Database; user: SessionUser }) => Promise<void>;
+    mutate: (args: { db: D1Database; user: SessionUser; companyId: number | null }) => Promise<void>;
     feedback: MutationFeedbackOptions;
     audit?: AdminMutationAudit;
     cache?: AdminMutationCache;
 }) {
     const { request, context, mutate, feedback, audit, cache } = params;
-    const { user, db } = await requireAdminDb(request, context);
+    const { user, db, companyId } = await requireAdminDb(request, context);
 
     return runMutationWithFeedback(
+        request,
         async () => {
-            await mutate({ db, user });
+            await mutate({ db, user, companyId });
 
             if (audit) {
                 await quickAudit({
                     db,
                     userId: user.id,
                     role: user.role,
-                    companyId: user.companyId,
+                    companyId: companyId,
                     entityType: audit.entityType,
                     entityId: audit.entityId,
                     action: audit.action,

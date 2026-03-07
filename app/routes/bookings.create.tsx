@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import { useState } from "react";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import Button from "~/components/dashboard/Button";

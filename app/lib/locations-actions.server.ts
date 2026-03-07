@@ -94,7 +94,7 @@ async function handleToggleCompanyDelivery(db: D1Database, formData: FormData, e
   const toggleParsed = parseWithSchema(
     z.object({
       id: z.coerce.number().int().positive("District id is required"),
-      isActive: z.enum(["true", "false"]),
+      isActive: z.enum(["true", "false"] as const),
       deliveryPrice: z.coerce.number().optional(),
     }),
     {
@@ -298,7 +298,7 @@ export async function handleLocationsAction({
   }
 
   const intentParsed = parseWithSchema(
-    z.enum(["bulkUpdate", "toggleStatus", "updatePrice", "delete", "update", "create"]),
+    z.enum(["bulkUpdate", "toggleStatus", "updatePrice", "delete", "update", "create"] as const),
     formData.get("intent"),
     "Invalid action"
   );

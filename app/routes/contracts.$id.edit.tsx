@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
-import { requireContractAccess } from "~/lib/access-policy.server";
+import { getScopedDb } from "~/lib/db-factory.server";
 import ContractEditPageView from "~/features/contract-edit/ContractEditPageView";
 import { handleEditContractAction } from "~/lib/contracts-edit-action.server";
 import { loadEditContractPageData } from "~/lib/contracts-edit-page.server";
@@ -9,7 +9,7 @@ import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const contractId = parseInt(params.id!);
-    const { companyId } = await requireContractAccess(request, context.cloudflare.env.DB, contractId);
+    const { sdb, companyId } = await getScopedDb(request, context);
     return trackServerOperation({
         event: "contracts.edit.load",
         scope: "route.loader",
@@ -17,12 +17,12 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         companyId,
         entityId: contractId,
         details: { route: "contracts.$id.edit" },
-        run: () => loadEditContractPageData(context.cloudflare.env.DB, contractId, companyId),
+        run: () => loadEditContractPageData(sdb, contractId),
     });
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
-    const { user, companyId } = await requireContractAccess(request, context.cloudflare.env.DB, Number(params.id));
+    const { user, companyId, sdb } = await getScopedDb(request, context);
     const formData = await request.formData();
     return trackServerOperation({
         event: "contracts.edit",
