@@ -12,7 +12,6 @@ import HolidaysManager from "~/components/dashboard/HolidaysManager";
 import { useState } from "react";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
-import { QUERY_LIMITS } from "~/lib/query-limits";
 import { createCompanyAction } from "~/lib/companies-create.server";
 import AssignUsersSection, { type AssignableUser } from "~/components/dashboard/company/AssignUsersSection";
 import {
@@ -20,88 +19,63 @@ import {
     BanknotesIcon,
     Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
+import { loadCreateCompanyPageData } from "~/lib/companies-create-page.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { useCompanyManagerAssignment } from "~/components/dashboard/company/useCompanyManagerAssignment";
 
-interface LocationRow {
-    id: number;
-    name: string;
-}
-
-interface DistrictRow {
+type DistrictRow = {
     id: number;
     name: string;
     locationId: number;
     deliveryPrice?: number | null;
-}
-
-interface UserRow {
-    id: string;
-    email: string;
-    name: string | null;
-    surname: string | null;
-    role: string;
-    phone: string | null;
-}
+};
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAdmin(request);
-    const [locationsList, districtsList, usersList] = await Promise.all([
-        context.cloudflare.env.DB.prepare(`SELECT id, name FROM locations ORDER BY name ASC LIMIT ${QUERY_LIMITS.LARGE}`).all().then((r: { results?: LocationRow[] }) => r.results || []),
-        context.cloudflare.env.DB.prepare(`SELECT id, name, location_id AS locationId, delivery_price AS deliveryPrice FROM districts ORDER BY name ASC LIMIT ${QUERY_LIMITS.XL}`).all().then((r: { results?: DistrictRow[] }) => r.results || []),
-        context.cloudflare.env.DB
-            .prepare(`
-                SELECT id, email, name, surname, role, phone
-                FROM users
-                WHERE role != 'admin'
-                ORDER BY created_at DESC
-                LIMIT ${QUERY_LIMITS.XL}
-            `)
-            .all()
-            .then((r: { results?: UserRow[] }) => r.results || []),
-    ]);
-
-    return { locations: locationsList, districts: districtsList, users: usersList };
+    return trackServerOperation({
+        event: "companies.create.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId: user.companyId,
+        details: { route: "companies.create" },
+        run: async () => loadCreateCompanyPageData(context.cloudflare.env.DB),
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const user = await requireAdmin(request);
     const formData = await request.formData();
-    return createCompanyAction({ request, context, user, formData });
+    return trackServerOperation({
+        event: "companies.create",
+        scope: "route.action",
+        request,
+        userId: user.id,
+        companyId: user.companyId,
+        details: { route: "companies.create" },
+        run: async () => createCompanyAction({ request, context, user, formData }),
+    });
 }
 
 export default function CreateCompanyPage() {
     const { locations, districts, users } = useLoaderData<typeof loader>();
     useUrlToast();
     const { validateLatinInput } = useLatinValidation();
-    const [selectedLocationId, setSelectedLocationId] = useState(locations[0]?.id || 1);
     const [weeklySchedule, setWeeklySchedule] = useState("");
     const [holidays, setHolidays] = useState("");
-    const [selectedManager, setSelectedManager] = useState<AssignableUser | null>(null);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [showSuggestions, setShowSuggestions] = useState(false);
-
+    const {
+        selectedLocationId,
+        setSelectedLocationId,
+        selectedManager,
+        searchQuery,
+        showSuggestions,
+        filteredUsers,
+        setSearchQuery,
+        setShowSuggestions,
+        handleSelectManager,
+        handleRemoveManager,
+    } = useCompanyManagerAssignment(users as AssignableUser[], locations[0]?.id || 1);
     const filteredDistricts = districts.filter((d: DistrictRow) => d.locationId === selectedLocationId);
-
-    const filteredUsers = users.filter((user: UserRow) => {
-        if (!searchQuery) return false;
-        if (selectedManager?.id === user.id) return false;
-
-        const searchLower = searchQuery.toLowerCase();
-        const fullName = `${user.name || ''} ${user.surname || ''}`.toLowerCase();
-        return (
-            user.email.toLowerCase().includes(searchLower) ||
-            fullName.includes(searchLower)
-        );
-    });
-
-    const handleSelectManager = (user: UserRow) => {
-        setSelectedManager(user);
-        setSearchQuery("");
-        setShowSuggestions(false);
-    };
-
-    const handleRemoveManager = () => {
-        setSelectedManager(null);
-    };
 
     return (
         <div className="space-y-4">

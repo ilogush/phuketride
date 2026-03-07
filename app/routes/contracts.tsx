@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams, Outlet } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -9,17 +9,16 @@ import Button from "~/components/dashboard/Button";
 import { ClipboardDocumentListIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
-import { listContractsPage } from "~/lib/contracts-repo.server";
+import { countContractsPage, listContractsPage, listContractStatusCounts } from "~/lib/contracts-repo.server";
 import type { ContractListRow } from "~/lib/db-types";
+import { trackServerOperation } from "~/lib/telemetry.server";
 const CONTRACT_TABS = ["active", "closed"] as const;
 type ContractTab = typeof CONTRACT_TABS[number];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    const effectiveCompanyId = getEffectiveCompanyId(request, user);
+    const { user, companyId: effectiveCompanyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
     const url = new URL(request.url);
     const { tab, search, sortBy, sortOrder } = parseListFilters(url, {
         tabs: CONTRACT_TABS,
@@ -31,75 +30,57 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const activeTab: ContractTab = tab ?? "active";
     const { pageSize, offset } = getPaginationFromUrl(url, { defaultPageSize: 10 });
 
-    let contractsList: ContractListRow[] = [];
-    let statusCounts = { all: 0, active: 0, closed: 0 };
-    let totalCount = 0;
+    return trackServerOperation({
+        event: "contracts.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId: effectiveCompanyId,
+        details: { route: "contracts", tab: activeTab, sortBy: sortBy || "createdAt" },
+        run: async () => {
+            let contractsList: ContractListRow[] = [];
+            let statusCounts = { all: 0, active: 0, closed: 0 };
+            let totalCount = 0;
 
-    try {
-        contractsList = await listContractsPage({
-            db: context.cloudflare.env.DB,
-            companyId: effectiveCompanyId,
-            status: activeTab,
-            pageSize,
-            offset,
-            search,
-            sortBy: sortBy || "createdAt",
-            sortOrder,
-        });
+            try {
+                const [rows, countsResult, countResult] = await Promise.all([
+                    listContractsPage({
+                        db: context.cloudflare.env.DB,
+                        companyId: effectiveCompanyId,
+                        status: activeTab,
+                        pageSize,
+                        offset,
+                        search,
+                        sortBy: sortBy || "createdAt",
+                        sortOrder,
+                    }),
+                    listContractStatusCounts({
+                        db: context.cloudflare.env.DB,
+                        companyId: effectiveCompanyId,
+                    }),
+                    countContractsPage({
+                        db: context.cloudflare.env.DB,
+                        companyId: effectiveCompanyId,
+                        status: activeTab,
+                        search,
+                    }),
+                ]);
+                contractsList = rows;
 
-        const countsResult = effectiveCompanyId
-            ? await context.cloudflare.env.DB
-                .prepare(`
-                    SELECT c.status AS status, COUNT(*) AS count
-                    FROM contracts c
-                    JOIN company_cars cc ON cc.id = c.company_car_id
-                    WHERE cc.company_id = ?
-                    GROUP BY c.status
-                `)
-                .bind(effectiveCompanyId)
-                .all() as { results?: Array<{ status: string; count: number | string }> }
-            : await context.cloudflare.env.DB
-                .prepare(`
-                    SELECT status, COUNT(*) AS count
-                    FROM contracts
-                    GROUP BY status
-                `)
-                .all() as { results?: Array<{ status: string; count: number | string }> };
+                for (const row of countsResult) {
+                    const count = Number(row.count || 0);
+                    statusCounts.all += count;
+                    if (row.status === "active") statusCounts.active = count;
+                    if (row.status === "closed") statusCounts.closed = count;
+                }
+                totalCount = countResult;
+            } catch {
+                contractsList = [];
+            }
 
-        for (const row of countsResult.results || []) {
-            const count = Number(row.count || 0);
-            statusCounts.all += count;
-            if (row.status === "active") statusCounts.active = count;
-            if (row.status === "closed") statusCounts.closed = count;
-        }
-        if (search) {
-            const countSql = effectiveCompanyId
-                ? `
-                    SELECT COUNT(*) AS count
-                    FROM contracts c
-                    JOIN company_cars cc ON cc.id = c.company_car_id
-                    WHERE cc.company_id = ? AND c.status = ?
-                    AND (CAST(c.id AS TEXT) LIKE ? OR CAST(c.start_date AS TEXT) LIKE ? OR CAST(c.end_date AS TEXT) LIKE ? OR CAST(c.total_amount AS TEXT) LIKE ?)
-                `
-                : `
-                    SELECT COUNT(*) AS count
-                    FROM contracts c
-                    WHERE c.status = ?
-                    AND (CAST(c.id AS TEXT) LIKE ? OR CAST(c.start_date AS TEXT) LIKE ? OR CAST(c.end_date AS TEXT) LIKE ? OR CAST(c.total_amount AS TEXT) LIKE ?)
-                `;
-            const q = `%${search}%`;
-            const countResult = effectiveCompanyId
-                ? await context.cloudflare.env.DB.prepare(countSql).bind(effectiveCompanyId, activeTab, q, q, q, q).first() as { count?: number | string } | null
-                : await context.cloudflare.env.DB.prepare(countSql).bind(activeTab, q, q, q, q).first() as { count?: number | string } | null;
-            totalCount = Number(countResult?.count || 0);
-        } else {
-            totalCount = activeTab === "closed" ? statusCounts.closed : statusCounts.active;
-        }
-    } catch {
-        contractsList = [];
-    }
-
-    return { user, contracts: contractsList, statusCounts, activeTab, totalCount, search };
+            return { user, contracts: contractsList, statusCounts, activeTab, totalCount, search };
+        },
+    });
 }
 
 export default function ContractsPage() {

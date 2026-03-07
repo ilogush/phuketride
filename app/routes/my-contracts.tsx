@@ -5,13 +5,8 @@ import { DocumentTextIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import SimplePagination from "~/components/dashboard/SimplePagination";
 import Button from "~/components/dashboard/Button";
-import { getPaginationFromUrl } from "~/lib/pagination.server";
-import {
-    CLIENT_CONTRACT_STATUSES,
-    type ClientContractStatusFilter,
-    loadClientContractsPage,
-} from "~/lib/my-contracts-list.server";
-import { parseListFilters } from "~/lib/query-filters.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { loadClientRentalHistoryPage } from "~/lib/user-self-service.server";
 import { useUrlToast } from "~/lib/useUrlToast";
 
 interface MyContractRow {
@@ -30,25 +25,30 @@ interface MyContractRow {
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    
     const url = new URL(request.url);
-    const { page, pageSize, offset } = getPaginationFromUrl(url);
-    const { status } = parseListFilters(url, {
-        statuses: CLIENT_CONTRACT_STATUSES,
-        defaultStatus: "all",
-    });
-    const selectedStatus: ClientContractStatusFilter = status ?? "all";
-    const { totalPages, rows } = await loadClientContractsPage({
-        db: context.cloudflare.env.DB,
-        userId: user.id,
-        status: selectedStatus,
-        pageSize,
-        offset,
-        includeColor: false,
-    });
-    const contracts = rows as MyContractRow[];
 
-    return { contracts, totalPages, currentPage: page, status: selectedStatus };
+    return trackServerOperation({
+        event: "my-contracts.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId: user.companyId ?? null,
+        details: { route: "my-contracts" },
+        run: async () => {
+            const { rows, totalPages, currentPage, status } = await loadClientRentalHistoryPage({
+                db: context.cloudflare.env.DB,
+                userId: user.id,
+                url,
+                includeColor: false,
+            });
+            return {
+                contracts: rows as MyContractRow[],
+                totalPages,
+                currentPage,
+                status,
+            };
+        },
+    });
 }
 
 export default function MyContractsPage() {

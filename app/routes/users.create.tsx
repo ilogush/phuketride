@@ -1,123 +1,57 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
-import { requireAdmin } from "~/lib/auth.server";
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
 import ProfileForm from "~/components/dashboard/ProfileForm";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { userSchema } from "~/schemas/user";
-import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
-import { loadProfileReferenceData, resolvePasswordHash } from "~/lib/user-profile.server";
-import { parseWithSchema } from "~/lib/validation.server";
-import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
+import { createManagedUser, loadProfileReferenceData } from "~/lib/user-profile.server";
+import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
+import { trackServerOperation } from "~/lib/telemetry.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAdmin(request);
-
-    // Load reference data
-    const { hotels, locations, districts } = await loadProfileReferenceData(context.cloudflare.env.DB);
-
-    return { user, hotels, locations, districts };
+    const { user, companyId } = await requireAdminUserMutationAccess(request);
+    return trackServerOperation({
+        event: "users.create.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId,
+        details: { route: "users.create" },
+        run: async () => loadProfileReferenceData(context.cloudflare.env.DB),
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAdmin(request);
-    const formData = await request.formData();
+    const { user, companyId } = await requireAdminUserMutationAccess(request);
+    return trackServerOperation({
+        event: "users.create",
+        scope: "route.action",
+        request,
+        userId: user.id,
+        companyId,
+        details: { route: "users.create" },
+        run: async () => {
+            const formData = await request.formData();
+            // parseWithSchema(userSchema, ...) is delegated to createManagedUser in user-profile.server.
+            const result = await createManagedUser({
+                db: context.cloudflare.env.DB,
+                request,
+                actor: user,
+                formData,
+            });
+            if (!result.ok) {
+                return redirectWithRequestError(request, "/users/create", result.error);
+            }
 
-    // Parse form data
-    const rawData = {
-        email: formData.get("email") as string,
-        role: formData.get("role") as "admin" | "partner" | "manager" | "user",
-        name: (formData.get("name") as string) || null,
-        surname: (formData.get("surname") as string) || null,
-        phone: (formData.get("phone") as string) || null,
-        whatsapp: (formData.get("whatsapp") as string) || null,
-        telegram: (formData.get("telegram") as string) || null,
-        passportNumber: (formData.get("passportNumber") as string) || null,
-        hotelId: formData.get("hotelId") ? parseInt(formData.get("hotelId") as string) : null,
-        roomNumber: (formData.get("roomNumber") as string) || null,
-        locationId: formData.get("locationId") ? parseInt(formData.get("locationId") as string) : null,
-        districtId: formData.get("districtId") ? parseInt(formData.get("districtId") as string) : null,
-        address: (formData.get("address") as string) || null,
-    };
-
-    const newPassword = (formData.get("newPassword") as string | null) || "";
-    const confirmPassword = (formData.get("confirmPassword") as string | null) || "";
-
-    // Validate with Zod
-    const validation = parseWithSchema(userSchema, rawData, "Validation failed");
-    if (!validation.ok) {
-        return redirectWithError("/users/create", validation.error);
-    }
-
-    const validData = validation.data;
-
-    try {
-        const id = crypto.randomUUID();
-        const { passwordHash, error } = await resolvePasswordHash(newPassword, confirmPassword);
-        if (error) {
-            return redirectWithError("/users/create", error);
-        }
-
-        await context.cloudflare.env.DB
-            .prepare(`
-                INSERT INTO users (
-                    id, email, role, name, surname, phone, whatsapp, telegram,
-                    passport_number,
-                    hotel_id, room_number, location_id, district_id, address,
-                    avatar_url, passport_photos, driver_license_photos, password_hash,
-                    is_first_login, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `)
-            .bind(
-                id,
-                validData.email,
-                validData.role,
-                validData.name,
-                validData.surname,
-                validData.phone,
-                validData.whatsapp,
-                validData.telegram,
-                validData.passportNumber,
-                validData.hotelId,
-                validData.roomNumber,
-                validData.locationId,
-                validData.districtId,
-                validData.address,
-                null,
-                null,
-                null,
-                passwordHash,
-                1,
-                new Date().toISOString(),
-                new Date().toISOString()
-            )
-            .run();
-
-        // Audit log
-        const metadata = getRequestMetadata(request);
-        quickAudit({
-            db: context.cloudflare.env.DB,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId,
-            entityType: "user",
-            entityId: id,
-            action: "create",
-            afterState: { ...validData, id },
-            ...metadata,
-        });
-
-        return redirectWithSuccess("/users", "User created successfully");
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to create user";
-        return redirectWithError("/users/create", message);
-    }
+            return redirectWithRequestSuccess(request, "/users", "User created successfully");
+        },
+    });
 }
 
 export default function CreateUserPage() {
-    const { user, hotels, locations, districts } = useLoaderData<typeof loader>();
+    const { hotels, locations, districts } = useLoaderData<typeof loader>();
     useUrlToast();
 
     // Empty user object for create mode
@@ -154,7 +88,7 @@ export default function CreateUserPage() {
             />
             <ProfileForm
                 user={emptyUser}
-                currentUserRole={user.role}
+                currentUserRole="admin"
                 hotels={hotels}
                 locations={locations}
                 districts={districts}

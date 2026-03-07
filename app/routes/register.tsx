@@ -1,18 +1,18 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction, redirect } from "react-router";
 import { Form, Link, useActionData } from "react-router";
-import { getUserFromSession } from "~/lib/auth.server";
-import { useState } from "react";
+import { getUserFromSession, serializeSession } from "~/lib/auth.server";
+import { useEffect, useState } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useLatinValidation } from "~/lib/useLatinValidation";
-import Button from "~/components/dashboard/Button";
-import { PASSWORD_MIN_LENGTH } from "~/lib/password";
-import { serializeSession } from "~/lib/auth.server";
 import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 import { useToast } from "~/lib/toast";
-import { useEffect } from "react";
-import { z } from "zod";
-import { hashPassword } from "~/lib/password.server";
+import Button from "~/components/public/Button";
+import AuthFormField from "~/components/public/AuthFormField";
+import AuthTextInput from "~/components/public/AuthTextInput";
+import { registerUserAccount } from "~/lib/registration.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
 import { parseWithSchema } from "~/lib/validation.server";
+import { userRegistrationSchema } from "~/schemas/registration";
 
 export const meta: MetaFunction = () => {
     const title = "Create Account | Phuket Ride";
@@ -26,82 +26,67 @@ export const meta: MetaFunction = () => {
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {
-    // If already logged in, redirect to dashboard
-    const user = await getUserFromSession(request);
-    if (user) {
-        return redirect("/home");
-    }
-    return null;
+    return trackServerOperation({
+        event: "auth.register.load",
+        scope: "route.loader",
+        request,
+        details: { route: "register" },
+        run: async () => {
+            const user = await getUserFromSession(request);
+            if (user) {
+                return redirect("/home");
+            }
+            return null;
+        },
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const identifier = getClientIdentifier(request);
-    const rateLimit = await checkRateLimit(
-        (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
-        identifier,
-        "register"
-    );
-    if (!rateLimit.allowed) {
-        return { error: "Too many registration attempts. Try again later." };
-    }
+    return trackServerOperation({
+        event: "auth.register.submit",
+        scope: "route.action",
+        request,
+        details: { route: "register" },
+        run: async () => {
+            const identifier = getClientIdentifier(request);
+            const rateLimit = await checkRateLimit(
+                (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
+                identifier,
+                "register"
+            );
+            if (!rateLimit.allowed) {
+                return { error: "Too many registration attempts. Try again later." };
+            }
 
-    const formData = await request.formData();
-    const registerInputSchema = z.object({
-        email: z.string().email("Invalid email format"),
-        password: z.string().min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`),
-        firstName: z.string().trim().min(1, "First name is required"),
-        lastName: z.string().trim().min(1, "Last name is required"),
-        phone: z.string().trim().min(1, "Phone is required"),
-    });
-    const parsed = parseWithSchema(
-        registerInputSchema,
-        {
-            email: formData.get("email"),
-            password: formData.get("password"),
-            firstName: formData.get("firstName"),
-            lastName: formData.get("lastName"),
-            phone: formData.get("phone"),
+            const formData = await request.formData();
+            const parsed = parseWithSchema(
+                userRegistrationSchema,
+                {
+                    email: formData.get("email"),
+                    password: formData.get("password"),
+                    firstName: formData.get("firstName"),
+                    lastName: formData.get("lastName"),
+                    phone: formData.get("phone"),
+                },
+                "Validation failed"
+            );
+            if (!parsed.ok) {
+                return { error: parsed.error };
+            }
+
+            const result = await registerUserAccount({
+                db: context.cloudflare.env.DB,
+                input: parsed.data,
+            });
+            if (!result.ok) {
+                return { error: result.error };
+            }
+
+            const cookie = await serializeSession(request, result.sessionUser);
+            return redirect("/home?login=success", {
+                headers: { "Set-Cookie": cookie },
+            });
         },
-        "Validation failed"
-    );
-    if (!parsed.ok) {
-        return { error: parsed.error };
-    }
-    const { email, password, firstName, lastName, phone } = parsed.data;
-
-    const d1 = context.cloudflare.env.DB;
-    const existing = await d1
-        .prepare("SELECT id FROM users WHERE email = ? LIMIT 1")
-        .bind(email)
-        .all();
-    if ((existing.results?.length ?? 0) > 0) {
-        return { error: "Email already registered" };
-    }
-
-    const id = crypto.randomUUID();
-    const passwordHash = await hashPassword(password);
-
-    await d1
-        .prepare(
-            `
-            INSERT INTO users (
-                id, email, role, name, surname, phone, password_hash, created_at, updated_at
-            ) VALUES (?, ?, 'user', ?, ?, ?, ?, ?, ?)
-            `
-        )
-        .bind(id, email, firstName, lastName, phone, passwordHash, Date.now(), Date.now())
-        .run();
-
-    const cookie = await serializeSession(request, {
-        id,
-        email,
-        role: "user",
-        name: firstName,
-        surname: lastName,
-    });
-
-    return redirect("/home?login=success", {
-        headers: { "Set-Cookie": cookie },
     });
 }
 
@@ -130,90 +115,70 @@ export default function RegisterPage() {
 
                     <Form method="post" className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-                                    First Name
-                                </label>
-                                <input
+                            <AuthFormField id="firstName" label="First Name" required>
+                                <AuthTextInput
                                     id="firstName"
                                     name="firstName"
                                     type="text"
                                     autoComplete="given-name"
                                     required
                                     pattern="[a-zA-Z\s\-']+"
-                                    onChange={(e) => validateLatinInput(e, 'First Name')}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                                    onChange={(e) => validateLatinInput(e, "First Name")}
                                     placeholder="John"
                                 />
-                            </div>
-                            
-                            <div className="space-y-2">
-                                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-                                    Last Name
-                                </label>
-                                <input
+                            </AuthFormField>
+
+                            <AuthFormField id="lastName" label="Last Name" required>
+                                <AuthTextInput
                                     id="lastName"
                                     name="lastName"
                                     type="text"
                                     autoComplete="family-name"
                                     required
                                     pattern="[a-zA-Z\s\-']+"
-                                    onChange={(e) => validateLatinInput(e, 'Last Name')}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                                    onChange={(e) => validateLatinInput(e, "Last Name")}
                                     placeholder="Smith"
                                 />
-                            </div>
+                            </AuthFormField>
                         </div>
 
-                        <div className="space-y-2">
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                                Email Address
-                            </label>
-                            <input
+                        <AuthFormField id="email" label="Email Address" required>
+                            <AuthTextInput
                                 id="email"
                                 name="email"
                                 type="email"
                                 autoComplete="email"
                                 required
-                                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                                 placeholder="john.smith@example.com"
                             />
-                        </div>
+                        </AuthFormField>
 
-                        <div className="space-y-2">
-                            <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                                Phone Number
-                            </label>
-                            <input
+                        <AuthFormField id="phone" label="Phone Number" required>
+                            <AuthTextInput
                                 id="phone"
                                 name="phone"
                                 type="tel"
                                 autoComplete="tel"
                                 required
-                                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                                 placeholder="+6699123456"
                             />
-                        </div>
+                        </AuthFormField>
 
-                        <div className="space-y-2">
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                                Password
-                            </label>
+                        <AuthFormField id="password" label="Password" required>
                             <div className="relative">
-                                <input
+                                <AuthTextInput
                                     id="password"
                                     name="password"
                                     type={showPassword ? "text" : "password"}
                                     autoComplete="new-password"
                                     required
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                                    minLength={6}
                                     placeholder="Min 6 characters"
                                 />
                                 <Button
                                     type="button"
-                                    variant="unstyled"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-2"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-gray-600"
                                 >
                                     {showPassword ? (
                                         <EyeSlashIcon className="w-5 h-5" />
@@ -222,13 +187,11 @@ export default function RegisterPage() {
                                     )}
                                 </Button>
                             </div>
-                        </div>
+                        </AuthFormField>
 
                         <Button
                             type="submit"
-                            variant="primary"
-                            fullWidth
-                            size="lg"
+                            className="w-full rounded-xl bg-gray-900 px-5 py-3 text-base font-semibold text-white hover:bg-gray-800"
                         >
                             Create Account
                         </Button>

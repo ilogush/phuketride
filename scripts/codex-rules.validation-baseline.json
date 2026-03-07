@@ -2,7 +2,6 @@
   "actionInputWithoutSchema": [
     "app/routes/api.car-templates.$id.features.tsx",
     "app/routes/bookings.create.tsx",
-    "app/routes/cars.$id.content.tsx",
     "app/routes/cars.$id.edit.tsx",
     "app/routes/cars.create.tsx",
     "app/routes/companies.create.tsx",
@@ -10,7 +9,6 @@
     "app/routes/contracts.new.tsx",
     "app/routes/car-templates.tsx",
     "app/routes/locations.tsx",
-    "app/routes/my-contracts.$id.tsx",
     "app/routes/seasons.tsx",
     "app/routes/settings.tsx"
   ]

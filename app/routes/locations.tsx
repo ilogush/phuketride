@@ -9,127 +9,13 @@ import { PlusIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 import Toggle from "~/components/dashboard/Toggle";
-import { QUERY_LIMITS } from "~/lib/query-limits";
 import { handleLocationsAction } from "~/lib/locations-actions.server";
+import { loadLocationsPageData, type LocationsPageDistrict as District } from "~/lib/locations-page.server";
 import DistrictModal from "~/components/dashboard/locations/DistrictModal";
-
-interface District {
-    id: number;
-    name: string;
-    locationId: number;
-    beaches: string | null;
-    streets: string | null;
-    isActive: boolean;
-    deliveryPrice: number | null;
-    createdAt: Date;
-    updatedAt: Date;
-}
-type PartnerDistrictSettingRow = {
-    id: number;
-    name: string;
-    location_id: number;
-    beaches: string | null;
-    streets: string | null;
-    company_is_active: number | null;
-    company_delivery_price: number | null;
-    district_is_active: number;
-    district_delivery_price: number | null;
-    created_at: Date;
-    updated_at: Date;
-};
-type AdminDistrictRow = {
-    id: number;
-    name: string;
-    location_id: number;
-    beaches: string | null;
-    streets: string | null;
-    is_active: number;
-    delivery_price: number | null;
-    created_at: Date;
-    updated_at: Date;
-};
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    const effectiveCompanyId = getEffectiveCompanyId(request, user);
-    const isModMode = user.role === "admin" && effectiveCompanyId !== null;
-
-    let districts: District[] = [];
-
-    if (user.role === "partner" || isModMode) {
-        if (effectiveCompanyId) {
-            // Load all districts and overlay company-specific settings when available.
-            const settings = await context.cloudflare.env.DB
-                .prepare(`
-                    SELECT
-                        d.id,
-                        d.name,
-                        d.location_id,
-                        d.beaches,
-                        d.streets,
-                        cds.is_active AS company_is_active,
-                        cds.delivery_price AS company_delivery_price,
-                        d.is_active AS district_is_active,
-                        d.delivery_price AS district_delivery_price,
-                        d.created_at,
-                        d.updated_at
-                    FROM districts d
-                    LEFT JOIN company_delivery_settings cds
-                        ON cds.district_id = d.id AND cds.company_id = ?
-                    WHERE d.location_id = 1
-                    LIMIT ${QUERY_LIMITS.LARGE}
-                `)
-                .bind(effectiveCompanyId)
-                .all() as { results?: PartnerDistrictSettingRow[] };
-            districts = (settings.results || []).map((s: PartnerDistrictSettingRow) => ({
-                id: s.id,
-                name: s.name,
-                locationId: s.location_id,
-                beaches: s.beaches,
-                streets: s.streets,
-                isActive: s.company_is_active === null || s.company_is_active === undefined
-                    ? !!s.district_is_active
-                    : !!s.company_is_active,
-                deliveryPrice: s.company_delivery_price === null || s.company_delivery_price === undefined
-                    ? s.district_delivery_price
-                    : s.company_delivery_price,
-                createdAt: s.created_at,
-                updatedAt: s.updated_at,
-            }));
-        }
-    } else {
-        // Admin sees all districts
-        const districtsRaw = await context.cloudflare.env.DB
-            .prepare(`
-                SELECT
-                    id,
-                    name,
-                    location_id,
-                    beaches,
-                    streets,
-                    is_active,
-                    delivery_price,
-                    created_at,
-                    updated_at
-                FROM districts
-                WHERE location_id = 1
-                LIMIT ${QUERY_LIMITS.LARGE}
-                `)
-            .all() as { results?: AdminDistrictRow[] };
-        districts = (districtsRaw.results || []).map((d: AdminDistrictRow) => ({
-            id: d.id,
-            name: d.name,
-            locationId: d.location_id,
-            beaches: d.beaches,
-            streets: d.streets,
-            isActive: !!d.is_active,
-            deliveryPrice: d.delivery_price,
-            createdAt: d.created_at,
-            updatedAt: d.updated_at,
-        }));
-    }
-
-    return { districts, user, isModMode };
+    return loadLocationsPageData({ request, context, user });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {

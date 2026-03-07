@@ -1,4 +1,11 @@
 import { QUERY_LIMITS } from "~/lib/query-limits";
+import {
+    getCachedColors,
+    getCachedDistricts,
+    getCachedLocations,
+    getCachedRentalDurations,
+    getCachedSeasons,
+} from "~/lib/dictionaries-cache.server";
 
 export interface AdminColorRow {
     id: number;
@@ -52,10 +59,7 @@ export interface AdminSeasonRow {
 }
 
 export async function loadAdminColors(db: D1Database) {
-    const result = await db
-        .prepare(`SELECT id, name, hex_code AS hexCode FROM colors LIMIT ${QUERY_LIMITS.LARGE}`)
-        .all();
-    return (result.results ?? []) as unknown as AdminColorRow[];
+    return getCachedColors(db) as Promise<AdminColorRow[]>;
 }
 
 export async function loadAdminColorById(db: D1Database, colorId: number) {
@@ -68,21 +72,22 @@ export async function loadAdminColorById(db: D1Database, colorId: number) {
 }
 
 export async function loadAdminLocations(db: D1Database, limit = QUERY_LIMITS.LARGE) {
-    const result = await db
-        .prepare(`SELECT id, name FROM locations LIMIT ${limit}`)
-        .all();
-    return (result.results ?? []) as unknown as AdminLocationRow[];
+    const locations = await getCachedLocations(db);
+    return locations.slice(0, limit) as AdminLocationRow[];
 }
 
 export async function loadAdminDistricts(db: D1Database, options?: { includeDetails?: boolean; limit?: number }) {
     const includeDetails = options?.includeDetails ?? false;
     const limit = options?.limit ?? QUERY_LIMITS.LARGE;
 
-    const query = includeDetails
-        ? `SELECT id, name, location_id AS locationId, beaches, delivery_price AS deliveryPrice, created_at AS createdAt, updated_at AS updatedAt FROM districts LIMIT ${limit}`
-        : `SELECT id, name, location_id AS locationId FROM districts LIMIT ${limit}`;
+    if (!includeDetails) {
+        const districts = await getCachedDistricts(db);
+        return districts.slice(0, limit) as AdminDistrictRow[];
+    }
 
-    const result = await db.prepare(query).all();
+    const result = await db
+        .prepare(`SELECT id, name, location_id AS locationId, beaches, delivery_price AS deliveryPrice, created_at AS createdAt, updated_at AS updatedAt FROM districts LIMIT ${limit}`)
+        .all();
     return (result.results ?? []) as unknown as AdminDistrictRow[];
 }
 
@@ -94,39 +99,9 @@ export async function loadAdminHotels(db: D1Database) {
 }
 
 export async function loadAdminDurations(db: D1Database) {
-    const result = await db
-        .prepare(`
-            SELECT
-                id,
-                range_name AS rangeName,
-                min_days AS minDays,
-                max_days AS maxDays,
-                price_multiplier AS priceMultiplier,
-                discount_label AS discountLabel
-            FROM rental_durations
-            ORDER BY min_days ASC
-            LIMIT ${QUERY_LIMITS.LARGE}
-        `)
-        .all() as { results?: AdminDurationRow[] };
-    return result.results || [];
+    return getCachedRentalDurations(db, QUERY_LIMITS.LARGE) as Promise<AdminDurationRow[]>;
 }
 
 export async function loadAdminSeasons(db: D1Database) {
-    const result = await db
-        .prepare(`
-            SELECT
-                id,
-                season_name AS seasonName,
-                start_month AS startMonth,
-                start_day AS startDay,
-                end_month AS endMonth,
-                end_day AS endDay,
-                price_multiplier AS priceMultiplier,
-                discount_label AS discountLabel
-            FROM seasons
-            ORDER BY id ASC
-            LIMIT ${QUERY_LIMITS.LARGE}
-        `)
-        .all() as { results?: AdminSeasonRow[] };
-    return result.results || [];
+    return getCachedSeasons(db, { limit: QUERY_LIMITS.LARGE, order: "idAsc" }) as Promise<AdminSeasonRow[]>;
 }

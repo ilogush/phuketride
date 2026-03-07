@@ -1,6 +1,6 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import FormSection from "~/components/dashboard/FormSection";
 import FormInput from "~/components/dashboard/FormInput";
@@ -10,79 +10,47 @@ import FormActions from "~/components/dashboard/FormActions";
 import BackButton from "~/components/dashboard/BackButton";
 import { BanknotesIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { paymentSchema } from "~/schemas/payment";
-import { QUERY_LIMITS } from "~/lib/query-limits";
-import { getCachedCurrencies, getCachedPaymentTypes } from "~/lib/dictionaries-cache.server";
-import { parseWithSchema } from "~/lib/validation.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { createPaymentRecord, loadPaymentCreatePageData } from "~/lib/payments-create.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    await requireAuth(request);
-    const [contractsResult, paymentTypesResult, carsResult, currenciesList] = await Promise.all([
-        context.cloudflare.env.DB.prepare(`SELECT id FROM contracts LIMIT ${QUERY_LIMITS.LARGE}`).all(),
-        getCachedPaymentTypes(context.cloudflare.env.DB),
-        context.cloudflare.env.DB.prepare(`SELECT id, license_plate AS licensePlate FROM company_cars LIMIT ${QUERY_LIMITS.LARGE}`).all(),
-        getCachedCurrencies(context.cloudflare.env.DB),
-    ]);
-    const contractsList = (contractsResult.results ?? []) as Array<{ id: number }>;
-    const paymentTypesList = paymentTypesResult as Array<{ id: number; name: string }>;
-    const carsList = (carsResult.results ?? []) as Array<{ id: number; licensePlate: string }>;
-    return { contracts: contractsList, paymentTypes: paymentTypesList, cars: carsList, currencies: currenciesList };
+    const { user, companyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
+    return trackServerOperation({
+        event: "payments.create.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId,
+        details: { route: "payments.create" },
+        run: async () => loadPaymentCreatePageData({ db: context.cloudflare.env.DB, companyId }),
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    const formData = await request.formData();
-
-    // Parse form data
-    const rawData = {
-        contractId: formData.get("contractId") ? Number(formData.get("contractId")) : 0,
-        paymentTypeId: Number(formData.get("paymentTypeId")),
-        amount: Number(formData.get("amount")),
-        currency: (formData.get("currency") as string) || "THB",
-        paymentMethod: formData.get("paymentMethod") as "cash" | "bank_transfer" | "card",
-        status: (formData.get("status") as "pending" | "completed" | "cancelled") || "completed",
-        notes: (formData.get("notes") as string) || null,
-        createdBy: user.id,
-    };
-
-    // Validate with Zod
-    const validation = parseWithSchema(paymentSchema, rawData, "Validation failed");
-    if (!validation.ok) {
-        return redirect(`/payments/create?error=${encodeURIComponent(validation.error)}`);
-    }
-
-    const validData = validation.data;
-
-    try {
-        await context.cloudflare.env.DB
-            .prepare(
-                `
-                INSERT INTO payments (
-                    contract_id, payment_type_id, amount, currency,
-                    payment_method, status, notes, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                `
-            )
-            .bind(
-                validData.contractId,
-                validData.paymentTypeId,
-                validData.amount,
-                validData.currency,
-                validData.paymentMethod,
-                validData.status,
-                validData.notes,
-                user.id
-            )
-            .run();
-
-        return redirect(`/payments?success=${encodeURIComponent("Payment created successfully")}`);
-    } catch {
-        return redirect(`/payments/create?error=${encodeURIComponent("Failed to create payment")}`);
-    }
+    const { user, companyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
+    return trackServerOperation({
+        event: "payments.create",
+        scope: "route.action",
+        request,
+        userId: user.id,
+        companyId,
+        details: { route: "payments.create" },
+        run: async () => {
+            const formData = await request.formData();
+            // parseWithSchema(paymentSchema, ...) is delegated to createPaymentRecord.
+            return createPaymentRecord({
+                db: context.cloudflare.env.DB,
+                request,
+                user,
+                companyId,
+                formData,
+            });
+        },
+    });
 }
 
 export default function RecordPaymentPage() {
-    const { contracts, paymentTypes, cars, currencies } = useLoaderData<typeof loader>();
+    const { contracts, paymentTypes, currencies } = useLoaderData<typeof loader>();
     useUrlToast();
 
     return (
@@ -95,12 +63,6 @@ export default function RecordPaymentPage() {
             <Form method="post" className="space-y-4">
                 <FormSection title="Payment Details" icon={<BanknotesIcon />}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormSelect
-                            label="Auto"
-                            name="carId"
-                            options={cars.map(c => ({ id: c.id, name: c.licensePlate }))}
-                            placeholder="Select Auto"
-                        />
                         <FormSelect
                             label="Contract (Optional)"
                             name="contractId"

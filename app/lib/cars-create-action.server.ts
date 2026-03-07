@@ -1,10 +1,11 @@
-import { redirect, type ActionFunctionArgs } from "react-router";
+import { type ActionFunctionArgs } from "react-router";
 import type { SessionUser } from "~/lib/auth.server";
 import { carSchema } from "~/schemas/car";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { uploadToR2 } from "~/lib/r2.server";
 import { getCachedFuelTypes } from "~/lib/dictionaries-cache.server";
 import { parseWithSchema } from "~/lib/validation.server";
+import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 
 type FuelTypeRow = {
   id: number;
@@ -21,7 +22,7 @@ type CreateCarActionArgs = {
 export async function handleCreateCarAction({ request, context, user, formData }: CreateCarActionArgs) {
   const companyId = user.companyId;
   if (!companyId) {
-    return redirect(`/cars/create?error=${encodeURIComponent("Company is required")}`);
+    return redirectWithRequestError(request, "/cars/create", "Company is required");
   }
 
   const rawData = {
@@ -52,7 +53,7 @@ export async function handleCreateCarAction({ request, context, user, formData }
 
   const validation = parseWithSchema(carSchema, rawData, "Validation failed");
   if (!validation.ok) {
-    return redirect(`/cars/create?error=${encodeURIComponent(validation.error)}`);
+    return redirectWithRequestError(request, "/cars/create", validation.error);
   }
 
   const validData = validation.data;
@@ -77,7 +78,11 @@ export async function handleCreateCarAction({ request, context, user, formData }
       .all();
 
     if ((duplicateByCompanyResult.results ?? []).length > 0) {
-      return redirect(`/cars/create?error=${encodeURIComponent("Car with same brand, model and license plate already exists in this company")}`);
+      return redirectWithRequestError(
+        request,
+        "/cars/create",
+        "Car with same brand, model and license plate already exists in this company"
+      );
     }
 
     const fuelTypes = await getCachedFuelTypes(context.cloudflare.env.DB) as FuelTypeRow[];
@@ -154,12 +159,12 @@ export async function handleCreateCarAction({ request, context, user, formData }
       ...metadata,
     });
 
-    return redirect(`/cars?success=${encodeURIComponent("Car created successfully")}`);
+    return redirectWithRequestSuccess(request, "/cars", "Car created successfully");
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("UNIQUE constraint failed") && message.includes("license_plate")) {
-      return redirect(`/cars/create?error=${encodeURIComponent(`License plate \"${validData.licensePlate}\" is already in use`)}`);
+      return redirectWithRequestError(request, "/cars/create", `License plate "${validData.licensePlate}" is already in use`);
     }
-    return redirect(`/cars/create?error=${encodeURIComponent("Failed to create car")}`);
+    return redirectWithRequestError(request, "/cars/create", "Failed to create car");
   }
 }

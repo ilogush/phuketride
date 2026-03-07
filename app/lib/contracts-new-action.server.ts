@@ -1,4 +1,4 @@
-import { redirect, type ActionFunctionArgs } from "react-router";
+import { type ActionFunctionArgs } from "react-router";
 import { z } from "zod";
 import type { SessionUser } from "~/lib/auth.server";
 import { getRequestMetadata, getQuickAuditStmt } from "~/lib/audit-logger";
@@ -14,11 +14,13 @@ import {
 } from "~/lib/contract-extras.server";
 import { parseDisplayDateTimeToDate } from "~/lib/date-windows";
 import { parseWithSchema } from "~/lib/validation.server";
+import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 
 type CreateContractActionArgs = {
   request: Request;
   context: ActionFunctionArgs["context"];
   user: SessionUser;
+  companyId: number;
   formData: FormData;
 };
 
@@ -48,7 +50,7 @@ function parsePhotoList(value: FormDataEntryValue | null): string[] {
   }
 }
 
-export async function handleCreateContractAction({ request, context, user, formData }: CreateContractActionArgs) {
+export async function handleCreateContractAction({ request, context, user, companyId, formData }: CreateContractActionArgs) {
   try {
     const parsedEnvelope = parseWithSchema(
       z.object({
@@ -223,7 +225,7 @@ export async function handleCreateContractAction({ request, context, user, formD
         WHERE id = ? AND company_id = ?
         LIMIT 1
       `)
-      .bind(companyCarId, user.companyId)
+      .bind(companyCarId, companyId)
       .first() as { id: number; status: string | null } | null;
 
     if (!car) {
@@ -334,7 +336,7 @@ export async function handleCreateContractAction({ request, context, user, formD
     finalStmts.push(getUpdateCarStatusStmt(context.cloudflare.env.DB, companyCarId, "rented"));
     finalStmts.push(...getCreateContractEventsStmts({
       db: context.cloudflare.env.DB,
-      companyId: user.companyId!,
+      companyId,
       contractId,
       startDate,
       endDate,
@@ -348,7 +350,7 @@ export async function handleCreateContractAction({ request, context, user, formD
       db: context.cloudflare.env.DB,
       userId: user.id,
       role: user.role,
-      companyId: user.companyId,
+      companyId,
       entityType: "contract",
       entityId: contractId,
       action: "create",
@@ -356,9 +358,9 @@ export async function handleCreateContractAction({ request, context, user, formD
       ...metadata,
     }).run();
 
-    return redirect(`/contracts?success=${encodeURIComponent("Contract created successfully")}`);
+    return redirectWithRequestSuccess(request, "/contracts", "Contract created successfully");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to Create";
-    return redirect(`/contracts/new?error=${encodeURIComponent(message)}`);
+    return redirectWithRequestError(request, "/contracts/new", message);
   }
 }

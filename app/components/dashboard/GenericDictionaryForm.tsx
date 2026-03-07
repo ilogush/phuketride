@@ -36,6 +36,20 @@ interface GenericDictionaryFormProps {
     gridCols?: number
 }
 
+const GRID_CLASS_NAMES: Record<number, string> = {
+    1: 'grid-cols-1',
+    2: 'grid-cols-2',
+    3: 'grid-cols-3',
+    4: 'grid-cols-4',
+}
+
+const COL_SPAN_CLASS_NAMES: Record<number, string> = {
+    1: 'col-span-1',
+    2: 'col-span-2',
+    3: 'col-span-3',
+    4: 'col-span-4',
+}
+
 const toInputValue = (value: unknown): string | number | readonly string[] | undefined => {
     if (value === null || value === undefined) return ''
     if (typeof value === 'string' || typeof value === 'number') return value
@@ -299,6 +313,8 @@ export function GenericDictionaryForm({
     }
 
     const formId = `${title.toLowerCase().replace(/\s+/g, '-')}-form`
+    const gridClassName = GRID_CLASS_NAMES[gridCols] || GRID_CLASS_NAMES[4]
+    const defaultColSpanClassName = COL_SPAN_CLASS_NAMES[gridCols] || COL_SPAN_CLASS_NAMES[4]
 
     return (
         <Modal
@@ -313,9 +329,9 @@ export function GenericDictionaryForm({
                 </div>
             }
         >
-            <form id={formId} onSubmit={handleSubmit} className={`grid grid-cols-${gridCols} gap-4`}>
+            <form id={formId} onSubmit={handleSubmit} className={`grid ${gridClassName} gap-4`}>
                 {fields.map(field => (
-                    <div key={field.name} className={field.className || `col-span-${gridCols}`}>
+                    <div key={field.name} className={field.className || defaultColSpanClassName}>
                         {renderField(field)}
                     </div>
                 ))}

@@ -1,80 +1,38 @@
 import { type LoaderFunctionArgs } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
-
-interface CountRow {
-    count: number;
-}
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
+import { loadDashboardChartsData } from "~/lib/admin-analytics.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     try {
-        await requireAuth(request);
-        const d1 = context.cloudflare.env.DB;
+        const { user, companyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
+        return await trackServerOperation({
+            event: "metrics.dashboard_charts.load",
+            scope: "route.loader",
+            request,
+            userId: user.id,
+            companyId,
+            details: { route: "api.metrics.dashboard-charts" },
+            run: async () => {
+                const data = await loadDashboardChartsData({
+                    db: context.cloudflare.env.DB,
+                    companyId,
+                });
 
-        // Activity by day (last 7 days) - count contracts created per day
-        const activityByDay = [];
-        for (let i = 6; i >= 0; i--) {
-            const date = new Date();
-            date.setDate(date.getDate() - i);
-            date.setHours(0, 0, 0, 0);
-            const dateStr = date.toISOString().split('T')[0];
-
-            const nextDate = new Date(date);
-            nextDate.setDate(nextDate.getDate() + 1);
-
-            const result = (await d1
-                .prepare("SELECT count(*) AS count FROM contracts WHERE created_at >= ? AND created_at < ?")
-                .bind(date.getTime(), nextDate.getTime())
-                .first()) as CountRow | null;
-
-            activityByDay.push({
-                date: dateStr,
-                count: result?.count || 0
-            });
+                return Response.json({
+                    success: true,
+                    data,
+                });
+            },
+        });
+    } catch (error) {
+        if (error instanceof Response) {
+            return Response.json({
+                success: false,
+                error: error.status === 403 ? "Forbidden" : "Failed to load dashboard charts",
+            }, { status: error.status });
         }
 
-        // Companies by location
-        const companiesByLocationRaw = await context.cloudflare.env.DB
-            .prepare(`
-                SELECT l.name as location, COUNT(DISTINCT c.id) as count
-                FROM companies c
-                LEFT JOIN locations l ON c.location_id = l.id
-                GROUP BY l.name
-                LIMIT 5
-            `)
-            .all();
-
-        const companiesByLocation = companiesByLocationRaw.results as Array<{ location: string; count: number }>;
-
-        // Contract stats
-        const activeResult = (await d1
-            .prepare("SELECT count(*) AS count FROM contracts WHERE status = 'active'")
-            .first()) as CountRow | null;
-        const closedResult = (await d1
-            .prepare("SELECT count(*) AS count FROM contracts WHERE status = 'closed'")
-            .first()) as CountRow | null;
-        const closedTodayResult = (await d1
-            .prepare("SELECT count(*) AS count FROM contracts WHERE status = 'closed' AND updated_at >= ?")
-            .bind(new Date(new Date().setHours(0, 0, 0, 0)).getTime())
-            .first()) as CountRow | null;
-
-        const contractStats = {
-            active: activeResult?.count || 0,
-            closed: closedResult?.count || 0,
-            closedToday: closedTodayResult?.count || 0
-        };
-
-        return Response.json({
-            success: true,
-            data: {
-                activityByDay,
-                companiesByLocation: companiesByLocation.map(item => ({
-                    location: item.location || 'Unknown',
-                    count: item.count
-                })),
-                contractStats
-            }
-        });
-    } catch {
         return Response.json({
             success: false,
             error: "Failed to load dashboard charts"

@@ -8,10 +8,14 @@ import Button from "~/components/dashboard/Button";
 import EditCarFormGrid from "~/components/dashboard/cars/EditCarFormGrid";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
-import { QUERY_LIMITS } from "~/lib/query-limits";
-import { getCachedColors } from "~/lib/dictionaries-cache.server";
+import {
+    getCachedCarTemplateOptions,
+    getCachedColors,
+    getCachedRentalDurations,
+    getCachedSeasons,
+} from "~/lib/dictionaries-cache.server";
 import { handleEditCarAction } from "~/lib/cars-edit-action.server";
-import { type CarTemplateOption, type DurationRow, type SeasonRow, type TemplateQueryRow } from "~/lib/cars-edit-types";
+import { type CarTemplateOption, type DurationRow, type SeasonRow } from "~/lib/cars-edit-types";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
@@ -100,54 +104,10 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
     }
 
     const [templatesList, colorsList, seasonsList, durationsList] = await Promise.all([
-        context.cloudflare.env.DB.prepare(`
-            SELECT
-                ct.*,
-                cb.name AS brandName,
-                cm.name AS modelName,
-                bt.name AS bodyTypeName,
-                ft.name AS fuelTypeName
-            FROM car_templates ct
-            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-            LEFT JOIN car_models cm ON cm.id = ct.model_id
-            LEFT JOIN body_types bt ON bt.id = ct.body_type_id
-            LEFT JOIN fuel_types ft ON ft.id = ct.fuel_type_id
-            LIMIT ${QUERY_LIMITS.LARGE}
-        `).all().then((r: { results?: TemplateQueryRow[] }) => (r.results || []).map((t) => ({
-            ...t,
-            brand: { name: t.brandName },
-            model: { name: t.modelName },
-            bodyType: { name: t.bodyTypeName },
-            fuelType: { name: t.fuelTypeName },
-            engineVolume: t.engine_volume,
-        }))),
+        getCachedCarTemplateOptions(context.cloudflare.env.DB),
         getCachedColors(context.cloudflare.env.DB),
-        context.cloudflare.env.DB.prepare(`
-            SELECT
-                id,
-                season_name AS seasonName,
-                start_month AS startMonth,
-                start_day AS startDay,
-                end_month AS endMonth,
-                end_day AS endDay,
-                price_multiplier AS priceMultiplier,
-                discount_label AS discountLabel
-            FROM seasons
-            ORDER BY price_multiplier DESC
-            LIMIT ${QUERY_LIMITS.SMALL}
-        `).all().then((r: { results?: SeasonRow[] }) => r.results || []),
-        context.cloudflare.env.DB.prepare(`
-            SELECT
-                id,
-                range_name AS rangeName,
-                min_days AS minDays,
-                max_days AS maxDays,
-                price_multiplier AS priceMultiplier,
-                discount_label AS discountLabel
-            FROM rental_durations
-            ORDER BY min_days ASC
-            LIMIT ${QUERY_LIMITS.SMALL}
-        `).all().then((r: { results?: DurationRow[] }) => r.results || []),
+        getCachedSeasons(context.cloudflare.env.DB) as Promise<SeasonRow[]>,
+        getCachedRentalDurations(context.cloudflare.env.DB) as Promise<DurationRow[]>,
     ]);
 
     const car = {

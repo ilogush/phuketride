@@ -1,15 +1,16 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdminAnalyticsAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { ClipboardDocumentListIcon } from "@heroicons/react/24/outline";
-import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
-import { QUERY_LIMITS } from "~/lib/query-limits";
-import { z } from "zod";
-import { parseWithSchema } from "~/lib/validation.server";
 import { useUrlToast } from "~/lib/useUrlToast";
+import { clearAuditLogsFromForm, loadAuditLogsPageData } from "~/lib/admin-analytics.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { parseWithSchema } from "~/lib/validation.server";
+import { clearAuditLogsSchema } from "~/schemas/admin-analytics";
+import { redirectWithRequestError } from "~/lib/route-feedback";
 
 interface AuditLog {
     id: number;
@@ -23,7 +24,7 @@ interface AuditLog {
     afterState: string | null;
     ipAddress: string | null;
     userAgent: string | null;
-    createdAt: Date;
+    createdAt: string | number | Date | null;
     userName: string | null;
     userSurname: string | null;
 }
@@ -69,93 +70,44 @@ const ACTION_COLORS: Record<string, string> = {
 };
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    const effectiveCompanyId = getEffectiveCompanyId(request, user);
-    const d1 = context.cloudflare.env.DB;
-
-    // Partner and manager can only see logs from their company.
-    // Admin should always see all logs, including in mod mode.
-    if (user.role !== "admin" && effectiveCompanyId) {
-        const logsResult = await d1
-            .prepare(
-                `
-                SELECT
-                  a.id, a.user_id AS userId, a.role, a.company_id AS companyId,
-                  a.entity_type AS entityType, a.entity_id AS entityId, a.action,
-                  a.before_state AS beforeState, a.after_state AS afterState,
-                  a.ip_address AS ipAddress, a.user_agent AS userAgent,
-                  a.created_at AS createdAt,
-                  u.name AS userName, u.surname AS userSurname
-                FROM audit_logs a
-                LEFT JOIN users u ON a.user_id = u.id
-                WHERE a.company_id = ?
-                ORDER BY a.created_at DESC
-                LIMIT ${QUERY_LIMITS.LARGE}
-                `
-            )
-            .bind(effectiveCompanyId)
-            .all();
-        const logs = (logsResult.results ?? []) as AuditLog[];
-        return { user, logs };
-    }
-
-    const logsResult = await d1
-        .prepare(
-            `
-            SELECT
-              a.id, a.user_id AS userId, a.role, a.company_id AS companyId,
-              a.entity_type AS entityType, a.entity_id AS entityId, a.action,
-              a.before_state AS beforeState, a.after_state AS afterState,
-              a.ip_address AS ipAddress, a.user_agent AS userAgent,
-              a.created_at AS createdAt,
-              u.name AS userName, u.surname AS userSurname
-            FROM audit_logs a
-            LEFT JOIN users u ON a.user_id = u.id
-            ORDER BY a.created_at DESC
-            LIMIT ${QUERY_LIMITS.LARGE}
-            `
-        )
-        .all();
-    const logs = (logsResult.results ?? []) as AuditLog[];
-    return { user, logs };
+    const { user } = await requireAdminAnalyticsAccess(request);
+    return trackServerOperation({
+        event: "logs.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId: null,
+        details: { route: "logs" },
+        run: async () => loadAuditLogsPageData({
+            db: context.cloudflare.env.DB,
+        }),
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    const formData = await request.formData();
-    const parsed = parseWithSchema(
-        z
-        .object({
-            intent: z.enum(["clear"]),
-        }),
-        {
-            intent: formData.get("intent"),
+    const { user } = await requireAdminAnalyticsAccess(request);
+    return trackServerOperation({
+        event: "logs.action",
+        scope: "route.action",
+        request,
+        userId: user.id,
+        companyId: null,
+        details: { route: "logs" },
+        run: async () => {
+            const formData = await request.formData();
+            const parsed = parseWithSchema(clearAuditLogsSchema, {
+                intent: formData.get("intent"),
+            });
+            if (!parsed.ok) {
+                return redirectWithRequestError(request, "/logs", parsed.error);
+            }
+
+            return clearAuditLogsFromForm({
+                db: context.cloudflare.env.DB,
+                request,
+            });
         },
-        "Invalid action"
-    );
-    if (!parsed.ok) {
-        return data({ success: false, message: "Invalid action" }, { status: 400 });
-    }
-    const intent = parsed.data.intent;
-    const effectiveCompanyId = getEffectiveCompanyId(request, user);
-
-    if (intent === "clear") {
-        if (user.role !== "admin" && effectiveCompanyId) {
-            await context.cloudflare.env.DB
-                .prepare("DELETE FROM audit_logs WHERE company_id = ?")
-                .bind(effectiveCompanyId)
-                .run();
-        } else {
-            // Admin can clear all logs
-            await context.cloudflare.env.DB
-                .prepare("DELETE FROM audit_logs")
-                .run();
-        }
-        
-        return data({ success: true, message: "Audit logs cleared successfully" });
-    }
-
-    return data({ success: false, message: "Invalid action" }, { status: 400 });
+    });
 }
 
 export default function AuditLogsPage() {

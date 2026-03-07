@@ -1,6 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
-import { useEffect, useState } from 'react'
-import { useNavigation } from 'react-router'
+import { useButtonInteraction } from '~/lib/useButtonInteraction'
 
 interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'onClick'> {
     children?: ReactNode
@@ -32,53 +31,12 @@ export default function Button({
     loading = false,
     ...rest
 }: ButtonProps) {
-    const navigation = useNavigation()
-    const [isProcessing, setIsProcessing] = useState(false)
-    const [isSubmitClicked, setIsSubmitClicked] = useState(false)
-
-    const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
-        if (isProcessing || disabled || loading) {
-            e.preventDefault()
-            return
-        }
-
-        if (type === 'submit' && isSubmitClicked) {
-            e.preventDefault()
-            return
-        }
-
-        if (type === 'submit') {
-            // Show spinner immediately and block double click without forcing manual submit.
-            setIsSubmitClicked(true)
-            onClick?.(e)
-            if (e.defaultPrevented) {
-                setIsSubmitClicked(false)
-            }
-            return
-        }
-
-        if (!onClick) {
-            return
-        }
-
-        setIsProcessing(true)
-        try {
-            await onClick(e)
-        } finally {
-            setIsProcessing(false)
-        }
-    }
-
-    const isNavigating = navigation.state === 'submitting' || navigation.state === 'loading'
-    const isSubmitting = type === 'submit' && (isSubmitClicked || isNavigating)
-
-    useEffect(() => {
-        if (navigation.state === 'idle') {
-            setIsSubmitClicked(false)
-        }
-    }, [navigation.state])
-
-    const isDisabled = disabled || loading || isProcessing || (type === 'submit' && isNavigating)
+    const { handleClick, isDisabled, isLoading, isSubmitClicked } = useButtonInteraction({
+        disabled,
+        loading,
+        onClick,
+        type,
+    })
 
     const baseClasses = 'flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
 
@@ -122,7 +80,7 @@ export default function Button({
             className={buttonClasses}
             {...rest}
         >
-            {(loading || isProcessing || isSubmitting) ? (
+            {isLoading ? (
                 <>
                     <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                     {children && <span className="ml-2 opacity-70">{children}</span>}

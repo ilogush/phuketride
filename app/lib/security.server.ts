@@ -47,6 +47,43 @@ export async function validateContractOwnership(
     }
 }
 
+export async function validateBookingOwnership(
+    db: DbType,
+    bookingId: number,
+    companyId: number
+): Promise<void> {
+    const booking = await db
+        .prepare(
+            `
+            SELECT b.id
+            FROM bookings b
+            INNER JOIN company_cars cc ON b.company_car_id = cc.id
+            WHERE b.id = ? AND cc.company_id = ?
+            LIMIT 1
+            `
+        )
+        .bind(bookingId, companyId)
+        .first<{ id: number }>();
+
+    if (!booking) {
+        throw new Error("Booking not found or doesn't belong to your company");
+    }
+}
+
+export async function validateCompanyAccess(
+    db: DbType,
+    companyId: number
+): Promise<void> {
+    const company = await db
+        .prepare("SELECT id FROM companies WHERE id = ? LIMIT 1")
+        .bind(companyId)
+        .first<{ id: number }>();
+
+    if (!company) {
+        throw new Error("Company not found");
+    }
+}
+
 /**
  * Get company clients (users who have contracts with this company)
  */

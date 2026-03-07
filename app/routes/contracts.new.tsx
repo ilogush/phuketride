@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { Form, useLoaderData } from "react-router";
 import { useState } from "react";
-import { requireAuth } from "~/lib/auth.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import FormSection from "~/components/dashboard/FormSection";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
@@ -17,10 +17,9 @@ import ContractCarPhotosCard from "~/components/dashboard/contracts/ContractCarP
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { getCachedActiveCurrenciesForCompany } from "~/lib/dictionaries-cache.server";
-import type { CurrencyRow as ContractNewCurrencyRow } from "~/lib/db-types";
 import { handleCreateContractAction } from "~/lib/contracts-new-action.server";
-import type { ContractNewCarRow, ContractNewDistrictRow } from "~/lib/contracts-new-types";
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { loadContractCreatePageData } from "~/lib/rental-create-page.server";
 import {
     TruckIcon,
     CalendarIcon,
@@ -29,57 +28,31 @@ import {
 } from "@heroicons/react/24/outline";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    const companyId = user.companyId ?? null;
-    const [cars, districtsList, currencies] = await Promise.all([
-        context.cloudflare.env.DB
-            .prepare(`
-                SELECT
-                    cc.id,
-                    cc.price_per_day AS pricePerDay,
-                    cc.deposit,
-                    cc.license_plate AS licensePlate,
-                    cb.name AS brandName,
-                    cm.name AS modelName
-                FROM company_cars cc
-                LEFT JOIN car_templates ct ON ct.id = cc.template_id
-                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-                LEFT JOIN car_models cm ON cm.id = ct.model_id
-                WHERE cc.company_id = ? AND cc.status = 'available' AND cc.archived_at IS NULL
-            `)
-            .bind(companyId)
-            .all()
-            .then((r: { results?: ContractNewCarRow[] }) => r.results || [])
-            .catch(() => []),
-        context.cloudflare.env.DB
-            .prepare("SELECT id, name, name_en FROM districts WHERE is_active = 1")
-            .all()
-            .then((r: { results?: ContractNewDistrictRow[] }) => r.results || [])
-            .catch(() => []),
-        getCachedActiveCurrenciesForCompany(context.cloudflare.env.DB, companyId) as Promise<ContractNewCurrencyRow[]>,
-    ]);
-
-    const safeCurrencies =
-        Array.isArray(currencies) && currencies.length > 0
-            ? currencies
-            : [{ id: 1, code: "THB", symbol: "฿" }];
-
-    return {
-        cars: cars.map((car: ContractNewCarRow) => ({
-            id: car.id,
-            name: `${car.brandName || ""} ${car.modelName || ""} - ${car.licensePlate}`,
-            pricePerDay: car.pricePerDay,
-            deposit: car.deposit,
-        })),
-        districts: districtsList.map((d: ContractNewDistrictRow) => ({ id: d.id, name: d.name_en || d.name })),
-        currencies: safeCurrencies,
-    };
+    const { user, companyId } = await requireScopedDashboardAccess(request);
+    const scopedCompanyId = companyId!;
+    return trackServerOperation({
+        event: "contracts.new.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId: scopedCompanyId,
+        details: { route: "contracts.new" },
+        run: async () => loadContractCreatePageData(context.cloudflare.env.DB, scopedCompanyId),
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
+    const { user, companyId } = await requireScopedDashboardAccess(request);
     const formData = await request.formData();
-    return handleCreateContractAction({ request, context, user, formData });
+    return trackServerOperation({
+        event: "contracts.create",
+        scope: "route.action",
+        request,
+        userId: user.id,
+        companyId: companyId!,
+        details: { route: "contracts.new" },
+        run: async () => handleCreateContractAction({ request, context, user, companyId: companyId!, formData }),
+    });
 }
 
 export default function NewContract() {

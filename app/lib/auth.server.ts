@@ -1,15 +1,33 @@
 import { createCookie, redirect } from "react-router";
 import { verifyPasswordHash } from "~/lib/password.server";
+import { getRuntimeEnv, getRuntimeMode } from "~/lib/runtime-env.server";
 
-// Session cookie configuration
-// Note: secure flag is handled dynamically in serialize/parse calls
-export const sessionCookie = createCookie("session", {
-    httpOnly: true,
-    secure: false, // Handled dynamically based on request protocol
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-    path: "/",
-});
+const FALLBACK_DEV_SESSION_SECRET = "dev-session-secret-change-me";
+
+function getSessionSecrets() {
+    const env = getRuntimeEnv();
+    const configured = env?.SESSION_SECRET?.trim();
+    if (configured) {
+        return [configured];
+    }
+
+    if (getRuntimeMode() === "production") {
+        throw new Error("SESSION_SECRET is required in production");
+    }
+
+    return [FALLBACK_DEV_SESSION_SECRET];
+}
+
+function getSessionCookie() {
+    return createCookie("session", {
+        httpOnly: true,
+        secure: false, // Handled dynamically based on request protocol
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: "/",
+        secrets: getSessionSecrets(),
+    });
+}
 
 export async function serializeSession(
     request: Request,
@@ -17,7 +35,7 @@ export async function serializeSession(
     options?: { maxAge?: number }
 ) {
     const isSecureRequest = request.url.startsWith("https://");
-    return sessionCookie.serialize(data, {
+    return getSessionCookie().serialize(data, {
         secure: isSecureRequest,
         ...(options?.maxAge !== undefined ? { maxAge: options.maxAge } : {}),
     });
@@ -66,7 +84,7 @@ export async function getUserFromSession(
 ): Promise<SessionUser | null> {
     try {
         const cookieHeader = request.headers.get("Cookie");
-        const session = await sessionCookie.parse(cookieHeader);
+        const session = await getSessionCookie().parse(cookieHeader);
 
         if (!session?.id) {
             return null;
@@ -275,7 +293,7 @@ export async function login(
 
     let cookie: string;
     try {
-        cookie = await sessionCookie.serialize(sessionUser, {
+        cookie = await getSessionCookie().serialize(sessionUser, {
             secure: isSecureRequest,
         });
     } catch {

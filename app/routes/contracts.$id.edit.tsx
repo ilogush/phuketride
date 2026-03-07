@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { Form, useLoaderData } from "react-router";
 import { useState } from "react";
-import { requireAuth } from "~/lib/auth.server";
+import { requireContractAccess } from "~/lib/access-policy.server";
 import FormSection from "~/components/dashboard/FormSection";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
@@ -17,6 +17,7 @@ import ContractCarPhotosCard from "~/components/dashboard/contracts/ContractCarP
 import { useDateMasking } from "~/lib/useDateMasking";
 import { formatDateForDisplay } from "~/lib/formatters";
 import { handleEditContractAction } from "~/lib/contracts-edit-action.server";
+import { loadEditContractPageData } from "~/lib/contracts-edit-page.server";
 import {
     TruckIcon,
     CalendarIcon,
@@ -27,179 +28,35 @@ import {
 } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import { useUrlToast } from "~/lib/useUrlToast";
-type ContractLoaderRow = {
-    id: number;
-    company_car_id: number;
-    start_date: string;
-    end_date: string;
-    pickup_district_id: number | null;
-    pickup_hotel: string | null;
-    pickup_room: string | null;
-    return_district_id: number | null;
-    return_hotel: string | null;
-    return_room: string | null;
-    delivery_cost: number | null;
-    return_cost: number | null;
-    deposit_amount: number | null;
-    deposit_payment_method: string | null;
-    total_amount: number | null;
-    fuel_level: string | null;
-    cleanliness: string | null;
-    start_mileage: number | null;
-    carId: number;
-    companyId: number;
-    licensePlate: string;
-    clientId: string;
-    clientName: string | null;
-    clientSurname: string | null;
-    clientPhone: string | null;
-    clientEmail: string | null;
-    clientWhatsapp: string | null;
-    clientTelegram: string | null;
-    clientPassport: string | null;
-    clientPassportPhotos: string | null;
-    clientDriverLicensePhotos: string | null;
-    notes: string | null;
-    photos: string | null;
-};
-
-type ExtraType = "full_insurance" | "baby_seat" | "island_trip" | "krabi_trip";
-
-type ContractExtraRow = {
-    id: number;
-    extraType: ExtraType;
-    extraPrice: number | null;
-    amount: number | null;
-    paymentTypeId: number | null;
-    currency: string | null;
-    currencyId: number | null;
-    paymentMethod: string | null;
-    status: string | null;
-    notes: string | null;
-};
-
-const mapExtrasByType = (rows: Array<Partial<ContractExtraRow> & { extraType?: string }>) => (
-    Object.fromEntries(
-        rows
-            .filter((row) => typeof row.extraType === "string")
-            .map((row) => [row.extraType as ExtraType, row])
-    ) as Partial<Record<ExtraType, Partial<ContractExtraRow>>>
-);
+import { trackServerOperation } from "~/lib/telemetry.server";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
     const contractId = parseInt(params.id!);
-
-    // Get contract with car details
-    const contractRaw = await context.cloudflare.env.DB
-        .prepare(`
-            SELECT
-                c.*,
-                cc.id AS carId,
-                cc.company_id AS companyId,
-                cc.license_plate AS licensePlate,
-                u.id AS clientId,
-                u.name AS clientName,
-                u.surname AS clientSurname,
-                u.phone AS clientPhone,
-                u.email AS clientEmail,
-                u.whatsapp AS clientWhatsapp,
-                u.telegram AS clientTelegram,
-                u.passport_number AS clientPassport,
-                u.passport_photos AS clientPassportPhotos,
-                u.driver_license_photos AS clientDriverLicensePhotos
-            FROM contracts c
-            JOIN company_cars cc ON cc.id = c.company_car_id
-            LEFT JOIN users u ON u.id = c.client_id
-            WHERE c.id = ?
-            LIMIT 1
-        `)
-        .bind(contractId)
-        .first() as ContractLoaderRow | null;
-    const extrasResult = await context.cloudflare.env.DB
-        .prepare(`
-            SELECT id, extra_type AS extraType, extra_price AS extraPrice, amount, payment_type_id AS paymentTypeId,
-                   currency, currency_id AS currencyId, payment_method AS paymentMethod, status, notes
-            FROM payments
-            WHERE contract_id = ? AND extra_type IS NOT NULL
-        `)
-        .bind(contractId)
-        .all() as { results?: ContractExtraRow[] };
-    const extrasRows = (extrasResult?.results || []) as ContractExtraRow[];
-    const extrasMap = mapExtrasByType(extrasRows);
-    const contract = contractRaw
-        ? {
-            ...contractRaw,
-            companyCarId: contractRaw.company_car_id,
-            startDate: contractRaw.start_date,
-            endDate: contractRaw.end_date,
-            pickupDistrictId: contractRaw.pickup_district_id,
-            pickupHotel: contractRaw.pickup_hotel,
-            pickupRoom: contractRaw.pickup_room,
-            returnDistrictId: contractRaw.return_district_id,
-            returnHotel: contractRaw.return_hotel,
-            returnRoom: contractRaw.return_room,
-            deliveryCost: contractRaw.delivery_cost,
-            returnCost: contractRaw.return_cost,
-            depositAmount: contractRaw.deposit_amount,
-            depositPaymentMethod: contractRaw.deposit_payment_method,
-            totalAmount: contractRaw.total_amount,
-            fuelLevel: contractRaw.fuel_level,
-            cleanliness: contractRaw.cleanliness,
-            fullInsuranceEnabled: !!extrasMap.full_insurance,
-            babySeatEnabled: !!extrasMap.baby_seat,
-            islandTripEnabled: !!extrasMap.island_trip,
-            krabiTripEnabled: !!extrasMap.krabi_trip,
-            fullInsurancePrice: extrasMap.full_insurance?.extraPrice ?? extrasMap.full_insurance?.amount ?? 0,
-            babySeatPrice: extrasMap.baby_seat?.extraPrice ?? extrasMap.baby_seat?.amount ?? 0,
-            islandTripPrice: extrasMap.island_trip?.extraPrice ?? extrasMap.island_trip?.amount ?? 0,
-            krabiTripPrice: extrasMap.krabi_trip?.extraPrice ?? extrasMap.krabi_trip?.amount ?? 0,
-            startMileage: contractRaw.start_mileage,
-            companyCar: { id: contractRaw.carId, companyId: contractRaw.companyId, licensePlate: contractRaw.licensePlate },
-            client: {
-                id: contractRaw.clientId,
-                name: contractRaw.clientName,
-                surname: contractRaw.clientSurname,
-                phone: contractRaw.clientPhone,
-                email: contractRaw.clientEmail,
-                whatsapp: contractRaw.clientWhatsapp,
-                telegram: contractRaw.clientTelegram,
-                passportNumber: contractRaw.clientPassport,
-                passportPhotos: contractRaw.clientPassportPhotos,
-                driverLicensePhotos: contractRaw.clientDriverLicensePhotos,
-            },
-        }
-        : null;
-
-    if (!contract) {
-        throw new Response("Contract not found", { status: 404 });
-    }
-
-    // SECURITY: Verify contract belongs to user's company
-    if (user.role !== "admin" && contract.companyCar.companyId !== user.companyId) {
-        throw new Response("Access denied", { status: 403 });
-    }
-
-    // Get company cars
-    const cars = await context.cloudflare.env.DB
-        .prepare("SELECT id, license_plate AS licensePlate FROM company_cars WHERE company_id = ? AND status = 'available' AND archived_at IS NULL")
-        .bind(user.companyId)
-        .all()
-        .then((r: { results?: Array<{ id: number; licensePlate: string }> }) => r.results || []);
-
-    // Get districts
-    const districtsList = await context.cloudflare.env.DB
-        .prepare("SELECT id, name FROM districts WHERE is_active = 1")
-        .all()
-        .then((r: { results?: Array<{ id: number; name: string }> }) => r.results || []);
-
-    return { contract, cars, districts: districtsList, client: contract.client };
+    const { companyId } = await requireContractAccess(request, context.cloudflare.env.DB, contractId);
+    return trackServerOperation({
+        event: "contracts.edit.load",
+        scope: "route.loader",
+        request,
+        companyId,
+        entityId: contractId,
+        details: { route: "contracts.$id.edit" },
+        run: () => loadEditContractPageData(context.cloudflare.env.DB, contractId, companyId),
+    });
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
+    const { user, companyId } = await requireContractAccess(request, context.cloudflare.env.DB, Number(params.id));
     const formData = await request.formData();
-    return handleEditContractAction({ request, context, user, params, formData });
+    return trackServerOperation({
+        event: "contracts.edit",
+        scope: "route.action",
+        request,
+        userId: user.id,
+        companyId,
+        entityId: Number(params.id),
+        details: { route: "contracts.$id.edit" },
+        run: async () => handleEditContractAction({ request, context, user, companyId, params, formData }),
+    });
 }
 
 export default function EditContract() {

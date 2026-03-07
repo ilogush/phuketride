@@ -1,8 +1,8 @@
-import { redirect } from "react-router";
 import type { SessionUser } from "~/lib/auth.server";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { parseWithSchema } from "~/lib/validation.server";
 import { companySchema } from "~/schemas/company";
+import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 
 type CreateCompanyActionArgs = {
   request: Request;
@@ -56,7 +56,7 @@ export async function createCompanyAction({ request, context, user, formData }: 
 
   const validation = parseWithSchema(companySchema, rawData, "Validation failed");
   if (!validation.ok) {
-    return redirect(`/companies/create?error=${encodeURIComponent(validation.error)}`);
+    return redirectWithRequestError(request, "/companies/create", validation.error);
   }
 
   const validData = validation.data;
@@ -171,9 +171,9 @@ export async function createCompanyAction({ request, context, user, formData }: 
       ...metadata,
     });
 
-    return redirect(`/companies?success=${encodeURIComponent("Company created successfully")}`);
+    return redirectWithRequestSuccess(request, "/companies", "Company created successfully");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create company";
-    return redirect(`/companies/create?error=${encodeURIComponent(message)}`);
+    return redirectWithRequestError(request, "/companies/create", message);
   }
 }

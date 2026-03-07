@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { useLoaderData, useSearchParams, useSubmit } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import Button from "~/components/dashboard/Button";
@@ -10,15 +10,19 @@ import {
 } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { getAdminModCompanyId, getEffectiveCompanyId } from "~/lib/mod-mode.server";
-import { QUERY_LIMITS } from "~/lib/query-limits";
 import { isPhuketName, normalizeCompanyRow, normalizeCurrencyRow } from "~/lib/settings-normalizers";
 import type { Currency } from "~/lib/settings-normalizers";
-import { getCachedCurrenciesDetailed, getCachedPaymentTemplatesForCompany } from "~/lib/dictionaries-cache.server";
+import {
+    getCachedCurrenciesDetailed,
+    getCachedDistricts,
+    getCachedLocations,
+    getCachedPaymentTemplatesForCompany,
+} from "~/lib/dictionaries-cache.server";
 import PaymentTemplatesTab from "~/components/dashboard/settings/PaymentTemplatesTab";
 import CurrenciesTab from "~/components/dashboard/settings/CurrenciesTab";
 import GeneralSettingsTab from "~/components/dashboard/settings/GeneralSettingsTab";
 import { handleSettingsAction } from "~/lib/settings-actions.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
 
 type CompanySettings = {
     id: number;
@@ -41,7 +45,6 @@ type CompanySettings = {
     weeklySchedule: string | null;
     holidays: string | null;
 };
-type ListItem = { id: number; name: string;[key: string]: unknown };
 type PaymentType = {
     id: number;
     name: string;
@@ -53,82 +56,59 @@ type PaymentType = {
 };
 type CompanyRow = Record<string, unknown>;
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    const companyId = getEffectiveCompanyId(request, user);
+    const { user, companyId } = await requireScopedDashboardAccess(request);
+    const scopedCompanyId = companyId!;
 
-    if (!companyId) {
-        throw new Response("Company not found", { status: 404 });
-    }
+    return trackServerOperation({
+        event: "settings.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId: scopedCompanyId,
+        details: { route: "settings" },
+        run: async () => {
+            // NOTE: In remote-preview mode (remote bindings), concurrent D1 requests can intermittently fail.
+            // This still uses Promise.all in production paths; if remote-preview flakiness returns, split these reads.
+            const [companyRow, locations, districts, paymentTypes, currencies] = await Promise.all([
+                context.cloudflare.env.DB
+                    .prepare(`
+                        SELECT
+                            id, name, email, phone, telegram, location_id, district_id, street, house_number,
+                            bank_name, account_number, account_name, swift_code, delivery_fee_after_hours,
+                            island_trip_price, krabi_trip_price, baby_seat_price_per_day, weekly_schedule, holidays
+                        FROM companies
+                        WHERE id = ?
+                        LIMIT 1
+                    `)
+                    .bind(scopedCompanyId)
+                    .first() as Promise<CompanyRow | null>,
+                getCachedLocations(context.cloudflare.env.DB),
+                getCachedDistricts(context.cloudflare.env.DB),
+                getCachedPaymentTemplatesForCompany(context.cloudflare.env.DB, scopedCompanyId) as Promise<PaymentType[]>,
+                getCachedCurrenciesDetailed(context.cloudflare.env.DB) as Promise<Currency[]>,
+            ]);
 
-    // NOTE: In remote-preview mode (remote bindings), concurrent D1 requests can intermittently fail.
-    // Keep these queries sequential to reduce flakiness during dev.
-    const [companyRow, locations, districts, paymentTypes, currencies] = await Promise.all([
-        context.cloudflare.env.DB
-            .prepare(`
-                SELECT
-                    id, name, email, phone, telegram, location_id, district_id, street, house_number,
-                    bank_name, account_number, account_name, swift_code, delivery_fee_after_hours,
-                    island_trip_price, krabi_trip_price, baby_seat_price_per_day, weekly_schedule, holidays
-                FROM companies
-                WHERE id = ?
-                LIMIT 1
-            `)
-            .bind(companyId)
-            .first() as Promise<CompanyRow | null>,
-        context.cloudflare.env.DB
-            .prepare(`SELECT id, name FROM locations LIMIT ${QUERY_LIMITS.LARGE}`)
-            .all()
-            .then((r: { results?: ListItem[] }) => r.results || []),
-        context.cloudflare.env.DB
-            .prepare(`SELECT id, name, location_id AS locationId FROM districts LIMIT ${QUERY_LIMITS.XL}`)
-            .all()
-            .then((r: { results?: ListItem[] }) => r.results || []),
-        getCachedPaymentTemplatesForCompany(context.cloudflare.env.DB, companyId) as Promise<PaymentType[]>,
-        getCachedCurrenciesDetailed(context.cloudflare.env.DB) as Promise<Currency[]>,
-    ]);
+            if (!companyRow) {
+                throw new Response("Company not found", { status: 404 });
+            }
+            const company = normalizeCompanyRow(companyRow as Record<string, unknown>) as CompanySettings;
 
-    if (!companyRow) {
-        throw new Response("Company not found", { status: 404 });
-    }
-    const company = normalizeCompanyRow(companyRow as Record<string, unknown>) as CompanySettings;
-    const companyLocation = (locations as ListItem[]).find((location) => Number(location.id) === Number(company.locationId));
-    const isPhuketCompany = isPhuketName(companyLocation?.name);
-
-    if (isPhuketCompany) {
-        const thbCurrency = await context.cloudflare.env.DB
-            .prepare("SELECT id FROM currencies WHERE UPPER(code) = 'THB' LIMIT 1")
-            .first() as { id?: number } | null;
-        if (thbCurrency?.id) {
-            await context.cloudflare.env.DB
-                .prepare("UPDATE currencies SET company_id = ? WHERE id = ?")
-                .bind(company.id, thbCurrency.id)
-                .run();
-            await context.cloudflare.env.DB
-                .prepare("UPDATE currencies SET is_active = 1, updated_at = ? WHERE id = ?")
-                .bind(new Date().toISOString(), thbCurrency.id)
-                .run();
-            await context.cloudflare.env.DB
-                .prepare("UPDATE currencies SET company_id = NULL WHERE company_id = ? AND id != ?")
-                .bind(company.id, thbCurrency.id)
-                .run();
-        }
-    }
-
-    return {
-        user,
-        company,
-        locations: locations as ListItem[],
-        districts: districts as ListItem[],
-        paymentTypes: paymentTypes as PaymentType[],
-        currencies: (currencies as Currency[]).map((row) => normalizeCurrencyRow(row as unknown as Record<string, unknown>)),
-    };
+            return {
+                user,
+                company,
+                locations,
+                districts,
+                paymentTypes: paymentTypes as PaymentType[],
+                currencies: (currencies as Currency[]).map((row) => normalizeCurrencyRow(row as unknown as Record<string, unknown>)),
+            };
+        },
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
+    const { user, companyId, adminModCompanyId } = await requireScopedDashboardAccess(request);
+    const scopedCompanyId = companyId!;
     const formData = await request.formData();
-    const companyId = getEffectiveCompanyId(request, user);
-    const adminModCompanyId = getAdminModCompanyId(request, user);
     const withMode = (path: string) => {
         if (!adminModCompanyId) {
             return path;
@@ -141,12 +121,23 @@ export async function action({ request, context }: ActionFunctionArgs) {
         return redirect(withMode("/settings?error=Company not found"));
     }
 
-    return handleSettingsAction({
+    return trackServerOperation({
+        event: "settings.mutate",
+        scope: "route.action",
         request,
-        context,
-        user,
-        companyId,
-        formData,
+        userId: user.id,
+        companyId: scopedCompanyId,
+        details: {
+            route: "settings",
+            intent: String(formData.get("intent") || "unknown"),
+        },
+        run: async () => handleSettingsAction({
+            request,
+            context,
+            user,
+            companyId: scopedCompanyId,
+            formData,
+        }),
     });
 }
 

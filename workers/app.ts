@@ -1,4 +1,12 @@
 import { createRequestHandler } from "react-router";
+import { setRuntimeEnv } from "~/lib/runtime-env.server";
+
+declare global {
+  interface Env {
+    RATE_LIMIT?: KVNamespace;
+    SESSION_SECRET?: string;
+  }
+}
 
 declare module "react-router" {
   export interface AppLoadContext {
@@ -19,6 +27,7 @@ const requestHandler = createRequestHandler(
 
 export default {
   async fetch(request, env, ctx) {
+    setRuntimeEnv(env, import.meta.env.MODE);
     return requestHandler(request, {
       cloudflare: { env, ctx },
     });

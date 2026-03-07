@@ -1,9 +1,9 @@
-export type AuditAction = "create" | "update" | "delete" | "view" | "export" | "clear";
+export type AuditAction = "create" | "update" | "delete" | "view" | "export" | "clear" | "login_failed" | "login_blocked";
 export type EntityType = "user" | "company" | "car" | "contract" | "payment" | "color" | "model" | "brand" | "district" | "hotel" | "season" | "duration" | "booking" | "car_template" | "calendar-event";
 
 interface AuditLogParams {
     db: D1Database;
-    userId: string;
+    userId?: string | null;
     role: string;
     companyId?: number | null;
     entityType: EntityType;
@@ -43,7 +43,7 @@ export function getQuickAuditStmt(params: AuditLogParams): D1PreparedStatement {
             `
         )
         .bind(
-            userId,
+            userId || null,
             role,
             companyId || null,
             entityType,

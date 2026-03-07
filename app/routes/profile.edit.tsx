@@ -1,227 +1,76 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireSelfProfileAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import BackButton from "~/components/dashboard/BackButton";
-import { uploadAvatarFromBase64, deleteAvatar, uploadPhotoItemsToR2 } from "~/lib/r2.server";
 import ProfileForm from "~/components/dashboard/ProfileForm";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { userSchema } from "~/schemas/user";
-import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
-import { loadProfileReferenceData, parseUploadPhotoItems, resolvePasswordHash } from "~/lib/user-profile.server";
-import { parseWithSchema } from "~/lib/validation.server";
-import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
-
-interface ProfileUserRow {
-    id: string;
-    email: string;
-    role: "admin" | "partner" | "manager" | "user";
-    name: string | null;
-    surname: string | null;
-    phone: string | null;
-    whatsapp: string | null;
-    telegram: string | null;
-    passportNumber: string | null;
-    passportPhotos: string | null;
-    driverLicensePhotos: string | null;
-    avatarUrl: string | null;
-    hotelId: number | null;
-    roomNumber: string | null;
-    locationId: number | null;
-    districtId: number | null;
-    address: string | null;
-}
+import {
+    loadEditableProfilePageData,
+    loadEditableProfileUser,
+    updateManagedUser,
+} from "~/lib/user-profile.server";
+import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
+import { trackServerOperation } from "~/lib/telemetry.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const sessionUser = await requireAuth(request);
-    const rawUser = (await context.cloudflare.env.DB
-        .prepare(`
-            SELECT id, email, role, name, surname, phone, whatsapp, telegram,
-                   passport_number AS passportNumber, passport_photos AS passportPhotos,
-                   driver_license_photos AS driverLicensePhotos, avatar_url AS avatarUrl,
-                   hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
-                   district_id AS districtId, address
-            FROM users
-            WHERE id = ?
-            LIMIT 1
-        `)
-        .bind(sessionUser.id)
-        .first()) as ProfileUserRow | null;
-    if (!rawUser) throw new Response("User not found", { status: 404 });
-    const fullUser: ProfileUserRow = { ...rawUser };
+    const { user: sessionUser, companyId } = await requireSelfProfileAccess(request);
+    return trackServerOperation({
+        event: "profile.edit.load",
+        scope: "route.loader",
+        request,
+        userId: sessionUser.id,
+        companyId,
+        details: { route: "profile.edit" },
+        run: async () => {
+            const { user, hotels, locations, districts } = await loadEditableProfilePageData(context.cloudflare.env.DB, sessionUser.id);
+            if (!user) throw new Response("User not found", { status: 404 });
 
-    // Load reference data
-    const { hotels, locations, districts } = await loadProfileReferenceData(context.cloudflare.env.DB);
-
-    return {
-        user: fullUser,
-        currentUserRole: sessionUser.role,
-        hotels,
-        locations,
-        districts
-    };
+            return {
+                user,
+                currentUserRole: sessionUser.role,
+                hotels,
+                locations,
+                districts,
+            };
+        },
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    const formData = await request.formData();
+    const { user, companyId } = await requireSelfProfileAccess(request);
+    return trackServerOperation({
+        event: "profile.edit",
+        scope: "route.action",
+        request,
+        userId: user.id,
+        companyId,
+        details: { route: "profile.edit" },
+        run: async () => {
+            const formData = await request.formData();
+            const currentUser = await loadEditableProfileUser(context.cloudflare.env.DB, user.id);
+            if (!currentUser) throw new Response("User not found", { status: 404 });
 
-    // Get current user data
-    const currentUser = (await context.cloudflare.env.DB
-        .prepare(`
-            SELECT id, email, role, name, surname, phone, whatsapp, telegram,
-                   passport_number AS passportNumber, avatar_url AS avatarUrl,
-                   hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
-                   district_id AS districtId, address
-            FROM users
-            WHERE id = ?
-            LIMIT 1
-        `)
-        .bind(user.id)
-        .first()) as ProfileUserRow | null;
-    if (!currentUser) throw new Response("User not found", { status: 404 });
-
-    let avatarUrl = currentUser.avatarUrl;
-
-    // Handle avatar upload
-    const avatarBase64 = formData.get("avatarBase64") as string | null;
-    const avatarFileName = formData.get("avatarFileName") as string | null;
-
-    if (avatarBase64 && avatarFileName) {
-        if (currentUser.avatarUrl) {
-            try {
-                await deleteAvatar(context.cloudflare.env.ASSETS, currentUser.avatarUrl);
-            } catch {
+            // parseWithSchema(userSchema, ...) is delegated to updateManagedUser in user-profile.server.
+            const result = await updateManagedUser({
+                db: context.cloudflare.env.DB,
+                bucket: context.cloudflare.env.ASSETS,
+                request,
+                actor: user,
+                targetUserId: user.id,
+                currentUser,
+                formData,
+                allowEmailChange: false,
+                allowRoleChange: false,
+            });
+            if (!result.ok) {
+                return redirectWithRequestError(request, "/profile/edit", result.error);
             }
-        }
-        avatarUrl = await uploadAvatarFromBase64(
-            context.cloudflare.env.ASSETS,
-            user.id,
-            avatarBase64,
-            avatarFileName
-        );
-    }
 
-    // Handle avatar removal
-    const removeAvatar = formData.get("removeAvatar") === "true";
-    if (removeAvatar && currentUser.avatarUrl) {
-        try {
-            await deleteAvatar(context.cloudflare.env.ASSETS, currentUser.avatarUrl);
-            avatarUrl = null;
-        } catch {
-        }
-    }
-
-    // Parse form data
-    const rawData = {
-        email: currentUser.email, // Email cannot be changed
-        role: currentUser.role, // Role handled separately
-        name: (formData.get("name") as string) || null,
-        surname: (formData.get("surname") as string) || null,
-        phone: (formData.get("phone") as string) || null,
-        whatsapp: (formData.get("whatsapp") as string) || null,
-        telegram: (formData.get("telegram") as string) || null,
-        passportNumber: (formData.get("passportNumber") as string) || null,
-        hotelId: formData.get("hotelId") ? parseInt(formData.get("hotelId") as string) : null,
-        roomNumber: (formData.get("roomNumber") as string) || null,
-        locationId: formData.get("locationId") ? parseInt(formData.get("locationId") as string) : null,
-        districtId: formData.get("districtId") ? parseInt(formData.get("districtId") as string) : null,
-        address: (formData.get("address") as string) || null,
-    };
-
-    const passportPhotosInput = parseUploadPhotoItems(formData.get("passportPhotos"));
-    const driverLicensePhotosInput = parseUploadPhotoItems(formData.get("driverLicensePhotos"));
-    const newPassword = (formData.get("newPassword") as string | null) || "";
-    const confirmPassword = (formData.get("confirmPassword") as string | null) || "";
-
-    // Validate with Zod
-    const validation = parseWithSchema(userSchema, rawData, "Validation failed");
-    if (!validation.ok) {
-        return redirectWithError("/profile/edit", validation.error);
-    }
-
-    const validData = validation.data;
-
-    try {
-        const { passwordChanged, passwordHash, error } = await resolvePasswordHash(newPassword, confirmPassword);
-        if (error) {
-            return redirectWithError("/profile/edit", error);
-        }
-
-        // Only admin can change role
-        let nextRole = currentUser.role;
-        if (user.role === "admin") {
-            const newRole = formData.get("role") as string;
-            if (newRole && ["admin", "partner", "manager", "user"].includes(newRole)) {
-                nextRole = newRole as ProfileUserRow["role"];
-            }
-        }
-        const uploadedPassportPhotos = await uploadPhotoItemsToR2(
-            context.cloudflare.env.ASSETS,
-            passportPhotosInput,
-            `users/${user.id}/passport`
-        );
-        const uploadedDriverLicensePhotos = await uploadPhotoItemsToR2(
-            context.cloudflare.env.ASSETS,
-            driverLicensePhotosInput,
-            `users/${user.id}/driver-license`
-        );
-        const passportPhotos = uploadedPassportPhotos.length > 0 ? JSON.stringify(uploadedPassportPhotos) : null;
-        const driverLicensePhotos = uploadedDriverLicensePhotos.length > 0 ? JSON.stringify(uploadedDriverLicensePhotos) : null;
-
-        await context.cloudflare.env.DB
-            .prepare(`
-                UPDATE users
-                SET role = ?, name = ?, surname = ?, phone = ?, whatsapp = ?, telegram = ?,
-                    passport_number = ?,
-                    avatar_url = ?, passport_photos = ?, driver_license_photos = ?,
-                    hotel_id = ?, room_number = ?, location_id = ?, district_id = ?, address = ?,
-                    password_hash = COALESCE(?, password_hash),
-                    updated_at = ?
-                WHERE id = ?
-            `)
-            .bind(
-                nextRole,
-                validData.name,
-                validData.surname,
-                validData.phone,
-                validData.whatsapp,
-                validData.telegram,
-                validData.passportNumber,
-                avatarUrl,
-                passportPhotos,
-                driverLicensePhotos,
-                validData.hotelId,
-                validData.roomNumber,
-                validData.locationId,
-                validData.districtId,
-                validData.address,
-                passwordHash,
-                new Date().toISOString(),
-                user.id
-            )
-            .run();
-
-        // Audit log
-        const metadata = getRequestMetadata(request);
-        quickAudit({
-            db: context.cloudflare.env.DB,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId,
-            entityType: "user",
-            entityId: user.id,
-            action: "update",
-            beforeState: currentUser,
-            afterState: { ...validData, id: user.id, passwordChanged },
-            ...metadata,
-        });
-
-        return redirectWithSuccess("/profile", "Profile updated successfully");
-    } catch {
-        return redirectWithError("/profile/edit", "Failed to update profile");
-    }
+            return redirectWithRequestSuccess(request, "/profile", "Profile updated successfully");
+        },
+    });
 }
 
 export default function EditProfilePage() {

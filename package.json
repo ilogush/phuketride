@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "react-router build",
+    "clean:remote-only": "rm -rf .wrangler build .react-router tmp tsconfig.cloudflare.tsbuildinfo tsconfig.node.tsbuildinfo worker-configuration.d.ts",
+    "db:status:remote": "wrangler d1 migrations list phuketride-bd --remote",
     "cf-typegen": "wrangler types",
     "db:check:companies-car-count": "tsx scripts/check-companies-car-count.ts",
     "db:migrate:remote": "wrangler d1 migrations apply phuketride-bd --remote",
@@ -13,7 +15,7 @@
     "postinstall": "npm run cf-typegen",
     "preview": "npm run build && vite preview",
     "rules:check": "node scripts/check-codex-rules.mjs",
-    "test": "node --test && npm run test:smoke:client && npm run test:smoke:api-search-events",
+    "test": "tsx --tsconfig tsconfig.cloudflare.json --test tests/**/*.test.ts && npm run test:smoke:client && npm run test:smoke:api-search-events",
     "test:smoke:api-search-events": "tsx --tsconfig tsconfig.cloudflare.json scripts/smoke-api-search-events.ts",
     "test:smoke:client": "tsx scripts/smoke-client.ts",
     "typecheck": "npm run cf-typegen && react-router typegen && tsc -b"

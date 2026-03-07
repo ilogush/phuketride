@@ -9,92 +9,27 @@ import Card from "~/components/dashboard/Card";
 import EmptyState from "~/components/dashboard/EmptyState";
 import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
-import { getPaginationFromUrl } from "~/lib/pagination.server";
-import { parseListFilters } from "~/lib/query-filters.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { loadClientPaymentsHistoryPage, type ClientPaymentRow } from "~/lib/user-self-service.server";
 import { useUrlToast } from "~/lib/useUrlToast";
-
-const PAYMENT_STATUSES = ["all", "completed", "pending", "cancelled"] as const;
-type PaymentStatusFilter = typeof PAYMENT_STATUSES[number];
-
-interface CountRow {
-    count: number;
-}
-
-interface PaymentRow {
-    id: number;
-    amount: number;
-    currency: string;
-    paymentMethod: string | null;
-    status: string | null;
-    notes: string | null;
-    createdAt: string;
-    contractId: number;
-    paymentTypeName: string;
-    paymentTypeSign: "+" | "-";
-    carLicensePlate: string;
-    brandName: string | null;
-    modelName: string | null;
-}
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAuth(request);
-    
     const url = new URL(request.url);
-    const { page, pageSize, offset } = getPaginationFromUrl(url);
-    const { status } = parseListFilters(url, {
-        statuses: PAYMENT_STATUSES,
-        defaultStatus: "all",
+
+    return trackServerOperation({
+        event: "my-payments.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId: user.companyId ?? null,
+        details: { route: "my-payments" },
+        run: async () => loadClientPaymentsHistoryPage({
+            db: context.cloudflare.env.DB,
+            userId: user.id,
+            url,
+        }),
     });
-    const selectedStatus: PaymentStatusFilter = status ?? "all";
-
-    const whereSql = selectedStatus === "all"
-        ? "WHERE c.client_id = ?"
-        : "WHERE c.client_id = ? AND p.status = ?";
-    const countSql = `
-        SELECT COUNT(*) AS count
-        FROM payments p
-        JOIN contracts c ON c.id = p.contract_id
-        ${whereSql}
-    `;
-    const countResult = selectedStatus === "all"
-        ? ((await context.cloudflare.env.DB.prepare(countSql).bind(user.id).first()) as CountRow | null)
-        : ((await context.cloudflare.env.DB.prepare(countSql).bind(user.id, selectedStatus).first()) as CountRow | null);
-
-    const totalItems = Number(countResult?.count || 0);
-    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-
-    const paymentsSql = `
-        SELECT
-            p.id,
-            p.amount,
-            p.currency,
-            p.payment_method AS paymentMethod,
-            p.status,
-            p.notes,
-            p.created_at AS createdAt,
-            c.id AS contractId,
-            pt.name AS paymentTypeName,
-            pt.sign AS paymentTypeSign,
-            cc.license_plate AS carLicensePlate,
-            cb.name AS brandName,
-            cm.name AS modelName
-        FROM payments p
-        JOIN contracts c ON c.id = p.contract_id
-        JOIN payment_types pt ON pt.id = p.payment_type_id
-        JOIN company_cars cc ON cc.id = c.company_car_id
-        LEFT JOIN car_templates ct ON ct.id = cc.template_id
-        LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-        LEFT JOIN car_models cm ON cm.id = ct.model_id
-        ${whereSql}
-        ORDER BY p.created_at DESC
-        LIMIT ? OFFSET ?
-    `;
-    const paymentsResult = selectedStatus === "all"
-        ? await context.cloudflare.env.DB.prepare(paymentsSql).bind(user.id, pageSize, offset).all()
-        : await context.cloudflare.env.DB.prepare(paymentsSql).bind(user.id, selectedStatus, pageSize, offset).all();
-    const payments = (paymentsResult.results ?? []) as PaymentRow[];
-
-    return { payments, totalPages, currentPage: page, status: selectedStatus };
 }
 
 export default function MyPayments() {
@@ -156,7 +91,7 @@ export default function MyPayments() {
             <Card className="shadow-sm overflow-hidden">
                 {payments.length > 0 ? (
                     <div className="divide-y divide-gray-200">
-                        {payments.map((payment: PaymentRow) => (
+                        {payments.map((payment: ClientPaymentRow) => (
                             <div key={payment.id} className="p-6 hover:bg-gray-50 transition-colors">
                                 <div className="flex items-center justify-between">
                                     <div className="flex-1">
@@ -181,11 +116,8 @@ export default function MyPayments() {
                                                     Method: {payment.paymentMethod}
                                                 </p>
                                             )}
-                                            <Link
-                                                to={`/my-bookings`}
-                                                className="text-sm text-blue-600 hover:text-blue-700"
-                                            >
-                                                View Booking →
+                                            <Link to={`/my-contracts/${payment.contractId}`} className="text-sm text-blue-600 hover:text-blue-700">
+                                                View Contract →
                                             </Link>
                                         </div>
                                     </div>

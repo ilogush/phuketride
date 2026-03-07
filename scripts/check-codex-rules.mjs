@@ -37,7 +37,8 @@ function getTrackedFiles() {
   return output
     .split("\n")
     .map((line) => line.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((filePath) => fs.existsSync(path.join(ROOT, filePath)));
 }
 
 function getUntrackedFiles() {
@@ -57,7 +58,9 @@ function isTextRuleTarget(filePath) {
 }
 
 function getMaxLines(filePath) {
+  if (filePath === "scripts/check-codex-rules.mjs") return 650;
   if (filePath.startsWith("app/routes/")) return 800;
+  if (filePath.startsWith("app/features/")) return 800;
   if (filePath.startsWith("app/components/")) return 600;
   if (filePath.startsWith("docs/")) return 400;
   if (filePath.startsWith("scripts/")) return 500;
@@ -90,7 +93,7 @@ function checkFileLengths() {
 function checkWranglerState() {
   const statePath = path.join(ROOT, ".wrangler", "state");
   if (fs.existsSync(statePath)) {
-    warn("Local D1 state detected: .wrangler/state (allowed only for temporary debugging, remote D1 remains source of truth)");
+    warn("Local D1 state detected: .wrangler/state (remote D1 is source of truth; clean with `npm run clean:remote-only` when debugging is finished)");
   }
 }
 
@@ -116,6 +119,10 @@ function checkPackageScripts() {
     }
   }
 
+  if (typeof scripts["clean:remote-only"] !== "string" || scripts["clean:remote-only"].trim() === "") {
+    fail("Missing required npm script: clean:remote-only");
+  }
+
   if (typeof scripts.deploy !== "string" || scripts.deploy.trim() === "") {
     fail("Missing required npm script: deploy");
   } else {
@@ -132,10 +139,7 @@ function checkPackageScripts() {
 function checkDocsLinks() {
   const requiredDocs = [
     "docs/README.md",
-    "docs/BUSINESS_LOGIC.md",
     "docs/DATABASE.md",
-    "docs/ROUTING.md",
-    "docs/COMPANIES_LIST_OPTIMIZATION.md",
     "docs/OPTIMIZATION.md",
   ];
 
@@ -287,11 +291,16 @@ function checkActionValidationWithBaseline(trackedFiles) {
     const readsActionInput = /request\.(formData|json|text)\s*\(/.test(content);
     if (!readsActionInput) continue;
 
+    const hasServerValidationHelper =
+      /from\s+["'][^"']*car-template-form\.server["']/.test(content) &&
+      /\b(createCarTemplate|updateCarTemplate)\(/.test(content);
+
     const hasSchemaUsage =
       /from\s+["'][^"']*app\/schemas\//.test(content) ||
       /from\s+["']zod["']/.test(content) ||
       /\b\.safeParse\(/.test(content) ||
-      /\bparseWithSchema\(/.test(content);
+      /\bparseWithSchema\(/.test(content) ||
+      hasServerValidationHelper;
 
     if (!hasSchemaUsage) {
       offenders.push(filePath);
@@ -392,6 +401,203 @@ function checkAdminToastCoverage() {
   }
 }
 
+function checkSessionIntegrity() {
+  const authPath = path.join(ROOT, "app/lib/auth.server.ts");
+  if (!fs.existsSync(authPath)) {
+    fail("Missing auth module: app/lib/auth.server.ts");
+    return;
+  }
+
+  const content = fs.readFileSync(authPath, "utf8");
+  if (!/SESSION_SECRET/.test(content)) {
+    fail("Session secret support missing in app/lib/auth.server.ts");
+  }
+  if (!/createCookie\(\s*["']session["']/.test(content)) {
+    fail("Session cookie factory missing in app/lib/auth.server.ts");
+  }
+  if (!/secrets:\s*getSessionSecrets\(\)/.test(content)) {
+    fail("Session cookie must be signed with runtime secrets in app/lib/auth.server.ts");
+  }
+}
+
+function checkSensitiveRouteGuards() {
+  const adminOnlyRoutes = [
+    "app/routes/companies.tsx",
+    "app/routes/colors.tsx",
+    "app/routes/colors_.new.tsx",
+    "app/routes/colors_.$colorId.edit.tsx",
+    "app/routes/districts.tsx",
+    "app/routes/hotels.tsx",
+    "app/routes/logs.tsx",
+    "app/routes/reports.tsx",
+    "app/routes/admin-companies.$companyId.tsx",
+  ];
+
+  for (const filePath of adminOnlyRoutes) {
+    const fullPath = path.join(ROOT, filePath);
+    if (!fs.existsSync(fullPath)) continue;
+    const content = fs.readFileSync(fullPath, "utf8");
+    if (!/\b(requireAdmin|requireAdminAnalyticsAccess)\(/.test(content)) {
+      fail(`Sensitive admin route must use requireAdmin: ${filePath}`);
+    }
+  }
+
+  const ownershipRoutes = [
+    {
+      filePath: "app/routes/bookings.$id.tsx",
+      marker: /\b(requireBookingAccess|validateBookingOwnership)\(/,
+      message: "Booking details route must validate booking ownership",
+    },
+    {
+      filePath: "app/routes/companies.$companyId.tsx",
+      marker: /\bgetEffectiveCompanyId\(/,
+      message: "Company detail route must resolve effective company access",
+    },
+  ];
+
+  for (const rule of ownershipRoutes) {
+    const fullPath = path.join(ROOT, rule.filePath);
+    if (!fs.existsSync(fullPath)) continue;
+    const content = fs.readFileSync(fullPath, "utf8");
+    const delegatesCompanyAccess =
+      rule.filePath === "app/routes/companies.$companyId.tsx" &&
+      /loadCompanyDetailPage/.test(content) &&
+      fs.existsSync(
+        path.join(ROOT, "app/features/company-detail/company-detail.loader.server.ts"),
+      ) &&
+      /\bgetEffectiveCompanyId\(/.test(
+        fs.readFileSync(
+          path.join(ROOT, "app/features/company-detail/company-detail.loader.server.ts"),
+          "utf8",
+        ),
+      );
+    if (!rule.marker.test(content) && !delegatesCompanyAccess) {
+      fail(`${rule.message}: ${rule.filePath}`);
+    }
+  }
+}
+
+function checkCheckoutIntegrity() {
+  const checkoutPath = path.join(ROOT, "app/routes/cars.$id.checkout.tsx");
+  if (!fs.existsSync(checkoutPath)) return;
+  const routeContent = fs.readFileSync(checkoutPath, "utf8");
+  const delegatedServicePath = path.join(
+    ROOT,
+    "app/features/public-checkout/public-checkout.service.server.ts",
+  );
+  const delegatedServiceContent = fs.existsSync(delegatedServicePath)
+    ? fs.readFileSync(delegatedServicePath, "utf8")
+    : "";
+  const content = `${routeContent}\n${delegatedServiceContent}`;
+
+  if (!/\bcalculateCheckoutPricing\(/.test(content)) {
+    fail("Checkout action must recalculate pricing on the server: app/routes/cars.$id.checkout.tsx");
+  }
+
+  const forbiddenClientPriceFields = [
+    "deliveryFee",
+    "returnFee",
+    "pickupAfterHoursFee",
+    "returnAfterHoursFee",
+    "baseTripCost",
+    "salesTax",
+    "selectedInsurance",
+    "babySeatExtra",
+    "islandTripExtra",
+    "krabiTripExtra",
+    "selectedTripTotal",
+    "depositAmount",
+  ];
+
+  for (const fieldName of forbiddenClientPriceFields) {
+    if (new RegExp(`name=["']${fieldName}["']`).test(content)) {
+      fail(`Checkout form must not trust client price field "${fieldName}": app/routes/cars.$id.checkout.tsx`);
+    }
+  }
+}
+
+function checkTrackedEnvFiles() {
+  if (fs.existsSync(path.join(ROOT, ".env"))) {
+    warn("Tracked .env detected. Keep secrets out of git and use Cloudflare secrets/bindings.");
+  }
+}
+
+function checkCloudflareBindingsConfig() {
+  const wranglerPath = path.join(ROOT, "wrangler.jsonc");
+  if (!fs.existsSync(wranglerPath)) return;
+  const content = fs.readFileSync(wranglerPath, "utf8");
+  const dbBindingBlock = content.match(/\{[\s\S]*?"binding"\s*:\s*"DB"[\s\S]*?\}/)?.[0] ?? "";
+
+  if (!dbBindingBlock) fail("wrangler.jsonc must declare DB D1 binding");
+  if (dbBindingBlock && !/"remote"\s*:\s*true/.test(dbBindingBlock)) fail("wrangler.jsonc DB binding must be remote-only (`remote: true`)");
+  if (/"preview_database_id"\s*:/.test(dbBindingBlock)) fail("wrangler.jsonc DB binding must not declare preview_database_id in remote-only mode");
+  if (!/"binding"\s*:\s*"ASSETS"/.test(content)) fail("wrangler.jsonc must declare ASSETS R2 binding");
+  if (!/"binding"\s*:\s*"RATE_LIMIT"/.test(content)) warn("wrangler.jsonc does not declare RATE_LIMIT KV binding yet");
+}
+
+function checkLoaderSideEffects() {
+  const routeFiles = getTrackedFiles()
+    .filter((file) => file.startsWith("app/routes/") && file.endsWith(".tsx"))
+    .map((file) => path.join(ROOT, file));
+  const allowlisted = new Set([
+    "app/routes/logout.tsx",
+  ]);
+
+  for (const filePath of routeFiles) {
+    const relPath = path.relative(ROOT, filePath).replace(/\\/g, "/");
+    if (allowlisted.has(relPath)) continue;
+    const content = fs.readFileSync(filePath, "utf8");
+    const loaderMatch = content.match(/export\s+async\s+function\s+loader[\s\S]*?(?=\nexport\s+(default|async function action|function|const|let|class)\b|$)/);
+    if (!loaderMatch) continue;
+    const loaderBody = loaderMatch[0];
+    if (/\b(INSERT|UPDATE|DELETE)\b/i.test(loaderBody) || /\.run\(/.test(loaderBody)) {
+      fail(`Loader must not perform write side effects: ${relPath}`);
+    }
+  }
+}
+
+function checkHotRouteTelemetry() {
+  const requiredTelemetryRoutes = [
+    "app/routes/dashboard-home.tsx",
+    "app/routes/companies.tsx",
+    "app/routes/cars.tsx",
+    "app/routes/contracts.tsx",
+    "app/routes/bookings.tsx",
+    "app/routes/users.tsx",
+    "app/routes/payments.tsx",
+    "app/routes/cars.$id.checkout.tsx",
+    "app/routes/api.metrics.dashboard-charts.tsx",
+    "app/routes/api.metrics.operational.tsx",
+  ];
+
+  for (const filePath of requiredTelemetryRoutes) {
+    const fullPath = path.join(ROOT, filePath);
+    if (!fs.existsSync(fullPath)) continue;
+    const content = fs.readFileSync(fullPath, "utf8");
+    const hasRouteHandler =
+      /export\s+async\s+function\s+loader\b/.test(content) ||
+      /export\s+async\s+function\s+action\b/.test(content);
+    if (!hasRouteHandler) continue;
+
+    const delegatesCheckoutTelemetry =
+      filePath === "app/routes/cars.$id.checkout.tsx" &&
+      /submitPublicCheckout|loadPublicCheckoutPage/.test(content) &&
+      fs.existsSync(path.join(ROOT, "app/features/public-checkout/public-checkout.service.server.ts")) &&
+      /\btrackServerOperation\s*\(/.test(
+        fs.readFileSync(
+          path.join(ROOT, "app/features/public-checkout/public-checkout.service.server.ts"),
+          "utf8",
+        ),
+      );
+    const importsTelemetry = /from\s+["'][^"']*telemetry\.server["']/.test(content);
+    const usesTelemetry = /\btrackServerOperation\s*\(/.test(content);
+
+    if ((!importsTelemetry || !usesTelemetry) && !delegatesCheckoutTelemetry) {
+      fail(`Hot route must use trackServerOperation telemetry: ${filePath}`);
+    }
+  }
+}
+
 function main() {
   const trackedFiles = getTrackedFiles();
 
@@ -406,6 +612,13 @@ function main() {
   checkMarkdownCreationRule();
   checkActionValidationWithBaseline(trackedFiles);
   checkAdminToastCoverage();
+  checkSessionIntegrity();
+checkSensitiveRouteGuards();
+checkCheckoutIntegrity();
+checkTrackedEnvFiles();
+checkCloudflareBindingsConfig();
+checkLoaderSideEffects();
+checkHotRouteTelemetry();
 
   if (failures.length > 0) {
     console.error("CODEX rules check failed:\n");

@@ -5,9 +5,15 @@ type D1DatabaseLike = {
     prepare: (query: string) => {
         bind: (...values: unknown[]) => {
             all: () => Promise<{ results?: unknown[] }>;
+            first: () => Promise<unknown>;
         };
+        all: () => Promise<{ results?: unknown[] }>;
+        first: () => Promise<unknown>;
     };
 };
+
+type CountRow = { count?: number | string } | null;
+type StatusCountRow = { status: string; count: number | string };
 
 const PAYMENT_SORT_SQL: Record<string, string> = {
     id: "p.id",
@@ -63,4 +69,59 @@ export async function listPaymentsPage(params: {
     binds.push(pageSize, offset);
     const result = await db.prepare(baseSql).bind(...binds).all();
     return (result.results || []) as PaymentListRow[];
+}
+
+export async function listPaymentStatusCounts(params: {
+    db: D1DatabaseLike;
+    companyId: number | null;
+}) {
+    const { db, companyId } = params;
+    const result = companyId
+        ? await db.prepare(`
+            SELECT p.status AS status, COUNT(*) AS count
+            FROM payments p
+            JOIN contracts c ON c.id = p.contract_id
+            JOIN company_cars cc ON cc.id = c.company_car_id
+            WHERE cc.company_id = ?
+            GROUP BY p.status
+        `).bind(companyId).all()
+        : await db.prepare(`
+            SELECT status, COUNT(*) AS count
+            FROM payments
+            GROUP BY status
+        `).all();
+
+    return (result.results || []) as StatusCountRow[];
+}
+
+export async function countPaymentsPage(params: {
+    db: D1DatabaseLike;
+    companyId: number | null;
+    status: string;
+    search: string;
+}) {
+    const { db, companyId, status, search } = params;
+    const q = `%${search}%`;
+    const row = companyId
+        ? await db.prepare(`
+            SELECT COUNT(*) AS count
+            FROM payments p
+            JOIN contracts c ON c.id = p.contract_id
+            JOIN company_cars cc ON cc.id = c.company_car_id
+            LEFT JOIN payment_types pt ON pt.id = p.payment_type_id
+            LEFT JOIN users u ON u.id = p.created_by
+            WHERE cc.company_id = ? AND p.status = ?
+            ${search ? "AND (CAST(p.id AS TEXT) LIKE ? OR CAST(c.id AS TEXT) LIKE ? OR COALESCE(pt.name,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR CAST(p.amount AS TEXT) LIKE ?)" : ""}
+        `).bind(...(search ? [companyId, status, q, q, q, q, q, q] : [companyId, status])).first() as CountRow
+        : await db.prepare(`
+            SELECT COUNT(*) AS count
+            FROM payments p
+            LEFT JOIN contracts c ON c.id = p.contract_id
+            LEFT JOIN payment_types pt ON pt.id = p.payment_type_id
+            LEFT JOIN users u ON u.id = p.created_by
+            WHERE p.status = ?
+            ${search ? "AND (CAST(p.id AS TEXT) LIKE ? OR CAST(c.id AS TEXT) LIKE ? OR COALESCE(pt.name,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR CAST(p.amount AS TEXT) LIKE ?)" : ""}
+        `).bind(...(search ? [status, q, q, q, q, q, q] : [status])).first() as CountRow;
+
+    return Number(row?.count || 0);
 }

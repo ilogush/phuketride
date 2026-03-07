@@ -1,12 +1,12 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdmin, requireAuth } from "~/lib/auth.server";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
 import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-    await requireAuth(request);
+    await requireAdmin(request);
     const companyId = Number.parseInt(params.companyId || "0", 10);
     return redirect(`/home?modCompanyId=${companyId}`);
 }

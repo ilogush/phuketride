@@ -18,5 +18,12 @@
 			"preview_bucket_name": "phuketride-cache-preview",
 			"remote": true
 		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "RATE_LIMIT",
+			"id": "3ba79ce16c2d426db5c91a5bc7aae7f5",
+			"preview_id": "f6618de1d974438884f7325993fb77c9"
+		}
 	]
 }

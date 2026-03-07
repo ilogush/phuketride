@@ -1,6 +1,7 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
 import { requireAuth } from "~/lib/auth.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import {
     BuildingOfficeIcon,
     UserGroupIcon,
@@ -16,56 +17,40 @@ import StatCard from "~/components/dashboard/StatCard";
 import TasksWidget from "~/components/dashboard/TasksWidget";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
-import { z } from "zod";
-import { parseWithSchema } from "~/lib/validation.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
+import { parseWithSchema } from "~/lib/validation.server";
 import {
     loadDashboardHomeData,
 } from "~/lib/dashboard-metrics.server";
+import { deleteDashboardTaskFromForm } from "~/lib/admin-analytics.server";
+import { dashboardTaskDeleteSchema } from "~/schemas/admin-analytics";
+import { redirectWithRequestError } from "~/lib/route-feedback";
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
+    const { user, companyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
     return trackServerOperation({
         event: "dashboard-home.action",
         scope: "route.action",
         request,
         userId: user.id,
-        companyId: user.companyId ?? null,
+        companyId,
         details: { route: "dashboard-home" },
         run: async () => {
             const formData = await request.formData();
-            const parsed = parseWithSchema(
-                z
-                .object({
-                    taskId: z.coerce.number().int().positive().optional(),
-                    intent: z.enum(["delete"]).optional(),
-                }),
-                {
-                    taskId: formData.get("taskId"),
-                    intent: formData.get("intent"),
-                },
-                "Invalid action"
-            );
+            const parsed = parseWithSchema(dashboardTaskDeleteSchema, {
+                intent: formData.get("intent"),
+                taskId: formData.get("taskId"),
+            });
             if (!parsed.ok) {
-                return redirect("/home?error=Invalid action");
-            }
-            const taskId = parsed.data.taskId;
-            const intent = parsed.data.intent;
-
-            if (intent === "delete" && taskId) {
-                try {
-                    await context.cloudflare.env.DB
-                        .prepare("DELETE FROM calendar_events WHERE id = ?")
-                        .bind(taskId)
-                        .run();
-
-                    return redirect("/home?success=Task deleted successfully");
-                } catch {
-                    return redirect("/home?error=Failed to delete task");
-                }
+                return redirectWithRequestError(request, "/home", parsed.error);
             }
 
-            return redirect("/home");
+            return deleteDashboardTaskFromForm({
+                db: context.cloudflare.env.DB,
+                request,
+                companyId,
+                taskId: parsed.data.taskId,
+            });
         },
     });
 }

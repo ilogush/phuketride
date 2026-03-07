@@ -2,6 +2,8 @@ import { type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction, re
 import { Form, Link, useActionData, useSearchParams } from "react-router";
 import { getUserFromSession, login } from "~/lib/auth.server";
 import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
+import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { trackServerOperation } from "~/lib/telemetry.server";
 import { useState, useEffect } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
@@ -36,43 +38,72 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 export async function action({ request, context }: ActionFunctionArgs) {
     try {
         const identifier = getClientIdentifier(request);
-        const rateLimit = await checkRateLimit(
-            (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
-            identifier,
-            "login"
-        );
-        if (!rateLimit.allowed) {
-            return { error: "Too many login attempts. Try again later." };
-        }
+        return await trackServerOperation({
+            event: "auth.login",
+            scope: "route.action",
+            request,
+            details: { route: "login", identifier },
+            run: async () => {
+                const rateLimit = await checkRateLimit(
+                    (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
+                    identifier,
+                    "login"
+                );
+                if (!rateLimit.allowed) {
+                    await quickAudit({
+                        db: context.cloudflare.env.DB,
+                        userId: null,
+                        role: "anonymous",
+                        entityType: "user",
+                        action: "login_blocked",
+                        afterState: { identifier, reason: "rate_limit" },
+                        ...getRequestMetadata(request),
+                    });
+                    return { error: "Too many login attempts. Try again later." };
+                }
 
-        const formData = await request.formData();
-        const parsed = parseWithSchema(
-            loginSchema,
-            {
-                email: formData.get("email"),
-                password: formData.get("password"),
-            },
-            "Validation failed"
-        );
-        if (!parsed.ok) {
-            return { error: parsed.error };
-        }
-        const { email, password } = parsed.data;
+                const formData = await request.formData();
+                const parsed = parseWithSchema(
+                    loginSchema,
+                    {
+                        email: formData.get("email"),
+                        password: formData.get("password"),
+                    },
+                    "Validation failed"
+                );
+                if (!parsed.ok) {
+                    return { error: parsed.error };
+                }
+                const { email, password } = parsed.data;
 
-        if (!context.cloudflare.env.DB) {
-            return { error: "Database is not configured" };
-        }
+                if (!context.cloudflare.env.DB) {
+                    return { error: "Database is not configured" };
+                }
 
-        const result = await login(context.cloudflare.env.DB, email, password, request);
+                const result = await login(context.cloudflare.env.DB, email, password, request);
 
-        if ("error" in result) {
-            return { error: result.error };
-        }
+                if ("error" in result) {
+                    await quickAudit({
+                        db: context.cloudflare.env.DB,
+                        userId: null,
+                        role: "anonymous",
+                        entityType: "user",
+                        action: "login_failed",
+                        afterState: {
+                            identifier,
+                            email,
+                            reason: result.error,
+                        },
+                        ...getRequestMetadata(request),
+                    });
+                    return { error: result.error };
+                }
 
-        // Set cookie and redirect to dashboard
-        return redirect("/home?login=success", {
-            headers: {
-                "Set-Cookie": result.cookie,
+                return redirect("/home?login=success", {
+                    headers: {
+                        "Set-Cookie": result.cookie,
+                    },
+                });
             },
         });
     } catch (error) {

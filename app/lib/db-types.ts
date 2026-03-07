@@ -68,6 +68,26 @@ export type ContractListRow = {
     status: string;
 };
 
+export type BookingListRow = {
+    id: number;
+    startDate: string;
+    endDate: string;
+    estimatedAmount: number;
+    currency: string;
+    depositAmount: number | null;
+    depositPaid: number;
+    status: "pending" | "confirmed" | "converted" | "cancelled";
+    createdAt: string;
+    clientName: string;
+    clientSurname: string;
+    clientPhone: string;
+    clientEmail: string | null;
+    carLicensePlate: string;
+    carYear: number;
+    brandName: string | null;
+    modelName: string | null;
+};
+
 export type PaymentListRow = {
     id: number;
     amount: number;

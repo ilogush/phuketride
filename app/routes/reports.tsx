@@ -1,27 +1,32 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdminAnalyticsAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Card from "~/components/dashboard/Card";
 import { ChartBarIcon } from "@heroicons/react/24/outline";
 import Button from "~/components/dashboard/Button";
 import { useUrlToast } from "~/lib/useUrlToast";
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { loadReportsPageData } from "~/lib/admin-analytics.server";
 
-export async function loader({ request }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    return { user };
+export async function loader({ request, context }: LoaderFunctionArgs) {
+    const { user } = await requireAdminAnalyticsAccess(request);
+    return trackServerOperation({
+        event: "reports.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId: null,
+        details: { route: "reports" },
+        run: async () => loadReportsPageData({
+            db: context.cloudflare.env.DB,
+        }),
+    });
 }
 
 export default function ReportsPage() {
     useUrlToast();
-    const { user } = useLoaderData<typeof loader>();
-
-    const reports = [
-        { name: "Revenue Report", description: "Monthly revenue breakdown by company" },
-        { name: "Fleet Activity", description: "Car utilization and maintenance summary" },
-        { name: "User Activity", description: "Logins and actions by role" },
-        { name: "Contract Summary", description: "Active vs Expired contracts" },
-    ];
+    const { reports } = useLoaderData<typeof loader>();
 
     return (
         <div className="space-y-4">
@@ -38,9 +43,10 @@ export default function ReportsPage() {
                                 <div>
                                     <h3 className="font-bold text-gray-900">{report.name}</h3>
                                     <p className="text-sm text-gray-500 mt-1">{report.description}</p>
+                                    <p className="text-sm font-medium text-gray-900 mt-2">{report.metric}</p>
                                 </div>
                             </div>
-                            <Button variant="secondary" size="sm">Generate</Button>
+                            <Button variant="secondary" size="sm">Review</Button>
                         </div>
                     </Card>
                 ))}

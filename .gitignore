@@ -25,12 +25,17 @@ build
 
 # wrangler state
 .wrangler
+.react-router
 
 # Local SQLite databases - FORBIDDEN
 **/*.sqlite
 **/*.sqlite-*
 **/*.db
 .wrangler/state/**/*.sqlite*
+
+# generated build caches
+*.tsbuildinfo
+tmp/
 
 # IDE
 .vscode/*

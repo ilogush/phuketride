@@ -39,6 +39,7 @@ type EditContractActionArgs = {
   request: Request;
   context: ActionFunctionArgs["context"];
   user: SessionUser;
+  companyId: number | null;
   params: ActionFunctionArgs["params"];
   formData: FormData;
 };
@@ -69,7 +70,7 @@ function parsePhotoList(value: FormDataEntryValue | null): string[] {
   }
 }
 
-export async function handleEditContractAction({ request, context, user, params, formData }: EditContractActionArgs) {
+export async function handleEditContractAction({ request, context, user, companyId, params, formData }: EditContractActionArgs) {
   const contractId = parseInt(String(params.id || ""), 10);
 
   try {
@@ -122,7 +123,7 @@ export async function handleEditContractAction({ request, context, user, params,
       return redirect(`/contracts?error=${encodeURIComponent("Contract not found")}`);
     }
 
-    if (user.role !== "admin" && existingContract.companyId !== user.companyId) {
+    if (companyId !== null && existingContract.companyId !== companyId) {
       return redirect(`/contracts?error=${encodeURIComponent("Access denied")}`);
     }
 

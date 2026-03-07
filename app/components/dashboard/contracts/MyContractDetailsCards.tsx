@@ -4,7 +4,6 @@ import { format } from "date-fns";
 import Card from "~/components/dashboard/Card";
 import StatusBadge from "~/components/dashboard/StatusBadge";
 import type {
-  ActionData,
   ContractDetailsRow,
   ContractPaymentRow,
   ExistingReviewRow,
@@ -15,7 +14,6 @@ type MyContractDetailsCardsProps = {
   payments: ContractPaymentRow[];
   existingReview: ExistingReviewRow | null;
   canLeaveReview: boolean;
-  actionData: ActionData;
 };
 
 export default function MyContractDetailsCards({
@@ -23,7 +21,6 @@ export default function MyContractDetailsCards({
   payments,
   existingReview,
   canLeaveReview,
-  actionData,
 }: MyContractDetailsCardsProps) {
   const extraNameMap: Record<string, string> = {
     full_insurance: "Full Insurance",
@@ -145,8 +142,6 @@ export default function MyContractDetailsCards({
 
       <Card padding="lg" className="shadow-sm">
         <h2 className="text-lg font-semibold mb-4">{existingReview ? "Update your review" : "Leave a review"}</h2>
-        {actionData?.error ? <p className="mb-3 text-sm text-red-600">{actionData.error}</p> : null}
-        {actionData?.ok ? <p className="mb-3 text-sm text-green-700">{actionData.message}</p> : null}
         {canLeaveReview ? (
           <Form method="post" className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">

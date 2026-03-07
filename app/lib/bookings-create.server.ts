@@ -1,10 +1,10 @@
-import { redirect } from "react-router";
 import { z } from "zod";
 import type { SessionUser } from "~/lib/auth.server";
 import { getQuickAuditStmt, getRequestMetadata } from "~/lib/audit-logger";
 import { parseDateFromDisplay } from "~/lib/formatters";
 import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
 import { parseWithSchema } from "~/lib/validation.server";
+import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 
 const bookingSchema = z.object({
   carId: z.string().min(1, "Car is required"),
@@ -35,14 +35,15 @@ type CreateBookingActionArgs = {
   request: Request;
   context: { cloudflare: { env: Env } };
   user: SessionUser;
+  companyId: number;
   formData: FormData;
 };
 
-export async function createBookingAction({ request, context, user, formData }: CreateBookingActionArgs) {
+export async function createBookingAction({ request, context, user, companyId, formData }: CreateBookingActionArgs) {
   const data = Object.fromEntries(formData);
-  const result = parseWithSchema(bookingSchema, data, "Validation failed");
+    const result = parseWithSchema(bookingSchema, data, "Validation failed");
   if (!result.ok) {
-    return { error: result.error };
+    return redirectWithRequestError(request, "/bookings/create", result.error);
   }
 
   const {
@@ -78,18 +79,18 @@ export async function createBookingAction({ request, context, user, formData }: 
         WHERE id = ? AND company_id = ?
         LIMIT 1
       `)
-      .bind(Number(carId), user.companyId)
+      .bind(Number(carId), companyId)
       .first() as { id: number; pricePerDay: number | null } | null;
 
     if (!car) {
-      return { error: "Car not found" };
+      return redirectWithRequestError(request, "/bookings/create", "Car not found");
     }
 
     const start = new Date(parseDateFromDisplay(startDate));
     const end = new Date(parseDateFromDisplay(endDate));
     const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     if (car.pricePerDay === null) {
-      return { error: "Car price per day is not set" };
+      return redirectWithRequestError(request, "/bookings/create", "Car price per day is not set");
     }
 
     let estimatedAmount = car.pricePerDay * days;
@@ -168,7 +169,7 @@ export async function createBookingAction({ request, context, user, formData }: 
       db: context.cloudflare.env.DB,
       userId: user.id,
       role: user.role,
-      companyId: user.companyId,
+      companyId,
       entityType: "booking",
       entityId: bookingId,
       action: "create",
@@ -176,8 +177,12 @@ export async function createBookingAction({ request, context, user, formData }: 
       ...metadata,
     }).run();
 
-    return redirect(`/bookings?success=Booking created successfully`);
+    return redirectWithRequestSuccess(request, "/bookings", "Booking created successfully");
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Failed to create booking" };
+    return redirectWithRequestError(
+      request,
+      "/bookings/create",
+      error instanceof Error ? error.message : "Failed to create booking"
+    );
   }
 }

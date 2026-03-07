@@ -1,95 +1,34 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Outlet, Link, useSearchParams } from "react-router";
 import { useMemo } from "react";
-import { requireAuth } from "~/lib/auth.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import Card from "~/components/dashboard/Card";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
-import { QUERY_LIMITS } from "~/lib/query-limits";
-import { getMonthWindow, toIsoWindow } from "~/lib/date-windows";
-
-type CalendarEvent = { id: number; title: string; startDate: string; color?: string | null };
-type CalendarContract = { id: number; endDate: string };
-type CalendarBooking = { id: number; startDate: string };
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { loadCalendarPageData, type CalendarListBooking, type CalendarListContract, type CalendarListEvent } from "~/lib/calendar-page.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    const effectiveCompanyId = getEffectiveCompanyId(request, user);
-
-    if (!effectiveCompanyId) {
-        throw new Response("Company not found", { status: 404 });
+    const { user, companyId } = await requireScopedDashboardAccess(request);
+    if (companyId === null) {
+        throw new Response("Forbidden", { status: 403 });
     }
-
     const url = new URL(request.url);
-    const monthParam = url.searchParams.get("month");
-    const yearParam = url.searchParams.get("year");
-
-    const now = new Date();
-    const currentMonth = monthParam ? parseInt(monthParam) : now.getMonth();
-    const currentYear = yearParam ? parseInt(yearParam) : now.getFullYear();
-
-    const { start, end } = getMonthWindow(currentYear, currentMonth);
-    const { startIso, endIso } = toIsoWindow({ start, end });
-
-    const [eventsResult, contractsResult, bookingsResult] = await Promise.all([
-        context.cloudflare.env.DB
-            .prepare(`
-                SELECT
-                    id,
-                    title,
-                    start_date AS startDate,
-                    color
-                FROM calendar_events
-                WHERE company_id = ? AND start_date >= ? AND start_date <= ?
-                ORDER BY start_date ASC
-                LIMIT ${QUERY_LIMITS.LARGE}
-            `)
-            .bind(effectiveCompanyId, startIso, endIso)
-            .all(),
-        context.cloudflare.env.DB
-            .prepare(`
-                SELECT
-                    c.id,
-                    c.end_date AS endDate
-                FROM contracts c
-                JOIN company_cars cc ON cc.id = c.company_car_id
-                WHERE cc.company_id = ? AND c.status = 'active' AND c.end_date >= ? AND c.end_date <= ?
-                LIMIT ${QUERY_LIMITS.MEDIUM}
-            `)
-            .bind(effectiveCompanyId, startIso, endIso)
-            .all(),
-        context.cloudflare.env.DB
-            .prepare(`
-                SELECT
-                    b.id,
-                    b.start_date AS startDate
-                FROM bookings b
-                JOIN company_cars cc ON cc.id = b.company_car_id
-                WHERE cc.company_id = ? AND b.status IN ('pending', 'confirmed') AND b.start_date >= ? AND b.start_date <= ?
-                LIMIT ${QUERY_LIMITS.MEDIUM}
-            `)
-            .bind(effectiveCompanyId, startIso, endIso)
-            .all(),
-    ]);
-    const events = ((eventsResult as { results?: unknown[] }).results || []) as CalendarEvent[];
-    const contracts = ((contractsResult as { results?: unknown[] }).results || []) as CalendarContract[];
-    const bookings = ((bookingsResult as { results?: unknown[] }).results || []) as CalendarBooking[];
-
-    return {
-        user,
-        events,
-        contracts,
-        bookings,
-        currentMonth,
-        currentYear
-    };
+    return trackServerOperation({
+        event: "calendar.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId,
+        details: { route: "calendar" },
+        run: async () => loadCalendarPageData({ db: context.cloudflare.env.DB, companyId, url }),
+    });
 }
 
 export default function CalendarPage() {
-    const { user, events, contracts, bookings, currentMonth, currentYear } = useLoaderData<typeof loader>();
+    const { events, contracts, bookings, currentMonth, currentYear } = useLoaderData<typeof loader>();
     useUrlToast();
     const [searchParams] = useSearchParams();
     const modCompanyId = searchParams.get("modCompanyId");
@@ -123,12 +62,12 @@ export default function CalendarPage() {
     };
 
     const dayDataMap = useMemo(() => {
-        const map = new Map<number, { events: CalendarEvent[]; contracts: CalendarContract[]; bookings: CalendarBooking[] }>();
+        const map = new Map<number, { events: CalendarListEvent[]; contracts: CalendarListContract[]; bookings: CalendarListBooking[] }>();
         const ensureDay = (day: number) => {
             if (!map.has(day)) map.set(day, { events: [], contracts: [], bookings: [] });
             return map.get(day)!;
         };
-        const getDayIfCurrentMonth = (value: string) => {
+        const getDayIfCurrentMonth = (value: string | number) => {
             const date = new Date(value);
             if (date.getFullYear() !== currentYear || date.getMonth() !== currentMonth) return null;
             return date.getDate();

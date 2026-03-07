@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import { PlusIcon, BookmarkIcon, FunnelIcon } from "@heroicons/react/24/outline";
@@ -10,39 +10,16 @@ import { formatContactPhone } from "~/lib/phone";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
 import { useUrlToast } from "~/lib/useUrlToast";
-
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { countBookingsPage, listBookingsPage } from "~/lib/bookings-repo.server";
+import type { BookingListRow } from "~/lib/db-types";
 const BOOKING_STATUSES = ["all", "pending", "confirmed", "converted", "cancelled"] as const;
 type BookingStatusFilter = typeof BOOKING_STATUSES[number];
 
-interface CountRow {
-    count: number;
-}
-
-interface BookingRow {
-    id: number;
-    startDate: string;
-    endDate: string;
-    estimatedAmount: number;
-    currency: string;
-    depositAmount: number | null;
-    depositPaid: number;
-    status: "pending" | "confirmed" | "converted" | "cancelled";
-    createdAt: string;
-    clientName: string;
-    clientSurname: string;
-    clientPhone: string;
-    clientEmail: string | null;
-    carLicensePlate: string;
-    carYear: number;
-    brandName: string | null;
-    modelName: string | null;
-}
-
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    
-    if (!user.companyId) {
-        throw new Response("Manager must be assigned to a company", { status: 403 });
+    const { user, companyId } = await requireScopedDashboardAccess(request);
+    if (companyId === null) {
+        throw new Response("Forbidden", { status: 403 });
     }
 
     const url = new URL(request.url);
@@ -53,55 +30,33 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     });
     const selectedStatus: BookingStatusFilter = status ?? "all";
 
-    const whereSql = selectedStatus === "all"
-        ? "WHERE cc.company_id = ?"
-        : "WHERE cc.company_id = ? AND b.status = ?";
-    const countSql = `
-        SELECT COUNT(*) AS count
-        FROM bookings b
-        JOIN company_cars cc ON cc.id = b.company_car_id
-        ${whereSql}
-    `;
-    const countResult = selectedStatus === "all"
-        ? ((await context.cloudflare.env.DB.prepare(countSql).bind(user.companyId).first()) as CountRow | null)
-        : ((await context.cloudflare.env.DB.prepare(countSql).bind(user.companyId, selectedStatus).first()) as CountRow | null);
-    const totalItems = Number(countResult?.count || 0);
-    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    return trackServerOperation({
+        event: "bookings.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId,
+        details: { route: "bookings", status: selectedStatus },
+        run: async () => {
+            const [totalItems, bookings] = await Promise.all([
+                countBookingsPage({
+                    db: context.cloudflare.env.DB,
+                    companyId,
+                    status: selectedStatus,
+                }),
+                listBookingsPage({
+                    db: context.cloudflare.env.DB,
+                    companyId,
+                    status: selectedStatus,
+                    pageSize,
+                    offset,
+                }),
+            ]);
+            const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
-    const bookingsSql = `
-        SELECT
-            b.id,
-            b.start_date AS startDate,
-            b.end_date AS endDate,
-            b.estimated_amount AS estimatedAmount,
-            b.currency,
-            b.deposit_amount AS depositAmount,
-            b.deposit_paid AS depositPaid,
-            b.status,
-            b.created_at AS createdAt,
-            b.client_name AS clientName,
-            b.client_surname AS clientSurname,
-            b.client_phone AS clientPhone,
-            b.client_email AS clientEmail,
-            cc.license_plate AS carLicensePlate,
-            cc.year AS carYear,
-            cb.name AS brandName,
-            cm.name AS modelName
-        FROM bookings b
-        JOIN company_cars cc ON cc.id = b.company_car_id
-        LEFT JOIN car_templates ct ON ct.id = cc.template_id
-        LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-        LEFT JOIN car_models cm ON cm.id = ct.model_id
-        ${whereSql}
-        ORDER BY b.created_at DESC
-        LIMIT ? OFFSET ?
-    `;
-    const bookingsResult = selectedStatus === "all"
-        ? await context.cloudflare.env.DB.prepare(bookingsSql).bind(user.companyId, pageSize, offset).all()
-        : await context.cloudflare.env.DB.prepare(bookingsSql).bind(user.companyId, selectedStatus, pageSize, offset).all();
-    const bookings = (bookingsResult.results ?? []) as BookingRow[];
-
-    return { bookings, totalPages, currentPage: page, status: selectedStatus };
+            return { bookings, totalPages, currentPage: page, status: selectedStatus };
+        },
+    });
 }
 
 export default function BookingsPage() {
@@ -179,7 +134,7 @@ export default function BookingsPage() {
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 {bookings.length > 0 ? (
                     <div className="divide-y divide-gray-200">
-                        {bookings.map((booking: BookingRow) => (
+                        {bookings.map((booking: BookingListRow) => (
                             <Link
                                 key={booking.id}
                                 to={`/bookings/${booking.id}`}

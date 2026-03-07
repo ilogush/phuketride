@@ -5,9 +5,15 @@ type D1DatabaseLike = {
     prepare: (query: string) => {
         bind: (...values: unknown[]) => {
             all: () => Promise<{ results?: unknown[] }>;
+            first: () => Promise<unknown>;
         };
+        all: () => Promise<{ results?: unknown[] }>;
+        first: () => Promise<unknown>;
     };
 };
+
+type CountRow = { count?: number | string } | null;
+type StatusCountRow = { status: string; count: number | string };
 
 const CONTRACT_SORT_SQL: Record<string, string> = {
     id: "c.id",
@@ -64,4 +70,52 @@ export async function listContractsPage(params: {
     binds.push(pageSize, offset);
     const result = await db.prepare(sql).bind(...binds).all();
     return (result.results || []) as ContractListRow[];
+}
+
+export async function listContractStatusCounts(params: {
+    db: D1DatabaseLike;
+    companyId: number | null;
+}) {
+    const { db, companyId } = params;
+    const result = companyId
+        ? await db.prepare(`
+            SELECT c.status AS status, COUNT(*) AS count
+            FROM contracts c
+            JOIN company_cars cc ON cc.id = c.company_car_id
+            WHERE cc.company_id = ?
+            GROUP BY c.status
+        `).bind(companyId).all()
+        : await db.prepare(`
+            SELECT status, COUNT(*) AS count
+            FROM contracts
+            GROUP BY status
+        `).all();
+
+    return (result.results || []) as StatusCountRow[];
+}
+
+export async function countContractsPage(params: {
+    db: D1DatabaseLike;
+    companyId: number | null;
+    status: string;
+    search: string;
+}) {
+    const { db, companyId, status, search } = params;
+    const q = `%${search}%`;
+    const row = companyId
+        ? await db.prepare(`
+            SELECT COUNT(*) AS count
+            FROM contracts c
+            JOIN company_cars cc ON cc.id = c.company_car_id
+            WHERE cc.company_id = ? AND c.status = ?
+            ${search ? "AND (CAST(c.id AS TEXT) LIKE ? OR CAST(c.start_date AS TEXT) LIKE ? OR CAST(c.end_date AS TEXT) LIKE ? OR CAST(c.total_amount AS TEXT) LIKE ?)" : ""}
+        `).bind(...(search ? [companyId, status, q, q, q, q] : [companyId, status])).first() as CountRow
+        : await db.prepare(`
+            SELECT COUNT(*) AS count
+            FROM contracts c
+            WHERE c.status = ?
+            ${search ? "AND (CAST(c.id AS TEXT) LIKE ? OR CAST(c.start_date AS TEXT) LIKE ? OR CAST(c.end_date AS TEXT) LIKE ? OR CAST(c.total_amount AS TEXT) LIKE ?)" : ""}
+        `).bind(...(search ? [status, q, q, q, q] : [status])).first() as CountRow;
+
+    return Number(row?.count || 0);
 }

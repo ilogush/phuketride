@@ -1,17 +1,6 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
 import { requireAdmin } from "~/lib/auth.server";
-
-async function getTemplateFeatureSchema(db: D1Database) {
-    const cols = await db.prepare("PRAGMA table_info(car_templates)").all() as {
-        results?: Array<{ name?: string }>
-    };
-    const names = new Set((cols.results || []).map((col) => String(col.name || "")));
-    return {
-        hasFeatureFlags: names.has("feature_air_conditioning") && names.has("feature_abs") && names.has("feature_airbags"),
-        hasFeatureDetails: names.has("feature_transmission") && names.has("air_conditioning_price_per_day") && names.has("max_air_conditioning_price"),
-        hasTemplateSpecs: names.has("drivetrain") && names.has("luggage_capacity") && names.has("rear_camera") && names.has("bluetooth_enabled") && names.has("carplay_enabled") && names.has("android_auto_enabled"),
-    };
-}
+import { getCarTemplateFeatureSchema } from "~/lib/car-template-form.server";
 
 function parseBoolFromFeatures(features: Array<{ category: string; name: string }>, matcher: (name: string, category: string) => boolean) {
     return features.some((item) => matcher(item.name.toLowerCase(), item.category.toLowerCase())) ? 1 : 0;
@@ -24,7 +13,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         return Response.json({ ok: false, error: "Invalid template id" }, { status: 400 });
     }
 
-    const { hasFeatureFlags, hasFeatureDetails, hasTemplateSpecs } = await getTemplateFeatureSchema(context.cloudflare.env.DB);
+    const { hasFeatureFlags, hasFeatureDetails, hasTemplateSpecs } = await getCarTemplateFeatureSchema(context.cloudflare.env.DB);
     if (!hasFeatureFlags) {
         return Response.json({ ok: false, error: "Feature flag columns are missing. Apply migration add_car_template_feature_flags.sql first." }, { status: 409 });
     }
@@ -123,7 +112,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         return Response.json({ ok: false, error: "Unsupported intent" }, { status: 400 });
     }
 
-    const { hasFeatureFlags, hasFeatureDetails, hasTemplateSpecs } = await getTemplateFeatureSchema(context.cloudflare.env.DB);
+    const { hasFeatureFlags, hasFeatureDetails, hasTemplateSpecs } = await getCarTemplateFeatureSchema(context.cloudflare.env.DB);
     if (!hasFeatureFlags) {
         const message = "Apply migration add_car_template_feature_flags.sql first";
         if (redirectTo) return redirect(`${redirectTo}?error=${encodeURIComponent(message)}`);

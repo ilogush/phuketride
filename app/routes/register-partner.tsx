@@ -1,16 +1,23 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction, redirect } from "react-router";
 import { Form, Link, useActionData, useLoaderData } from "react-router";
 import { getUserFromSession, serializeSession } from "~/lib/auth.server";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useToast } from "~/lib/toast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
-import { PASSWORD_MIN_LENGTH } from "~/lib/password";
-import { hashPassword } from "~/lib/password.server";
 import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
-import Button from "~/components/dashboard/Button";
-import { z } from "zod";
+import Button from "~/components/public/Button";
+import AuthFormField from "~/components/public/AuthFormField";
+import AuthSelect from "~/components/public/AuthSelect";
+import AuthTextInput from "~/components/public/AuthTextInput";
+import {
+    loadActivePhuketDistricts,
+    registerPartnerAccount,
+    type ActiveDistrictRow,
+} from "~/lib/registration.server";
+import { trackServerOperation } from "~/lib/telemetry.server";
 import { parseWithSchema } from "~/lib/validation.server";
+import { partnerRegistrationSchema } from "~/schemas/registration";
 
 export const meta: MetaFunction = () => {
     const title = "Partner Registration | Phuket Ride";
@@ -24,138 +31,77 @@ export const meta: MetaFunction = () => {
 };
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    // If already logged in, redirect to dashboard
-    const user = await getUserFromSession(request);
-    if (user) {
-        return redirect("/home");
-    }
+    return trackServerOperation({
+        event: "auth.register_partner.load",
+        scope: "route.loader",
+        request,
+        details: { route: "register-partner" },
+        run: async () => {
+            const user = await getUserFromSession(request);
+            if (user) {
+                return redirect("/home");
+            }
 
-    // Load districts for Phuket (location_id = 1)
-    const districtsResult = await context.cloudflare.env.DB
-        .prepare(
-            `
-            SELECT id, name
-            FROM districts
-            WHERE location_id = 1 AND is_active = 1
-            ORDER BY name
-            `
-        )
-        .all();
-    const districtsList = (districtsResult.results ?? []) as Array<{ id: number; name: string }>;
-
-    return { districts: districtsList };
+            const districts = await loadActivePhuketDistricts(context.cloudflare.env.DB);
+            return { districts };
+        },
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const identifier = getClientIdentifier(request);
-    const rateLimit = await checkRateLimit(
-        (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
-        identifier,
-        "register"
-    );
-    if (!rateLimit.allowed) {
-        return { error: "Too many registration attempts. Try again later." };
-    }
+    return trackServerOperation({
+        event: "auth.register_partner.submit",
+        scope: "route.action",
+        request,
+        details: { route: "register-partner" },
+        run: async () => {
+            const identifier = getClientIdentifier(request);
+            const rateLimit = await checkRateLimit(
+                (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
+                identifier,
+                "register"
+            );
+            if (!rateLimit.allowed) {
+                return { error: "Too many registration attempts. Try again later." };
+            }
 
-    const formData = await request.formData();
-    const latinRegex = /^[a-zA-Z\s\-']+$/;
-    const registerPartnerSchema = z.object({
-        email: z.string().trim().email("Invalid email format"),
-        password: z.string().min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`),
-        name: z.string().trim().min(1, "First name is required").regex(latinRegex, "Only Latin characters allowed in first name"),
-        surname: z.string().trim().min(1, "Last name is required").regex(latinRegex, "Only Latin characters allowed in last name"),
-        phone: z.string().trim().refine((value) => /^\+?[0-9]{10,15}$/.test(value.replace(/[\s\-()]/g, "")), "Invalid phone number format"),
-        telegram: z.string().trim().optional(),
-        companyName: z.string().trim().min(1, "Company name is required"),
-        districtId: z.coerce.number().int().positive("District is required"),
-        street: z.string().trim().min(1, "Street is required"),
-        houseNumber: z.string().trim().min(1, "House number is required"),
-    });
-    const parsed = parseWithSchema(
-        registerPartnerSchema,
-        {
-            email: formData.get("email"),
-            password: formData.get("password"),
-            name: formData.get("name"),
-            surname: formData.get("surname"),
-            phone: formData.get("phone"),
-            telegram: formData.get("telegram"),
-            companyName: formData.get("companyName"),
-            districtId: formData.get("districtId"),
-            street: formData.get("street"),
-            houseNumber: formData.get("houseNumber"),
+            const formData = await request.formData();
+            const parsed = parseWithSchema(
+                partnerRegistrationSchema,
+                {
+                    email: formData.get("email"),
+                    password: formData.get("password"),
+                    name: formData.get("name"),
+                    surname: formData.get("surname"),
+                    phone: formData.get("phone"),
+                    telegram: formData.get("telegram"),
+                    companyName: formData.get("companyName"),
+                    districtId: formData.get("districtId"),
+                    street: formData.get("street"),
+                    houseNumber: formData.get("houseNumber"),
+                },
+                "Validation failed"
+            );
+            if (!parsed.ok) {
+                return { error: parsed.error };
+            }
+
+            const result = await registerPartnerAccount({
+                db: context.cloudflare.env.DB,
+                input: parsed.data,
+            });
+            if (!result.ok) {
+                return { error: result.error };
+            }
+
+            const cookie = await serializeSession(request, result.sessionUser);
+            return redirect("/home?login=success", {
+                headers: {
+                    "Set-Cookie": cookie,
+                },
+            });
         },
-        "Validation failed"
-    );
-    if (!parsed.ok) {
-        return { error: parsed.error };
-    }
-    const {
-        email,
-        password,
-        name,
-        surname,
-        phone,
-        telegram,
-        companyName,
-        districtId,
-        street,
-        houseNumber,
-    } = parsed.data;
-
-    // Check if email already exists
-    const existingUser = await context.cloudflare.env.DB
-        .prepare("SELECT id FROM users WHERE email = ? LIMIT 1")
-        .bind(email)
-        .all();
-
-    if ((existingUser.results?.length ?? 0) > 0) {
-        return { error: "Email already registered" };
-    }
-
-    try {
-        // Create user and company in transaction
-        const userId = crypto.randomUUID();
-        const passwordHash = await hashPassword(password);
-        
-        await context.cloudflare.env.DB.batch([
-            context.cloudflare.env.DB.prepare(
-                `INSERT INTO users (id, email, role, name, surname, phone, telegram, password_hash, is_first_login, created_at, updated_at)
-                 VALUES (?, ?, 'partner', ?, ?, ?, ?, ?, 1, ?, ?)`
-            ).bind(userId, email, name, surname, phone, telegram, passwordHash, Date.now(), Date.now()),
-            
-            context.cloudflare.env.DB.prepare(
-                `INSERT INTO companies (name, owner_id, email, phone, telegram, location_id, district_id, street, house_number, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`
-            ).bind(companyName, userId, email, phone, telegram || null, districtId, street, houseNumber, Date.now(), Date.now())
-        ]);
-
-        // Get company ID
-        const companyResult = await context.cloudflare.env.DB
-            .prepare("SELECT id FROM companies WHERE owner_id = ? LIMIT 1")
-            .bind(userId)
-            .first() as { id: number } | null;
-
-        // Create session
-        const sessionUser = {
-            id: userId,
-            email,
-            role: 'partner' as const,
-            name,
-            surname,
-            companyId: companyResult?.id,
-        };
-
-        const cookie = await serializeSession(request, sessionUser);
-
-        return redirect("/home?login=success", {
-            headers: {
-                "Set-Cookie": cookie,
-            },
-        });
-    } catch {
-        return { error: "Registration failed. Please try again" };
-    }
+    });
 }
 
 export default function RegisterPartnerPage() {
@@ -165,7 +111,6 @@ export default function RegisterPartnerPage() {
     const toast = useToast();
     const { validateLatinInput } = useLatinValidation();
 
-    // Show toast on error
     useEffect(() => {
         if (actionData?.error) {
             toast.error(actionData.error);
@@ -185,107 +130,82 @@ export default function RegisterPartnerPage() {
 
                     <Form method="post" className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                                    First Name <span className="text-red-500">*</span>
-                                </label>
-                                <input
+                            <AuthFormField id="name" label="First Name" required>
+                                <AuthTextInput
                                     id="name"
                                     name="name"
                                     type="text"
                                     autoComplete="given-name"
                                     required
                                     pattern="[a-zA-Z\s\-']+"
-                                    onChange={(e) => validateLatinInput(e, 'First Name')}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                                    onChange={(e) => validateLatinInput(e, "First Name")}
                                     placeholder="John"
                                 />
-                            </div>
-                            
-                            <div className="space-y-2">
-                                <label htmlFor="surname" className="block text-sm font-medium text-gray-700">
-                                    Last Name <span className="text-red-500">*</span>
-                                </label>
-                                <input
+                            </AuthFormField>
+
+                            <AuthFormField id="surname" label="Last Name" required>
+                                <AuthTextInput
                                     id="surname"
                                     name="surname"
                                     type="text"
                                     autoComplete="family-name"
                                     required
                                     pattern="[a-zA-Z\s\-']+"
-                                    onChange={(e) => validateLatinInput(e, 'Last Name')}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                                    onChange={(e) => validateLatinInput(e, "Last Name")}
                                     placeholder="Smith"
                                 />
-                            </div>
+                            </AuthFormField>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                                    Email Address <span className="text-red-500">*</span>
-                                </label>
-                                <input
+                            <AuthFormField id="email" label="Email Address" required>
+                                <AuthTextInput
                                     id="email"
                                     name="email"
                                     type="email"
                                     autoComplete="email"
                                     required
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                                     placeholder="john.smith@example.com"
                                 />
-                            </div>
+                            </AuthFormField>
 
-                            <div className="space-y-2">
-                                <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                                    Phone Number <span className="text-red-500">*</span>
-                                </label>
-                                <input
+                            <AuthFormField id="phone" label="Phone Number" required>
+                                <AuthTextInput
                                     id="phone"
                                     name="phone"
                                     type="tel"
                                     autoComplete="tel"
                                     required
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                                     placeholder="+66812345678"
                                 />
-                            </div>
+                            </AuthFormField>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label htmlFor="telegram" className="block text-sm font-medium text-gray-700">
-                                    Telegram
-                                </label>
-                                <input
+                            <AuthFormField id="telegram" label="Telegram">
+                                <AuthTextInput
                                     id="telegram"
                                     name="telegram"
                                     type="text"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                                     placeholder="@username"
                                 />
-                            </div>
+                            </AuthFormField>
 
-                            <div className="space-y-2">
-                                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                                    Password <span className="text-red-500">*</span>
-                                </label>
+                            <AuthFormField id="password" label="Password" required>
                                 <div className="relative">
-                                    <input
+                                    <AuthTextInput
                                         id="password"
                                         name="password"
                                         type={showPassword ? "text" : "password"}
                                         autoComplete="new-password"
                                         required
                                         minLength={6}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                                         placeholder="Min 6 characters"
                                     />
                                     <Button
                                         type="button"
-                                        variant="unstyled"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-2"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-gray-600"
                                     >
                                         {showPassword ? (
                                             <EyeSlashIcon className="w-5 h-5" />
@@ -294,80 +214,62 @@ export default function RegisterPartnerPage() {
                                         )}
                                     </Button>
                                 </div>
-                            </div>
+                            </AuthFormField>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">
-                                    Company Name <span className="text-red-500">*</span>
-                                </label>
-                                <input
+                            <AuthFormField id="companyName" label="Company Name" required>
+                                <AuthTextInput
                                     id="companyName"
                                     name="companyName"
                                     type="text"
                                     required
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                                     placeholder="Your Company Name"
                                 />
-                            </div>
+                            </AuthFormField>
 
-                            <div className="space-y-2">
-                                <label htmlFor="districtId" className="block text-sm font-medium text-gray-700">
-                                    District (Phuket) <span className="text-red-500">*</span>
-                                </label>
-                                <select
+                            <AuthFormField id="districtId" label="District (Phuket)" required>
+                                <AuthSelect
                                     id="districtId"
                                     name="districtId"
                                     required
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                                 >
                                     <option value="">Select district</option>
-                                    {districtsList.map((district) => (
+                                    {districtsList.map((district: ActiveDistrictRow) => (
                                         <option key={district.id} value={district.id}>
                                             {district.name}
                                         </option>
                                     ))}
-                                </select>
-                            </div>
+                                </AuthSelect>
+                            </AuthFormField>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label htmlFor="street" className="block text-sm font-medium text-gray-700">
-                                    Street <span className="text-red-500">*</span>
-                                </label>
-                                <input
+                            <AuthFormField id="street" label="Street" required>
+                                <AuthTextInput
                                     id="street"
                                     name="street"
                                     type="text"
                                     required
-                                    onChange={(e) => validateLatinInput(e, 'Street')}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                                    onChange={(e) => validateLatinInput(e, "Street")}
                                     placeholder="Street name"
                                 />
-                            </div>
-                            
-                            <div className="space-y-2">
-                                <label htmlFor="houseNumber" className="block text-sm font-medium text-gray-700">
-                                    House Number <span className="text-red-500">*</span>
-                                </label>
-                                <input
+                            </AuthFormField>
+
+                            <AuthFormField id="houseNumber" label="House Number" required>
+                                <AuthTextInput
                                     id="houseNumber"
                                     name="houseNumber"
                                     type="text"
                                     required
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                                     placeholder="123/45"
                                 />
-                            </div>
+                            </AuthFormField>
                         </div>
 
                         <Button
                             type="submit"
-                            variant="primary"
-                            fullWidth
-                            size="lg"
+                            className="w-full rounded-xl bg-gray-900 px-5 py-3 text-base font-semibold text-white hover:bg-gray-800"
                         >
                             Create Partner Account
                         </Button>

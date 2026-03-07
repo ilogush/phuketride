@@ -1,6 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { useEffect, useState } from "react";
-import { useNavigation } from "react-router";
+import { useButtonInteraction } from "~/lib/useButtonInteraction";
 
 interface PublicButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type" | "onClick"> {
   children?: ReactNode;
@@ -20,53 +19,14 @@ export default function Button({
   loading = false,
   ...rest
 }: PublicButtonProps) {
-  const navigation = useNavigation();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isSubmitClicked, setIsSubmitClicked] = useState(false);
-
-  const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (isProcessing || disabled || loading) {
-      e.preventDefault();
-      return;
-    }
-
-    if (type === "submit" && isSubmitClicked) {
-      e.preventDefault();
-      return;
-    }
-
-    if (type === "submit") {
-      setIsSubmitClicked(true);
-      onClick?.(e);
-      if (e.defaultPrevented) {
-        setIsSubmitClicked(false);
-      }
-      return;
-    }
-
-    if (!onClick) {
-      return;
-    }
-
-    setIsProcessing(true);
-    try {
-      await onClick(e);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const isNavigating = navigation.state === "submitting" || navigation.state === "loading";
-  const isSubmitting = type === "submit" && (isSubmitClicked || isNavigating);
-  const isDisabled = disabled || loading || isProcessing || (type === "submit" && isNavigating);
+  const { handleClick, isDisabled, isLoading, isSubmitClicked } = useButtonInteraction({
+    disabled,
+    loading,
+    onClick,
+    type,
+  });
   const isIconButton = /\bw-\d+\b/.test(className) && /\bh-\d+\b/.test(className);
   const sizeClass = isIconButton ? "" : "rounded-xl px-5  text-base";
-
-  useEffect(() => {
-    if (navigation.state === "idle") {
-      setIsSubmitClicked(false);
-    }
-  }, [navigation.state]);
 
   return (
     <button
@@ -76,7 +36,7 @@ export default function Button({
       className={`flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${sizeClass} ${type === "submit" && isSubmitClicked ? "pointer-events-none" : ""} ${className}`}
       {...rest}
     >
-      {(loading || isProcessing || isSubmitting) ? (
+      {isLoading ? (
         <>
           <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
           {children && <span className="ml-2 opacity-70">{children}</span>}

@@ -38,19 +38,18 @@ CODEX Rules (короткий, проверяемый формат)
 
 [AUTO] R9: Бюджет размера файлов
 - `app/routes/*` <= 800 строк.
+- `app/features/*` <= 800 строк.
 - `app/components/*` <= 600 строк.
 - `docs/*` <= 400 строк.
 - `scripts/*` <= 350 строк.
 - `scripts/*` <= 500 строк.
+- исключение: `scripts/check-codex-rules.mjs` <= 650 строк.
 - `migrations/*` <= 300 строк.
 
 [AUTO] R10: Обязательные docs-файлы
 - В проекте должны существовать:
 - `docs/README.md`
-- `docs/BUSINESS_LOGIC.md`
 - `docs/DATABASE.md`
-- `docs/ROUTING.md`
-- `docs/COMPANIES_LIST_OPTIMIZATION.md`
 - `docs/OPTIMIZATION.md`
 
 [AUTO] R11: Toast-покрытие админ-роутов (baseline-контроль)
@@ -62,70 +61,119 @@ CODEX Rules (короткий, проверяемый формат)
 - В route-модулях админки запрещен raw `<table>`.
 - Табличные UI должны строиться через общие dashboard-компоненты.
 
-[MANUAL] R13: Язык контента
+[AUTO] R13: Целостность сессии
+- `app/lib/auth.server.ts` обязан использовать подписанную session-cookie.
+- Источник секрета подписи: runtime env (`SESSION_SECRET`), а не hardcoded user data.
+- `requireAuth()` не должен доверять неподписанным данным из cookie.
+
+[AUTO] R14: Guard'ы на чувствительных маршрутах
+- Глобальные admin-справочники и аудит (`companies`, `colors`, `districts`, `hotels`, `logs`, `reports`, admin company actions) обязаны использовать `requireAdmin`.
+- Detail/action маршруты, читающие tenant-specific данные, обязаны вызывать ownership/access validation из `app/lib/security.server.ts`.
+
+[AUTO] R15: Целостность публичного checkout
+- `app/routes/cars.$id.checkout.tsx` не должен принимать из формы вычисленные денежные поля (`deliveryFee`, `salesTax`, `selectedTripTotal`, `depositAmount` и т.п.).
+- Итоговая стоимость, fees и deposit должны пересчитываться на сервере из D1-данных и пользовательских выборов.
+- Server-side checkout logic может жить в route-модуле или в delegated feature/service-модуле, если route остаётся тонким entrypoint.
+
+[AUTO] R16: Tracked env hygiene
+- Наличие tracked `.env` допускается только как warning.
+- Реальные секреты должны храниться в Cloudflare secrets/bindings, а не в git.
+
+[AUTO] R17: Cloudflare bindings config
+- `wrangler.jsonc` обязан содержать D1 binding `DB` и R2 binding `ASSETS`.
+- D1 binding `DB` обязан быть `remote: true`.
+- В `wrangler.jsonc` запрещен `preview_database_id` для `DB`, чтобы не появлялся local/preview fallback.
+- Отсутствие KV binding `RATE_LIMIT` помечается как warning до фактического создания namespace.
+
+[AUTO] R18: Loader side effects
+- GET `loader` не должен выполнять write-операции (`INSERT`, `UPDATE`, `DELETE`, `.run()`) в D1.
+- Временное исключение допускается только через явный allowlist в `scripts/check-codex-rules.mjs`.
+
+[AUTO] R19: Telemetry coverage для hot routes
+- Hot-path route-модули обязаны логировать `loader/action` через `trackServerOperation`.
+- Минимальный охват: `dashboard-home`, `companies`, `cars`, `contracts`, `bookings`, `users`, `payments`, `checkout`, metrics API.
+- Проверка живет в `scripts/check-codex-rules.mjs` и блокирует regressions.
+- Для thin routes допускается telemetry в delegated server module, если route явно вызывает этот module.
+
+[MANUAL] R20: Язык контента
 - UI/публичный текст приложения: английский.
 - Внутренняя документация проекта (`docs/*`) и правила: русский.
 
-[MANUAL] R14: Границы UI-слоев
+[MANUAL] R21: Границы UI-слоев
 - Проект состоит из двух частей: клиентская и админская.
 - Dashboard UI: `app/components/dashboard/*`.
 - Public UI: `app/components/public/*`.
 - Компоненты и ссылки (routes/paths/navigation) клиентской и админской частей не должны пересекаться.
 
-[MANUAL] R15: Иконки
+[MANUAL] R22: Иконки
 - Все иконки брать только с https://heroicons.com.
 
-[MANUAL] R16: Cloudflare D1 discipline
+[MANUAL] R23: Cloudflare D1 discipline
 - D1-операции выполнять через `wrangler d1 ... --remote`.
 - Не работать с локальными SQLite-файлами из `.wrangler/state`.
+- Для runtime binding `DB` использовать только remote D1 (`wrangler.jsonc -> d1_databases[].remote = true`).
 - Если нужен локальный анализ, разрешен только read-only snapshot из remote:
 - `wrangler d1 export phuketride-bd --remote --output ./tmp/d1-snapshots/<timestamp>.sql`
 - Snapshot не является источником истины, источник истины только remote D1.
 
-[MANUAL] R17: Единые стандарты валидации
+[MANUAL] R24: Единые стандарты валидации
 - Для `action/loader` использовать схемы валидации из `app/schemas` (`zod`).
 - Для чувствительных маршрутов сохранять проверки auth/role/rate-limit.
 - Ошибки валидации и служебные сообщения показывать через toast без дублирования inline-блоками.
 
-[MANUAL] R18: Единые стандарты работы с изображениями
+[MANUAL] R25: Единые стандарты работы с изображениями
 - Статические изображения хранить в `public/*`.
 - Для пользовательских/динамических изображений использовать серверные helper-утилиты проекта (`app/lib/r2.server.ts`, `app/lib/image-optimizer.ts`, `app/lib/asset-url.ts`).
 - Не использовать небезопасные URL и не смешивать источники изображений без явной причины.
 
-[MANUAL] R19: Единые стандарты роутинга
+[MANUAL] R26: Единые стандарты роутинга
 - Файл `app/routes.ts` — единственный источник декларации маршрутов.
 - Dashboard-маршруты должны оставаться в защищённом layout (`routes/app-layout.tsx`) с обязательной auth/rbac-проверкой.
 - Public и dashboard навигация не должны ссылаться друг на друга напрямую без явного бизнес-обоснования.
 
-[MANUAL] R20: Деплой-гейт
+[MANUAL] R27: Деплой-гейт
 - Перед деплоем обязателен успешный `npm run typecheck`.
 
-[MANUAL] R21: Документация (ссылки)
+[MANUAL] R28: Документация (ссылки)
 - Перед изменением логики сверяться с `docs/README.md`.
 - После крупных изменений обновлять основные документы проекта:
-- `docs/BUSINESS_LOGIC.md`
 - `docs/DATABASE.md`
-- `docs/ROUTING.md`
-- `docs/COMPANIES_LIST_OPTIMIZATION.md`
 - `docs/OPTIMIZATION.md`
 
-[MANUAL] R22: Создание markdown-файлов
+[MANUAL] R29: Создание markdown-файлов
 - Новые `.md` создавать только после прямого разрешения владельца проекта и только в `docs/*`.
 
-[MANUAL] R23: Автовыполнение миграций
+[MANUAL] R30: Автовыполнение миграций
 - Если в задаче добавлены/изменены SQL-файлы в `migrations/*`, их нужно сразу применять в remote D1 командой `npx wrangler d1 execute phuketride-bd --remote --file=<migration.sql>`.
 - После применения миграций обязательно проверять схему (`PRAGMA table_info(...)`) и ключевые данные, зависящие от новых полей.
 
-[MANUAL] R24: Унификация админ-таблиц и CRUD
+[MANUAL] R31: Унификация админ-таблиц и CRUD
 - Для табличных админ-страниц использовать общие компоненты (например, `DataTable`, `AdminCrudModalPage`, единые pagination/filter controls).
 - Не внедрять уникальные кастомные таблицы, если кейс покрывается общими компонентами.
 - Любая новая кастомизация должна быть вынесена в reusable-компонент, а не оставаться внутри одного route.
 
-[MANUAL] R25: Производительность (админка + клиент)
+[MANUAL] R32: Производительность (админка + клиент)
 - В hot-path loader/action избегать лишних запросов и `SELECT *` без необходимости.
 - Для частых сортировок/фильтров поддерживать релевантные индексы в D1.
 - Для тяжелых операций использовать декомпозицию route -> server helper (`app/lib/*`) и повторно используемые компоненты.
 
-[MANUAL] R26: Уведомления
+[MANUAL] R33: Уведомления
 - Все пользовательские уведомления в UI показывать только через toast (`useToast`/`useUrlToast`).
 - Не использовать inline-блоки ошибок/успеха как основной канал уведомлений.
+
+[MANUAL] R34: Security-first change policy
+- Любое изменение auth, checkout, contracts, bookings, logs, users, companies должно проверяться через призму production для 1M пользователей.
+- При изменении этих зон обязательно проверять: session integrity, RBAC, tenant isolation, tamper resistance, auditability, тесты.
+
+[MANUAL] R35: Thin route standard
+- Route-модули должны оставаться тонкими: принимать request, вызывать policy/helper/service слой и собирать UI.
+- Если одинаковая read/write orchestration появляется в нескольких route, её нужно выносить в `app/lib/*` или `app/features/*`.
+- Route не должен быть местом постоянного накопления SQL, upload lifecycle и повторяющегося mapping-кода.
+
+[MANUAL] R36: Policy entrypoint standard
+- Для dashboard/admin/detail маршрутов использовать общие entrypoints доступа (`requireAdmin`, `requireScopedDashboardAccess`, `requireBookingAccess`, `requireContractAccess` и подобные), а не собирать доступ локально через разрозненные проверки.
+- `requireAuth` допустим только там, где действительно не нужен дополнительный role/scope/ownership gate.
+
+[MANUAL] R37: Feedback contract standard
+- Redirect-based success/error feedback должен проходить через общие helper-ы (`app/lib/route-feedback.ts`), а UI должен читать его через `useUrlToast()` или `useToast()`.
+- Не дублировать ручную сборку `?success=` / `?error=` в route/service, если кейс покрывается общим helper-ом.

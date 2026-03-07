@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
 import { useState } from "react";
-import { requireAuth } from "~/lib/auth.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
@@ -16,79 +16,38 @@ import CarTemplateDetails from "~/components/dashboard/cars/CarTemplateDetails";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { ExclamationTriangleIcon, Cog6ToothIcon, PhotoIcon, WrenchScrewdriverIcon, BanknotesIcon, ShieldCheckIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
-import { QUERY_LIMITS } from "~/lib/query-limits";
-import { getCachedColors } from "~/lib/dictionaries-cache.server";
 import SeasonalPricingMatrix from "~/components/dashboard/cars/SeasonalPricingMatrix";
 import { handleCreateCarAction } from "~/lib/cars-create-action.server";
 import { formatDateInput, getCarTemplateDisplayName } from "~/lib/car-form-display";
-import { type CarTemplateOption, type SimpleOptionRow, type TemplateQueryRow } from "~/lib/cars-create-types";
+import { type CarTemplateOption } from "~/lib/cars-create-types";
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { loadCreateCarPageData } from "~/lib/cars-create-page.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    const [templatesList, colorsList, seasonsList, durationsList] = await Promise.all([
-        context.cloudflare.env.DB.prepare(`
-            SELECT
-                ct.*,
-                cb.name AS brandName,
-                cm.name AS modelName,
-                bt.name AS bodyTypeName,
-                ft.name AS fuelTypeName
-            FROM car_templates ct
-            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-            LEFT JOIN car_models cm ON cm.id = ct.model_id
-            LEFT JOIN body_types bt ON bt.id = ct.body_type_id
-            LEFT JOIN fuel_types ft ON ft.id = ct.fuel_type_id
-            LIMIT ${QUERY_LIMITS.LARGE}
-        `).all().then((r: { results?: TemplateQueryRow[] }) => (r.results || []).map((t) => ({
-            ...t,
-            brand: { name: t.brandName },
-            model: { name: t.modelName },
-            bodyType: { name: t.bodyTypeName },
-            fuelType: { name: t.fuelTypeName },
-            engineVolume: t.engine_volume,
-        }))),
-        getCachedColors(context.cloudflare.env.DB) as Promise<SimpleOptionRow[]>,
-        context.cloudflare.env.DB.prepare(`
-            SELECT
-                id,
-                season_name AS seasonName,
-                start_month AS startMonth,
-                start_day AS startDay,
-                end_month AS endMonth,
-                end_day AS endDay,
-                price_multiplier AS priceMultiplier,
-                discount_label AS discountLabel
-            FROM seasons
-            ORDER BY price_multiplier DESC
-            LIMIT ${QUERY_LIMITS.SMALL}
-        `).all().then((r: { results?: Array<Record<string, unknown>> }) => r.results || []),
-        context.cloudflare.env.DB.prepare(`
-            SELECT
-                id,
-                range_name AS rangeName,
-                min_days AS minDays,
-                max_days AS maxDays,
-                price_multiplier AS priceMultiplier,
-                discount_label AS discountLabel
-            FROM rental_durations
-            ORDER BY min_days ASC
-            LIMIT ${QUERY_LIMITS.SMALL}
-        `).all().then((r: { results?: Array<Record<string, unknown>> }) => r.results || []),
-    ]);
-
-    return {
-        templates: templatesList,
-        colors: colorsList,
-        seasons: seasonsList,
-        durations: durationsList,
-        user
-    };
+    const { user, companyId } = await requireScopedDashboardAccess(request);
+    return trackServerOperation({
+        event: "cars.create.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId: companyId!,
+        details: { route: "cars.create" },
+        run: async () => loadCreateCarPageData(context.cloudflare.env.DB),
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
+    const { user, companyId } = await requireScopedDashboardAccess(request);
     const formData = await request.formData();
-    return handleCreateCarAction({ request, context, user, formData });
+    return trackServerOperation({
+        event: "cars.create",
+        scope: "route.action",
+        request,
+        userId: user.id,
+        companyId: companyId!,
+        details: { route: "cars.create" },
+        run: async () => handleCreateCarAction({ request, context, user, formData }),
+    });
 }
 
 export default function CreateCarPage() {

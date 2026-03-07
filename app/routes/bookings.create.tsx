@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
-import { useLoaderData, Form, useActionData } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
-import { useState, useEffect } from "react";
+import { useLoaderData, Form } from "react-router";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
+import { useState } from "react";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import Button from "~/components/dashboard/Button";
 import FormSection from "~/components/dashboard/FormSection";
@@ -12,84 +12,45 @@ import BackButton from "~/components/dashboard/BackButton";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { parseDateFromDisplay } from "~/lib/formatters";
-import { useToast } from "~/lib/toast";
 import { calculateBaseTripTotal } from "~/lib/pricing";
-import { QUERY_LIMITS } from "~/lib/query-limits";
 import { createBookingAction } from "~/lib/bookings-create.server";
-type BookingCarRow = {
-    id: number;
-    pricePerDay: number | null;
-    deposit: number | null;
-    licensePlate: string | null;
-    year: number | null;
-    brandName: string | null;
-    modelName: string | null;
-};
-type DistrictRow = {
-    id: number;
-    name: string;
-    deliveryPrice: number | null;
-    isActive: number | boolean | null;
-};
+import { trackServerOperation } from "~/lib/telemetry.server";
+import { useUrlToast } from "~/lib/useUrlToast";
+import { loadRentalCreateBaseData } from "~/lib/rental-create-page.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-
-    if (!user.companyId) {
-        throw new Response("Manager must be assigned to a company", { status: 403 });
-    }
-
-    const [carsRaw, districts] = await Promise.all([
-        context.cloudflare.env.DB
-            .prepare(`
-                SELECT
-                    cc.id,
-                    cc.price_per_day AS pricePerDay,
-                    cc.deposit,
-                    cc.license_plate AS licensePlate,
-                    cc.year,
-                    cb.name AS brandName,
-                    cm.name AS modelName
-                FROM company_cars cc
-                LEFT JOIN car_templates ct ON ct.id = cc.template_id
-                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-                LEFT JOIN car_models cm ON cm.id = ct.model_id
-                WHERE cc.company_id = ? AND cc.status = 'available' AND cc.archived_at IS NULL
-                LIMIT ${QUERY_LIMITS.MEDIUM}
-            `)
-            .bind(user.companyId)
-            .all()
-            .then((r: { results?: BookingCarRow[] }) => r.results || []),
-        context.cloudflare.env.DB
-            .prepare("SELECT id, name, delivery_price AS deliveryPrice, is_active AS isActive FROM districts WHERE is_active = 1")
-            .all()
-            .then((r: { results?: DistrictRow[] }) => r.results || []),
-    ]);
-
-    return {
-        cars: carsRaw.map((car: BookingCarRow) => ({
-            id: car.id,
-            name: `${car.brandName || ""} ${car.modelName || ""} ${car.year || ""} - ${car.licensePlate}`,
-            pricePerDay: car.pricePerDay ?? 0,
-            deposit: car.deposit ?? 0,
-        })),
-        districts,
-        user,
-    };
+    const { companyId, user } = await requireScopedDashboardAccess(request);
+    const scopedCompanyId = companyId!;
+    return trackServerOperation({
+        event: "bookings.create.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId: scopedCompanyId,
+        details: { route: "bookings.create" },
+        run: async () => loadRentalCreateBaseData(context.cloudflare.env.DB, scopedCompanyId),
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
+    const { user, companyId } = await requireScopedDashboardAccess(request);
     const formData = await request.formData();
-    return createBookingAction({ request, context, user, formData });
+    return trackServerOperation({
+        event: "bookings.create",
+        scope: "route.action",
+        request,
+        userId: user.id,
+        companyId: companyId!,
+        details: { route: "bookings.create" },
+        run: async () => createBookingAction({ request, context, user, companyId: companyId!, formData }),
+    });
 }
 
 export default function CreateBookingPage() {
-    const { cars, districts, user } = useLoaderData<typeof loader>();
-    const actionData = useActionData<{ error?: string }>();
-    const toast = useToast();
+    const { cars, districts } = useLoaderData<typeof loader>();
     const { validateLatinInput } = useLatinValidation();
     const { maskDateInput } = useDateMasking();
+    useUrlToast();
 
     // Live pricing calculation
     const [selectedCarId, setSelectedCarId] = useState<string>("");
@@ -101,7 +62,7 @@ export default function CreateBookingPage() {
         krabiTrip: 0
     });
 
-    const selectedCar = cars.find((c: { id: number }) => String(c.id) === selectedCarId);
+    const selectedCar = cars.find((c) => String(c.id) === selectedCarId);
 
     const tripPricing = (() => {
         if (!selectedCar || !dates.start || !dates.end || dates.start.length < 10 || dates.end.length < 10) {
@@ -122,12 +83,6 @@ export default function CreateBookingPage() {
     const baseAmount = tripPricing.baseAmount;
     const extrasAmount = (extras.insurance * days) + (extras.babySeat * days) + extras.islandTrip + extras.krabiTrip;
     const totalAmount = baseAmount + extrasAmount;
-
-    useEffect(() => {
-        if (actionData?.error) {
-            toast.error(actionData.error);
-        }
-    }, [actionData, toast]);
 
     return (
         <div className="space-y-6">

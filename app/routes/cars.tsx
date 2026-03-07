@@ -12,8 +12,9 @@ import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 import { getPrimaryCarPhotoUrl } from "~/lib/car-photos";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
-import { listCarsPage } from "~/lib/cars-repo.server";
+import { countCarsPage, listCarsPage, listCarStatusCounts } from "~/lib/cars-repo.server";
 import type { CarListRow } from "~/lib/db-types";
+import { trackServerOperation } from "~/lib/telemetry.server";
 const CAR_TABS = ["available", "rented", "maintenance", "booked"] as const;
 type CarTab = typeof CAR_TABS[number];
 
@@ -31,106 +32,80 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const activeStatus: CarTab = tab ?? "available";
     const { page, pageSize, offset } = getPaginationFromUrl(url);
 
-    let cars: Array<CarListRow & {
-        previewPhotoUrl: string | null;
-        licensePlate: string | null;
-        pricePerDay: number | null;
-        insuranceType: string | null;
-        template: { brand: { name: string | null }; model: { name: string | null }; bodyType: { name: string | null }; engineVolume: number | null };
-        color: { name: string | null };
-    }> = [];
-    let statusCounts = { all: 0, available: 0, rented: 0, maintenance: 0, booked: 0 };
-    let totalCount = 0;
+    return trackServerOperation({
+        event: "cars.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId: effectiveCompanyId,
+        details: { route: "cars", tab: activeStatus, sortBy: sortBy || "createdAt" },
+        run: async () => {
+            let cars: Array<CarListRow & {
+                previewPhotoUrl: string | null;
+                licensePlate: string | null;
+                pricePerDay: number | null;
+                insuranceType: string | null;
+                template: { brand: { name: string | null }; model: { name: string | null }; bodyType: { name: string | null }; engineVolume: number | null };
+                color: { name: string | null };
+            }> = [];
+            let statusCounts = { all: 0, available: 0, rented: 0, maintenance: 0, booked: 0 };
+            let totalCount = 0;
 
-    try {
-        const [countsResult, result] = effectiveCompanyId
-            ? await Promise.all([
-                context.cloudflare.env.DB.prepare(`
-                    SELECT status, COUNT(*) AS count
-                    FROM company_cars
-                    WHERE company_id = ?
-                    GROUP BY status
-                `).bind(effectiveCompanyId).all() as Promise<{ results?: Array<{ status: string; count: number }> }>,
-                listCarsPage({
-                    db: context.cloudflare.env.DB,
-                    companyId: effectiveCompanyId,
-                    status: activeStatus,
-                    pageSize,
-                    offset,
-                    search,
-                    sortBy: sortBy || "createdAt",
-                    sortOrder,
-                }) as Promise<CarListRow[]>,
-            ])
-            : await Promise.all([
-                context.cloudflare.env.DB.prepare(`
-                    SELECT status, COUNT(*) AS count
-                    FROM company_cars
-                    GROUP BY status
-                `).all() as Promise<{ results?: Array<{ status: string; count: number }> }>,
-                listCarsPage({
-                    db: context.cloudflare.env.DB,
-                    companyId: null,
-                    status: activeStatus,
-                    pageSize,
-                    offset,
-                    search,
-                    sortBy: sortBy || "createdAt",
-                    sortOrder,
-                }) as Promise<CarListRow[]>,
-            ]);
+            try {
+                const [countsResult, result, countResult] = await Promise.all([
+                    listCarStatusCounts({
+                        db: context.cloudflare.env.DB,
+                        companyId: effectiveCompanyId,
+                    }),
+                    listCarsPage({
+                        db: context.cloudflare.env.DB,
+                        companyId: effectiveCompanyId,
+                        status: activeStatus,
+                        pageSize,
+                        offset,
+                        search,
+                        sortBy: sortBy || "createdAt",
+                        sortOrder,
+                    }) as Promise<CarListRow[]>,
+                    countCarsPage({
+                        db: context.cloudflare.env.DB,
+                        companyId: effectiveCompanyId,
+                        status: activeStatus,
+                        search,
+                    }),
+                ]);
 
-        cars = result.map((car: CarListRow) => ({
-            ...car,
-            previewPhotoUrl: getPrimaryCarPhotoUrl(car.photos, request.url, null),
-            licensePlate: car.license_plate,
-            pricePerDay: car.price_per_day,
-            insuranceType: car.insurance_type,
-            template: {
-                brand: { name: car.brandName },
-                model: { name: car.modelName },
-                bodyType: { name: car.bodyTypeName },
-                engineVolume: car.engine_volume,
-            },
-            color: { name: car.colorName },
-        }));
+                cars = result.map((car: CarListRow) => ({
+                    ...car,
+                    previewPhotoUrl: getPrimaryCarPhotoUrl(car.photos, request.url, null),
+                    licensePlate: car.license_plate,
+                    pricePerDay: car.price_per_day,
+                    insuranceType: car.insurance_type,
+                    template: {
+                        brand: { name: car.brandName },
+                        model: { name: car.modelName },
+                        bodyType: { name: car.bodyTypeName },
+                        engineVolume: car.engine_volume,
+                    },
+                    color: { name: car.colorName },
+                }));
 
-        (countsResult.results || []).forEach((row) => {
-            const count = Number(row.count || 0);
-            if (row.status === "available") statusCounts.available = count;
-            if (row.status === "rented") statusCounts.rented = count;
-            if (row.status === "maintenance") statusCounts.maintenance = count;
-            if (row.status === "booked") statusCounts.booked = count;
-        });
-        statusCounts.all = statusCounts.available + statusCounts.rented + statusCounts.maintenance + statusCounts.booked;
-        if (search) {
-            const countSql = `
-                SELECT COUNT(*) AS count
-                FROM company_cars cc
-                LEFT JOIN car_templates ct ON ct.id = cc.template_id
-                LEFT JOIN car_brands cb ON cb.id = ct.brand_id
-                LEFT JOIN car_models cm ON cm.id = ct.model_id
-                LEFT JOIN body_types bt ON bt.id = ct.body_type_id
-                LEFT JOIN colors cl ON cl.id = cc.color_id
-                WHERE ${effectiveCompanyId ? "cc.company_id = ? AND " : ""}cc.status = ?
-                AND (COALESCE(cc.license_plate,'') LIKE ? OR COALESCE(cb.name,'') LIKE ? OR COALESCE(cm.name,'') LIKE ? OR COALESCE(bt.name,'') LIKE ? OR COALESCE(cl.name,'') LIKE ?)
-            `;
-            const q = `%${search}%`;
-            const countResult = effectiveCompanyId
-                ? await context.cloudflare.env.DB.prepare(countSql).bind(effectiveCompanyId, activeStatus, q, q, q, q, q).first() as { count?: number | string } | null
-                : await context.cloudflare.env.DB.prepare(countSql).bind(activeStatus, q, q, q, q, q).first() as { count?: number | string } | null;
-            totalCount = Number(countResult?.count || 0);
-        } else {
-            totalCount = activeStatus === "available" ? statusCounts.available
-                : activeStatus === "rented" ? statusCounts.rented
-                    : activeStatus === "maintenance" ? statusCounts.maintenance
-                        : statusCounts.booked;
-        }
-    } catch {
-        cars = [];
-    }
+                countsResult.forEach((row) => {
+                    const count = Number(row.count || 0);
+                    if (row.status === "available") statusCounts.available = count;
+                    if (row.status === "rented") statusCounts.rented = count;
+                    if (row.status === "maintenance") statusCounts.maintenance = count;
+                    if (row.status === "booked") statusCounts.booked = count;
+                });
+                statusCounts.all = statusCounts.available + statusCounts.rented + statusCounts.maintenance + statusCounts.booked;
+                totalCount = countResult;
+            } catch {
+                cars = [];
+            }
 
-    return { user, cars, statusCounts, activeStatus, totalCount, page, pageSize, search };
+            return { user, cars, statusCounts, activeStatus, totalCount, page, pageSize, search };
+        },
+    });
 }
 
 export default function CarsPage() {

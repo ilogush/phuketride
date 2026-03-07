@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import { Form } from 'react-router'
 import FormField from '~/components/dashboard/FormField'
 import FormSection from '~/components/dashboard/FormSection'
@@ -7,51 +6,8 @@ import AdminCard from '~/components/dashboard/AdminCard'
 import Toggle from '~/components/dashboard/Toggle'
 import { inputBaseStyles, selectBaseStyles } from '~/lib/styles/input'
 import { TruckIcon, PhotoIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
-
-interface CarBrand {
-    id: number
-    name: string
-}
-
-interface CarModel {
-    id: number
-    name: string
-    brand_id: number
-}
-
-interface BodyType {
-    id: number
-    name: string
-}
-
-interface FuelType {
-    id: number
-    name: string
-}
-
-interface CarTemplate {
-    id: number
-    brand_id: number
-    model_id: number
-    transmission?: 'automatic' | 'manual'
-    engine_volume?: number
-    body_type_id?: number
-    seats?: number
-    doors?: number
-    fuel_type_id?: number
-    description?: string
-    photos?: string
-    feature_transmission?: 'automatic' | 'manual' | null
-    feature_air_conditioning?: boolean
-    feature_abs?: boolean
-    feature_airbags?: boolean
-    drivetrain?: 'FWD' | 'RWD' | 'AWD' | '4WD' | null
-    luggage_capacity?: 'small' | 'medium' | 'large' | null
-    rear_camera?: boolean
-    carplay_enabled?: boolean
-    android_auto_enabled?: boolean
-    bluetooth_enabled?: boolean
-}
+import type { BodyType, CarBrand, CarModel, CarTemplate, FuelType } from './car-template-form.types'
+import { useCarTemplateFormState } from './useCarTemplateFormState'
 
 interface CarTemplateFormProps {
     template?: CarTemplate | null
@@ -62,108 +18,21 @@ interface CarTemplateFormProps {
 }
 
 export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes }: CarTemplateFormProps) {
-    const [formData, setFormData] = useState({
-        brand_id: '',
-        model_id: '',
-        transmission: 'automatic',
-        engine_volume: '',
-        body_type_id: '',
-        seats: '',
-        doors: '',
-        fuel_type_id: '',
-        description: '',
-        feature_air_conditioning: true,
-        feature_abs: true,
-        feature_airbags: true,
-        drivetrain: 'FWD',
-        luggage_capacity: 'medium',
-        rear_camera: true,
-        carplay_enabled: false,
-        android_auto_enabled: false,
-        bluetooth_enabled: true,
-        photos: [] as Array<{ base64: string; fileName: string }>
+    const { errors, filteredModels, formData, setFormData, updateField } = useCarTemplateFormState({
+        template,
+        brands,
+        models,
+        bodyTypes,
+        fuelTypes,
     })
-    const [filteredModels, setFilteredModels] = useState<CarModel[]>([])
-    const [errors, setErrors] = useState<Record<string, string>>({})
-
-    useEffect(() => {
-        if (template) {
-            const existingPhotos = template.photos ? JSON.parse(template.photos) : []
-            setFormData({
-                brand_id: template.brand_id.toString(),
-                model_id: template.model_id.toString(),
-                transmission: template.transmission || 'automatic',
-                engine_volume: template.engine_volume?.toString() || '',
-                body_type_id: template.body_type_id?.toString() || '',
-                seats: template.seats?.toString() || '',
-                doors: template.doors?.toString() || '',
-                fuel_type_id: template.fuel_type_id?.toString() || '',
-                description: template.description || '',
-                feature_air_conditioning: template.feature_air_conditioning == null ? true : Boolean(template.feature_air_conditioning),
-                feature_abs: template.feature_abs == null ? true : Boolean(template.feature_abs),
-                feature_airbags: template.feature_airbags == null ? true : Boolean(template.feature_airbags),
-                drivetrain: template.drivetrain || 'FWD',
-                luggage_capacity: template.luggage_capacity || 'medium',
-                rear_camera: template.rear_camera == null ? true : Boolean(template.rear_camera),
-                carplay_enabled: template.carplay_enabled == null ? false : Boolean(template.carplay_enabled),
-                android_auto_enabled: template.android_auto_enabled == null ? false : Boolean(template.android_auto_enabled),
-                bluetooth_enabled: template.bluetooth_enabled == null ? true : Boolean(template.bluetooth_enabled),
-                photos: existingPhotos
-            })
-        }
-    }, [template])
-
-    useEffect(() => {
-        if (template?.brand_id) return
-        if (!formData.brand_id && brands.length > 0) {
-            setFormData(prev => ({ ...prev, brand_id: String(brands[0].id) }))
-        }
-    }, [template, formData.brand_id, brands])
-
-    useEffect(() => {
-        if (formData.brand_id) {
-            const filtered = models.filter(m => Number(m.brand_id) === Number(formData.brand_id))
-            setFilteredModels(filtered)
-
-            if (template?.model_id) {
-                const templateModelId = Number(template.model_id)
-                if (
-                    filtered.some((m) => Number(m.id) === templateModelId) &&
-                    Number(formData.model_id || 0) !== templateModelId
-                ) {
-                    setFormData(prev => ({ ...prev, model_id: String(templateModelId) }))
-                }
-                return
-            }
-
-            if (!filtered.find(m => Number(m.id) === Number(formData.model_id))) {
-                setFormData(prev => ({ ...prev, model_id: filtered.length > 0 ? String(filtered[0].id) : '' }))
-            }
-        } else {
-            setFilteredModels([])
-            setFormData(prev => ({ ...prev, model_id: '' }))
-        }
-    }, [template, formData.brand_id, formData.model_id, models])
-
-    useEffect(() => {
-        if (template?.body_type_id && template?.fuel_type_id) return
-        const hasBodyType = bodyTypes.some((item) => String(item.id) === formData.body_type_id)
-        if ((!formData.body_type_id || !hasBodyType) && bodyTypes.length > 0) {
-            setFormData(prev => ({ ...prev, body_type_id: String(bodyTypes[0].id) }))
-        }
-        const hasFuelType = fuelTypes.some((item) => String(item.id) === formData.fuel_type_id)
-        if ((!formData.fuel_type_id || !hasFuelType) && fuelTypes.length > 0) {
-            setFormData(prev => ({ ...prev, fuel_type_id: String(fuelTypes[0].id) }))
-        }
-    }, [template, formData.body_type_id, formData.fuel_type_id, bodyTypes, fuelTypes])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target
-        setFormData(prev => ({ ...prev, [name]: value }))
+        updateField(name as keyof typeof formData, value)
     }
 
     const handlePhotosChange = (photos: Array<{ base64: string; fileName: string }>) => {
-        setFormData(prev => ({ ...prev, photos }))
+        updateField('photos', photos)
     }
 
     return (

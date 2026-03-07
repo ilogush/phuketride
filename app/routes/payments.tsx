@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -9,17 +9,16 @@ import Button from "~/components/dashboard/Button";
 import { BanknotesIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { format, isValid } from "date-fns";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
-import { listPaymentsPage } from "~/lib/payments-repo.server";
+import { countPaymentsPage, listPaymentsPage, listPaymentStatusCounts } from "~/lib/payments-repo.server";
 import type { PaymentListRow } from "~/lib/db-types";
+import { trackServerOperation } from "~/lib/telemetry.server";
 const PAYMENT_TABS = ["completed", "pending", "cancelled"] as const;
 type PaymentTab = typeof PAYMENT_TABS[number];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    const effectiveCompanyId = getEffectiveCompanyId(request, user);
+    const { user, companyId: effectiveCompanyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
     const url = new URL(request.url);
     const { tab, search, sortBy, sortOrder } = parseListFilters(url, {
         tabs: PAYMENT_TABS,
@@ -31,7 +30,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const activeTab: PaymentTab = tab ?? "completed";
     const { pageSize, offset } = getPaginationFromUrl(url, { defaultPageSize: 10 });
 
-    let paymentsList: Array<PaymentListRow & {
+    return trackServerOperation({
+        event: "payments.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId: effectiveCompanyId,
+        details: { route: "payments", tab: activeTab },
+        run: async () => {
+            let paymentsList: Array<PaymentListRow & {
         createdAt: string | null;
         paymentMethod: string | null;
         contract: { id: number } | null;
@@ -39,21 +46,33 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         currency: { code: string | null; symbol: string | null } | null;
         creator: { name: string | null; surname: string | null } | null;
     }> = [];
-    let statusCounts = { all: 0, pending: 0, completed: 0, cancelled: 0 };
-    let totalCount = 0;
+            let statusCounts = { all: 0, pending: 0, completed: 0, cancelled: 0 };
+            let totalCount = 0;
 
-    try {
-        const rawPayments = await listPaymentsPage({
-            db: context.cloudflare.env.DB,
-            companyId: effectiveCompanyId,
-            status: activeTab,
-            pageSize,
-            offset,
-            search,
-            sortBy: sortBy || "createdAt",
-            sortOrder,
-        });
-        paymentsList = rawPayments.map((p: PaymentListRow) => ({
+            try {
+                const [rawPayments, countsResult, countResult] = await Promise.all([
+                    listPaymentsPage({
+                        db: context.cloudflare.env.DB,
+                        companyId: effectiveCompanyId,
+                        status: activeTab,
+                        pageSize,
+                        offset,
+                        search,
+                        sortBy: sortBy || "createdAt",
+                        sortOrder,
+                    }),
+                    listPaymentStatusCounts({
+                        db: context.cloudflare.env.DB,
+                        companyId: effectiveCompanyId,
+                    }),
+                    countPaymentsPage({
+                        db: context.cloudflare.env.DB,
+                        companyId: effectiveCompanyId,
+                        status: activeTab,
+                        search,
+                    }),
+                ]);
+                paymentsList = rawPayments.map((p: PaymentListRow) => ({
             ...p,
             createdAt: p.created_at ?? p.createdAt ?? null,
             paymentMethod: p.payment_method ?? p.paymentMethod ?? null,
@@ -63,70 +82,21 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             creator: p.creatorName || p.creatorSurname ? { name: p.creatorName ?? null, surname: p.creatorSurname ?? null } : null,
         }));
 
-        const countsSql = effectiveCompanyId
-            ? `
-                SELECT p.status AS status, COUNT(*) AS count
-                FROM payments p
-                JOIN contracts c ON c.id = p.contract_id
-                JOIN company_cars cc ON cc.id = c.company_car_id
-                WHERE cc.company_id = ?
-                GROUP BY p.status
-            `
-            : `
-                SELECT status, COUNT(*) AS count
-                FROM payments
-                GROUP BY status
-            `;
-        const countsQuery = context.cloudflare.env.DB.prepare(countsSql);
-        const countsResult = effectiveCompanyId
-            ? await countsQuery.bind(effectiveCompanyId).all() as { results?: Array<{ status: string; count: number | string }> }
-            : await countsQuery.all() as { results?: Array<{ status: string; count: number | string }> };
+                for (const row of countsResult) {
+                    const count = Number(row.count || 0);
+                    statusCounts.all += count;
+                    if (row.status === "pending") statusCounts.pending = count;
+                    if (row.status === "completed") statusCounts.completed = count;
+                    if (row.status === "cancelled") statusCounts.cancelled = count;
+                }
+                totalCount = countResult;
+            } catch {
+                paymentsList = [];
+            }
 
-        for (const row of countsResult.results || []) {
-            const count = Number(row.count || 0);
-            statusCounts.all += count;
-            if (row.status === "pending") statusCounts.pending = count;
-            if (row.status === "completed") statusCounts.completed = count;
-            if (row.status === "cancelled") statusCounts.cancelled = count;
-        }
-        if (search) {
-            const countSql = effectiveCompanyId
-                ? `
-                    SELECT COUNT(*) AS count
-                    FROM payments p
-                    JOIN contracts c ON c.id = p.contract_id
-                    JOIN company_cars cc ON cc.id = c.company_car_id
-                    LEFT JOIN payment_types pt ON pt.id = p.payment_type_id
-                    LEFT JOIN users u ON u.id = p.created_by
-                    WHERE cc.company_id = ? AND p.status = ?
-                    AND (CAST(p.id AS TEXT) LIKE ? OR CAST(c.id AS TEXT) LIKE ? OR COALESCE(pt.name,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR CAST(p.amount AS TEXT) LIKE ?)
-                `
-                : `
-                    SELECT COUNT(*) AS count
-                    FROM payments p
-                    LEFT JOIN contracts c ON c.id = p.contract_id
-                    LEFT JOIN payment_types pt ON pt.id = p.payment_type_id
-                    LEFT JOIN users u ON u.id = p.created_by
-                    WHERE p.status = ?
-                    AND (CAST(p.id AS TEXT) LIKE ? OR CAST(c.id AS TEXT) LIKE ? OR COALESCE(pt.name,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR CAST(p.amount AS TEXT) LIKE ?)
-                `;
-            const q = `%${search}%`;
-            const countResult = effectiveCompanyId
-                ? await context.cloudflare.env.DB.prepare(countSql).bind(effectiveCompanyId, activeTab, q, q, q, q, q, q).first() as { count?: number | string } | null
-                : await context.cloudflare.env.DB.prepare(countSql).bind(activeTab, q, q, q, q, q, q).first() as { count?: number | string } | null;
-            totalCount = Number(countResult?.count || 0);
-        } else {
-            totalCount = activeTab === "pending"
-                ? statusCounts.pending
-                : activeTab === "cancelled"
-                    ? statusCounts.cancelled
-                    : statusCounts.completed;
-        }
-    } catch {
-        paymentsList = [];
-    }
-
-    return { user, payments: paymentsList, statusCounts, activeTab, totalCount, search };
+            return { user, payments: paymentsList, statusCounts, activeTab, totalCount, search };
+        },
+    });
 }
 
 export default function PaymentsPage() {

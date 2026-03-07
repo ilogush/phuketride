@@ -60,5 +60,3 @@ export interface ContractPaymentRow {
   extraEnabled: number | null;
   extraPrice: number | null;
 }
-
-export type ActionData = { ok: boolean; message?: string; error?: string } | null;

@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useNavigate } from "react-router";
 
-import { requireAuth } from "~/lib/auth.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import FormSection from "~/components/dashboard/FormSection";
 import FormInput from "~/components/dashboard/FormInput";
 import FormSelect from "~/components/dashboard/FormSelect";
@@ -11,84 +11,54 @@ import Button from "~/components/dashboard/Button";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { CalendarIcon } from "@heroicons/react/24/outline";
 import { useDateMasking } from "~/lib/useDateMasking";
-import { parseDateTimeFromDisplay } from "~/lib/formatters";
-import { z } from "zod";
-import { parseWithSchema } from "~/lib/validation.server";
+import { createCalendarEventFromForm } from "~/lib/calendar-page.server";
+import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
+import { trackServerOperation } from "~/lib/telemetry.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    return { user };
+    const { user, companyId } = await requireScopedDashboardAccess(request);
+    if (companyId === null) {
+        throw new Response("Forbidden", { status: 403 });
+    }
+    return trackServerOperation({
+        event: "calendar.new.load",
+        scope: "route.loader",
+        request,
+        userId: user.id,
+        companyId,
+        details: { route: "calendar.new" },
+        run: async () => ({ user }),
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    const formData = await request.formData();
-
-    try {
-        const parsed = parseWithSchema(
-            z
-            .object({
-                title: z.string().trim().min(1, "Title is required").max(200, "Title is too long"),
-                description: z.string().trim().max(2000, "Description is too long").optional().nullable(),
-                eventType: z.string().trim().min(1, "Event type is required"),
-                startDate: z.string().trim().min(1, "Start date is required"),
-                endDate: z.string().trim().optional().nullable(),
-                color: z.string().trim().optional().nullable(),
-            }),
-            {
-                title: formData.get("title"),
-                description: formData.get("description"),
-                eventType: formData.get("eventType"),
-                startDate: formData.get("startDate"),
-                endDate: formData.get("endDate"),
-                color: formData.get("color"),
-            }
-        );
-        if (!parsed.ok) {
-            throw new Error(parsed.error);
-        }
-        const { title, eventType } = parsed.data;
-        const description = parsed.data.description || null;
-        const startRaw = parsed.data.startDate;
-        const endRaw = parsed.data.endDate || "";
-
-        const startDate = new Date(parseDateTimeFromDisplay(startRaw));
-        const endDate = endRaw ? new Date(parseDateTimeFromDisplay(endRaw)) : null;
-
-        if (isNaN(startDate.getTime())) {
-            throw new Error("Invalid start date");
-        }
-
-        const color = parsed.data.color || "#3B82F6";
-
-        await context.cloudflare.env.DB
-            .prepare(
-                `
-                INSERT INTO calendar_events (
-                  company_id, event_type, title, description,
-                  start_date, end_date, color, status, created_by, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
-                `
-            )
-            .bind(
-                user.companyId!,
-                eventType,
-                title,
-                description,
-                startDate.getTime(),
-                endDate ? endDate.getTime() : null,
-                color,
-                user.id,
-                new Date().toISOString(),
-                new Date().toISOString()
-            )
-            .run();
-
-        return redirect(`/calendar?success=${encodeURIComponent("Event created successfully")}`);
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to create event";
-        return redirect(`/calendar/new?error=${encodeURIComponent(message)}`);
+    const { user, companyId } = await requireScopedDashboardAccess(request);
+    if (companyId === null) {
+        throw new Response("Forbidden", { status: 403 });
     }
+    return trackServerOperation({
+        event: "calendar.new",
+        scope: "route.action",
+        request,
+        userId: user.id,
+        companyId,
+        details: { route: "calendar.new" },
+        run: async () => {
+            const formData = await request.formData();
+            // parseWithSchema(calendarEventSchema, ...) is delegated to createCalendarEventFromForm.
+            const result = await createCalendarEventFromForm({
+                db: context.cloudflare.env.DB,
+                companyId,
+                createdBy: user.id,
+                formData,
+            });
+            if (!result.ok) {
+                return redirectWithRequestError(request, "/calendar/new", result.error);
+            }
+
+            return redirectWithRequestSuccess(request, "/calendar", "Event created successfully");
+        },
+    });
 }
 
 export default function NewCalendarEvent() {

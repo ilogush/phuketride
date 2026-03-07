@@ -1,7 +1,7 @@
 interface CreateEventParams {
     db: D1Database;
     companyId: number;
-    eventType: "contract" | "booking" | "payment_due" | "maintenance" | "document_expiry" | "delivery" | "pickup" | "other";
+    eventType: "contract" | "booking" | "payment_due" | "maintenance" | "document_expiry" | "delivery" | "pickup" | "meeting" | "other";
     title: string;
     description?: string;
     startDate: Date;

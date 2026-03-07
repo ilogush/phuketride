@@ -1,100 +1,68 @@
-# Optimization Plan
+# Optimization Tasks
 
-## Цель
+Оставлены только актуальные задачи по оптимизации, унификации и приведению проекта к единым стандартам. Закрытые пункты удалены.
 
-Привести проект к современной и быстрой архитектуре без лишнего технологического шума:
+## `app/routes/home.tsx`
+## `app/routes/app-layout.tsx`
 
-- тонкие route-файлы;
-- feature-driven server modules;
-- централизованный access policy;
-- измеряемая производительность;
-- минимальный, но сильный стек.
+- Привести dashboard bootstrap к единому app-shell pattern: auth bootstrap, mod-mode resolution, notifications count, welcome/toast side effects.
+- Убрать разрозненную route-level сборку layout state в отдельные shared loader/helpers.
+- Зафиксировать единый контракт данных, которые layout и home читают на каждом запросе, чтобы не наращивать лишние round-trips.
 
-## Базовые принципы
+## `app/components/dashboard/*`
 
-- Приоритет у D1 query count, индексов и hot paths, а не у косметических UI-оптимизаций.
-- Бизнес-логика не должна жить в route-файлах.
-- Клиент не должен быть источником истины для денег, ролей и tenant scope.
-- Любая оптимизация должна быть проверяема через `build`, `typecheck`, `test`, `rules:check`.
+- Свести параллельные form primitives к одному стандарту: не поддерживать одновременно несколько конкурирующих наборов (`Input/Select/Textarea` и `FormInput/FormSelect` без четкой границы).
+- Унифицировать button/toggle/modal/table API по пропсам, variant naming и accessibility поведению.
+- Выделить единый dashboard form composition contract: field wrapper, label, hint, error, required marker, section spacing.
+- Прекратить route-specific UI state logic в компонентах, если её можно вынести в shared hooks рядом с доменной формой.
 
-## Что уже сделано
+## `app/components/public/*`
 
-- [x] Введен auto-gate для telemetry на hot routes.
-- [x] `dashboard-home` переведен на выделенный server helper для метрик и reduced round-trips.
-- [x] Из `dashboard-home` убран отдельный client polling widget; страница снова собирается server-first без второго metrics round-trip.
-- [x] Admin CRUD routes (`colors`, `districts`, `hotels`, `durations`, `seasons`) сведены к общему server-first шаблону для loaders/actions/audit.
-- [x] `cars`, `contracts`, `users`, `payments`, `bookings` переведены на repo-layer для list/count/status логики.
-- [x] `DataTable` получил более современное поведение для клиентского поиска через React 19 (`useDeferredValue`, `useEffectEvent`).
-- [x] Hot-path loaders/actions покрыты telemetry и проходят `rules:check`.
+- Привести public button/toggle/date-range interactions к единому UX/API contract.
+- Свести date-range picker, calendar overlay и checkout form interaction к одному reusable state model.
+- Унифицировать public form controls и error presentation с auth/checkout/public detail screens.
 
-## Единый план
+## `app/features/*`
 
-### Phase 1: Route decomposition
+- Продолжить перенос крупных route-centric сценариев в feature modules по доменам, а не по страницам.
+- Зафиксировать единый внутренний стандарт feature-модуля: `loader/service/repo/view/types`.
+- Не создавать feature-слои формально; переносить туда только те сценарии, где route уже перегружен orchestration, SQL и mapping logic.
 
-Цель: убрать giant route files и сделать маршруты тонкими orchestration-слоями.
+## `app/lib/access-policy.server.ts`
+## `app/lib/security.server.ts`
+## `app/lib/auth.server.ts`
 
-- [ ] Вынести `app/routes/cars.$id.checkout.tsx` в `app/features/public-checkout/*`.
-- [ ] Вынести `app/routes/cars.$id.tsx` в feature/service + UI blocks.
-- [ ] Вынести `app/routes/companies.$companyId.tsx` в feature/service + UI blocks.
-- [ ] Зафиксировать шаблон route -> policy -> service -> repo.
+- Довести все dashboard/admin/detail routes до единых entrypoints policy/access checks; сократить случаи прямого `requireAuth` там, где нужен scope/ownership/role gate.
+- Зафиксировать стандарт для public/user/dashboard/admin маршрутов: какой helper является обязательной точкой входа.
+- Упростить читаемость access contract, чтобы route не собирал policy из нескольких разрозненных helper-ов.
 
-### Phase 2: Feature modules
+## `app/lib/dictionaries-cache.server.ts`
+## `app/lib/admin-crud.server.ts`
+## `app/lib/admin-dictionaries.server.ts`
 
-Цель: перейти от route-centric структуры к модульной архитектуре.
+- Довести до конца унификацию всех справочников и admin read/write flows через shared cache/admin helpers.
+- Зафиксировать naming и invalidation rules для dictionary caches, чтобы новые формы не добавляли локальные SQL lookups.
+- Свести remaining admin/detail loaders к одному cached loader pattern.
 
-- [ ] Создать `app/features/cars`.
-- [ ] Создать `app/features/companies`.
-- [ ] Создать `app/features/bookings`.
-- [ ] Создать `app/features/contracts`.
-- [ ] Постепенно переносить DB access в `repo`, orchestration в `service`, rules в `policy`.
+## `app/lib/telemetry.server.ts`
 
-### Phase 2.5: Admin normalization
+- Добавить единый стандарт latency thresholds, slow-path tagging и event taxonomy для loader/action/API операций.
+- Расширить обвязку так, чтобы route-слой не дублировал структуру `details`, naming и error context.
+- Привязать telemetry к реальным hot paths: create/edit/detail/payment/calendar/reporting сценариям.
 
-Цель: довести админку до единых read/write паттернов без локальных костылей.
+## `app/lib/*-repo.server.ts`
 
-- [~] Централизовать admin dictionary loaders/actions.
-- Уже сделано для `colors`, `districts`, `hotels`, `durations`, `seasons`.
-- [ ] Вынести оставшиеся admin dictionary/detail loaders (`settings`, `companies.create`, color modal flows, related lookups) в shared server modules.
-- [ ] Зафиксировать единый шаблон `route -> admin-crud/admin-dictionaries -> DB`.
-- [ ] Добавить точечные tests на admin CRUD invariants и audit coverage.
+- Расширить repo-подход за пределы list pages на detail/read-heavy flows, где route всё ещё содержит прямой SQL.
+- Зафиксировать единый стиль repo API: filters, pagination, counts, status summaries, row mapping.
+- Отделить repo от orchestration/service слоя, чтобы бизнес-правила и side effects не смешивались с query code.
 
-### Phase 3: Data and performance
+## `tests/*`
 
-Цель: ускорить реальные горячие сценарии.
+- Выровнять test coverage вокруг стандартов, а не отдельных файлов: access policy, ownership, money flows, audit, telemetry, unified form actions.
+- Добавить точечные integration tests для маршрутов, которые ещё держат критичную orchestration-логику в route.
+- Зафиксировать regression suite для унифицированных shared helpers, чтобы перенос логики из routes в services/features был безопасным.
 
-- [~] Проверить hot loaders/actions на лишние D1 round-trips.
-- Уже сделано для `dashboard-home`, `cars`, `contracts`, `users`, `payments`, `bookings`.
-- [ ] Зафиксировать и улучшить индексное покрытие под списки, календари, overlap checks.
-- [ ] Стандартизировать кэширование справочников и редко меняемых данных.
-- [~] Ввести явный slow-path контроль для дорогих loader/action операций.
-- Базовый telemetry-gate уже введен, следующий шаг: thresholds/reporting по latency.
+## `docs/*`
 
-### Phase 4: Reliability
-
-Цель: убрать регрессии при росте.
-
-- [ ] Усилить integration coverage для auth, tenant isolation, checkout, companies access, logs access.
-- [ ] Расширить telemetry на ключевые loader/action пути.
-- [ ] Держать docs синхронизированными с изменениями потоков и security.
-
-## Порядок выполнения
-
-1. Сначала `checkout`, потому что это публичный денежный flow и показательный giant route.
-2. Затем `cars.$id` и `companies.$companyId`, потому что это крупные route-driven файлы.
-3. Затем нормализация `app/features/*` для core domains.
-4. Затем уже тонкая оптимизация D1, SSR payload и внешних asset dependencies.
-
-## Текущее состояние
-
-- Route-слой стал заметно тоньше в горячих dashboard list flows.
-- SQL для list/count/status больше не размазан по нескольким route-модулям.
-- Следующий фокус смещается с decomposition на query plans и индексы.
-
-## Критерии завершения этапа
-
-Этап считается завершённым, когда:
-
-- route стал тоньше;
-- логика вынесена в server module;
-- поведение не сломано;
-- проходят `npm run build`, `npm run typecheck`, `npm test`, `npm run rules:check`.
+- Держать `docs/README.md`, `docs/DATABASE.md` и этот файл синхронизированными с фактическими стандартами слоев `route/service/repo/policy`.
+- Не возвращать разрозненные одноразовые optimization notes; поддерживать один актуальный список задач по путям и стандартам.

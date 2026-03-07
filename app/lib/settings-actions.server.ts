@@ -3,6 +3,8 @@ import type { PaymentTemplateRow } from "~/lib/db-types";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import type { SessionUser } from "~/lib/auth.server";
 import { getAdminModCompanyId } from "~/lib/mod-mode.server";
+import { invalidateSettingsCaches } from "~/lib/dictionaries-cache.server";
+import { enforcePhuketCurrencyInvariant } from "~/lib/settings-currency-policy.server";
 import { isPhuketName, normalizeCompanyRow } from "~/lib/settings-normalizers";
 import { parseWithSchema } from "~/lib/validation.server";
 import { companySchema } from "~/schemas/company";
@@ -167,6 +169,17 @@ async function handleUpdateGeneral(args: SettingsActionArgs, state: SettingsActi
       }
     }
 
+    const locationName = await context.cloudflare.env.DB
+      .prepare("SELECT name FROM locations WHERE id = ? LIMIT 1")
+      .bind(validData.locationId)
+      .first() as { name?: string } | null;
+
+    if (isPhuketName(locationName?.name)) {
+      await enforcePhuketCurrencyInvariant(context.cloudflare.env.DB, companyId);
+    }
+
+    invalidateSettingsCaches(companyId);
+
     const metadata = getRequestMetadata(request);
     quickAudit({
       db: context.cloudflare.env.DB,
@@ -213,6 +226,8 @@ async function handleSetDefaultCurrency(args: SettingsActionArgs, state: Setting
       .bind(companyId, currencyId)
       .run();
 
+    invalidateSettingsCaches(companyId);
+
     return redirect(state.withMode("/settings?tab=currencies&success=Default currency updated"));
   } catch {
     return redirect(state.withMode("/settings?tab=currencies&error=Failed to update default currency"));
@@ -245,6 +260,8 @@ async function handleToggleCurrencyActive(args: SettingsActionArgs, state: Setti
       .bind(isActive ? 1 : 0, isActive ? companyId : null, new Date().toISOString(), currencyId)
       .run();
 
+    invalidateSettingsCaches(companyId);
+
     return redirect(state.withMode("/settings?tab=currencies&success=Currency status updated"));
   } catch {
     return redirect(state.withMode("/settings?tab=currencies&error=Failed to update currency status"));
@@ -269,6 +286,8 @@ async function handleCreateCurrency(args: SettingsActionArgs, state: SettingsAct
       `)
       .bind(name, code, symbol, new Date().toISOString(), new Date().toISOString())
       .run();
+
+    invalidateSettingsCaches();
 
     return redirect(state.withMode("/settings?tab=currencies&success=Currency created successfully"));
   } catch {
@@ -321,6 +340,8 @@ async function handleUpdatePaymentTemplate(args: SettingsActionArgs, state: Sett
       .bind(name, sign, description, new Date().toISOString(), id)
       .run();
 
+    invalidateSettingsCaches(companyId);
+
     return redirect(state.withMode("/settings?success=Payment template updated successfully"));
   } catch {
     return redirect(state.withMode("/settings?error=Failed to update payment template"));
@@ -352,6 +373,8 @@ async function handleCreatePaymentTemplate(args: SettingsActionArgs, state: Sett
         new Date().toISOString()
       )
       .run();
+
+    invalidateSettingsCaches(companyId);
 
     return redirect(state.withMode("/settings?success=Payment template created successfully"));
   } catch {
@@ -393,6 +416,8 @@ async function handleDeletePaymentTemplate(args: SettingsActionArgs, state: Sett
       .prepare("DELETE FROM payment_types WHERE id = ? AND company_id = ?")
       .bind(id, companyId)
       .run();
+
+    invalidateSettingsCaches(companyId);
 
     return redirect(state.withMode("/settings?success=Payment template deleted successfully"));
   } catch {
