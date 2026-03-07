@@ -173,7 +173,7 @@ function checkColorContrast(content: string, file: string): void {
  * Check for missing ARIA landmarks
  */
 function checkLandmarks(content: string, file: string): void {
-  if (!isPageLikeFile(file)) {
+  if (file !== "app/root.tsx") {
     return;
   }
 

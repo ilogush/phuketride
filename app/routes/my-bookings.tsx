@@ -128,9 +128,9 @@ export default function MyBookingsPage() {
                                 <div className="flex items-center justify-between">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-3 mb-2">
-                                            <h3 className="font-semibold text-gray-900">
+                                            <h2 className="font-semibold text-gray-900">
                                                 {booking.brandName} {booking.modelName} {booking.carYear}
-                                            </h3>
+                                            </h2>
                                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[booking.status as keyof typeof statusColors]}`}>
                                                 {booking.status}
                                             </span>

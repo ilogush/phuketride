@@ -60,21 +60,21 @@ export default function HostTools() {
                             <li className="flex items-start gap-4 p-4 border border-gray-100 rounded-xl hover:bg-green-100 transition-colors">
                                 <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0 text-white">1</div>
                                 <div>
-                                    <h4 className="font-bold text-gray-900">Host Handbook</h4>
+                                    <h3 className="font-bold text-gray-900">Host Handbook</h3>
                                     <p className="text-gray-600 text-sm">A comprehensive guide to becoming a top-rated host on Phuket Ride.</p>
                                 </div>
                             </li>
                             <li className="flex items-start gap-4 p-4 border border-gray-100 rounded-xl hover:bg-green-100 transition-colors">
                                 <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0 text-white">2</div>
                                 <div>
-                                    <h4 className="font-bold text-gray-900">Photography Guide</h4>
+                                    <h3 className="font-bold text-gray-900">Photography Guide</h3>
                                     <p className="text-gray-600 text-sm">Learn how to take stunning photos that make your car stand out in search results.</p>
                                 </div>
                             </li>
                             <li className="flex items-start gap-4 p-4 border border-gray-100 rounded-xl hover:bg-green-100 transition-colors">
                                 <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0 text-white">3</div>
                                 <div>
-                                    <h4 className="font-bold text-gray-900">Cleaning & Safety Standards</h4>
+                                    <h3 className="font-bold text-gray-900">Cleaning & Safety Standards</h3>
                                     <p className="text-gray-600 text-sm">Best practices for maintaining your vehicle and ensuring guest satisfaction.</p>
                                 </div>
                             </li>

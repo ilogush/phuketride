@@ -100,7 +100,7 @@ export default function MyContractsPageView({
                     </div>
                     <div>
                       <div className="mb-1 flex items-center gap-3">
-                        <h3 className="font-semibold text-gray-900">Contract #{contract.id}</h3>
+                        <h2 className="font-semibold text-gray-900">Contract #{contract.id}</h2>
                         <span
                           className={`rounded-full px-2 py-1 text-xs font-medium ${
                             statusColors[contract.status]

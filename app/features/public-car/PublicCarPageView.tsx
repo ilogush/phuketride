@@ -188,9 +188,9 @@ export default function PublicCarPageView({
             />
             <CarReviewsSection rating={ratingSummary} reviews={reviews} />
             <section className="rounded-2xl border border-gray-200 bg-gray-50 p-5 space-y-3">
-              <h3 className="text-xl font-semibold text-gray-800">
+              <h2 className="text-xl font-semibold text-gray-800">
                 Need help before booking?
-              </h3>
+              </h2>
               <p className="text-sm text-gray-600">
                 Contact support and we will help with pickup details, insurance,
                 and host communication.
