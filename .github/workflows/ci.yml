@@ -53,7 +53,7 @@ jobs:
       - name: Accessibility Audit
         run: npm run a11y:audit
         env:
-          A11Y_FAIL_LEVEL: high
+          A11Y_FAIL_LEVEL: medium
 
       - name: Lint
         run: npm run lint
