@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
-import { useLoaderData, useSubmit, useNavigation } from "react-router";
+import { useLoaderData, useNavigation } from "react-router";
 
 export const meta: MetaFunction = () => [
     { title: "Seasons — Phuket Ride Admin" },
@@ -17,6 +17,8 @@ import { loadAdminSeasons, type AdminSeasonRow } from "~/lib/admin-dictionaries.
 import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
+import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
+import { useSubmit } from "react-router";
 
 type Season = AdminSeasonRow;
 
@@ -51,7 +53,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         companyId,
         details: { route: "seasons" },
         run: async () => {
-            const seasons = await loadAdminSeasons(sdb.db as any);
+            const seasons = await sdb.seasons.list();
             return { seasons };
         },
     });
@@ -72,6 +74,12 @@ export default function SeasonsPage() {
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingSeason, setEditingSeason] = useState<Season | null>(null);
+
+    const { handleFormSubmit, handleDelete } = useDictionaryFormActions({
+        editingItem: editingSeason,
+        setIsFormOpen,
+        setEditingItem: setEditingSeason,
+    });
 
     const columns: Column<Season>[] = [
         {
@@ -147,15 +155,6 @@ export default function SeasonsPage() {
         { name: "discountLabel", label: "Discount Label", type: "text", className: "col-span-4", placeholder: "e.g., +50%" },
     ];
 
-    const handleFormSubmit = (data: Record<string, unknown>) => {
-        const formData = new FormData();
-        Object.entries(data).forEach(([key, value]) => formData.append(key, String(value || "")));
-        formData.append("intent", editingSeason ? "update" : "create");
-        if (editingSeason) formData.append("id", String(editingSeason.id));
-        submit(formData, { method: "post" });
-        setIsFormOpen(false);
-    };
-
     return (
         <div className="space-y-4">
             <PageHeader
@@ -188,7 +187,6 @@ export default function SeasonsPage() {
             <DataTable<Season>
                 columns={columns}
                 data={seasons}
-                pagination={false}
                 isLoading={navigation.state === "loading"}
                 emptyTitle="No seasons found"
                 emptyDescription="Define seasonal pricing periods for your rental business"
@@ -222,15 +220,7 @@ export default function SeasonsPage() {
                     }}
                     onSubmit={handleFormSubmit}
                     onCancel={() => setIsFormOpen(false)}
-                    onDelete={editingSeason ? () => {
-                        if (confirm("Delete this season?")) {
-                            const fd = new FormData();
-                            fd.append("intent", "delete");
-                            fd.append("id", String(editingSeason.id));
-                            submit(fd, { method: "post" });
-                            setIsFormOpen(false);
-                        }
-                    } : undefined}
+                    onDelete={editingSeason ? () => handleDelete("Delete this season?") : undefined}
                 />
             )}
         </div>

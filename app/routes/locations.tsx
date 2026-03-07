@@ -19,6 +19,7 @@ import { useUrlToast } from "~/lib/useUrlToast";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
+import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user, companyId, isModMode, sdb } = await getScopedDb(request, context, async (r) => {
@@ -128,14 +129,11 @@ export default function LocationsPage() {
         setEditingDistrict(null);
     };
 
-    const handleFormSubmit = (data: Record<string, unknown>) => {
-        const formData = new FormData();
-        Object.entries(data).forEach(([key, value]) => formData.append(key, String(value || "")));
-        formData.append("intent", editingDistrict ? "update" : "create");
-        if (editingDistrict) formData.append("id", String(editingDistrict.id));
-        submit(formData, { method: "post" });
-        handleCloseModal();
-    };
+    const { handleFormSubmit, handleDelete } = useDictionaryFormActions({
+        editingItem: editingDistrict,
+        setIsFormOpen: setIsModalOpen,
+        setEditingItem: setEditingDistrict,
+    });
 
     const fields: FieldConfig[] = [
         { name: "name", label: "District Name", type: "text", required: true, placeholder: "e.g., Patong" },
@@ -265,7 +263,6 @@ export default function LocationsPage() {
             <DataTable
                 data={localDistricts}
                 columns={columns}
-                pagination={false}
                 emptyTitle="No districts found"
                 emptyDescription="Start by adding your first district"
             />
@@ -282,15 +279,7 @@ export default function LocationsPage() {
                     } : null}
                     onSubmit={handleFormSubmit}
                     onCancel={handleCloseModal}
-                    onDelete={editingDistrict ? () => {
-                        if (confirm("Delete this district?")) {
-                            const fd = new FormData();
-                            fd.append("intent", "delete");
-                            fd.append("id", String(editingDistrict.id));
-                            submit(fd, { method: "post" });
-                            handleCloseModal();
-                        }
-                    } : undefined}
+                    onDelete={editingDistrict ? () => handleDelete("Delete this district?") : undefined}
                 />
             )}
         </div>

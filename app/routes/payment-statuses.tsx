@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
-import { useLoaderData, useSubmit, useNavigation } from "react-router";
+import { useLoaderData, useNavigation } from "react-router";
 
 export const meta: MetaFunction = () => [
     { title: "Payment Statuses — Phuket Ride Admin" },
@@ -19,6 +19,7 @@ import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
 import { runAdminMutationAction } from "~/lib/admin-crud.server";
 import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
+import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
 
 type PaymentStatusRow = {
     id: number;
@@ -112,11 +113,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
 export default function PaymentStatusesPage() {
     const { statuses } = useLoaderData<typeof loader>();
     useUrlToast();
-    const submit = useSubmit();
     const navigation = useNavigation();
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingStatus, setEditingStatus] = useState<PaymentStatusRow | null>(null);
+
+    const { handleFormSubmit, handleDelete } = useDictionaryFormActions({
+        editingItem: editingStatus,
+        setIsFormOpen,
+        setEditingItem: setEditingStatus,
+    });
 
     const columns: Column<PaymentStatusRow>[] = [
         { key: "id", label: "ID", className: "w-16" },
@@ -130,15 +136,6 @@ export default function PaymentStatusesPage() {
     const fields: FieldConfig[] = [
         { name: "name", label: "Status Name", type: "text", required: true, placeholder: "e.g., Pending, Paid" },
     ];
-
-    const handleFormSubmit = (data: Record<string, unknown>) => {
-        const formData = new FormData();
-        Object.entries(data).forEach(([key, value]) => formData.append(key, String(value || "")));
-        formData.append("intent", editingStatus ? "update" : "create");
-        if (editingStatus) formData.append("id", String(editingStatus.id));
-        submit(formData, { method: "post" });
-        setIsFormOpen(false);
-    };
 
     return (
         <div className="space-y-4">
@@ -162,7 +159,6 @@ export default function PaymentStatusesPage() {
                 data={statuses}
                 columns={columns}
                 totalCount={statuses.length}
-                pagination={false}
                 isLoading={navigation.state === "loading"}
                 emptyTitle="No payment statuses found"
                 emptyDescription="Define payment statuses for the system"
@@ -181,15 +177,7 @@ export default function PaymentStatusesPage() {
                     data={editingStatus ? { name: editingStatus.name } : null}
                     onSubmit={handleFormSubmit}
                     onCancel={() => setIsFormOpen(false)}
-                    onDelete={editingStatus ? () => {
-                        if (confirm("Delete this status?")) {
-                            const fd = new FormData();
-                            fd.append("intent", "delete");
-                            fd.append("id", String(editingStatus.id));
-                            submit(fd, { method: "post" });
-                            setIsFormOpen(false);
-                        }
-                    } : undefined}
+                    onDelete={editingStatus ? () => handleDelete("Delete this status?") : undefined}
                 />
             )}
         </div>

@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
-import { useLoaderData, useSubmit, useNavigation } from "react-router";
+import { useLoaderData, useNavigation, useSubmit } from "react-router";
 
 export const meta: MetaFunction = () => [
     { title: "Rental Durations — Phuket Ride Admin" },
@@ -20,6 +20,7 @@ import { trackServerOperation } from "~/lib/telemetry.server";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
+import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
 
 type RentalDuration = AdminDurationRow;
 
@@ -34,7 +35,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         companyId,
         details: { route: "durations" },
         run: async () => {
-            const durations = await loadAdminDurations(sdb.db as any);
+            const durations = await sdb.durations.list();
             return { durations };
         },
     });
@@ -67,6 +68,12 @@ export default function DurationsPage() {
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingDuration, setEditingDuration] = useState<RentalDuration | null>(null);
+
+    const { handleFormSubmit, handleDelete } = useDictionaryFormActions({
+        editingItem: editingDuration,
+        setIsFormOpen,
+        setEditingItem: setEditingDuration,
+    });
 
     const columns: Column<RentalDuration>[] = [
         {
@@ -112,15 +119,6 @@ export default function DurationsPage() {
         { name: "discountLabel", label: "Discount Label", type: "text", placeholder: "e.g., -5%" },
     ];
 
-    const handleFormSubmit = (data: Record<string, unknown>) => {
-        const formData = new FormData();
-        Object.entries(data).forEach(([key, value]) => formData.append(key, String(value || "")));
-        formData.append("intent", editingDuration ? "update" : "create");
-        if (editingDuration) formData.append("id", String(editingDuration.id));
-        submit(formData, { method: "post" });
-        setIsFormOpen(false);
-    };
-
     return (
         <div className="space-y-4">
             <PageHeader
@@ -153,7 +151,6 @@ export default function DurationsPage() {
             <DataTable<RentalDuration>
                 columns={columns}
                 data={durations}
-                pagination={false}
                 isLoading={navigation.state === "loading"}
                 emptyTitle="No durations found"
                 emptyDescription="Add rental duration periods to get started"
@@ -178,15 +175,7 @@ export default function DurationsPage() {
                     } : null}
                     onSubmit={handleFormSubmit}
                     onCancel={() => setIsFormOpen(false)}
-                    onDelete={editingDuration ? () => {
-                        if (confirm("Delete this duration?")) {
-                            const fd = new FormData();
-                            fd.append("intent", "delete");
-                            fd.append("id", String(editingDuration.id));
-                            submit(fd, { method: "post" });
-                            setIsFormOpen(false);
-                        }
-                    } : undefined}
+                    onDelete={editingDuration ? () => handleDelete("Delete this duration?") : undefined}
                 />
             )}
         </div>

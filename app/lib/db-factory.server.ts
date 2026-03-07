@@ -41,7 +41,8 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
         },
 
         districts: {
-            list: (options?: { includeDetails?: boolean; limit?: number }) => dictRepo.loadAdminDistricts(db as any, options),
+            list: (options?: { includeDetails?: boolean; limit?: number; offset?: number; search?: string }) =>
+                dictRepo.loadAdminDistricts(db as any, options),
         },
 
         hotels: {

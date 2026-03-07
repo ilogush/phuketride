@@ -149,13 +149,7 @@ type Pages = {
   "/brands": {
     params: {};
   };
-  "/brands/create": {
-    params: {};
-  };
   "/models": {
-    params: {};
-  };
-  "/models/create": {
     params: {};
   };
   "/car-templates": {
@@ -200,14 +194,6 @@ type Pages = {
   };
   "/colors": {
     params: {};
-  };
-  "/colors/new": {
-    params: {};
-  };
-  "/colors/:colorId/edit": {
-    params: {
-      "colorId": string;
-    };
   };
   "/reports": {
     params: {};
@@ -284,7 +270,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/login" | "/register" | "/register-partner" | "/logout" | "/assets/*" | "/become-a-host" | "/why-choose-phuket-ride" | "/gift-cards" | "/contact-support" | "/legal" | "/insurance-protection" | "/host-tools" | "/carculator" | "/search-cars" | "/company/:slug" | "/cars/:id" | "/cars/:id/checkout" | "/booking-confirmation" | "/booking-confirmation/:id" | "/api/search-events" | "/api/metrics/dashboard-charts" | "/api/calendar-events" | "/api/car-templates/:id/features" | "/home" | "/companies" | "/companies/create" | "/companies/:companyId" | "/companies/:companyId/edit" | "/users" | "/users/create" | "/users/:userId" | "/users/:userId/edit" | "/cars" | "/cars/create" | "/cars/:id/content" | "/cars/:id/edit" | "/brands" | "/brands/create" | "/models" | "/models/create" | "/car-templates" | "/car-templates/create" | "/car-templates/:id" | "/car-templates/:id/edit" | "/payments" | "/payments/create" | "/payment-statuses" | "/locations" | "/districts" | "/hotels" | "/durations" | "/seasons" | "/colors" | "/colors/new" | "/colors/:colorId/edit" | "/reports" | "/logs" | "/contracts" | "/contracts/:id/close" | "/contracts/new" | "/contracts/:id" | "/contracts/:id/edit" | "/calendar" | "/calendar/new" | "/settings" | "/bookings" | "/bookings/create" | "/bookings/:id" | "/profile" | "/profile/edit" | "/my-bookings" | "/my-contracts" | "/my-contracts/:id" | "/my-payments" | "/notifications";
+    page: "/" | "/login" | "/register" | "/register-partner" | "/logout" | "/assets/*" | "/become-a-host" | "/why-choose-phuket-ride" | "/gift-cards" | "/contact-support" | "/legal" | "/insurance-protection" | "/host-tools" | "/carculator" | "/search-cars" | "/company/:slug" | "/cars/:id" | "/cars/:id/checkout" | "/booking-confirmation" | "/booking-confirmation/:id" | "/api/search-events" | "/api/metrics/dashboard-charts" | "/api/calendar-events" | "/api/car-templates/:id/features" | "/home" | "/companies" | "/companies/create" | "/companies/:companyId" | "/companies/:companyId/edit" | "/users" | "/users/create" | "/users/:userId" | "/users/:userId/edit" | "/cars" | "/cars/create" | "/cars/:id/content" | "/cars/:id/edit" | "/brands" | "/models" | "/car-templates" | "/car-templates/create" | "/car-templates/:id" | "/car-templates/:id/edit" | "/payments" | "/payments/create" | "/payment-statuses" | "/locations" | "/districts" | "/hotels" | "/durations" | "/seasons" | "/colors" | "/reports" | "/logs" | "/contracts" | "/contracts/:id/close" | "/contracts/new" | "/contracts/:id" | "/contracts/:id/edit" | "/calendar" | "/calendar/new" | "/settings" | "/bookings" | "/bookings/create" | "/bookings/:id" | "/profile" | "/profile/edit" | "/my-bookings" | "/my-contracts" | "/my-contracts/:id" | "/my-payments" | "/notifications";
   };
   "routes/home.tsx": {
     id: "routes/home";
@@ -384,7 +370,7 @@ type RouteFiles = {
   };
   "routes/app-layout.tsx": {
     id: "routes/app-layout";
-    page: "/home" | "/companies" | "/companies/create" | "/companies/:companyId" | "/companies/:companyId/edit" | "/users" | "/users/create" | "/users/:userId" | "/users/:userId/edit" | "/cars" | "/cars/create" | "/cars/:id" | "/cars/:id/content" | "/cars/:id/edit" | "/brands" | "/brands/create" | "/models" | "/models/create" | "/car-templates" | "/car-templates/create" | "/car-templates/:id" | "/car-templates/:id/edit" | "/payments" | "/payments/create" | "/payment-statuses" | "/locations" | "/districts" | "/hotels" | "/durations" | "/seasons" | "/colors" | "/colors/new" | "/colors/:colorId/edit" | "/reports" | "/logs" | "/contracts" | "/contracts/:id/close" | "/contracts/new" | "/contracts/:id" | "/contracts/:id/edit" | "/calendar" | "/calendar/new" | "/settings" | "/bookings" | "/bookings/create" | "/bookings/:id" | "/profile" | "/profile/edit" | "/my-bookings" | "/my-contracts" | "/my-contracts/:id" | "/my-payments" | "/notifications";
+    page: "/home" | "/companies" | "/companies/create" | "/companies/:companyId" | "/companies/:companyId/edit" | "/users" | "/users/create" | "/users/:userId" | "/users/:userId/edit" | "/cars" | "/cars/create" | "/cars/:id" | "/cars/:id/content" | "/cars/:id/edit" | "/brands" | "/models" | "/car-templates" | "/car-templates/create" | "/car-templates/:id" | "/car-templates/:id/edit" | "/payments" | "/payments/create" | "/payment-statuses" | "/locations" | "/districts" | "/hotels" | "/durations" | "/seasons" | "/colors" | "/reports" | "/logs" | "/contracts" | "/contracts/:id/close" | "/contracts/new" | "/contracts/:id" | "/contracts/:id/edit" | "/calendar" | "/calendar/new" | "/settings" | "/bookings" | "/bookings/create" | "/bookings/:id" | "/profile" | "/profile/edit" | "/my-bookings" | "/my-contracts" | "/my-contracts/:id" | "/my-payments" | "/notifications";
   };
   "routes/dashboard-home.tsx": {
     id: "routes/dashboard-home";
@@ -446,17 +432,9 @@ type RouteFiles = {
     id: "routes/brands";
     page: "/brands";
   };
-  "routes/brands.create.tsx": {
-    id: "routes/brands.create";
-    page: "/brands/create";
-  };
   "routes/models.tsx": {
     id: "routes/models";
     page: "/models";
-  };
-  "routes/models.create.tsx": {
-    id: "routes/models.create";
-    page: "/models/create";
   };
   "routes/car-templates.tsx": {
     id: "routes/car-templates";
@@ -508,15 +486,7 @@ type RouteFiles = {
   };
   "routes/colors.tsx": {
     id: "routes/colors";
-    page: "/colors" | "/colors/new" | "/colors/:colorId/edit";
-  };
-  "routes/colors_.new.tsx": {
-    id: "routes/colors_.new";
-    page: "/colors/new";
-  };
-  "routes/colors_.$colorId.edit.tsx": {
-    id: "routes/colors_.$colorId.edit";
-    page: "/colors/:colorId/edit";
+    page: "/colors";
   };
   "routes/reports.tsx": {
     id: "routes/reports";
@@ -642,9 +612,7 @@ type RouteModules = {
   "routes/cars.$id.content": typeof import("./app/routes/cars.$id.content.tsx");
   "routes/cars.$id.edit": typeof import("./app/routes/cars.$id.edit.tsx");
   "routes/brands": typeof import("./app/routes/brands.tsx");
-  "routes/brands.create": typeof import("./app/routes/brands.create.tsx");
   "routes/models": typeof import("./app/routes/models.tsx");
-  "routes/models.create": typeof import("./app/routes/models.create.tsx");
   "routes/car-templates": typeof import("./app/routes/car-templates.tsx");
   "routes/car-templates.create": typeof import("./app/routes/car-templates.create.tsx");
   "routes/car-templates.$id": typeof import("./app/routes/car-templates.$id.tsx");
@@ -658,8 +626,6 @@ type RouteModules = {
   "routes/durations": typeof import("./app/routes/durations.tsx");
   "routes/seasons": typeof import("./app/routes/seasons.tsx");
   "routes/colors": typeof import("./app/routes/colors.tsx");
-  "routes/colors_.new": typeof import("./app/routes/colors_.new.tsx");
-  "routes/colors_.$colorId.edit": typeof import("./app/routes/colors_.$colorId.edit.tsx");
   "routes/reports": typeof import("./app/routes/reports.tsx");
   "routes/logs": typeof import("./app/routes/logs.tsx");
   "routes/contracts": typeof import("./app/routes/contracts.tsx");

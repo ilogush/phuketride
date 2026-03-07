@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
-import { useLoaderData, useSubmit, useNavigation, useSearchParams } from "react-router";
+import { useLoaderData, useNavigation, useSearchParams } from "react-router";
 
 export const meta: MetaFunction = () => [
     { title: "Districts — Phuket Ride Admin" },
@@ -17,8 +17,6 @@ import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
 import { runAdminMutationAction } from "~/lib/admin-crud.server";
 import {
-    loadAdminDistricts,
-    loadAdminLocations,
     countAdminDistricts,
     type AdminDistrictRow,
     type AdminLocationRow,
@@ -26,6 +24,8 @@ import {
 import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
+import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
+import { getPaginationFromUrl } from "~/lib/pagination.server";
 
 type District = Required<Pick<AdminDistrictRow, "id" | "name" | "locationId" | "beaches" | "deliveryPrice" | "createdAt" | "updatedAt">> & { locationName?: string };
 
@@ -33,9 +33,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context);
     const url = new URL(request.url);
     const search = url.searchParams.get("search") || "";
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const pageSize = parseInt(url.searchParams.get("pageSize") || "20");
-    const offset = (page - 1) * pageSize;
+    const { page, pageSize, offset } = getPaginationFromUrl(url, { defaultPageSize: 20 });
 
     return trackServerOperation({
         event: "districts.load",
@@ -46,20 +44,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         details: { route: "districts", search, page, pageSize },
         run: async () => {
             const [districts, totalCount, locations] = await Promise.all([
-                loadAdminDistricts(sdb.db as any, { 
-                    includeDetails: true, 
-                    limit: pageSize, 
-                    offset, 
-                    search 
-                }) as Promise<District[]>,
+                sdb.districts.list({ includeDetails: true, limit: pageSize, offset, search }) as Promise<District[]>,
                 countAdminDistricts(sdb.db as any, search),
-                loadAdminLocations(sdb.db as any) as Promise<AdminLocationRow[]>,
+                sdb.locations.list() as Promise<AdminLocationRow[]>,
             ]);
 
             return {
                 districts,
                 totalCount,
-                locations: locations.map(l => ({ id: l.id.toString(), name: l.name })),
+                locations: locations.map((l: AdminLocationRow) => ({ id: l.id.toString(), name: l.name })),
                 page,
                 pageSize,
                 search,
@@ -167,12 +160,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
 export default function DistrictsPage() {
     const { districts, locations, totalCount, search } = useLoaderData<typeof loader>();
     useUrlToast();
-    const submit = useSubmit();
     const navigation = useNavigation();
     const [searchParams, setSearchParams] = useSearchParams();
-    
+
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingDistrict, setEditingDistrict] = useState<District | null>(null);
+
+    const { handleFormSubmit, handleDelete } = useDictionaryFormActions({
+        editingItem: editingDistrict,
+        setIsFormOpen,
+        setEditingItem: setEditingDistrict,
+    });
 
     const columns: Column<District>[] = [
         {
@@ -223,30 +221,6 @@ export default function DistrictsPage() {
         setSearchParams(next, { replace: true });
     };
 
-    const handleFormSubmit = (data: Record<string, unknown>) => {
-        const formData = new FormData();
-        Object.entries(data).forEach(([key, value]) => {
-            if (value !== null && value !== undefined) {
-                formData.append(key, String(value));
-            }
-        });
-        formData.append("intent", editingDistrict ? "update" : "create");
-        if (editingDistrict) formData.append("id", String(editingDistrict.id));
-        
-        submit(formData, { method: "post" });
-        setIsFormOpen(false);
-    };
-
-    const handleDelete = () => {
-        if (!editingDistrict) return;
-        if (!confirm("Are you sure you want to delete this district?")) return;
-        
-        const formData = new FormData();
-        formData.append("intent", "delete");
-        formData.append("id", String(editingDistrict.id));
-        submit(formData, { method: "post" });
-        setIsFormOpen(false);
-    };
 
     return (
         <div className="space-y-4">
