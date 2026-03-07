@@ -1,6 +1,8 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import AuthSelect from "./AuthSelect";
+import Button from "./Button";
 import { buildCalendar, formatDisplay, monthLabel, timeOptions, weekDays } from "./date-range-picker.utils";
-import type { DateRangeValue } from "./DateRangePicker";
+import type { DateRangeValue } from "./trip-date.model";
 
 interface DateRangeCalendarOverlayProps {
   draft: DateRangeValue;
@@ -131,42 +133,42 @@ export default function DateRangeCalendarOverlay({
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 py-3 px-4 border-t border-gray-200">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1">
-            <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.startDate)} />
-            <select
+            <input aria-label="Start date preview" type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.startDate)} />
+            <AuthSelect
               value={draft.startTime}
               onChange={(event) => onDraftChange({ startTime: event.target.value })}
-              className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-green-600 focus:outline-none"
+              inputClassName="rounded-lg px-2 py-2 text-sm text-gray-800 focus:border-green-600 focus:ring-green-600"
             >
               {timeOptions.map((time) => (
                 <option key={`${optionKeyPrefix}-start-${time.value}`} value={time.value}>
                   {time.label}
                 </option>
               ))}
-            </select>
+            </AuthSelect>
           </div>
           <div className="flex items-center gap-1">
-            <input type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.endDate)} />
-            <select
+            <input aria-label="End date preview" type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.endDate)} />
+            <AuthSelect
               value={draft.endTime}
               onChange={(event) => onDraftChange({ endTime: event.target.value })}
-              className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-800 focus:border-green-600 focus:outline-none"
+              inputClassName="rounded-lg px-2 py-2 text-sm text-gray-800 focus:border-green-600 focus:ring-green-600"
             >
               {timeOptions.map((time) => (
                 <option key={`${optionKeyPrefix}-end-${time.value}`} value={time.value}>
                   {time.label}
                 </option>
               ))}
-            </select>
+            </AuthSelect>
           </div>
         </div>
 
         <div className="flex items-center md:justify-end gap-x-2">
-          <button type="button" onClick={onCancel} className="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-800 hover:bg-green-100">
+          <Button type="button" onClick={onCancel} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-800 hover:bg-green-100">
             Cancel
-          </button>
-          <button type="button" onClick={onApply} className="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-xs font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700">
+          </Button>
+          <Button type="button" onClick={onApply} className="rounded-lg border border-transparent bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700">
             Apply
-          </button>
+          </Button>
         </div>
       </div>
     </div>

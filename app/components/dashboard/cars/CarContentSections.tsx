@@ -18,10 +18,10 @@ export default function CarContentSections({ includedItems, rules, features, rev
           <h2 className="text-lg font-semibold mb-3">Included in the price</h2>
           <Form method="post" className="space-y-2 mb-4">
             <input type="hidden" name="intent" value="add_included" />
-            <input name="category" placeholder="Category" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input name="title" placeholder="Title" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input name="description" placeholder="Description" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input name="iconKey" placeholder="Icon key (truck, users, clock...)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <input aria-label="Included item category" name="category" placeholder="Category" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <input aria-label="Included item title" name="title" placeholder="Title" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <input aria-label="Included item description" name="description" placeholder="Description" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <input aria-label="Included item icon key" name="iconKey" placeholder="Icon key (truck, users, clock...)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
             <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm text-white">Add</button>
           </Form>
           <div className="space-y-2">
@@ -43,9 +43,9 @@ export default function CarContentSections({ includedItems, rules, features, rev
           <h2 className="text-lg font-semibold mb-3">Rules of the road</h2>
           <Form method="post" className="space-y-2 mb-4">
             <input type="hidden" name="intent" value="add_rule" />
-            <input name="title" placeholder="Title" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input name="description" placeholder="Description" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input name="iconKey" placeholder="Icon key (no_smoking, tidy...)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <input aria-label="Rule title" name="title" placeholder="Title" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <input aria-label="Rule description" name="description" placeholder="Description" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <input aria-label="Rule icon key" name="iconKey" placeholder="Icon key (no_smoking, tidy...)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
             <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm text-white">Add</button>
           </Form>
           <div className="space-y-2">
@@ -69,8 +69,8 @@ export default function CarContentSections({ includedItems, rules, features, rev
           <h2 className="text-lg font-semibold mb-3">Features</h2>
           <Form method="post" className="space-y-2 mb-4">
             <input type="hidden" name="intent" value="add_feature" />
-            <input name="category" placeholder="Category" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input name="name" placeholder="Feature name" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <input aria-label="Feature category" name="category" placeholder="Category" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <input aria-label="Feature name" name="name" placeholder="Feature name" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
             <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm text-white">Add</button>
           </Form>
           <div className="space-y-2">

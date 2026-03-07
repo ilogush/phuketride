@@ -8,8 +8,8 @@ import {
   formatTimeDisplay,
   parseDate,
   timeOptions,
-  toDateInput,
 } from "./date-range-picker.utils";
+import { toDateInput, type DateRangeValue } from "./trip-date.model";
 
 interface DateRangePickerProps {
   compact?: boolean;
@@ -27,13 +27,6 @@ interface DateRangePickerProps {
   compactShowChevron?: boolean;
   compactShowTime?: boolean;
   compactVertical?: boolean;
-}
-
-export interface DateRangeValue {
-  startDate: string;
-  endDate: string;
-  startTime: string;
-  endTime: string;
 }
 
 export default function DateRangePicker({
@@ -156,10 +149,10 @@ export default function DateRangePicker({
           <p className="text-sm text-gray-500">Start date</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="relative">
-              <input type="date" value={model.startDate} onChange={(event) => update({ startDate: event.target.value }, true)} className={inputClass} />
+              <input aria-label="Start date" type="date" value={model.startDate} onChange={(event) => update({ startDate: event.target.value }, true)} className={inputClass} />
             </div>
             <div className="relative">
-              <input type="time" value={model.startTime} onChange={(event) => update({ startTime: event.target.value }, true)} className={inputClass} />
+              <input aria-label="Start time" type="time" value={model.startTime} onChange={(event) => update({ startTime: event.target.value }, true)} className={inputClass} />
               <ChevronDownIcon className="w-4 h-4 text-gray-500 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
@@ -168,10 +161,10 @@ export default function DateRangePicker({
           <p className="text-sm text-gray-500">End date</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="relative">
-              <input type="date" value={model.endDate} onChange={(event) => update({ endDate: event.target.value }, true)} className={inputClass} />
+              <input aria-label="End date" type="date" value={model.endDate} onChange={(event) => update({ endDate: event.target.value }, true)} className={inputClass} />
             </div>
             <div className="relative">
-              <input type="time" value={model.endTime} onChange={(event) => update({ endTime: event.target.value }, true)} className={inputClass} />
+              <input aria-label="End time" type="time" value={model.endTime} onChange={(event) => update({ endTime: event.target.value }, true)} className={inputClass} />
               <ChevronDownIcon className="w-4 h-4 text-gray-500 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
@@ -229,7 +222,18 @@ export default function DateRangePicker({
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={cancelDraft} />
+          <div
+            className="fixed inset-0 z-40"
+            role="button"
+            tabIndex={0}
+            onClick={cancelDraft}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                cancelDraft();
+              }
+            }}
+          />
           {(portalTargetId && portalTarget
             ? createPortal(
               <DateRangeCalendarOverlay
