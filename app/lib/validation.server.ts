@@ -14,7 +14,7 @@ export function getValidationErrorMessage(
     error: z.ZodError,
     fallback = "Validation failed"
 ): string {
-    return error.errors[0]?.message || fallback;
+    return error.issues[0]?.message || fallback;
 }
 
 export function parseWithSchema<TSchema extends z.ZodTypeAny>(

@@ -2,9 +2,7 @@ import { z } from "zod";
 
 export const userSchema = z.object({
     email: z.string().email("Invalid email format"),
-    role: z.enum(["admin", "partner", "manager", "user"], { 
-        errorMap: () => ({ message: "Invalid role" }) 
-    }),
+    role: z.enum(["admin", "partner", "manager", "user"] as const, { message: "Invalid role" }),
     name: z.string().min(1, "Name is required").max(100, "Name is too long").optional().nullable(),
     surname: z.string().min(1, "Surname is required").max(100, "Surname is too long").optional().nullable(),
     phone: z.string().min(9, "Phone must contain at least 9 digits").max(20, "Phone is too long").optional().nullable(),

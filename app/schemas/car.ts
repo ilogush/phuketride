@@ -5,10 +5,10 @@ export const carSchema = z.object({
     year: z.number().int().min(1900, "Year must be valid").max(new Date().getFullYear() + 1, "Year must be valid").optional().nullable(),
     colorId: z.number().int().positive("Color is required"),
     licensePlate: z.string().min(1, "License plate is required").max(20, "License plate is too long"),
-    transmission: z.enum(["automatic", "manual"], { errorMap: () => ({ message: "Invalid transmission type" }) }),
+    transmission: z.enum(["automatic", "manual"] as const, { message: "Invalid transmission type" }),
     engineVolume: z.number().min(0.1, "Engine volume must be positive").max(10, "Engine volume is too large"),
-    fuelType: z.enum(["petrol", "diesel", "electric", "hybrid"], { errorMap: () => ({ message: "Invalid fuel type" }) }),
-    status: z.enum(["available", "rented", "maintenance", "booked"], { errorMap: () => ({ message: "Invalid status" }) }),
+    fuelType: z.enum(["petrol", "diesel", "electric", "hybrid"] as const, { message: "Invalid fuel type" }),
+    status: z.enum(["available", "rented", "maintenance", "booked"] as const, { message: "Invalid status" }),
     // Maintenance
     currentMileage: z.number().int().min(0, "Mileage must be positive"),
     nextOilChangeMileage: z.number().int().min(0, "Next oil change mileage must be positive"),

@@ -34,7 +34,7 @@ export const contractSchema = z.object({
     fuelLevelEnd: z.string().max(10, "Fuel level is too long").optional(),
     mileageStart: z.number().int().min(0, "Mileage must be positive").optional(),
     mileageEnd: z.number().int().min(0, "Mileage must be positive").optional(),
-    cleanliness: z.enum(["clean", "dirty", "very_dirty"], { errorMap: () => ({ message: "Invalid cleanliness" }) }).optional(),
+    cleanliness: z.enum(["clean", "dirty", "very_dirty"] as const, { message: "Invalid cleanliness" }).optional(),
     // Additional services
     fullInsurance: z.boolean().optional(),
     fullInsurancePrice: z.number().min(0, "Insurance price must be positive").optional(),
@@ -45,7 +45,7 @@ export const contractSchema = z.object({
     babySeat: z.boolean().optional(),
     babySeatPrice: z.number().min(0, "Baby seat price must be positive").optional(),
     // Status
-    status: z.enum(["active", "completed", "cancelled"], { errorMap: () => ({ message: "Invalid status" }) }).default("active"),
+    status: z.enum(["active", "completed", "cancelled"] as const, { message: "Invalid status" }).default("active"),
     notes: z.string().max(1000, "Notes are too long").optional().nullable(),
 }).refine((data) => new Date(data.endDate) > new Date(data.startDate), {
     message: "End date must be after start date",
