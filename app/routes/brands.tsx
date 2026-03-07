@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
-import { useLoaderData, useNavigation } from "react-router";
+import { useLoaderData, useNavigation, useSearchParams } from "react-router";
 
 export const meta: MetaFunction = () => [
     { title: "Brands — Phuket Ride Admin" },
@@ -22,12 +22,16 @@ import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/
 import { z } from "zod";
 import type { AdminBrandRow } from "~/lib/admin-dictionaries.server";
 import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
+import { getPaginationFromUrl } from "~/lib/pagination.server";
 
 type Brand = AdminBrandRow;
 
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context);
+    const url = new URL(request.url);
+    const search = url.searchParams.get("search") || "";
+    const { page, pageSize, offset } = getPaginationFromUrl(url, { defaultPageSize: 30 });
 
     return trackServerOperation({
         event: "brands.load",
@@ -35,10 +39,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         request,
         userId: user.id,
         companyId,
-        details: { route: "brands" },
+        details: { route: "brands", search, page, pageSize },
         run: async () => {
-            const brands = await sdb.brands.list();
-            return { brands: brands as Brand[] };
+            const [brands, totalCount] = await Promise.all([
+                sdb.brands.listPage({ limit: pageSize, offset, search }),
+                sdb.brands.count(search),
+            ]);
+            return { brands, totalCount, search, page, pageSize };
         },
     });
 }
@@ -56,12 +63,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
             }),
             brandSchema.extend({
                 intent: z.literal("create"),
-                logoUrl: z.string().optional().nullable(),
+                logo: z.string().optional().nullable(),
             }),
             brandSchema.extend({
                 intent: z.literal("update"),
                 id: z.coerce.number().int().positive(),
-                logoUrl: z.string().optional().nullable(),
+                logo: z.string().optional().nullable(),
             }),
         ]),
         Object.fromEntries(formData),
@@ -91,7 +98,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             request,
             context,
             mutate: async ({ db }) => {
-                await db.prepare("INSERT INTO car_brands (name, logo_url) VALUES (?, ?)").bind(data.name, data.logoUrl || null).run();
+                await db.prepare("INSERT INTO car_brands (name, logo) VALUES (?, ?)").bind(data.name, data.logo || null).run();
             },
             feedback: { successPath: "/brands", successMessage: "Brand created", errorMessage: "Failed to create brand" },
             audit: { entityType: "brand", action: "create", afterState: data },
@@ -103,7 +110,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             request,
             context,
             mutate: async ({ db }) => {
-                await db.prepare("UPDATE car_brands SET name = ?, logo_url = ? WHERE id = ?").bind(data.name, data.logoUrl || null, data.id).run();
+                await db.prepare("UPDATE car_brands SET name = ?, logo = ? WHERE id = ?").bind(data.name, data.logo || null, data.id).run();
             },
             feedback: { successPath: "/brands", successMessage: "Brand updated", errorMessage: "Failed to update brand" },
             audit: { entityType: "brand", entityId: data.id, action: "update", afterState: data },
@@ -114,9 +121,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function BrandsPage() {
-    const { brands } = useLoaderData<typeof loader>();
+    const { brands, totalCount, search } = useLoaderData<typeof loader>();
     useUrlToast();
     const navigation = useNavigation();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
@@ -158,10 +166,22 @@ export default function BrandsPage() {
         { name: "logo", label: "Logo URL", type: "text", placeholder: "https://..." },
     ];
 
+    const handleSearch = (val: string) => {
+        const next = new URLSearchParams(searchParams);
+        if (val) next.set("search", val);
+        else next.delete("search");
+        next.set("page", "1");
+        setSearchParams(next, { replace: true });
+    };
+
     return (
         <div className="space-y-4">
             <PageHeader
                 title="Brands"
+                withSearch
+                searchValue={search}
+                onSearchChange={handleSearch}
+                searchPlaceholder="Search brands..."
                 rightActions={
                     <Button
                         variant="solid"
@@ -179,7 +199,8 @@ export default function BrandsPage() {
             <DataTable<Brand>
                 columns={columns}
                 data={brands}
-                pagination={false}
+                totalCount={totalCount}
+                serverPagination={true}
                 isLoading={navigation.state === "loading"}
                 emptyTitle="No brands found"
                 getRowClassName={() => "cursor-pointer"}

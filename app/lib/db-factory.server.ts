@@ -23,6 +23,10 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
 
         brands: {
             list: () => dictRepo.loadAdminBrands(db as any),
+            listPage: (options?: { limit?: number; offset?: number; search?: string }) =>
+                dictRepo.loadAdminBrandsPage(db as any, options),
+            count: (search?: string) => dictRepo.countAdminBrands(db as any, search),
+            getById: (id: number) => dictRepo.loadAdminBrandById(db as any, id),
         },
 
         models: {

@@ -207,6 +207,62 @@ export async function loadAdminBrands(db: D1Database) {
     return (result.results ?? []) as unknown as AdminBrandRow[];
 }
 
+export async function loadAdminBrandsPage(
+    db: D1Database,
+    options?: { limit?: number; offset?: number; search?: string }
+) {
+    const limit = options?.limit ?? 30;
+    const offset = options?.offset ?? 0;
+    const search = options?.search ?? "";
+
+    let query = `
+        SELECT 
+            b.id, 
+            b.name, 
+            b.logo, 
+            b.created_at AS createdAt,
+            (SELECT COUNT(*) FROM car_models m WHERE m.brand_id = b.id) AS modelsCount
+        FROM car_brands b
+    `;
+    const params: (string | number)[] = [];
+
+    if (search) {
+        query += ` WHERE b.name LIKE ?`;
+        params.push(`%${search}%`);
+    }
+
+    query += ` ORDER BY b.name ASC LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+
+    const result = await db.prepare(query).bind(...params).all();
+    return (result.results ?? []) as unknown as AdminBrandRow[];
+}
+
+export async function countAdminBrands(db: D1Database, search?: string) {
+    let query = `SELECT COUNT(*) as count FROM car_brands`;
+    const params: (string | number)[] = [];
+
+    if (search) {
+        query += ` WHERE name LIKE ?`;
+        params.push(`%${search}%`);
+    }
+
+    const result = await db.prepare(query).bind(...params).first<{ count: number }>();
+    return result?.count ?? 0;
+}
+
+export async function loadAdminBrandById(db: D1Database, id: number) {
+    const result = await db
+        .prepare(`
+            SELECT b.id, b.name, b.logo, b.created_at AS createdAt,
+                (SELECT COUNT(*) FROM car_models m WHERE m.brand_id = b.id) AS modelsCount
+            FROM car_brands b WHERE b.id = ? LIMIT 1
+        `)
+        .bind(id)
+        .all();
+    return ((result.results ?? []) as unknown as AdminBrandRow[])[0] ?? null;
+}
+
 export async function loadAdminColorById(db: D1Database, colorId: number) {
     const result = await db
         .prepare("SELECT id, name, hex_code AS hexCode FROM colors WHERE id = ? LIMIT 1")
