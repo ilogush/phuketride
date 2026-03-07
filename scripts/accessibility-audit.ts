@@ -18,6 +18,28 @@ interface A11yIssue {
 }
 
 const issues: A11yIssue[] = [];
+const severityRank: Record<A11yIssue["severity"], number> = {
+  low: 1,
+  medium: 2,
+  high: 3,
+  critical: 4,
+};
+
+function resolveFailLevel(): A11yIssue["severity"] {
+  const raw = (process.env.A11Y_FAIL_LEVEL || "critical").toLowerCase();
+  if (raw === "low" || raw === "medium" || raw === "high" || raw === "critical") {
+    return raw;
+  }
+  return "critical";
+}
+
+function isPageLikeFile(file: string): boolean {
+  return (
+    file.startsWith("app/routes/") ||
+    file.endsWith("PageView.tsx") ||
+    file === "app/root.tsx"
+  );
+}
 
 /**
  * Check for images without alt text
@@ -151,6 +173,10 @@ function checkColorContrast(content: string, file: string): void {
  * Check for missing ARIA landmarks
  */
 function checkLandmarks(content: string, file: string): void {
+  if (!isPageLikeFile(file)) {
+    return;
+  }
+
   // Check if file has main content but no <main> or role="main"
   if (
     content.includes("return") &&
@@ -173,6 +199,10 @@ function checkLandmarks(content: string, file: string): void {
  * Check for heading hierarchy
  */
 function checkHeadingHierarchy(content: string, file: string): void {
+  if (!isPageLikeFile(file)) {
+    return;
+  }
+
   const headings: Array<{ level: number; line: number }> = [];
   const lines = content.split("\n");
   
@@ -275,9 +305,10 @@ function generateReport(): void {
     }
   }
   
-  // Exit with error if critical issues found
-  if (bySeverity.critical.length > 0) {
-    console.log("\n❌ Critical accessibility issues found!\n");
+  const failLevel = resolveFailLevel();
+  const shouldFail = issues.some((issue) => severityRank[issue.severity] >= severityRank[failLevel]);
+  if (shouldFail) {
+    console.log(`\n❌ Accessibility threshold failed (A11Y_FAIL_LEVEL=${failLevel})\n`);
     process.exit(1);
   }
 }
