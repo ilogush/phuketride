@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs } from "react-router";
+import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData, Outlet, Link, useSearchParams } from "react-router";
 import { useMemo } from "react";
 import PageHeader from "~/components/dashboard/PageHeader";
@@ -7,22 +7,27 @@ import Card from "~/components/dashboard/Card";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { trackServerOperation } from "~/lib/telemetry.server";
-import { loadCalendarPageData, type CalendarListBooking, type CalendarListContract, type CalendarListEvent } from "~/lib/calendar-page.server";
+import { type CalendarListBooking, type CalendarListContract, type CalendarListEvent } from "~/lib/calendar-page.server";
+import { getScopedDb } from "~/lib/db-factory.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
+
+export const meta: MetaFunction = () => [
+    { title: "Calendar — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId } = await requireScopedDashboardAccess(request);
-    if (companyId === null) {
-        throw new Response("Forbidden", { status: 403 });
-    }
+    const { user, companyId, sdb } = await getScopedDb(request, context, requireScopedDashboardAccess);
     const url = new URL(request.url);
+
     return trackServerOperation({
         event: "calendar.load",
         scope: "route.loader",
         request,
         userId: user.id,
-        companyId,
+        companyId: companyId!,
         details: { route: "calendar" },
-        run: async () => loadCalendarPageData({ db: context.cloudflare.env.DB, companyId, url }),
+        run: async () => sdb.calendar.getPageData(url),
     });
 }
 

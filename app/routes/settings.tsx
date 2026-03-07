@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction, redirect } from "react-router";
 import { useLoaderData, useSearchParams, useSubmit } from "react-router";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
@@ -10,12 +10,6 @@ import {
 import { useUrlToast } from "~/lib/useUrlToast";
 import { isPhuketName, normalizeCompanyRow, normalizeCurrencyRow } from "~/lib/settings-normalizers";
 import type { Currency } from "~/lib/settings-normalizers";
-import {
-    getCachedCurrenciesDetailed,
-    getCachedDistricts,
-    getCachedLocations,
-    getCachedPaymentTemplatesForCompany,
-} from "~/lib/dictionaries-cache.server";
 import PaymentTemplatesTab from "~/components/dashboard/settings/PaymentTemplatesTab";
 import CurrenciesTab from "~/components/dashboard/settings/CurrenciesTab";
 import GeneralSettingsTab from "~/components/dashboard/settings/GeneralSettingsTab";
@@ -56,6 +50,11 @@ type PaymentType = {
 type CompanyRow = Record<string, unknown>;
 import { getScopedDb } from "~/lib/db-factory.server";
 
+export const meta: MetaFunction = () => [
+    { title: "Settings — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context);
     const scopedCompanyId = companyId!;
@@ -69,28 +68,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         details: { route: "settings" },
         run: async () => {
             const [companyRow, locations, districts, paymentTypes, currencies] = await Promise.all([
-                sdb.db
-                    .prepare(`
-                        SELECT
-                            id, name, email, phone, telegram, location_id, district_id, street, house_number,
-                            bank_name, account_number, account_name, swift_code, delivery_fee_after_hours,
-                            island_trip_price, krabi_trip_price, baby_seat_price_per_day, weekly_schedule, holidays
-                        FROM companies
-                        WHERE id = ?
-                        LIMIT 1
-                    `)
-                    .bind(scopedCompanyId)
-                    .first() as Promise<CompanyRow | null>,
-                getCachedLocations(sdb.db as any),
-                getCachedDistricts(sdb.db as any),
-                getCachedPaymentTemplatesForCompany(sdb.db as any, scopedCompanyId) as Promise<PaymentType[]>,
-                getCachedCurrenciesDetailed(sdb.db as any) as Promise<Currency[]>,
+                sdb.companies.getSettings(scopedCompanyId),
+                sdb.locations.list(),
+                sdb.districts.list(),
+                sdb.paymentTemplates.listForCompany(scopedCompanyId),
+                sdb.currencies.listDetailed(),
             ]);
 
             if (!companyRow) {
                 throw new Response("Company not found", { status: 404 });
             }
-            const company = normalizeCompanyRow(companyRow as Record<string, unknown>) as CompanySettings;
+            const company = normalizeCompanyRow(companyRow) as CompanySettings;
 
             return {
                 user,
@@ -98,7 +86,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
                 locations,
                 districts,
                 paymentTypes: paymentTypes as PaymentType[],
-                currencies: (currencies as Currency[]).map((row) => normalizeCurrencyRow(row as unknown as Record<string, unknown>)),
+                currencies: currencies.map((row) => normalizeCurrencyRow(row as unknown as Record<string, unknown>)),
             };
         },
     });

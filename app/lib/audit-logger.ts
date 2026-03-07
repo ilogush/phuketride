@@ -1,5 +1,5 @@
 export type AuditAction = "create" | "update" | "delete" | "view" | "export" | "clear" | "login_failed" | "login_blocked";
-export type EntityType = "user" | "company" | "car" | "contract" | "payment" | "color" | "model" | "brand" | "district" | "hotel" | "season" | "duration" | "booking" | "car_template" | "calendar-event";
+export type EntityType = "user" | "company" | "car" | "contract" | "payment" | "color" | "model" | "brand" | "district" | "location" | "hotel" | "season" | "duration" | "payment_status" | "booking" | "car_template" | "calendar-event" | "id_document" | "task";
 
 interface AuditLogParams {
     db: D1Database;

@@ -1,70 +1,86 @@
-# Optimization Plan
+# Optimization Roadmap — Phuket Ride
 
-## Goal
-Prepare the project for stable production operation with centralized quality/security checks and predictable deploy flow.
+> Только планы. Без истории выполненного. Обновляется при каждой итерации.
 
-## ✅ Выполнено (Iteration 1 — Audit & Refactor)
+---
 
-| Задача | Статус |
-|---|---|
-| Очистка build-артефактов, gitignore | ✅ |
-| Перемещение layout-хуков в `app/hooks/` | ✅ |
-| `ErrorBoundary` в `app-layout.tsx` | ✅ |
-| `getScopedDb` — рефакторинг всех роутов | ✅ |
-| Серверная пагинация + поиск: `models`, `colors`, `hotels` | ✅ |
-| `useDictionaryFormActions` — устранение дублирования CRUD логики | ✅ |
-| `AppLoadContext` type + React Router module augmentation | ✅ |
-| Устранение `context as any` во всех роутах | ✅ |
-| Унификация типа `Brand` → `AdminBrandRow` | ✅ |
-| `ScopedDb` расширен: `models.listPage`, `colors.listPage`, `hotels.count` | ✅ |
-| `admin-dictionaries.server.ts`: `loadAdminModelsPage`, `countAdminModels`, `loadAdminColorsPage`, `countAdminColors` | ✅ |
-| Документация обновлена (паттерны, структура, примеры) | ✅ |
-| `PRODUCTION_READINESS.md` (устаревший) — удалён | ✅ |
+## 🔴 P1 — Критические (Выполнить первыми)
 
-## 🔄 В работе / Следующий приоритет
+### 1.1 Устранить `sdb.db as any` в роутах (27 мест)
+Файлы: `settings.tsx`, `car-templates.tsx`, `dashboard-home.tsx`, `logs.tsx`, `durations.tsx`, `seasons.tsx`.
+**Решение:** Добавить методы в `createScopedDb()` для каждого репозитория.
 
-### Iteration 2 — Data Integrity & Forms
+### 1.2 `context.cloudflare.env.DB` напрямую в lib-файлах (54 места)
+Файлы: `contracts-new-action.server.ts`, `contracts-edit-action.server.ts`, `cars-create-action.server.ts`, `cars-edit-action.server.ts`, `settings-actions.server.ts`, `bookings-create.server.ts`.
+**Решение:** Принимать `db: D1Database` как параметр от вызывающего роута (уже является паттерном — нужно очистить точки входа).
 
-| Задача | Приоритет |
-|---|---|
-| `useActionData` для form validation (вместо `redirectWithError` при валидации) | P0 |
-| Transaction guardrails — review оставшихся complex mutations | P1 |
-| PII audit в audit logs (не логировать sensitive client data) | P1 |
-| Cache TTL strategy — для KV (пережить isolate restarts) | P2 |
+### 1.3 `DataTable` без `isLoading` в 9+ местах
+Файлы: `cars.tsx`, `seasons.tsx`, `models.tsx`, `colors.tsx`, `car-templates.tsx`, `locations.tsx`, `hotels.tsx`, `payments.tsx`, `companies.tsx`, `users.tsx`.
+**Решение:** Добавить `isLoading={navigation.state === "loading"}` в каждый DataTable.
 
-### Iteration 3 — Performance & CI
+---
 
-| Задача | Приоритет |
-|---|---|
-| Loading indicators стандартизированы (useNavigation + submit buttons) | P1 |
-| Brands: серверная пагинация (сейчас `pagination={false}`) | P2 |
-| CI pipeline: PR auto-checks | P2 |
-| Accessibility audit (a11y:audit в CI) | P2 |
+## 🟠 P2 — Важные (Выполнить в этой сессии)
 
-## Baseline Commands
-```bash
-npm run typecheck
-npm run rules:check
-npm run test
-npm run build
-npm run a11y:audit
-npm run security:audit:live
-npm run pre-launch
-npm run pre-launch:deploy
-```
+### 2.1 Meta-теги отсутствуют в 20+ роутах
+Файлы: `admin-cars.$id.tsx`, `admin-companies.$companyId.tsx`, `bookings.tsx`, `bookings.$id.tsx`, `calendar.tsx`, `car-templates.tsx`, `cars.tsx`, `become-a-host.tsx`, `booking-confirmation.tsx` и др.
+**Решение:** Добавить `export const meta: MetaFunction` с title + description + robots=noindex для admin-роутов.
 
-## Centralization Decisions
-- Live security audit runner is centralized in `scripts/ci/run-live-security-audit.sh`.
-- CI and deploy gate both call the same `npm run security:audit:live` command.
-- Pre-launch verification is mode-based (`local` and `deploy`) to avoid local false failures and keep deploy strict.
-- Scoped DB: весь DB доступ идёт через `getScopedDb` → `ScopedDb` in `app/lib/db-factory.server.ts`.
-- Pagination: стандарт через `getPaginationFromUrl` из `app/lib/pagination.server.ts`.
-- Dictionary CRUD: через `useDictionaryFormActions` hook.
+### 2.2 `seasons.tsx` action использует `sdb.db as any` через `handleSeasonsAction`
+Аналогично `durations.tsx` action → `handleDurationsAction`.
+**Решение:** Обернуть вызовы action-хэндлеров через `sdb.db` напрямую.
 
-## Success Criteria
-- CI gate is green on all required checks.
-- Deploy gate is green including deploy-mode pre-launch.
-- No missing required docs/rules artifacts.
-- Production deploy has validated secrets and migration status.
-- Нет `context as any` в codebase.
-- Нет прямого D1 доступа в route-файлах (только через ScopedDb).
+### 2.3 Роуты `my-contracts.$id.tsx`, `contracts.new.tsx`, `cars.$id.checkout.tsx` — прямой DB-доступ
+**Решение:** Мигрировать на `getScopedDb` с правильным `accessFn`.
+
+### 2.4 Добавить методы в `sdb` для `seasons`, `durations` (actions)
+Сейчас `sdb.seasons.list()` есть, но action идёт через `sdb.db as any`.
+**Решение:** `sdb.seasons.create/update/delete`, `sdb.durations.create/update/delete`.
+
+---
+
+## 🟡 P3 — Стандартное качество (Выполнить следующими)
+
+### 3.1 `console.log` в `monitoring.server.ts` (3 места)
+Использовать структурированный логгер через `trackServerOperation` или `telemetry`.
+
+### 3.2 `useSearchParams` импортирован в `logs.tsx` но не используется
+**Решение:** Удалить лишний импорт.
+
+### 3.3 `payment_status as any` в `payment-statuses.tsx`
+`audit: { entityType: "payment_status" as any }` — добавить `payment_status` в `EntityType`.
+**Решение:** Расширить union-тип `EntityType` в `audit-logger.ts`.
+
+### 3.4 Оптимизация `loadAdminDistricts` — нет index на `name LIKE`
+**Решение:** Добавить индекс `CREATE INDEX idx_districts_name ON districts(name)` через SQL-миграцию.
+
+### 3.5 Оптимизация `loadAdminBrands` — нет index на `car_brands.name`
+**Решение:** `CREATE INDEX idx_car_brands_name ON car_brands(name)`.
+
+---
+
+## 🟢 P4 — Nice-to-have (Бэклог)
+
+### 4.1 Серверная пагинация для `settings.tsx`
+Locations и Districts внутри Settings загружаются целиком.
+
+### 4.2 Типизировать `AdminRouteContext` без `as any`
+Расширить union `EntityType` и `AuditAction` в `audit-logger.ts`.
+
+### 4.3 Lazy-import тяжёлых компонентов (Calendar, Charts)
+`dashboard-home.tsx` и `calendar.tsx` — большие бандлы. Рассмотреть динамический import.
+
+### 4.4 Префетч данных для часто посещаемых роутов (`brands`, `models`, `hotels`)
+Использовать `<Link prefetch="intent">` в навигационном сайдбаре.
+
+### 4.5 Добавить `Cache-Control` хедеры для публичных страниц
+Роуты `/cars`, `/cars/$id` — могут кэшироваться на Edge (Cloudflare).
+
+---
+
+## 🏗️ В работе прямо сейчас
+
+- [ ] **P1.3** — `isLoading` в DataTable (cars, seasons, models, colors, locations, hotels, payments, companies, users)
+- [ ] **P2.1** — Meta-теги в admin-роутах (bookings, calendar, car-templates, admin-*)
+- [ ] **P3.3** — `EntityType` расширить для `payment_status`
+- [ ] **P3.2** — Удалить лишние импорты

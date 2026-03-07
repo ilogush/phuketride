@@ -1,5 +1,10 @@
-import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Link, useSearchParams } from "react-router";
+import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
+import { useLoaderData, Link, useSearchParams, useNavigation, Outlet } from "react-router";
+
+export const meta: MetaFunction = () => [
+    { title: "Users — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -16,6 +21,7 @@ const USER_TABS = ["admin", "partner", "manager", "user"] as const;
 type UserTab = typeof USER_TABS[number];
 
 import { getScopedDb } from "~/lib/db-factory.server";
+import { requireUserDirectoryAccess } from "~/lib/access-policy.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user, companyId, isModMode, sdb } = await getScopedDb(request, context, requireUserDirectoryAccess);
@@ -115,6 +121,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 export default function UsersPage() {
     const { user, users: usersList, roleCounts, isModMode, activeTab, totalCount } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigation = useNavigation();
     useUrlToast();
     const isPartner = user.role === "partner" || isModMode;
 
@@ -206,6 +213,9 @@ export default function UsersPage() {
                 columns={columns}
                 totalCount={totalCount}
                 serverPagination
+                isLoading={navigation.state === "loading"}
+                getRowClassName={() => "cursor-pointer"}
+                onRowClick={(item) => (window.location.href = `/users/${item.id}/edit`)}
                 emptyTitle="No users found"
                 emptyDescription={`No users with role "${currentTab}"`}
                 emptyIcon={<UserGroupIcon className="w-10 h-10" />}

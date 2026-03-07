@@ -29,6 +29,7 @@ type DistrictRow = {
     deliveryPrice?: number | null;
 };
 
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
 import { getScopedDb } from "~/lib/db-factory.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
@@ -40,21 +41,22 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId,
         details: { route: "companies.create" },
-        run: async () => loadCreateCompanyPageData(sdb.db as any),
+        run: async () => sdb.companies.getCreateData(),
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
-    const formData = await request.formData();
     return trackServerOperation({
         event: "companies.create",
         scope: "route.action",
         request,
         userId: user.id,
-        companyId,
-        details: { route: "companies.create" },
-        run: async () => createCompanyAction({ request, context, user, formData, db: sdb.db as any }),
+        companyId: null,
+        run: async () => {
+            const formData = await request.formData();
+            return createCompanyAction({ request, context, user, formData, db: sdb.db as any });
+        },
     });
 }
 

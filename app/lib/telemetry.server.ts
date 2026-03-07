@@ -159,3 +159,21 @@ export async function trackServerOperation<T>(args: {
         throw error;
     }
 }
+export function logTelemetryEvent(level: TelemetryLevel, payload: Omit<TelemetryBase, "layer" | "operation" | "taxonomy" | "thresholdMs" | "slow" | "durationMs"> & { durationMs?: number }) {
+    const scopeMeta = getTelemetryScopeMeta(payload.scope);
+    const durationMs = payload.durationMs ?? 0;
+    const slow = durationMs >= scopeMeta.thresholdMs;
+    const taxonomy = getEventTaxonomy(payload.event, payload.scope);
+
+    logTelemetry(level, {
+        ...payload,
+        layer: scopeMeta.layer,
+        operation: scopeMeta.operation,
+        taxonomy,
+        durationMs,
+        thresholdMs: scopeMeta.thresholdMs,
+        slow,
+        status: payload.status || "ok",
+        severity: payload.severity || (level === "error" ? "error" : slow ? "warn" : "info"),
+    });
+}

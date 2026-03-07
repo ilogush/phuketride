@@ -1,5 +1,11 @@
 import type { Route } from './+types/car-templates'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { Link, useNavigate, useSearchParams, type MetaFunction } from 'react-router'
+
+export const meta: MetaFunction = () => [
+    { title: "Car Templates — Phuket Ride Admin" },
+    { name: "description", content: "Manage car brands, models, and technical templates." },
+    { name: "robots", content: "noindex, nofollow" },
+];
 import PageHeader from '~/components/dashboard/PageHeader'
 import Button from '~/components/dashboard/Button'
 import DataTable from '~/components/dashboard/DataTable'
@@ -32,7 +38,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         companyId,
         details: { route: "car-templates" },
         run: async () => {
-            const { brands, models, templates } = await loadCarTemplatesData(sdb.db as any)
+            const { brands, models, templates } = await sdb.carTemplates.list()
             return { brands, models, templates }
         },
     })
@@ -44,7 +50,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     const metadata = getRequestMetadata(request)
     
     return handleCarTemplatesAction({
-        db: sdb.db as any,
+        db: sdb.db as any, // action still needs raw db for now
         user,
         companyId,
         formData,

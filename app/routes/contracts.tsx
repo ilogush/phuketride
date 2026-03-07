@@ -1,5 +1,5 @@
-import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Link, useSearchParams, Outlet } from "react-router";
+import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
+import { useLoaderData, useSearchParams, useNavigation, Link, Outlet } from "react-router";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -16,6 +16,12 @@ import { trackServerOperation } from "~/lib/telemetry.server";
 
 const CONTRACT_TABS = ["active", "closed"] as const;
 type ContractTab = typeof CONTRACT_TABS[number];
+
+export const meta: MetaFunction = () => [
+    { title: "Contracts — Phuket Ride Admin" },
+    { name: "description", content: "Manage rental contracts and agreements in Phuket Ride." },
+    { name: "robots", content: "noindex, nofollow" },
+];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context);
@@ -71,6 +77,7 @@ export default function ContractsPage() {
     const { contracts: contractsList, statusCounts, activeTab, totalCount } = useLoaderData<typeof loader>();
     useUrlToast();
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigation = useNavigation();
 
     const tabs = [
         { id: "active", label: "Active", count: statusCounts.active },
@@ -176,6 +183,7 @@ export default function ContractsPage() {
                 columns={columns}
                 totalCount={totalCount}
                 serverPagination
+                isLoading={navigation.state === "loading"}
                 emptyTitle="No contracts found"
                 emptyDescription={`No contracts with status "${activeTab}"`}
                 emptyIcon={<ClipboardDocumentListIcon className="w-10 h-10" />}

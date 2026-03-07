@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs } from "react-router";
+import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
@@ -13,6 +13,12 @@ import { useUrlToast } from "~/lib/useUrlToast";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+
+export const meta: MetaFunction = () => [
+    { title: "Bookings — Phuket Ride Admin" },
+    { name: "description", content: "Manage car rental bookings in Phuket Ride." },
+    { name: "robots", content: "noindex, nofollow" },
+];
 
 const BOOKING_STATUSES = ["all", "pending", "confirmed", "converted", "cancelled"] as const;
 type BookingStatusFilter = typeof BOOKING_STATUSES[number];
@@ -91,7 +97,7 @@ export default function BookingsPage() {
             <div className="bg-white rounded-xl p-4 shadow-sm space-y-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
-                        <FunnelIcon className="h-5 w-5 text-gray-400 shrink-0" />
+                        <FunnelIcon className="h-5 v-5 text-gray-400 shrink-0" />
                         {BOOKING_STATUSES.map((s) => (
                             <Button
                                 key={s}

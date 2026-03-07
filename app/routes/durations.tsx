@@ -21,8 +21,10 @@ import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
 import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
+import { type AdminLocationRow } from "~/lib/admin-dictionaries.server"; // Assuming AdminLocationRow is from here
 
 type RentalDuration = AdminDurationRow;
+type Duration = AdminDurationRow; // Alias for clarity in loader return type
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context);
@@ -35,8 +37,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         companyId,
         details: { route: "durations" },
         run: async () => {
-            const durations = await sdb.durations.list();
-            return { durations };
+            const [durations, locations] = await Promise.all([
+                sdb.durations.list(),
+                sdb.locations.list(),
+            ]);
+
+            return {
+                user,
+                durations: durations as Duration[],
+                locations: locations as AdminLocationRow[],
+            };
         },
     });
 }

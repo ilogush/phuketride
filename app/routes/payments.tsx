@@ -1,5 +1,10 @@
-import { type LoaderFunctionArgs } from "react-router";
+import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
+
+export const meta: MetaFunction = () => [
+    { title: "Payments — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";

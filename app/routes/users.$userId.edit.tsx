@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData, Form } from "react-router";
 import ProfileForm from "~/components/dashboard/ProfileForm";
 import PageHeader from "~/components/dashboard/PageHeader";
@@ -8,13 +8,17 @@ import { TrashIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import {
     deleteManagedUser,
-    loadEditableProfilePageData,
-    loadEditableProfileUser,
     updateManagedUser,
 } from "~/lib/user-profile.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { getScopedDb } from "~/lib/db-factory.server";
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
+
+export const meta: MetaFunction = () => [
+    { title: "Edit User — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const { user: sessionUser, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
@@ -33,7 +37,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         entityId: userId,
         details: { route: "users.$userId.edit" },
         run: async () => {
-            const { user, hotels, locations, districts } = await loadEditableProfilePageData(sdb.db as any, userId);
+            const { user, hotels, locations, districts } = await sdb.users.getProfileData(userId);
             if (!user) {
                 throw new Response("User not found", { status: 404 });
             }
@@ -62,7 +66,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             const formData = await request.formData();
             const intent = formData.get("intent");
 
-            const currentUser = await loadEditableProfileUser(sdb.db as any, userId);
+            const currentUser = await sdb.users.getProfileUser(userId);
             if (!currentUser) {
                 throw new Response("User not found", { status: 404 });
             }

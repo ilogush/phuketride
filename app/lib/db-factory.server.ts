@@ -9,6 +9,18 @@ import * as usersRepo from "./users-repo.server";
 import * as companiesRepo from "./companies-repo.server";
 import { requireScopedDashboardAccess } from "./access-policy.server";
 import * as dictRepo from "./admin-dictionaries.server";
+import * as cache from "./dictionaries-cache.server";
+import * as carTemplatesRepo from "./car-templates.server";
+import * as auditLogger from "./audit-logger";
+import * as analyticsRepo from "./admin-analytics-repo.server";
+import * as carsCreateRepo from "./cars-create-page.server";
+import * as companiesCreateRepo from "./companies-create-page.server";
+import * as dashboardRepo from "./dashboard-metrics.server";
+import * as userProfileRepo from "./user-profile.server";
+import * as locationsPageRepo from "./locations-page.server";
+import * as calendarPageRepo from "./calendar-page.server";
+import * as paymentsCreateRepo from "./payments-create.server";
+import * as appLayoutRepo from "./app-layout.server";
 import type { AppLoadContext } from "~/types/context";
 
 /**
@@ -37,12 +49,15 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
         },
 
         locations: {
-            list: (limit?: number) => dictRepo.loadAdminLocations(db as any, limit),
+            list: (limit?: number) => cache.getCachedLocations(db as any),
+            getPageData: (params: Omit<Parameters<typeof locationsPageRepo.loadLocationsPageData>[0], "db">) =>
+                locationsPageRepo.loadLocationsPageData({ ...params, db: db as any }),
         },
 
         districts: {
             list: (options?: { includeDetails?: boolean; limit?: number; offset?: number; search?: string }) =>
-                dictRepo.loadAdminDistricts(db as any, options),
+                cache.getCachedDistricts(db as any),
+            count: (search?: string) => dictRepo.countAdminDistricts(db as any, search),
         },
 
         hotels: {
@@ -70,6 +85,16 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
 
         paymentStatuses: {
             list: () => dictRepo.loadAdminPaymentStatuses(db as any),
+        },
+
+        currencies: {
+            list: () => cache.getCachedCurrencies(db as any),
+            listDetailed: () => cache.getCachedCurrenciesDetailed(db as any),
+            listActiveForCompany: (id: number | null) => cache.getCachedActiveCurrenciesForCompany(db as any, id),
+        },
+
+        paymentTemplates: {
+            listForCompany: (id: number) => cache.getCachedPaymentTemplatesForCompany(db as any, id),
         },
 
         bookings: {
@@ -103,6 +128,8 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 carsRepo.listCarStatusCounts({ db, companyId }),
             getEditable: (carId: number) =>
                 carsRepo.getEditableCarById({ db, carId, companyId }),
+            getCreateData: () =>
+                carsCreateRepo.loadCreateCarPageData(db as any),
         },
 
         companies: {
@@ -112,6 +139,10 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 companiesRepo.countCompanies({ ...params, db }),
             getById: (id: number) =>
                 companiesRepo.getCompanyById({ db, id }),
+            getSettings: (id: number) =>
+                companiesRepo.getCompanySettings({ db, id }),
+            getCreateData: () =>
+                companiesCreateRepo.loadCreateCompanyPageData(db as any),
         },
 
         payments: {
@@ -123,6 +154,8 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 paymentsRepo.listPaymentStatusCounts({ db, companyId }),
             getById: (paymentId: number) =>
                 paymentsRepo.getPaymentById({ db, paymentId, companyId }),
+            getCreateData: () =>
+                paymentsCreateRepo.loadPaymentCreatePageData({ db: db as any, companyId }),
         },
 
         users: {
@@ -137,7 +170,46 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 if (params.role === "manager" && companyId) return usersRepo.countCompanyManagers({ db, companyId });
                 if (params.role === "user" && companyId) return usersRepo.countCompanyClients({ db, companyId });
                 return usersRepo.countUsersPage({ db, role: params.role, search: "", companyId });
-            }
+            },
+            getProfileData: (userId: string) =>
+                userProfileRepo.loadEditableProfilePageData(db as any, userId),
+            getProfileUser: (userId: string) =>
+                userProfileRepo.loadEditableProfileUser(db as any, userId),
+        },
+
+        carTemplates: {
+            list: () => carTemplatesRepo.loadCarTemplatesData(db as any),
+        },
+
+        auditLogs: {
+            list: (options?: { limit?: number; offset?: number }) =>
+                analyticsRepo.listAuditLogs(db as any, options),
+            count: () =>
+                db.prepare("SELECT COUNT(*) as count FROM audit_logs").first() as Promise<{ count: number } | null>,
+            clear: () => analyticsRepo.clearAuditLogs(db as any),
+        },
+
+        dashboard: {
+            getMainData: (u: { id: string; role: any }) =>
+                dashboardRepo.loadDashboardHomeData({
+                    db: db as any,
+                    user: u,
+                    effectiveCompanyId: companyId,
+                }),
+            deleteTask: (taskId: number) =>
+                analyticsRepo.deleteDashboardTask(db as any, { taskId, companyId }),
+        },
+
+        appLayout: {
+            getData: (request: Request) =>
+                appLayoutRepo.loadAppLayoutData({ request, db: db as any }),
+        },
+
+        calendar: {
+            getPageData: (url: URL) =>
+                calendarPageRepo.loadCalendarPageData({ db: db as any, companyId: companyId!, url }),
+            getFeed: (url: URL) =>
+                calendarPageRepo.loadUpcomingCalendarFeed({ db: db as any, companyId: companyId!, url }),
         }
     };
 }

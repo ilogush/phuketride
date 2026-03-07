@@ -1,5 +1,10 @@
-import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Link, useSearchParams } from "react-router";
+import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
+import { useLoaderData, useSearchParams, useNavigation, Link } from "react-router";
+
+export const meta: MetaFunction = () => [
+    { title: "Cars — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 import PageHeader from "~/components/dashboard/PageHeader";
 import Tabs from "~/components/dashboard/Tabs";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
@@ -37,6 +42,7 @@ export default function CarsPage() {
     const { cars, statusCounts, activeStatus, totalCount } = useLoaderData<typeof loader>();
     useUrlToast();
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigation = useNavigation();
 
     const tabs = [
         { id: "available", label: "Available" },
@@ -182,6 +188,7 @@ export default function CarsPage() {
                 columns={columns}
                 totalCount={totalCount}
                 serverPagination
+                isLoading={navigation.state === "loading"}
                 emptyTitle="No cars found"
                 emptyDescription={`No cars with status "${currentTab}"`}
                 emptyIcon={<TruckIcon className="w-10 h-10" />}

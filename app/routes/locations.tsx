@@ -34,14 +34,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId,
         details: { route: "locations" },
-        run: async () => {
-            return loadLocationsPageData({
-                db: sdb.db as any,
-                user,
-                companyId,
-                isModMode,
-            });
-        },
+        run: async () => sdb.locations.getPageData({ user, companyId, isModMode }),
     });
 }
 

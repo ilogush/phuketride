@@ -1,5 +1,10 @@
-import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
-import { useLoaderData, Form, useSearchParams } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
+import { useLoaderData, Form, useNavigation } from "react-router";
+
+export const meta: MetaFunction = () => [
+    { title: "Audit Logs — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
@@ -9,7 +14,7 @@ import { clearAuditLogsFromForm, loadAuditLogsPageData } from "~/lib/admin-analy
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { parseWithSchema } from "~/lib/validation.server";
 import { clearAuditLogsSchema } from "~/schemas/admin-analytics";
-import { redirectWithRequestError } from "~/lib/route-feedback";
+import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 import { requireAdminAnalyticsAccess } from "~/lib/access-policy.server";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
@@ -83,11 +88,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId: null,
         details: { route: "logs", page, pageSize },
-        run: async () => loadAuditLogsPageData({
-            db: sdb.db as any,
-            limit: pageSize,
-            offset,
-        }),
+        run: async () => {
+            const [logs, countRow] = await Promise.all([
+                sdb.auditLogs.list({ limit: pageSize, offset }),
+                sdb.auditLogs.count(),
+            ]);
+            return { 
+                logs: logs as AuditLog[], 
+                totalCount: countRow?.count ?? 0 
+            };
+        },
     });
 }
 
@@ -102,17 +112,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
         details: { route: "logs" },
         run: async () => {
             const formData = await request.formData();
-            const parsed = parseWithSchema(clearAuditLogsSchema, {
-                intent: formData.get("intent"),
-            });
-            if (!parsed.ok) {
-                return redirectWithRequestError(request, "/logs", parsed.error);
+            const result = parseWithSchema(clearAuditLogsSchema, formData);
+            if (!result.ok) {
+                return redirectWithRequestError(request, "/logs", result.error);
             }
-
-            return clearAuditLogsFromForm({
-                db: sdb.db as any,
-                request,
-            });
+            await sdb.auditLogs.clear();
+            return redirectWithRequestSuccess(request, "/logs", "Audit logs cleared successfully");
         },
     });
 }

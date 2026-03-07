@@ -51,8 +51,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             const [hotels, totalCount, locations, districts] = await Promise.all([
                 sdb.hotels.list({ limit: pageSize, offset, search }) as Promise<Hotel[]>,
                 sdb.hotels.count(search),
-                loadAdminLocations(sdb.db as any) as Promise<Location[]>,
-                loadAdminDistricts(sdb.db as any) as Promise<District[]>,
+                sdb.locations.list() as Promise<Location[]>,
+                sdb.districts.list() as Promise<District[]>,
             ]);
 
             return {

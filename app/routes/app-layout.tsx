@@ -24,10 +24,7 @@ import { getScopedDb } from "~/lib/db-factory.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { sdb } = await getScopedDb(request, context);
-    return await loadAppLayoutData({
-        request,
-        db: sdb.db as any,
-    });
+    return sdb.appLayout.getData(request);
 }
 
 export default function Layout() {

@@ -133,3 +133,19 @@ export async function getCompanyById(params: {
         LIMIT 1
     `).bind(id).first() as CompanyListRow | null;
 }
+
+export async function getCompanySettings(params: {
+    db: D1DatabaseLike;
+    id: number;
+}) {
+    const { db, id } = params;
+    return await db.prepare(`
+        SELECT
+            id, name, email, phone, telegram, location_id, district_id, street, house_number,
+            bank_name, account_number, account_name, swift_code, delivery_fee_after_hours,
+            island_trip_price, krabi_trip_price, baby_seat_price_per_day, weekly_schedule, holidays
+        FROM companies
+        WHERE id = ?
+        LIMIT 1
+    `).bind(id).first() as Record<string, unknown> | null;
+}

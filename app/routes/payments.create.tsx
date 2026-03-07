@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData, Form } from "react-router";
 import PageHeader from "~/components/dashboard/PageHeader";
 import FormSection from "~/components/dashboard/FormSection";
@@ -14,6 +14,11 @@ import { createPaymentRecord, loadPaymentCreatePageData } from "~/lib/payments-c
 
 import { getScopedDb } from "~/lib/db-factory.server";
 
+export const meta: MetaFunction = () => [
+    { title: "Create Payment — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context);
     return trackServerOperation({
@@ -23,7 +28,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId,
         details: { route: "payments.create" },
-        run: async () => loadPaymentCreatePageData({ db: sdb.db as any, companyId }),
+        run: async () => sdb.payments.getCreateData(),
     });
 }
 

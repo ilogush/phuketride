@@ -14,12 +14,13 @@ type FuelTypeRow = {
 
 type CreateCarActionArgs = {
   request: Request;
-  context: ActionFunctionArgs["context"];
+  db: D1Database;
+  assets: R2Bucket;
   user: SessionUser;
   formData: FormData;
 };
 
-export async function handleCreateCarAction({ request, context, user, formData }: CreateCarActionArgs) {
+export async function handleCreateCarAction({ request, db, assets, user, formData }: CreateCarActionArgs) {
   const companyId = user.companyId;
   if (!companyId) {
     return redirectWithRequestError(request, "/cars/create", "Company is required");
@@ -62,7 +63,7 @@ export async function handleCreateCarAction({ request, context, user, formData }
     const marketingHeadline = (formData.get("marketingHeadline") as string) || null;
     const description = (formData.get("description") as string) || null;
 
-    const duplicateByCompanyResult = await context.cloudflare.env.DB
+    const duplicateByCompanyResult = await db
       .prepare(`
         SELECT cc.id
         FROM company_cars cc
@@ -85,7 +86,7 @@ export async function handleCreateCarAction({ request, context, user, formData }
       );
     }
 
-    const fuelTypes = await getCachedFuelTypes(context.cloudflare.env.DB) as FuelTypeRow[];
+    const fuelTypes = await getCachedFuelTypes(db) as FuelTypeRow[];
     const fuelType = fuelTypes.find((item) => item.name.toLowerCase() === validData.fuelType.toLowerCase());
 
     const photosData = formData.get("photos") as string;
@@ -98,7 +99,7 @@ export async function handleCreateCarAction({ request, context, user, formData }
           const tempId = Date.now();
           photoUrls = await Promise.all(
             photos.map(async (photo: { base64: string; fileName: string }) => {
-              return uploadToR2(context.cloudflare.env.ASSETS, photo.base64, `cars/${tempId}/${photo.fileName}`);
+              return uploadToR2(assets, photo.base64, `cars/${tempId}/${photo.fileName}`);
             })
           );
         }
@@ -107,7 +108,7 @@ export async function handleCreateCarAction({ request, context, user, formData }
       }
     }
 
-    const insertResult = await context.cloudflare.env.DB
+    const insertResult = await db
       .prepare(`
         INSERT INTO company_cars (
           company_id, template_id, color_id, license_plate, transmission, engine_volume, fuel_type_id,
@@ -148,7 +149,7 @@ export async function handleCreateCarAction({ request, context, user, formData }
     const newCar = { id: Number(insertResult.meta.last_row_id) };
     const metadata = getRequestMetadata(request);
     quickAudit({
-      db: context.cloudflare.env.DB,
+      db,
       userId: user.id,
       role: user.role,
       companyId: user.companyId,

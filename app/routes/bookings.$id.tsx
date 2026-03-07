@@ -1,5 +1,10 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData } from "react-router";
+
+export const meta: MetaFunction = () => [
+    { title: "Booking Details — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 import BookingDetailPageView from "~/features/booking-detail/BookingDetailPageView";
 import { submitBookingDetailAction } from "~/features/booking-detail/booking-detail.action.server";
 import { loadBookingDetailPage } from "~/features/booking-detail/booking-detail.loader.server";

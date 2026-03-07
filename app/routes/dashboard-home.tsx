@@ -1,4 +1,5 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
+import { getRequestMetadata, quickAudit } from "~/lib/audit-logger";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData, Form } from "react-router";
 import {
     BuildingOfficeIcon,
@@ -14,14 +15,17 @@ import type { ComponentType, SVGProps } from "react";
 import StatCard from "~/components/dashboard/StatCard";
 import TasksWidget from "~/components/dashboard/TasksWidget";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { loadDashboardHomePageData } from "~/lib/dashboard-home.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { parseWithSchema } from "~/lib/validation.server";
-import { deleteDashboardTaskFromForm } from "~/lib/admin-analytics.server";
 import { dashboardTaskDeleteSchema } from "~/schemas/admin-analytics";
-import { redirectWithRequestError } from "~/lib/route-feedback";
+import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 
 import { getScopedDb } from "~/lib/db-factory.server";
+
+export const meta: MetaFunction = () => [
+    { title: "Dashboard — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context);
@@ -34,20 +38,25 @@ export async function action({ request, context }: ActionFunctionArgs) {
         details: { route: "dashboard-home" },
         run: async () => {
             const formData = await request.formData();
-            const parsed = parseWithSchema(dashboardTaskDeleteSchema, {
-                intent: formData.get("intent"),
-                taskId: formData.get("taskId"),
-            });
-            if (!parsed.ok) {
-                return redirectWithRequestError(request, "/home", parsed.error);
+            const result = parseWithSchema(dashboardTaskDeleteSchema, formData);
+            if (!result.ok) {
+                return redirectWithRequestError(request, "/home", result.error);
             }
 
-            return deleteDashboardTaskFromForm({
+            await sdb.dashboard.deleteTask(result.data.taskId);
+
+            await quickAudit({
                 db: sdb.db as any,
-                request,
+                userId: user.id,
+                role: user.role,
                 companyId,
-                taskId: parsed.data.taskId,
+                entityType: "task",
+                entityId: result.data.taskId,
+                action: "delete",
+                ...getRequestMetadata(request),
             });
+
+            return redirectWithRequestSuccess(request, "/home", "Task deleted successfully");
         },
     });
 }
@@ -74,10 +83,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId,
         details: { route: "dashboard-home", role: user.role },
-        run: () => loadDashboardHomePageData({
-            request,
-            db: sdb.db as any,
-        }),
+        run: () => sdb.dashboard.getMainData({ id: user.id, role: user.role }),
     });
 }
 

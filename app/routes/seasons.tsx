@@ -54,7 +54,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         details: { route: "seasons" },
         run: async () => {
             const seasons = await sdb.seasons.list();
-            return { seasons };
+            return {
+                user,
+                seasons: seasons as Season[],
+            };
         },
     });
 }
@@ -69,8 +72,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
 export default function SeasonsPage() {
     const { seasons } = useLoaderData<typeof loader>();
     useUrlToast();
-    const submit = useSubmit();
     const navigation = useNavigation();
+    const submit = useSubmit();
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingSeason, setEditingSeason] = useState<Season | null>(null);

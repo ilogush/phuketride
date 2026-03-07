@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction, redirect } from "react-router";
 import { useLoaderData, Form } from "react-router";
 import { useState } from "react";
 import PageHeader from "~/components/dashboard/PageHeader";
@@ -24,6 +24,11 @@ import { loadCreateCarPageData } from "~/lib/cars-create-page.server";
 
 import { getScopedDb } from "~/lib/db-factory.server";
 
+export const meta: MetaFunction = () => [
+    { title: "Create Car — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context);
     return trackServerOperation({
@@ -31,14 +36,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         scope: "route.loader",
         request,
         userId: user.id,
-        companyId: companyId!,
+        companyId,
         details: { route: "cars.create" },
-        run: async () => loadCreateCarPageData(sdb.db as any),
+        run: async () => sdb.cars.getCreateData(),
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const { user, companyId } = await getScopedDb(request, context);
+    const { user, companyId, sdb } = await getScopedDb(request, context);
     const formData = await request.formData();
     return trackServerOperation({
         event: "cars.create",
@@ -47,7 +52,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
         userId: user.id,
         companyId: companyId!,
         details: { route: "cars.create" },
-        run: async () => handleCreateCarAction({ request, context, user, formData }),
+        run: async () => handleCreateCarAction({ 
+            request, 
+            db: sdb.db as any, 
+            assets: context.cloudflare.env.ASSETS, 
+            user, 
+            formData 
+        }),
     });
 }
 

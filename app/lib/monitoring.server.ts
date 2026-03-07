@@ -1,7 +1,4 @@
-/**
- * Monitoring and alerting helpers for production
- * Integrates with Cloudflare Analytics and custom telemetry
- */
+import { logTelemetryEvent } from "./telemetry.server";
 
 export type MonitoringMetric = {
   name: string;
@@ -110,11 +107,22 @@ export function createAlert(
  */
 export function logAlert(alert: Alert): void {
   const prefix = alert.level === "critical" ? "🚨" : alert.level === "warning" ? "⚠️" : "ℹ️";
-  console.log(`${prefix} [${alert.level.toUpperCase()}] ${alert.title}`);
-  console.log(`   ${alert.message}`);
-  if (alert.metadata) {
-    console.log(`   Metadata:`, JSON.stringify(alert.metadata));
-  }
+  
+  // Keep console log for quick debugging in worker console
+  console.log(`${prefix} [${alert.level.toUpperCase()}] ${alert.title}: ${alert.message}`);
+
+  // Send structured telemetry
+  logTelemetryEvent(alert.level === "critical" ? "error" : "info", {
+    event: "monitoring.alert",
+    scope: "monitoring.service",
+    severity: alert.level === "critical" ? "error" : alert.level === "warning" ? "warn" : "info",
+    status: alert.level === "critical" ? "error" : "ok",
+    details: {
+      alertTitle: alert.title,
+      alertMessage: alert.message,
+      ...(alert.metadata || {})
+    }
+  });
 }
 
 /**
