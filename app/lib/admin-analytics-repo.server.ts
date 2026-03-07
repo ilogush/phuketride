@@ -48,7 +48,12 @@ function toNumber(value: number | string | null | undefined) {
     return Number(value ?? 0);
 }
 
-export async function listAuditLogs(db: D1Database, limit = QUERY_LIMITS.LARGE) {
+export async function listAuditLogs(
+    db: D1Database,
+    options?: { limit?: number; offset?: number }
+) {
+    const limit = options?.limit ?? QUERY_LIMITS.LARGE;
+    const offset = options?.offset ?? 0;
     const result = await db
         .prepare(
             `
@@ -62,7 +67,7 @@ export async function listAuditLogs(db: D1Database, limit = QUERY_LIMITS.LARGE) 
             FROM audit_logs a
             LEFT JOIN users u ON a.user_id = u.id
             ORDER BY a.created_at DESC
-            LIMIT ${limit}
+            LIMIT ${limit} OFFSET ${offset}
             `
         )
         .all<AuditLogRow>();

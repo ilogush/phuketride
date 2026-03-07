@@ -14,9 +14,14 @@ import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/rout
 
 export async function loadAuditLogsPageData(args: {
     db: D1Database;
+    limit?: number;
+    offset?: number;
 }) {
-    const logs = await listAuditLogs(args.db);
-    return { logs };
+    const [logs, countRow] = await Promise.all([
+        listAuditLogs(args.db, { limit: args.limit, offset: args.offset }),
+        args.db.prepare("SELECT COUNT(*) as count FROM audit_logs").first<{ count: number }>(),
+    ]);
+    return { logs, totalCount: countRow?.count ?? 0 };
 }
 
 export async function clearAuditLogsFromForm(args: {

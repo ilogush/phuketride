@@ -1,5 +1,5 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
-import { useLoaderData, Form } from "react-router";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
+import { useLoaderData, Form, useSearchParams } from "react-router";
 import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
@@ -10,6 +10,9 @@ import { trackServerOperation } from "~/lib/telemetry.server";
 import { parseWithSchema } from "~/lib/validation.server";
 import { clearAuditLogsSchema } from "~/schemas/admin-analytics";
 import { redirectWithRequestError } from "~/lib/route-feedback";
+import { requireAdminAnalyticsAccess } from "~/lib/access-policy.server";
+import { getScopedDb } from "~/lib/db-factory.server";
+import { getPaginationFromUrl } from "~/lib/pagination.server";
 
 interface AuditLog {
     id: number;
@@ -69,22 +72,27 @@ const ACTION_COLORS: Record<string, string> = {
 };
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user } = await requireAdminAnalyticsAccess(request);
+    const { user, sdb } = await getScopedDb(request, context, (r) => requireAdminAnalyticsAccess(r));
+    const url = new URL(request.url);
+    const { page, pageSize, offset } = getPaginationFromUrl(url, { defaultPageSize: 50 });
+
     return trackServerOperation({
         event: "logs.load",
         scope: "route.loader",
         request,
         userId: user.id,
         companyId: null,
-        details: { route: "logs" },
+        details: { route: "logs", page, pageSize },
         run: async () => loadAuditLogsPageData({
-            db: context.cloudflare.env.DB,
+            db: sdb.db as any,
+            limit: pageSize,
+            offset,
         }),
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const { user } = await requireAdminAnalyticsAccess(request);
+    const { user, sdb } = await getScopedDb(request, context, (r) => requireAdminAnalyticsAccess(r));
     return trackServerOperation({
         event: "logs.action",
         scope: "route.action",
@@ -102,7 +110,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             }
 
             return clearAuditLogsFromForm({
-                db: context.cloudflare.env.DB,
+                db: sdb.db as any,
                 request,
             });
         },
@@ -111,7 +119,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function AuditLogsPage() {
     useUrlToast();
-    const { logs } = useLoaderData<typeof loader>();
+    const { logs, totalCount } = useLoaderData<typeof loader>();
 
     const columns: Column<AuditLog>[] = [
         {
@@ -250,7 +258,8 @@ export default function AuditLogsPage() {
                 <DataTable
                     columns={columns}
                     data={logs}
-                    pagination={false}
+                    totalCount={totalCount}
+                    serverPagination={true}
                     emptyTitle="No audit logs found"
                     emptyDescription="System activity will appear here"
                 />
