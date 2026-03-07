@@ -80,7 +80,7 @@ export default function CarPhotosUpload({
                     />
                     <Button
                         type="button"
-                        variant="unstyled"
+                        variant="plain"
                         onClick={() => handleRemove(photo.id)}
                         className="absolute top-1 right-1 w-6 h-6 !p-0 rounded-full bg-red-500 text-white hover:bg-red-600"
                     >
@@ -91,7 +91,7 @@ export default function CarPhotosUpload({
             {previews.length < maxPhotos && (
                 <Button
                     type="button"
-                    variant="unstyled"
+                    variant="plain"
                     onClick={() => fileInputRef.current?.click()}
                     className="w-full aspect-square border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-lg flex flex-col items-center justify-center cursor-pointer gap-2"
                 >

@@ -1,3 +1,4 @@
+import type { BookingDetailRow } from "~/lib/bookings-detail.server";
 import type { BookingListRow } from "~/lib/db-types";
 
 type D1DatabaseLike = {
@@ -101,4 +102,34 @@ export async function listBookingsPage(params: {
         `).bind(companyId, status, pageSize, offset).all();
 
     return (result.results || []) as BookingListRow[];
+}
+
+export async function getBookingDetailById(params: {
+    db: D1DatabaseLike;
+    bookingId: number;
+}) {
+    const { db, bookingId } = params;
+    return await db.prepare(`
+        SELECT
+            b.*,
+            cc.company_id AS companyId,
+            cc.id AS carId,
+            cc.license_plate AS carLicensePlate,
+            cc.year AS carYear,
+            cb.name AS brandName,
+            cm.name AS modelName,
+            cl.name AS colorName,
+            d1.name AS pickupDistrictName,
+            d2.name AS returnDistrictName
+        FROM bookings b
+        JOIN company_cars cc ON cc.id = b.company_car_id
+        LEFT JOIN car_templates ct ON ct.id = cc.template_id
+        LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+        LEFT JOIN car_models cm ON cm.id = ct.model_id
+        LEFT JOIN colors cl ON cl.id = cc.color_id
+        LEFT JOIN districts d1 ON d1.id = b.pickup_district_id
+        LEFT JOIN districts d2 ON d2.id = b.return_district_id
+        WHERE b.id = ?
+        LIMIT 1
+    `).bind(bookingId).first() as BookingDetailRow | null;
 }

@@ -139,7 +139,7 @@ export default function SeasonsPage() {
                 <div className="flex gap-2">
                     <Button
                         type="button"
-                        variant="secondary"
+                        variant="outline"
                         size="sm"
                         onClick={() => openEditModal(item)}
                     >
@@ -150,7 +150,7 @@ export default function SeasonsPage() {
                         <input type="hidden" name="id" value={item.id} />
                         <Button
                             type="submit"
-                            variant="secondary"
+                            variant="outline"
                             size="sm"
                         >
                             Delete
@@ -170,7 +170,7 @@ export default function SeasonsPage() {
                 seasons.length === 0 ? (
                     <Form method="post">
                         <input type="hidden" name="intent" value="seed" />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit" variant="outline">
                             Load Default Data
                         </Button>
                     </Form>
@@ -181,7 +181,7 @@ export default function SeasonsPage() {
                     <DataTable
                         columns={columns}
                         data={seasons}
-                        disablePagination={true}
+                        pagination={false}
                         emptyTitle="No seasons configured"
                         emptyDescription="Addal pricing periods to get started"
                     />

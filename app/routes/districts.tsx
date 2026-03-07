@@ -186,7 +186,7 @@ export default function DistrictsPage() {
                 <div className="flex gap-2">
                     <Button
                         type="button"
-                        variant="secondary"
+                        variant="outline"
                         size="sm"
                         onClick={() => openEditModal(item)}
                     >
@@ -195,7 +195,7 @@ export default function DistrictsPage() {
                     <Form method="post" className="inline">
                         <input type="hidden" name="intent" value="delete" />
                         <input type="hidden" name="id" value={item.id} />
-                        <Button type="submit" variant="secondary" size="sm">
+                        <Button type="submit" variant="outline" size="sm">
                             Delete
                         </Button>
                     </Form>
@@ -213,7 +213,7 @@ export default function DistrictsPage() {
                 <DataTable
                     columns={columns}
                     data={districts}
-                    disablePagination={true}
+                    pagination={false}
                     emptyTitle="No districts configured"
                     emptyDescription="Adds to get started"
                 />

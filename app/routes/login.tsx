@@ -6,10 +6,13 @@ import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { useState, useEffect } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
-import { useToast } from "~/lib/toast";
 import Button from "~/components/dashboard/Button";
+import AuthFormField from "~/components/public/AuthFormField";
+import AuthTextInput from "~/components/public/AuthTextInput";
 import { loginSchema } from "~/schemas/user";
 import { parseWithSchema } from "~/lib/validation.server";
+import { useActionToast } from "~/lib/useActionToast";
+import { useToast } from "~/lib/toast";
 
 export const meta: MetaFunction = () => {
     const title = "Sign In | Phuket Ride";
@@ -117,13 +120,7 @@ export default function LoginPage() {
     const [searchParams] = useSearchParams();
     const [showPassword, setShowPassword] = useState(false);
     const toast = useToast();
-
-    // Show toast on error (only once per action)
-    useEffect(() => {
-        if (actionData?.error) {
-            toast.error(actionData.error, 5000);
-        }
-    }, [actionData?.error, toast]);
+    useActionToast(actionData?.error, { type: "error", duration: 5000 });
 
     // Show logout success toast (only on fresh login page load, not on failed login)
     useEffect(() => {
@@ -132,7 +129,7 @@ export default function LoginPage() {
         
         // Show logout success only if user just logged out (not after failed login attempt)
         if (logoutSuccess && !actionData?.error && !loginSuccess) {
-            toast.success('Logged out successfully', 5000);
+            void toast.success('Logged out successfully', 5000);
         }
     }, [searchParams, actionData, toast]);
 
@@ -147,38 +144,30 @@ export default function LoginPage() {
                     </div>
 
                     <Form method="post" className="space-y-4">
-                        <div className="space-y-2">
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                                Email address
-                            </label>
-                            <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
-                                required
-                                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
-                                placeholder="Email address"
-                            />
-                        </div>
+                        <AuthTextInput
+                            id="email"
+                            label="Email address"
+                            name="email"
+                            type="email"
+                            autoComplete="email"
+                            required
+                            placeholder="Email address"
+                        />
 
-                        <div className="space-y-2">
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                                Password
-                            </label>
+                        <AuthFormField id="password" label="Password" required>
                             <div className="relative">
-                                <input
+                                <AuthTextInput
                                     id="password"
                                     name="password"
                                     type={showPassword ? "text" : "password"}
                                     autoComplete="current-password"
                                     required
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                                    className="pr-14"
                                     placeholder="Password"
                                 />
                                 <Button
                                     type="button"
-                                    variant="unstyled"
+                                    variant="plain"
                                     onClick={() => setShowPassword(!showPassword)}
                                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-2"
                                 >
@@ -189,11 +178,11 @@ export default function LoginPage() {
                                     )}
                                 </Button>
                             </div>
-                        </div>
+                        </AuthFormField>
 
                         <Button
                             type="submit"
-                            variant="primary"
+                            variant="solid"
                             fullWidth
                             size="lg"
                         >

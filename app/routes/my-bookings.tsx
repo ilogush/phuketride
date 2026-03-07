@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireSelfProfileAccess } from "~/lib/access-policy.server";
 import { PlusIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import Button from "~/components/dashboard/Button";
@@ -25,7 +25,7 @@ interface MyBookingRow {
 }
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
+    const { user } = await requireSelfProfileAccess(request);
     const url = new URL(request.url);
 
     return trackServerOperation({
@@ -75,7 +75,7 @@ export default function MyBookingsPage() {
                     <p className="text-sm text-gray-500 mt-1">Manage your car rentals</p>
                 </div>
                 <Link to="/bookings/create">
-                    <Button variant="primary">
+                    <Button variant="solid">
                         <PlusIcon className="h-5 w-5 mr-2" />
                         New Booking
                     </Button>
@@ -89,7 +89,7 @@ export default function MyBookingsPage() {
                     <div className="flex gap-2">
                         <Button
                             type="button"
-                            variant="unstyled"
+                            variant="plain"
                             onClick={() => handleStatusChange("all")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "all" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                         >
@@ -97,7 +97,7 @@ export default function MyBookingsPage() {
                         </Button>
                         <Button
                             type="button"
-                            variant="unstyled"
+                            variant="plain"
                             onClick={() => handleStatusChange("closed")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "closed" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                         >
@@ -105,7 +105,7 @@ export default function MyBookingsPage() {
                         </Button>
                         <Button
                             type="button"
-                            variant="unstyled"
+                            variant="plain"
                             onClick={() => handleStatusChange("active")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "active" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                         >
@@ -165,7 +165,7 @@ export default function MyBookingsPage() {
                             Create your first booking to get started
                         </p>
                         <Link to="/bookings/create" className="mt-4 inline-block">
-                            <Button variant="primary">
+                            <Button variant="solid">
                                 <PlusIcon className="h-5 w-5 mr-2" />
                                 New Booking
                             </Button>

@@ -82,7 +82,7 @@ export default function NewContract() {
                 title="New Contract"
                 leftActions={<BackButton />}
                 rightActions={
-                    <Button type="submit" variant="primary" form="new-contract-form">
+                    <Button type="submit" variant="solid" form="new-contract-form">
                         Create
                     </Button>
                 }

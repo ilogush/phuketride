@@ -4,10 +4,10 @@ import type { SessionUser } from "~/lib/auth.server";
 import { parseWithSchema } from "~/lib/validation.server";
 
 type LocationsActionArgs = {
-  context: ActionFunctionArgs["context"];
+  db: D1Database;
   user: SessionUser;
   formData: FormData;
-  effectiveCompanyId: number | null;
+  companyId: number | null;
   isModMode: boolean;
 };
 
@@ -284,10 +284,10 @@ async function handleCreateDistrict(db: D1Database, formData: FormData) {
 }
 
 export async function handleLocationsAction({
-  context,
+  db,
   user,
   formData,
-  effectiveCompanyId,
+  companyId,
   isModMode,
 }: LocationsActionArgs) {
   const canManageCompanyDelivery = user.role === "partner" || isModMode;
@@ -306,27 +306,26 @@ export async function handleLocationsAction({
     return data({ success: false, message: "Invalid action" }, { status: 400 });
   }
   const intent = intentParsed.data;
-  const db = context.cloudflare.env.DB;
 
   if (intent === "bulkUpdate") {
-    if (!canManageCompanyDelivery || !effectiveCompanyId) {
+    if (!canManageCompanyDelivery || !companyId) {
       return forbiddenResponse();
     }
-    return handleBulkUpdateCompanyDelivery(db, formData, effectiveCompanyId);
+    return handleBulkUpdateCompanyDelivery(db, formData, companyId);
   }
 
   if (intent === "toggleStatus") {
-    if (!canManageCompanyDelivery || !effectiveCompanyId) {
+    if (!canManageCompanyDelivery || !companyId) {
       return forbiddenResponse();
     }
-    return handleToggleCompanyDelivery(db, formData, effectiveCompanyId);
+    return handleToggleCompanyDelivery(db, formData, companyId);
   }
 
   if (intent === "updatePrice") {
-    if (!canManageCompanyDelivery || !effectiveCompanyId) {
+    if (!canManageCompanyDelivery || !companyId) {
       return forbiddenResponse();
     }
-    return handleUpdateCompanyDeliveryPrice(db, formData, effectiveCompanyId);
+    return handleUpdateCompanyDeliveryPrice(db, formData, companyId);
   }
 
   if (intent === "delete") {

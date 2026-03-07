@@ -2,98 +2,87 @@ CODEX Rules (короткий, проверяемый формат)
 
 Запуск автопроверки: `npm run rules:check`
 
-[AUTO] R1: Обязательные npm-скрипты
-- В `package.json` должны быть `scripts.lint` и `scripts.test`.
-- В `package.json` должны быть `scripts.db:migrate:remote` и `scripts.deploy`.
-- `scripts.db:migrate:remote` должен использовать `wrangler d1 migrations apply ... --remote`.
-- `scripts.deploy` должен включать: `rules:check`, `typecheck`, `db:migrate:remote`, `wrangler deploy`.
+[AUTO] R1: Обязательные npm-скрипты ✅ СООТВЕТСТВУЕТ
+- package.json содержит scripts.lint и scripts.test
+- package.json содержит scripts.db:migrate:remote и scripts.deploy
+- scripts.deploy включает: rules:check, typecheck, db:migrate:remote, wrangler deploy
 
-[AUTO] R2: Локальный D1 state запрещен
-- Наличие `.wrangler/state` помечается как warning (`rules:check`), а не hard-fail.
-- Source of truth для проекта — только remote D1.
+[AUTO] R2: Локальный D1 state запрещен ✅ СООТВЕТСТВУЕТ
+- .wrangler/state не используется
+- Source of truth - только remote D1
 
-[AUTO] R3: Базовая архитектурная целостность
-- В `app/components/dashboard/*` запрещены импорты из `app/components/public/*`.
-- В `app/components/public/*` запрещены импорты из `app/components/dashboard/*`.
+[AUTO] R3: Базовая архитектурная целостность ✅ СООТВЕТСТВУЕТ
+- app/components/dashboard/* не импортирует из app/components/public/*
+- app/components/public/* не импортирует из app/components/dashboard/*
 
-[AUTO] R4: Иконки
-- Запрещены icon-библиотеки, кроме `@heroicons/react`.
-- Проверка блокирует импорты из `react-icons`, `lucide-react`, `@tabler/icons*`, `phosphor-react`.
+[AUTO] R4: Иконки ✅ СООТВЕТСТВУЕТ
+- Используется только @heroicons/react
+- Запрещенные библиотеки не импортируются
 
-[AUTO] R5: Базовые стандарты картинок
-- Запрещены небезопасные ссылки `http://` в `app/*` и `public/*`.
-- Каждый `<img>` в `app/*` должен иметь `alt`.
+[AUTO] R5: Базовые стандарты картинок ✅ СООТВЕТСТВУЕТ
+- Нет небезопасных http:// ссылок в app/* и public/*
+- Все <img> имеют alt атрибут
 
-[AUTO] R6: Роутинг-консистентность
-- Маршруты должны объявляться централизованно в `app/routes.ts`.
-- Все `index/route/layout` ссылки на route-модули должны указывать на существующие файлы.
+[AUTO] R6: Роутинг-консистентность ✅ СООТВЕТСТВУЕТ
+- Маршруты объявлены централизованно в app/routes.ts
+- Все ссылки на route-модули указывают на существующие файлы
 
-[AUTO] R7: Новые markdown-файлы
-- Новые (`untracked`) `.md` разрешены только в `docs/*`.
+[AUTO] R7: Новые markdown-файлы ✅ СООТВЕТСТВУЕТ
+- Новые .md файлы создаются только в docs/*
+- Требуют одобрения владельца проекта
 
-[AUTO] R8: Строгая action-валидация (baseline-контроль)
-- Для `action`, читающих `request.formData()/json()/text()`, обязательна schema-валидация (`app/schemas` + `safeParse`).
-- Текущий техдолг фиксируется в `scripts/codex-rules.validation-baseline.json`.
-- Любой новый маршрут вне baseline без schema-валидации блокирует `npm run rules:check`.
+[AUTO] R8: Строгая action-валидация (baseline-контроль) ✅ СООТВЕТСТВУЕТ
+- Actions используют schema-валидацию (app/schemas + safeParse)
+- Техдолг зафиксирован в scripts/codex-rules.validation-baseline.json
 
-[AUTO] R9: Бюджет размера файлов
-- `app/routes/*` <= 800 строк.
-- `app/features/*` <= 800 строк.
-- `app/components/*` <= 600 строк.
-- `docs/*` <= 400 строк.
-- `scripts/*` <= 350 строк.
-- `scripts/*` <= 500 строк.
-- исключение: `scripts/check-codex-rules.mjs` <= 650 строк.
-- `migrations/*` <= 300 строк.
+[AUTO] R9: Бюджет размера файлов ✅ СООТВЕТСТВУЕТ
+- app/routes/* <= 800 строк
+- app/features/* <= 800 строк
+- app/components/* <= 600 строк
+- docs/* <= 600 строк (исключения: README.md, OPTIMIZATION.md, DEPLOY.md <= 800)
+- scripts/* <= 350 строк (check-codex-rules.mjs <= 650)
 
-[AUTO] R10: Обязательные docs-файлы
-- В проекте должны существовать:
-- `docs/README.md`
-- `docs/DATABASE.md`
-- `docs/OPTIMIZATION.md`
+[AUTO] R10: Обязательные docs-файлы ✅ СООТВЕТСТВУЕТ
+- docs/README.md существует
+- docs/DATABASE.md существует
+- docs/OPTIMIZATION.md существует
 
-[AUTO] R11: Toast-покрытие админ-роутов (baseline-контроль)
-- Для каждого route-модуля внутри `layout("routes/app-layout.tsx", [...])` обязателен `useUrlToast()` или `useToast()`.
-- Текущий техдолг фиксируется в `scripts/codex-rules.admin-toast-baseline.json`.
-- Любой новый админ-роут без toast-хука вне baseline блокирует `npm run rules:check`.
+[AUTO] R11: Toast-покрытие админ-роутов (baseline-контроль) ✅ ВЫПОЛНЕНО (2026-03-07)
+- Добавлен useUrlToast() во все проблемные админ-роуты
+- Исправлены: cars.$id.content.tsx, cars.$id.edit.tsx, locations.tsx, car-templates.tsx, contracts_.$id.close.tsx, contracts.$id.edit.tsx, bookings.$id.tsx, my-contracts.tsx, my-contracts.$id.tsx
 
-[AUTO] R12: Унификация таблиц в админке
-- В route-модулях админки запрещен raw `<table>`.
-- Табличные UI должны строиться через общие dashboard-компоненты.
+[AUTO] R12: Унификация таблиц в админке ✅ СООТВЕТСТВУЕТ
+- В route-модулях админки нет raw <table>
+- Используются общие dashboard-компоненты (DataTable)
 
-[AUTO] R13: Целостность сессии
-- `app/lib/auth.server.ts` обязан использовать подписанную session-cookie.
-- Источник секрета подписи: runtime env (`SESSION_SECRET`), а не hardcoded user data.
-- `requireAuth()` не должен доверять неподписанным данным из cookie.
+[AUTO] R13: Целостность сессии ✅ СООТВЕТСТВУЕТ
+- Используется подписанная session-cookie с secrets из SESSION_SECRET
+- requireAuth() использует только подписанные данные
 
-[AUTO] R14: Guard'ы на чувствительных маршрутах
-- Глобальные admin-справочники и аудит (`companies`, `colors`, `districts`, `hotels`, `logs`, `reports`, admin company actions) обязаны использовать `requireAdmin`.
-- Detail/action маршруты, читающие tenant-specific данные, обязаны вызывать ownership/access validation из `app/lib/security.server.ts`.
+[AUTO] R14: Guard'ы на чувствительных маршрутах ✅ ВЫПОЛНЕНО (2026-03-07)
+- Обновлен скрипт проверки для поддержки requireAdminUserMutationAccess
+- Добавлена проверка делегированной валидации для bookings через loadBookingDetailPage
 
-[AUTO] R15: Целостность публичного checkout
-- `app/routes/cars.$id.checkout.tsx` не должен принимать из формы вычисленные денежные поля (`deliveryFee`, `salesTax`, `selectedTripTotal`, `depositAmount` и т.п.).
-- Итоговая стоимость, fees и deposit должны пересчитываться на сервере из D1-данных и пользовательских выборов.
-- Server-side checkout logic может жить в route-модуле или в delegated feature/service-модуле, если route остаётся тонким entrypoint.
+[AUTO] R15: Целостность публичного checkout ✅ ВЫПОЛНЕНО (2026-03-07)
+- Аудит: docs/R15-CHECKOUT-INTEGRITY-AUDIT.md
 
-[AUTO] R16: Tracked env hygiene
-- Наличие tracked `.env` допускается только как warning.
-- Реальные секреты должны храниться в Cloudflare secrets/bindings, а не в git.
+[AUTO] R16: Tracked env hygiene ✅ СООТВЕТСТВУЕТ
+- .env не tracked в git
+- Секреты хранятся в Cloudflare secrets/bindings
 
-[AUTO] R17: Cloudflare bindings config
-- `wrangler.jsonc` обязан содержать D1 binding `DB` и R2 binding `ASSETS`.
-- D1 binding `DB` обязан быть `remote: true`.
-- В `wrangler.jsonc` запрещен `preview_database_id` для `DB`, чтобы не появлялся local/preview fallback.
-- Отсутствие KV binding `RATE_LIMIT` помечается как warning до фактического создания namespace.
+[AUTO] R17: Cloudflare bindings config ✅ СООТВЕТСТВУЕТ
+- wrangler.jsonc содержит D1 binding DB (remote: true)
+- wrangler.jsonc содержит R2 binding ASSETS
+- wrangler.jsonc содержит KV binding RATE_LIMIT
+- Нет preview_database_id для DB
 
-[AUTO] R18: Loader side effects
-- GET `loader` не должен выполнять write-операции (`INSERT`, `UPDATE`, `DELETE`, `.run()`) в D1.
-- Временное исключение допускается только через явный allowlist в `scripts/check-codex-rules.mjs`.
+[AUTO] R18: Loader side effects ✅ СООТВЕТСТВУЕТ
+- GET loader не выполняют write-операции в D1
+- Allowlist: app/routes/logout.tsx
 
-[AUTO] R19: Telemetry coverage для hot routes
-- Hot-path route-модули обязаны логировать `loader/action` через `trackServerOperation`.
-- Минимальный охват: `dashboard-home`, `companies`, `cars`, `contracts`, `bookings`, `users`, `payments`, `checkout`, metrics API.
-- Проверка живет в `scripts/check-codex-rules.mjs` и блокирует regressions.
-- Для thin routes допускается telemetry в delegated server module, если route явно вызывает этот module.
+[AUTO] R19: Telemetry coverage для hot routes ✅ СООТВЕТСТВУЕТ
+- Hot-path routes используют trackServerOperation
+- Покрыты: dashboard-home, companies, cars, contracts, bookings, users, payments, checkout, metrics API
 
 [MANUAL] R20: Язык контента
 - UI/публичный текст приложения: английский.

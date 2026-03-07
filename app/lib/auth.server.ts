@@ -3,6 +3,12 @@ import { verifyPasswordHash } from "~/lib/password.server";
 import { getRuntimeEnv, getRuntimeMode } from "~/lib/runtime-env.server";
 
 const FALLBACK_DEV_SESSION_SECRET = "dev-session-secret-change-me";
+const DEFAULT_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+
+type SessionCookieSerializeOptions = {
+    secure: boolean;
+    maxAge?: number;
+};
 
 function getSessionSecrets() {
     const env = getRuntimeEnv();
@@ -21,12 +27,35 @@ function getSessionSecrets() {
 function getSessionCookie() {
     return createCookie("session", {
         httpOnly: true,
-        secure: false, // Handled dynamically based on request protocol
+        secure: false,
         sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge: DEFAULT_SESSION_MAX_AGE_SECONDS,
         path: "/",
         secrets: getSessionSecrets(),
     });
+}
+
+function isSecureRequest(request: Request): boolean {
+    return request.url.startsWith("https://");
+}
+
+function getSessionCookieSerializeOptions(
+    request: Request,
+    options?: { maxAge?: number }
+): SessionCookieSerializeOptions {
+    return {
+        secure: isSecureRequest(request),
+        ...(options?.maxAge !== undefined ? { maxAge: options.maxAge } : {}),
+    };
+}
+
+function getSessionCookieClearOptions(request: Request): SessionCookieSerializeOptions & { expires: Date } {
+    return {
+        secure: isSecureRequest(request),
+        maxAge: 0,
+        // Explicit epoch expiration avoids client differences around max-age handling.
+        expires: new Date(0),
+    };
 }
 
 export async function serializeSession(
@@ -34,11 +63,7 @@ export async function serializeSession(
     data: SessionUser | null,
     options?: { maxAge?: number }
 ) {
-    const isSecureRequest = request.url.startsWith("https://");
-    return getSessionCookie().serialize(data, {
-        secure: isSecureRequest,
-        ...(options?.maxAge !== undefined ? { maxAge: options.maxAge } : {}),
-    });
+    return getSessionCookie().serialize(data, getSessionCookieSerializeOptions(request, options));
 }
 
 export type UserRole = "admin" | "partner" | "manager" | "user";
@@ -150,8 +175,6 @@ export async function login(
     password: string,
     request: Request
 ): Promise<{ user: SessionUser; cookie: string } | { error: string }> {
-    const isSecureRequest = request.url.startsWith("https://");
-
     let user: LoginUser | undefined;
     try {
         // Use raw SQL query to keep field mapping explicit
@@ -293,9 +316,7 @@ export async function login(
 
     let cookie: string;
     try {
-        cookie = await getSessionCookie().serialize(sessionUser, {
-            secure: isSecureRequest,
-        });
+        cookie = await getSessionCookie().serialize(sessionUser, getSessionCookieSerializeOptions(request));
     } catch {
         return { error: "Login failed at: session cookie serialize" };
     }
@@ -305,7 +326,7 @@ export async function login(
 
 // Logout user
 export async function logout(request: Request): Promise<string> {
-    return serializeSession(request, null, { maxAge: 0 });
+    return getSessionCookie().serialize(null, getSessionCookieClearOptions(request));
 }
 
 // Get company ID for current user (for multi-tenancy)

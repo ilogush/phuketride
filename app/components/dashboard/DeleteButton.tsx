@@ -19,7 +19,7 @@ export default function DeleteButton({
             type="button"
             onClick={onClick}
             disabled={disabled}
-            variant="secondary"
+            variant="outline"
             className={className}
             title={title}
             icon={<TrashIcon className="w-5 h-5" />}

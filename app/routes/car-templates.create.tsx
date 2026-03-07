@@ -33,7 +33,7 @@ export default function CreateCarTemplatePage({ loaderData }: Route.ComponentPro
                 title="Create"
                 leftActions={<BackButton to="/car-templates" />}
                 rightActions={
-                    <Button type="submit" variant="primary" form="car-template-form">
+                    <Button type="submit" variant="solid" form="car-template-form">
                         Create
                     </Button>
                 }

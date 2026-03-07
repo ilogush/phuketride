@@ -73,7 +73,7 @@ export default function EditCarTemplatePage({ loaderData }: Route.ComponentProps
                 title="Edit"
                 leftActions={<BackButton to="/car-templates" />}
                 rightActions={
-                    <Button type="submit" variant="primary" form="car-template-form">
+                    <Button type="submit" variant="solid" form="car-template-form">
                         Save
                     </Button>
                 }

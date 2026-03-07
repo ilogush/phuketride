@@ -148,7 +148,7 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
                     {isOpen && (
                         <Button
                             type="button"
-                            variant="unstyled"
+                            variant="plain"
                             onClick={onClose}
                             className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
                             aria-label="Close menu"
@@ -215,7 +215,7 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
                     <div className={`${isOpen ? "mx-4 mb-4" : "mx-auto mb-4"}`}>
                         <Button
                             type="button"
-                            variant="primary"
+                            variant="solid"
                             title="Exit mod mode"
                             onClick={() => navigate("/companies")}
                             className={`w-full ${isOpen ? "text-sm py-2" : "h-10 w-10 text-xs px-0"}`}

@@ -46,7 +46,7 @@ export default function AdminCrudModalPage({
                     <div className="flex gap-3">
                         {headerExtras}
                         <Button
-                            variant="primary"
+                            variant="solid"
                             icon={<PlusIcon className="w-5 h-5" />}
                             onClick={onAdd}
                         >
@@ -60,7 +60,7 @@ export default function AdminCrudModalPage({
 
             <Modal
                 title={modalTitle}
-                isOpen={isModalOpen}
+                open={isModalOpen}
                 onClose={onCloseModal}
                 size={modalSize}
             >
@@ -71,7 +71,7 @@ export default function AdminCrudModalPage({
                     {formChildren}
 
                     <div className="flex justify-end gap-3 pt-4">
-                        <Button type="submit" variant="primary">
+                        <Button type="submit" variant="solid">
                             {submitLabel}
                         </Button>
                     </div>

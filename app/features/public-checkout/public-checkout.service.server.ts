@@ -1,6 +1,10 @@
 import { redirect } from "react-router";
 import { z } from "zod";
 
+import {
+  buildDefaultTripDateRange,
+  parseTripDateTime,
+} from "~/components/public/trip-date.model";
 import { isNonWorkingDateTime } from "~/lib/after-hours";
 import { getQuickAuditStmt, getRequestMetadata } from "~/lib/audit-logger";
 import { getCreateBookingEventsStmts, getCreateContractEventsStmts } from "~/lib/calendar-events.server";
@@ -28,31 +32,6 @@ const checkoutSubmitSchema = z.object({
   withIslandTrip: z.enum(["true", "false"]),
   withKrabiTrip: z.enum(["true", "false"]),
 });
-
-const pad = (value: number) => String(value).padStart(2, "0");
-const toDateInput = (date: Date) =>
-  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-const toTimeInput = (date: Date) =>
-  `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-
-function buildDefaultTrip() {
-  const now = new Date();
-  const start = new Date(now);
-  start.setHours(10, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 3);
-  return {
-    startDate: toDateInput(start),
-    endDate: toDateInput(end),
-    startTime: toTimeInput(start),
-    endTime: toTimeInput(end),
-  };
-}
-
-function parseTripDateTime(dateValue: string, timeValue: string) {
-  const candidate = new Date(`${dateValue}T${timeValue}:00`);
-  return Number.isNaN(candidate.getTime()) ? null : candidate;
-}
 
 function failCheckoutRedirect(message: string) {
   return redirect(
@@ -445,7 +424,7 @@ export async function loadPublicCheckoutPage(args: {
   const url = new URL(request.url);
   const pickupDistrictId = Number(url.searchParams.get("pickupDistrictId") || 0);
   const returnDistrictId = Number(url.searchParams.get("returnDistrictId") || 0);
-  const defaultTrip = buildDefaultTrip();
+  const defaultTrip = buildDefaultTripDateRange();
   const startDateParam = String(url.searchParams.get("startDate") || defaultTrip.startDate);
   const endDateParam = String(url.searchParams.get("endDate") || defaultTrip.endDate);
   const startTimeParam = String(url.searchParams.get("startTime") || defaultTrip.startTime);

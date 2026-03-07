@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useSearchParams, Link } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireSelfProfileAccess } from "~/lib/access-policy.server";
 import { CurrencyDollarIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import SimplePagination from "~/components/dashboard/SimplePagination";
@@ -14,7 +14,7 @@ import { loadClientPaymentsHistoryPage, type ClientPaymentRow } from "~/lib/user
 import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
+    const { user } = await requireSelfProfileAccess(request);
     const url = new URL(request.url);
 
     return trackServerOperation({
@@ -61,7 +61,7 @@ export default function MyPayments() {
                     <div className="flex gap-2">
                         <Button
                             type="button"
-                            variant="unstyled"
+                            variant="plain"
                             onClick={() => handleStatusChange("all")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "all" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                         >
@@ -69,7 +69,7 @@ export default function MyPayments() {
                         </Button>
                         <Button
                             type="button"
-                            variant="unstyled"
+                            variant="plain"
                             onClick={() => handleStatusChange("completed")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "completed" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                         >
@@ -77,7 +77,7 @@ export default function MyPayments() {
                         </Button>
                         <Button
                             type="button"
-                            variant="unstyled"
+                            variant="plain"
                             onClick={() => handleStatusChange("pending")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "pending" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                         >

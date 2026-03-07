@@ -3,8 +3,8 @@ import { Form, useLoaderData, useNavigate } from "react-router";
 
 import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import FormSection from "~/components/dashboard/FormSection";
-import FormInput from "~/components/dashboard/FormInput";
-import FormSelect from "~/components/dashboard/FormSelect";
+import { Input } from "~/components/dashboard/Input";
+import { Select } from "~/components/dashboard/Select";
 import { Textarea } from "~/components/dashboard/Textarea";
 import Modal from "~/components/dashboard/Modal";
 import Button from "~/components/dashboard/Button";
@@ -79,7 +79,7 @@ export default function NewCalendarEvent() {
 
     return (
         <Modal
-            isOpen={true}
+            open={true}
             onClose={() => navigate("/calendar")}
             title="New Event"
         >
@@ -90,28 +90,28 @@ export default function NewCalendarEvent() {
                 >
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                            <FormInput
+                            <Input
                                 label="Title"
                                 name="title"
                                 placeholder="Event title"
                                 required
                             />
                         </div>
-                        <FormSelect
+                        <Select
                             label="Type"
                             name="eventType"
                             options={eventTypes}
                             defaultValue="general"
                             required
                         />
-                        <FormInput
+                        <Input
                             label="Color"
                             name="color"
                             type="color"
                             defaultValue="#3B82F6"
                         />
                         <div className="col-span-2">
-                            <FormInput
+                            <Input
                                 label="Start Date & Time"
                                 name="startDate"
                                 type="text"
@@ -121,7 +121,7 @@ export default function NewCalendarEvent() {
                             />
                         </div>
                         <div className="col-span-2">
-                            <FormInput
+                            <Input
                                 label="End Date & Time (Optional)"
                                 name="endDate"
                                 type="text"
@@ -141,7 +141,7 @@ export default function NewCalendarEvent() {
                 </FormSection>
 
                 <div className="flex justify-end gap-3 pt-4">
-                    <Button type="submit" variant="primary">
+                    <Button type="submit" variant="solid">
                         Create Event
                     </Button>
                 </div>

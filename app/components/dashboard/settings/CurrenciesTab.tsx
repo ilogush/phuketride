@@ -13,7 +13,7 @@ interface CurrenciesTabProps {
   isCurrencyModalOpen: boolean;
   setIsCurrencyModalOpen: (open: boolean) => void;
   onToggleCurrency: (id: number, field: "isActive" | "isDefault") => void;
-  onCurrencyCreated: () => void;
+  onCurrencyCreated: () => Promise<void> | void;
 }
 
 export default function CurrenciesTab({
@@ -71,17 +71,17 @@ export default function CurrenciesTab({
                       <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
                         <Toggle
                           size="sm"
-                          enabled={lockThbForPhuket ? true : currency.companyId === companyId}
+                          checked={lockThbForPhuket ? true : currency.companyId === companyId}
                           disabled={lockThbForPhuket}
-                          onChange={() => onToggleCurrency(currency.id, "isDefault")}
+                          onCheckedChange={() => onToggleCurrency(currency.id, "isDefault")}
                         />
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
                         <Toggle
                           size="sm"
-                          enabled={lockThbForPhuket ? true : Boolean(currency.isActive)}
+                          checked={lockThbForPhuket ? true : Boolean(currency.isActive)}
                           disabled={lockThbForPhuket}
-                          onChange={() => onToggleCurrency(currency.id, "isActive")}
+                          onCheckedChange={() => onToggleCurrency(currency.id, "isActive")}
                         />
                       </td>
                     </tr>
@@ -95,7 +95,7 @@ export default function CurrenciesTab({
 
       <Modal
         title="Add Currency"
-        isOpen={isCurrencyModalOpen}
+        open={isCurrencyModalOpen}
         onClose={() => setIsCurrencyModalOpen(false)}
         size="md"
       >
@@ -131,7 +131,7 @@ export default function CurrenciesTab({
             />
           </div>
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="submit" variant="primary">Create</Button>
+            <Button type="submit" variant="solid">Create</Button>
           </div>
         </Form>
       </Modal>

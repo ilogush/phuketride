@@ -91,7 +91,7 @@ export default function PaymentTemplatesTab({
                       <div className="flex gap-2">
                         <Button
                           type="button"
-                          variant="secondary"
+                          variant="outline"
                           size="sm"
                           onClick={() => {
                             setPaymentFormData({
@@ -109,7 +109,7 @@ export default function PaymentTemplatesTab({
                           <Form method="post" action={settingsActionUrl} reloadDocument>
                             <input type="hidden" name="intent" value="deletePaymentTemplate" />
                             <input type="hidden" name="id" value={template.id} />
-                            <Button type="submit" variant="secondary" size="sm">Delete</Button>
+                            <Button type="submit" variant="outline" size="sm">Delete</Button>
                           </Form>
                         )}
                       </div>
@@ -124,7 +124,7 @@ export default function PaymentTemplatesTab({
 
       <Modal
         title={editingPaymentTemplate ? "Edit Payment Template" : "Add Payment Template"}
-        isOpen={isPaymentModalOpen}
+        open={isPaymentModalOpen}
         onClose={() => {
           setIsPaymentModalOpen(false);
           setEditingPaymentTemplate(null);
@@ -173,7 +173,7 @@ export default function PaymentTemplatesTab({
             placeholder="Optional description"
           />
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="submit" variant="primary">{editingPaymentTemplate ? "Update" : "Create"}</Button>
+            <Button type="submit" variant="solid">{editingPaymentTemplate ? "Update" : "Create"}</Button>
           </div>
         </Form>
       </Modal>

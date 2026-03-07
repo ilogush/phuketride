@@ -1,6 +1,6 @@
 import { requireAdmin, requireAuth, type SessionUser } from "~/lib/auth.server";
 import { getAdminModCompanyId, getEffectiveCompanyId } from "~/lib/mod-mode.server";
-import { validateBookingOwnership, validateContractOwnership } from "~/lib/security.server";
+import { validateBookingOwnership, validateContractOwnership, validateCarOwnership } from "~/lib/security.server";
 
 type ScopedDashboardAccess = {
     user: SessionUser;
@@ -8,6 +8,7 @@ type ScopedDashboardAccess = {
     adminModCompanyId: number | null;
     isModMode: boolean;
 };
+
 
 function isDashboardRole(role: SessionUser["role"]) {
     return role === "admin" || role === "partner" || role === "manager";
@@ -42,6 +43,26 @@ export async function requireScopedDashboardAccess(
 }
 
 export async function requireUserDirectoryAccess(request: Request) {
+    const user = await requireAuth(request);
+    if (!["admin", "partner"].includes(user.role)) {
+        throw new Response("Forbidden", { status: 403 });
+    }
+
+    const adminModCompanyId = getAdminModCompanyId(request, user);
+    const companyId = getEffectiveCompanyId(request, user);
+    if (user.role === "partner" && companyId === null) {
+        throw new Response("Forbidden", { status: 403 });
+    }
+
+    return {
+        user,
+        companyId,
+        adminModCompanyId,
+        isModMode: adminModCompanyId !== null,
+    };
+}
+
+export async function requireLocationsAccess(request: Request) {
     const user = await requireAuth(request);
     if (!["admin", "partner"].includes(user.role)) {
         throw new Response("Forbidden", { status: 403 });
@@ -113,6 +134,29 @@ export async function requireContractAccess(
     const access = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
     if (access.companyId !== null) {
         await validateContractOwnership(db, contractId, access.companyId);
+    }
+    return access;
+}
+
+export async function assertContractOwnershipAccess(args: {
+    db: D1Database;
+    companyId: number | null;
+    contractId: number;
+}) {
+    if (args.companyId === null) {
+        return;
+    }
+
+    await validateContractOwnership(args.db, args.contractId, args.companyId);
+}
+export async function requireCarAccess(
+    request: Request,
+    db: D1Database,
+    carId: number
+) {
+    const access = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
+    if (access.companyId !== null) {
+        await validateCarOwnership(db, carId, access.companyId);
     }
     return access;
 }

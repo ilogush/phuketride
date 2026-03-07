@@ -1,10 +1,17 @@
 type TelemetryLevel = "info" | "error";
+type TelemetrySeverity = "info" | "warn" | "error";
 
 type TelemetryBase = {
     event: string;
     scope: string;
+    layer: string;
+    operation: string;
+    taxonomy: string;
     status: "ok" | "error";
+    severity: TelemetrySeverity;
     durationMs: number;
+    thresholdMs: number;
+    slow: boolean;
     requestId?: string;
     path?: string;
     method?: string;
@@ -14,6 +21,53 @@ type TelemetryBase = {
     details?: Record<string, unknown>;
     error?: string;
 };
+
+const SLOW_THRESHOLD_MS_BY_OPERATION: Record<string, number> = {
+    loader: 300,
+    action: 450,
+    service: 400,
+    repo: 250,
+    api: 250,
+};
+
+function toSafeValue(value: unknown): unknown {
+    if (value === null || value === undefined) return value;
+    const valueType = typeof value;
+    if (valueType === "string" || valueType === "number" || valueType === "boolean") {
+        return value;
+    }
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+    if (Array.isArray(value)) {
+        return value.slice(0, 50).map(toSafeValue);
+    }
+    if (valueType === "object") {
+        const entries = Object.entries(value as Record<string, unknown>).slice(0, 50);
+        return Object.fromEntries(entries.map(([key, nested]) => [key, toSafeValue(nested)]));
+    }
+    return String(value);
+}
+
+function normalizeDetails(details?: Record<string, unknown>) {
+    if (!details) return undefined;
+    return toSafeValue(details) as Record<string, unknown>;
+}
+
+function getTelemetryScopeMeta(scope: string) {
+    const [layer = "unknown", operation = "unknown"] = scope.split(".");
+    const thresholdMs = SLOW_THRESHOLD_MS_BY_OPERATION[operation] ?? 400;
+    return {
+        layer,
+        operation,
+        thresholdMs,
+    };
+}
+
+function getEventTaxonomy(event: string, scope: string): string {
+    const domain = event.split(".")[0] || "unknown";
+    return `${domain}:${scope}`;
+}
 
 function logTelemetry(level: TelemetryLevel, payload: TelemetryBase) {
     const serialized = JSON.stringify({
@@ -54,33 +108,52 @@ export async function trackServerOperation<T>(args: {
 }) {
     const startedAt = Date.now();
     const requestMeta = getTelemetryRequestMeta(args.request);
+    const scopeMeta = getTelemetryScopeMeta(args.scope);
+    const taxonomy = getEventTaxonomy(args.event, args.scope);
+    const normalizedDetails = normalizeDetails(args.details);
 
     try {
         const result = await args.run();
+        const durationMs = Date.now() - startedAt;
+        const slow = durationMs >= scopeMeta.thresholdMs;
         logTelemetry("info", {
             event: args.event,
             scope: args.scope,
+            layer: scopeMeta.layer,
+            operation: scopeMeta.operation,
+            taxonomy,
             status: "ok",
-            durationMs: Date.now() - startedAt,
+            severity: slow ? "warn" : "info",
+            durationMs,
+            thresholdMs: scopeMeta.thresholdMs,
+            slow,
             userId: args.userId,
             companyId: args.companyId,
             entityId: args.entityId,
-            details: args.details,
+            details: normalizedDetails,
             ...requestMeta,
         });
         return result;
     } catch (error) {
+        const durationMs = Date.now() - startedAt;
+        const slow = durationMs >= scopeMeta.thresholdMs;
         const message = error instanceof Error ? error.message : "Unknown telemetry error";
         logTelemetry("error", {
             event: args.event,
             scope: args.scope,
+            layer: scopeMeta.layer,
+            operation: scopeMeta.operation,
+            taxonomy,
             status: "error",
-            durationMs: Date.now() - startedAt,
+            severity: "error",
+            durationMs,
+            thresholdMs: scopeMeta.thresholdMs,
+            slow,
             userId: args.userId,
             companyId: args.companyId,
             entityId: args.entityId,
-            details: args.details,
-            error: message,
+            details: normalizedDetails,
+            error: String(toSafeValue(message)),
             ...requestMeta,
         });
         throw error;

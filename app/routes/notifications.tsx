@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireSelfProfileAccess } from "~/lib/access-policy.server";
 import { BellIcon, CalendarIcon, CurrencyDollarIcon, TruckIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import PageHeader from "~/components/dashboard/PageHeader";
@@ -13,7 +13,7 @@ import {
 } from "~/lib/user-notifications.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
+    const { user } = await requireSelfProfileAccess(request);
 
     const notifications: Array<{
         id: string;

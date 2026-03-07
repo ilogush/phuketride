@@ -1,12 +1,12 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
 import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-    await requireAuth(request);
+    await requireAdminUserMutationAccess(request);
     const userId = params.userId;
     if (!userId) {
         throw new Response("User ID is required", { status: 400 });
@@ -17,15 +17,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
-    const sessionUser = await requireAuth(request);
+    await requireAdminUserMutationAccess(request);
     const userId = params.userId;
 
     if (!userId) {
         throw new Response("User ID is required", { status: 400 });
-    }
-
-    if (sessionUser.role !== "admin") {
-        return redirectWithError(`/users/${userId}/edit`, "Access denied");
     }
 
     const formData = await request.formData();

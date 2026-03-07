@@ -40,6 +40,12 @@ test("trackServerOperation logs ok status and returns result", async () => {
         assert.equal(payload.event, "settings.load");
         assert.equal(payload.scope, "route.loader");
         assert.equal(payload.status, "ok");
+        assert.equal(payload.layer, "route");
+        assert.equal(payload.operation, "loader");
+        assert.equal(payload.taxonomy, "settings:route.loader");
+        assert.equal(typeof payload.thresholdMs, "number");
+        assert.equal(typeof payload.slow, "boolean");
+        assert.equal(payload.severity === "info" || payload.severity === "warn", true);
         assert.equal(payload.path, "/settings");
     } finally {
         console.info = originalInfo;
@@ -71,6 +77,10 @@ test("trackServerOperation logs error status and rethrows", async () => {
         const payload = JSON.parse(logs[0]) as Record<string, unknown>;
         assert.equal(payload.status, "error");
         assert.equal(payload.event, "public.checkout.submit");
+        assert.equal(payload.layer, "route");
+        assert.equal(payload.operation, "action");
+        assert.equal(payload.taxonomy, "public:route.action");
+        assert.equal(payload.severity, "error");
         assert.equal(payload.error, "boom");
     } finally {
         console.error = originalError;

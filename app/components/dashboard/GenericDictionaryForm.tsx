@@ -5,7 +5,9 @@ import Modal from '~/components/dashboard/Modal'
 import FormField from '~/components/dashboard/FormField'
 import DeleteButton from '~/components/dashboard/DeleteButton'
 import Toggle from '~/components/dashboard/Toggle'
-import { inputBaseStyles, textareaBaseStyles } from '~/lib/styles/input'
+import { Input } from '~/components/dashboard/Input'
+import { Select } from '~/components/dashboard/Select'
+import { Textarea } from '~/components/dashboard/Textarea'
 
 export type FieldType = 'text' | 'number' | 'select' | 'textarea' | 'checkbox' | 'color' | 'toggle'
 
@@ -158,7 +160,6 @@ export function GenericDictionaryForm({
     const renderField = (field: FieldConfig) => {
         const value = formData[field.name] ?? ''
         const error = errors[field.name]
-        const inputClass = `${inputBaseStyles} ${error ? 'border-gray-600' : ''}`
 
         switch (field.type) {
             case 'textarea':
@@ -166,22 +167,28 @@ export function GenericDictionaryForm({
                     <FormField
                         label={field.label}
                         required={field.required}
-                        error={error}
+                        hint={field.helpText}
                         className={field.className}
                     >
-                        <textarea
+                        <Textarea
+                            label={undefined}
                             id={field.name}
                             name={field.name}
                             value={toInputValue(value)}
-                            onChange={handleChange}
+                            onChange={(nextValue) =>
+                                handleChange({
+                                    target: {
+                                        name: field.name,
+                                        value: nextValue,
+                                        type: 'textarea',
+                                    },
+                                } as React.ChangeEvent<HTMLTextAreaElement>)
+                            }
                             rows={field.rows || 3}
-                            className={`${textareaBaseStyles} ${error ? 'border-gray-600' : ''}`}
                             placeholder={field.placeholder}
                             disabled={field.disabled}
+                            error={error}
                         />
-                        {field.helpText && (
-                            <p className="mt-1 text-xs text-gray-500">{field.helpText}</p>
-                        )}
                     </FormField>
                 )
 
@@ -190,27 +197,20 @@ export function GenericDictionaryForm({
                     <FormField
                         label={field.label}
                         required={field.required}
-                        error={error}
                         className={field.className}
                     >
-                        <select
+                        <Select
+                            label={undefined}
                             id={field.name}
                             name={field.name}
                             value={toInputValue(value)}
                             onChange={handleChange}
-                            className={inputClass}
+                            error={error}
                             disabled={field.disabled}
-                        >
-                            {field.placeholder && <option value="">{field.placeholder}</option>}
-                            {field.options?.map(option => (
-                                <option key={option.id} value={option.id}>
-                                    {option.name}
-                                </option>
-                            ))}
-                        </select>
-                        {field.helpText && (
-                            <p className="mt-1 text-xs text-gray-500">{field.helpText}</p>
-                        )}
+                            options={field.options || []}
+                            placeholder={field.placeholder}
+                            showPlaceholderOption={Boolean(field.placeholder)}
+                        />
                     </FormField>
                 )
 
@@ -243,9 +243,9 @@ export function GenericDictionaryForm({
                         </label>
                         <Toggle
                             size="sm"
-                            enabled={Boolean(value)}
+                            checked={Boolean(value)}
                             disabled={field.disabled}
-                            onChange={() => {
+                            onCheckedChange={() => {
                                 if (!field.disabled) {
                                     setFormData(prev => ({ ...prev, [field.name]: !prev[field.name] }))
                                 }
@@ -259,29 +259,28 @@ export function GenericDictionaryForm({
                     <FormField
                         label={field.label}
                         required={field.required}
-                        error={error}
+                        hint={field.helpText}
                         className={field.className}
                     >
                         <div className="flex items-center space-x-2">
-                            <input
+                            <Input
+                                label={undefined}
                                 type="text"
                                 id={field.name}
                                 name={field.name}
                                 value={toInputValue(value)}
                                 onChange={handleChange}
                                 maxLength={field.maxLength}
-                                className={`${inputClass} flex-1`}
+                                className="flex-1"
                                 placeholder={field.placeholder}
                                 disabled={field.disabled}
+                                error={error}
                             />
                             <div
                                 className="w-10 h-10 rounded-lg border border-gray-200"
                                 style={{ backgroundColor: toColorValue(value) }}
                             />
                         </div>
-                        {field.helpText && (
-                            <p className="mt-1 text-xs text-gray-500">{field.helpText}</p>
-                        )}
                     </FormField>
                 )
 
@@ -290,23 +289,21 @@ export function GenericDictionaryForm({
                     <FormField
                         label={field.label}
                         required={field.required}
-                        error={error}
+                        hint={field.helpText}
                         className={field.className}
                     >
-                        <input
+                        <Input
+                            label={undefined}
                             type={field.type}
                             id={field.name}
                             name={field.name}
                             value={toInputValue(value)}
                             onChange={handleChange}
                             maxLength={field.maxLength}
-                            className={inputClass}
                             placeholder={field.placeholder}
                             disabled={field.disabled}
+                            error={error}
                         />
-                        {field.helpText && (
-                            <p className="mt-1 text-xs text-gray-500">{field.helpText}</p>
-                        )}
                     </FormField>
                 )
         }
@@ -323,7 +320,7 @@ export function GenericDictionaryForm({
             actions={
                 <div className="flex gap-2">
                     {data && onDelete && <DeleteButton onClick={onDelete} />}
-                    <Button type="submit" form={formId} variant="primary">
+                    <Button type="submit" form={formId} variant="solid">
                         {submitLabel || (data ? 'Save' : 'Add')}
                     </Button>
                 </div>

@@ -27,3 +27,23 @@ export function getEffectiveCompanyId(request: Request, user: SessionUser): numb
 
     return user.companyId ?? null;
 }
+/**
+ * Centralized helper to build URL with modCompanyId preserved
+ * Use this instead of ad hoc query param handling
+ */
+export function withModCompanyId(path: string, modCompanyId: number | null): string {
+    if (modCompanyId === null) {
+        return path;
+    }
+
+    const separator = path.includes("?") ? "&" : "?";
+    return `${path}${separator}modCompanyId=${modCompanyId}`;
+}
+
+/**
+ * Extract modCompanyId from request for URL building
+ * Returns validated number or null
+ */
+export function getRequestModCompanyId(request: Request, user: SessionUser): number | null {
+    return getAdminModCompanyId(request, user);
+}

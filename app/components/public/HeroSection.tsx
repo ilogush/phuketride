@@ -1,34 +1,19 @@
 import { Link } from "react-router";
 import { CheckIcon, MagnifyingGlassIcon, MapPinIcon } from "@heroicons/react/24/outline";
 import { useMemo, useState } from "react";
-import DateRangePicker, { type DateRangeValue } from "~/components/public/DateRangePicker";
+import DateRangePicker from "~/components/public/DateRangePicker";
+import { buildDefaultTripDateRange, type DateRangeValue } from "~/components/public/trip-date.model";
 
 interface HeroSectionProps {
   districts: string[];
 }
-
-const pad = (value: number) => String(value).padStart(2, "0");
-const toDateInput = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-
-const buildDefaultTrip = (): DateRangeValue => {
-  const start = new Date();
-  const end = new Date(start);
-  end.setDate(start.getDate() + 3);
-
-  return {
-    startDate: toDateInput(start),
-    endDate: toDateInput(end),
-    startTime: "10:00",
-    endTime: "10:00",
-  };
-};
 
 export default function HeroSection({ districts }: HeroSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showLocations, setShowLocations] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [selectedDistrict, setSelectedDistrict] = useState("");
-  const [trip, setTrip] = useState<DateRangeValue>(buildDefaultTrip);
+  const [trip, setTrip] = useState<DateRangeValue>(buildDefaultTripDateRange);
 
   const filteredDistricts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Form, useActionData, useLoaderData, useNavigation } from "react-router";
 import type { Route } from "./+types/cars.$id.checkout";
 import Header from "~/components/public/Header";
@@ -10,7 +10,7 @@ import {
   loadPublicCheckoutPage,
   submitPublicCheckout,
 } from "~/features/public-checkout/public-checkout.service.server";
-import { useToast } from "~/lib/toast";
+import { useActionToast } from "~/lib/useActionToast";
 
 export function meta({ data }: Route.MetaArgs) {
   const carName = data?.carName || "Car";
@@ -53,8 +53,6 @@ export default function CheckoutPage() {
   const data = useLoaderData<typeof loader>();
   const actionData = useActionData<CheckoutActionData>();
   const navigation = useNavigation();
-  const toast = useToast();
-  const lastToastErrorRef = useRef<string | null>(null);
   const isSubmitting = navigation.state === "submitting";
   const [withFullInsurance, setWithFullInsurance] = useState(false);
   const [withBabySeat, setWithBabySeat] = useState(false);
@@ -94,29 +92,14 @@ export default function CheckoutPage() {
     { label: "Checkout" },
   ];
 
-  useEffect(() => {
-    if (!actionData?.error) {
-      lastToastErrorRef.current = null;
-      return;
-    }
-    if (lastToastErrorRef.current === actionData.error) {
-      return;
-    }
-    lastToastErrorRef.current = actionData.error;
-    void toast.error(actionData.error);
-  }, [actionData?.error, toast]);
+  useActionToast(actionData?.error);
 
   return (
     <div className="min-h-screen bg-white">
       <Header />
       <Breadcrumbs items={breadcrumbs} />
       <main className="max-w-5xl mx-auto px-4">
-        <Form
-          method="post"
-          onSubmit={() => {
-            lastToastErrorRef.current = null;
-          }}
-        >
+        <Form method="post">
           <input type="hidden" name="carId" value={data.carId} />
           <input type="hidden" name="bookingRate" value={bookingRate} />
           <input type="hidden" name="pickupAt" value={data.pickupAt} />

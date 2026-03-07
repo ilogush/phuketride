@@ -21,7 +21,7 @@ export default function SimplePagination({ currentPage, totalPages, onPageChange
                 <Button
                     onClick={() => onPageChange(currentPage - 1)}
                     disabled={!hasPrevious}
-                    variant="secondary"
+                    variant="outline"
                     size="sm"
                 >
                     <ChevronLeftIcon className="w-4 h-4" />
@@ -29,7 +29,7 @@ export default function SimplePagination({ currentPage, totalPages, onPageChange
                 <Button
                     onClick={() => onPageChange(currentPage + 1)}
                     disabled={!hasNext}
-                    variant="secondary"
+                    variant="outline"
                     size="sm"
                 >
                     <ChevronRightIcon className="w-4 h-4" />

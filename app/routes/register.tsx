@@ -1,11 +1,10 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction, redirect } from "react-router";
 import { Form, Link, useActionData } from "react-router";
 import { getUserFromSession, serializeSession } from "~/lib/auth.server";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
-import { useToast } from "~/lib/toast";
 import Button from "~/components/public/Button";
 import AuthFormField from "~/components/public/AuthFormField";
 import AuthTextInput from "~/components/public/AuthTextInput";
@@ -13,6 +12,7 @@ import { registerUserAccount } from "~/lib/registration.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { parseWithSchema } from "~/lib/validation.server";
 import { userRegistrationSchema } from "~/schemas/registration";
+import { useActionToast } from "~/lib/useActionToast";
 
 export const meta: MetaFunction = () => {
     const title = "Create Account | Phuket Ride";
@@ -94,13 +94,7 @@ export default function RegisterPage() {
     const actionData = useActionData<typeof action>();
     const [showPassword, setShowPassword] = useState(false);
     const { validateLatinInput } = useLatinValidation();
-    const toast = useToast();
-
-    useEffect(() => {
-        if (actionData?.error) {
-            toast.error(actionData.error);
-        }
-    }, [actionData?.error, toast]);
+    useActionToast(actionData?.error);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -115,54 +109,50 @@ export default function RegisterPage() {
 
                     <Form method="post" className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <AuthFormField id="firstName" label="First Name" required>
-                                <AuthTextInput
-                                    id="firstName"
-                                    name="firstName"
-                                    type="text"
-                                    autoComplete="given-name"
-                                    required
-                                    pattern="[a-zA-Z\s\-']+"
-                                    onChange={(e) => validateLatinInput(e, "First Name")}
-                                    placeholder="John"
-                                />
-                            </AuthFormField>
+                            <AuthTextInput
+                                id="firstName"
+                                label="First Name"
+                                name="firstName"
+                                type="text"
+                                autoComplete="given-name"
+                                required
+                                pattern="[a-zA-Z\s\-']+"
+                                onChange={(e) => validateLatinInput(e, "First Name")}
+                                placeholder="John"
+                            />
 
-                            <AuthFormField id="lastName" label="Last Name" required>
-                                <AuthTextInput
-                                    id="lastName"
-                                    name="lastName"
-                                    type="text"
-                                    autoComplete="family-name"
-                                    required
-                                    pattern="[a-zA-Z\s\-']+"
-                                    onChange={(e) => validateLatinInput(e, "Last Name")}
-                                    placeholder="Smith"
-                                />
-                            </AuthFormField>
+                            <AuthTextInput
+                                id="lastName"
+                                label="Last Name"
+                                name="lastName"
+                                type="text"
+                                autoComplete="family-name"
+                                required
+                                pattern="[a-zA-Z\s\-']+"
+                                onChange={(e) => validateLatinInput(e, "Last Name")}
+                                placeholder="Smith"
+                            />
                         </div>
 
-                        <AuthFormField id="email" label="Email Address" required>
-                            <AuthTextInput
-                                id="email"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
-                                required
-                                placeholder="john.smith@example.com"
-                            />
-                        </AuthFormField>
+                        <AuthTextInput
+                            id="email"
+                            label="Email Address"
+                            name="email"
+                            type="email"
+                            autoComplete="email"
+                            required
+                            placeholder="john.smith@example.com"
+                        />
 
-                        <AuthFormField id="phone" label="Phone Number" required>
-                            <AuthTextInput
-                                id="phone"
-                                name="phone"
-                                type="tel"
-                                autoComplete="tel"
-                                required
-                                placeholder="+6699123456"
-                            />
-                        </AuthFormField>
+                        <AuthTextInput
+                            id="phone"
+                            label="Phone Number"
+                            name="phone"
+                            type="tel"
+                            autoComplete="tel"
+                            required
+                            placeholder="+6699123456"
+                        />
 
                         <AuthFormField id="password" label="Password" required>
                             <div className="relative">
@@ -174,6 +164,7 @@ export default function RegisterPage() {
                                     required
                                     minLength={6}
                                     placeholder="Min 6 characters"
+                                    className="pr-14"
                                 />
                                 <Button
                                     type="button"

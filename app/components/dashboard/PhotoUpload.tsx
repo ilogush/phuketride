@@ -68,7 +68,7 @@ export default function PhotoUpload({
                 ) : (
                     <Button
                         type="button"
-                        variant="unstyled"
+                        variant="plain"
                         onClick={handleClick}
                         className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-full flex items-center justify-center cursor-pointer"
                     >
@@ -78,7 +78,7 @@ export default function PhotoUpload({
                 {preview && (
                     <Button
                         type="button"
-                        variant="unstyled"
+                        variant="plain"
                         onClick={handleRemove}
                         className="absolute -top-1 -right-1 w-5 h-5 aspect-square !p-0 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors"
                     >

@@ -161,7 +161,7 @@ export default function ColorsPage() {
                     <Link to={`/colors/${item.id}/edit`}>
                         <Button
                             type="button"
-                            variant="secondary"
+                            variant="outline"
                             size="sm"
                         >
                             Edit
@@ -175,7 +175,7 @@ export default function ColorsPage() {
                         <input type="hidden" name="id" value={item.id} />
                         <Button
                             type="submit"
-                            variant="secondary"
+                            variant="outline"
                             size="sm"
                         >
                             Delete
@@ -196,14 +196,14 @@ export default function ColorsPage() {
                             {colors.length === 0 && (
                                 <Form method="post">
                                     <input type="hidden" name="intent" value="seed" />
-                                    <Button type="submit" variant="secondary">
+                                    <Button type="submit" variant="outline">
                                         Load Default Data
                                     </Button>
                                 </Form>
                             )}
                             <Link to="/colors/new">
                                 <Button
-                                    variant="primary"
+                                    variant="solid"
                                     icon={<PlusIcon className="w-5 h-5" />}
                                 >
                                     Add
@@ -217,7 +217,7 @@ export default function ColorsPage() {
                     <DataTable
                         columns={columns}
                         data={colors}
-                        disablePagination={true}
+                        pagination={false}
                         emptyTitle="No colors configured"
                         emptyDescription="Add available car colors to get started"
                     />

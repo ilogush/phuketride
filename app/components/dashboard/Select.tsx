@@ -1,19 +1,21 @@
 import { forwardRef } from "react";
 import { selectBaseStyles, selectErrorStyles } from "~/lib/styles/input";
 
-interface SelectOption {
+export interface SelectOption {
     id: number | string;
     name: string;
     count?: number;
     volume?: number;
 }
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
     label?: string;
     error?: string;
     options: SelectOption[];
     placeholder?: string;
     hidePlaceholderOption?: boolean;
+    showPlaceholderOption?: boolean;
+    isEdit?: boolean;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
@@ -24,16 +26,20 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             options,
             placeholder,
             hidePlaceholderOption = true,
+            showPlaceholderOption,
             required = false,
             className = "",
             id,
             name,
             disabled,
+            isEdit = true,
             ...props
         },
         ref
     ) => {
         const baseStyle = error ? selectErrorStyles : selectBaseStyles;
+        const isFieldDisabled = disabled || !isEdit;
+        const shouldShowPlaceholderOption = showPlaceholderOption ?? !hidePlaceholderOption;
 
         return (
             <div className={className}>
@@ -46,11 +52,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                     ref={ref}
                     id={id || name}
                     name={name}
-                    disabled={disabled}
+                    disabled={isFieldDisabled}
                     className={baseStyle}
                     {...props}
                 >
-                    {!hidePlaceholderOption && (
+                    {shouldShowPlaceholderOption && (
                         <option value="">{placeholder || `Select ${label || "option"}`}</option>
                     )}
                     {options.map((option) => {

@@ -119,7 +119,7 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                                 <td className="pr-4 py-2 text-sm text-gray-900 whitespace-nowrap align-middle">
                                     <div className="flex gap-2">
                                         <Button
-                                            variant="secondary"
+                                            variant="outline"
                                             size="sm"
                                             onClick={() => setSelectedTask(task)}
                                         >
@@ -131,7 +131,7 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                                                 <input type="hidden" name="taskId" value={task.id} />
                                                 <Button
                                                     type="submit"
-                                                    variant="secondary"
+                                                    variant="outline"
                                                     size="sm"
                                                 >
                                                     Delete
@@ -160,14 +160,14 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                                     <input type="hidden" name="taskId" value={selectedTask.id} />
                                     <Button
                                         type="submit"
-                                        variant="secondary"
+                                        variant="outline"
                                     >
                                         Delete Task
                                     </Button>
                                 </Form>
                             )}
                             <Button
-                                variant="primary"
+                                variant="solid"
                                 onClick={() => setSelectedTask(null)}
                             >
                                 Close
@@ -213,7 +213,7 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                                         {selectedTask.relatedEntity.label}
                                     </p>
                                     <Link to={getEntityUrl(selectedTask.relatedEntity) || '#'}>
-                                        <Button variant="secondary" size="sm">
+                                        <Button variant="outline" size="sm">
                                             View
                                         </Button>
                                     </Link>

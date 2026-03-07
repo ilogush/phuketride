@@ -1,23 +1,19 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
-import { requireAdmin, requireAuth } from "~/lib/auth.server";
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError, redirectWithSuccess } from "~/lib/route-feedback";
 import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-    await requireAdmin(request);
+    await requireAdminUserMutationAccess(request);
     const companyId = Number.parseInt(params.companyId || "0", 10);
     return redirect(`/home?modCompanyId=${companyId}`);
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
+    await requireAdminUserMutationAccess(request);
     const companyId = Number.parseInt(params.companyId || "0", 10);
-
-    if (user.role !== "admin") {
-        return redirectWithError(`/home?modCompanyId=${companyId}`, "Access denied");
-    }
 
     const formData = await request.formData();
     const parsed = parseWithSchema(

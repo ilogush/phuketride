@@ -1,5 +1,5 @@
-import FormInput from "~/components/dashboard/FormInput";
-import FormSelect from "~/components/dashboard/FormSelect";
+import { Input } from "~/components/dashboard/Input";
+import { Select } from "~/components/dashboard/Select";
 
 type ContractFinancialFieldsProps = {
   defaults?: {
@@ -14,28 +14,28 @@ type ContractFinancialFieldsProps = {
 export default function ContractFinancialFields({ defaults }: ContractFinancialFieldsProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <FormInput
+      <Input
         label="Delivery Price"
         name="delivery_cost"
         type="number"
         defaultValue={defaults?.deliveryCost ?? undefined}
         placeholder="0.00"
       />
-      <FormInput
+      <Input
         label="Return Price"
         name="return_cost"
         type="number"
         defaultValue={defaults?.returnCost ?? undefined}
         placeholder="0.00"
       />
-      <FormInput
+      <Input
         label="Deposit Payment"
         name="deposit_amount"
         type="number"
         defaultValue={defaults?.depositAmount ?? undefined}
         placeholder="0.00"
       />
-      <FormSelect
+      <Select
         label="Deposit Method"
         name="deposit_payment_method"
         options={[
@@ -45,8 +45,9 @@ export default function ContractFinancialFields({ defaults }: ContractFinancialF
         ]}
         defaultValue={defaults?.depositPaymentMethod || ""}
         placeholder="Select method"
+        showPlaceholderOption
       />
-      <FormInput
+      <Input
         label="Total Rental Cost"
         name="total_amount"
         type="number"

@@ -46,7 +46,7 @@ export default function ReportsPage() {
                                     <p className="text-sm font-medium text-gray-900 mt-2">{report.metric}</p>
                                 </div>
                             </div>
-                            <Button variant="secondary" size="sm">Review</Button>
+                            <Button variant="outline" size="sm">Review</Button>
                         </div>
                     </Card>
                 ))}

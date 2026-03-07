@@ -239,7 +239,7 @@ export default function AuditLogsPage() {
                     logs.length > 0 && (
                         <Form method="post">
                             <input type="hidden" name="intent" value="clear" />
-                            <Button type="submit" variant="primary">
+                            <Button type="submit" variant="solid">
                                 Clear All Logs
                             </Button>
                         </Form>
@@ -251,7 +251,7 @@ export default function AuditLogsPage() {
                 <DataTable
                     columns={columns}
                     data={logs}
-                    disablePagination={true}
+                    pagination={false}
                     emptyTitle="No audit logs found"
                     emptyDescription="System activity will appear here"
                 />

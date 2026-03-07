@@ -1,44 +1,48 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireLocationsAccess } from "~/lib/access-policy.server";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import { useState } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
-import { useToast } from "~/lib/toast";
-import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 import Toggle from "~/components/dashboard/Toggle";
 import { handleLocationsAction } from "~/lib/locations-actions.server";
 import { loadLocationsPageData, type LocationsPageDistrict as District } from "~/lib/locations-page.server";
 import DistrictModal from "~/components/dashboard/locations/DistrictModal";
+import { useAsyncToastAction } from "~/lib/useAsyncToastAction";
+import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    return loadLocationsPageData({ request, context, user });
+    const access = await requireLocationsAccess(request);
+    return loadLocationsPageData({
+        db: context.cloudflare.env.DB,
+        user: access.user,
+        companyId: access.companyId,
+        isModMode: access.isModMode,
+    });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const user = await requireAuth(request);
-    const effectiveCompanyId = getEffectiveCompanyId(request, user);
-    const isModMode = user.role === "admin" && effectiveCompanyId !== null;
+    const access = await requireLocationsAccess(request);
     const formData = await request.formData();
     return handleLocationsAction({
-        context,
-        user,
+        db: context.cloudflare.env.DB,
+        user: access.user,
         formData,
-        effectiveCompanyId,
-        isModMode,
+        companyId: access.companyId,
+        isModMode: access.isModMode,
     });
 }
 
 export default function LocationsPage() {
     const { districts, user, isModMode } = useLoaderData<typeof loader>();
+    useUrlToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDistrict, setEditingDistrict] = useState<District | null>(null);
     const [formData, setFormData] = useState({ name: "", beaches: "", streets: "", deliveryPrice: "0" });
     const [localDistricts, setLocalDistricts] = useState(districts);
-    const toast = useToast();
+    const { notifySuccess } = useAsyncToastAction();
 
     const isAdmin = user.role === "admin" && !isModMode;
     const isPartner = user.role === "partner" || isModMode;
@@ -70,7 +74,7 @@ export default function LocationsPage() {
         );
 
         if (district) {
-            toast.success(`${district.name} ${newStatus ? 'activated' : 'deactivated'}`, 3000);
+            void notifySuccess(`${district.name} ${newStatus ? 'activated' : 'deactivated'}`, 3000);
         }
     };
 
@@ -142,8 +146,8 @@ export default function LocationsPage() {
                         return (
                             <Toggle
                                 size="sm"
-                                enabled={Boolean(district.isActive)}
-                                onChange={() => handleToggleStatus(item.id, district.isActive ?? false)}
+                                checked={Boolean(district.isActive)}
+                                onCheckedChange={() => handleToggleStatus(item.id, district.isActive ?? false)}
                             />
                         );
                     },
@@ -180,7 +184,7 @@ export default function LocationsPage() {
                     render: (item: District) => (
                         <Button
                             type="button"
-                            variant="secondary"
+                            variant="outline"
                             size="sm"
                             onClick={() => handleEdit(item)}
                         >
@@ -199,12 +203,12 @@ export default function LocationsPage() {
                 rightActions={
                     <div className="flex gap-2">
                         {isPartner && (
-                            <Button variant="primary" onClick={handleSaveAll}>
+                            <Button variant="solid" onClick={handleSaveAll}>
                                 Save
                             </Button>
                         )}
                         {isAdmin && (
-                            <Button variant="secondary" icon={<PlusIcon className="w-5 h-5" />} onClick={() => setIsModalOpen(true)}>
+                            <Button variant="outline" icon={<PlusIcon className="w-5 h-5" />} onClick={() => setIsModalOpen(true)}>
                                 Add
                             </Button>
                         )}
@@ -226,7 +230,7 @@ export default function LocationsPage() {
             <DataTable
                 data={localDistricts}
                 columns={columns}
-                disablePagination={true}
+                pagination={false}
                 emptyTitle="No districts found"
                 emptyDescription="Start by adding your first district"
             />

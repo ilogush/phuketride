@@ -6,23 +6,14 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { BuildingOfficeIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { getPaginationFromUrl } from "~/lib/pagination.server";
-import { parseListFilters } from "~/lib/query-filters.server";
-import { countCompanies, listCompaniesPage } from "~/lib/companies-repo.server";
-import type { CompanyListRow } from "~/lib/db-types";
+import { loadCompaniesPageData, type CompaniesPageRow } from "~/lib/companies-page.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const user = await requireAdmin(request);
-
     const url = new URL(request.url);
     const showArchived = url.searchParams.get("archived") === "true";
-    const { search, sortBy, sortOrder } = parseListFilters(url, {
-        sortBy: ["createdAt", "id", "name", "carCount"] as const,
-        defaultSortBy: "createdAt",
-        defaultSortOrder: "desc",
-    });
-    const { pageSize, offset } = getPaginationFromUrl(url, { defaultPageSize: 10 });
+    const sortBy = url.searchParams.get("sortBy") || "createdAt";
 
     return trackServerOperation({
         event: "companies.load",
@@ -30,39 +21,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         request,
         userId: user.id,
         companyId: null,
-        details: { route: "companies", showArchived, sortBy: sortBy || "createdAt" },
-        run: async () => {
-            let companiesList: Array<CompanyListRow & { partnerName: string; partnerArchived: boolean; status: string }> = [];
-            let totalCount = 0;
-
-            try {
-                totalCount = await countCompanies({
-                    db: context.cloudflare.env.DB,
-                    showArchived,
-                    search,
-                });
-                const rows = await listCompaniesPage({
-                    db: context.cloudflare.env.DB,
-                    showArchived,
-                    pageSize,
-                    offset,
-                    search,
-                    sortBy: sortBy || "createdAt",
-                    sortOrder,
-                });
-                companiesList = rows.map((company) => ({
-                    ...company,
-                    partnerName: `${company.ownerName || ""} ${company.ownerSurname || ""}`.trim() || "-",
-                    partnerArchived: !!company.ownerArchivedAt,
-                    carCount: Number(company.carCount || 0),
-                    status: company.archivedAt ? "archived" : "active",
-                }));
-            } catch {
-                companiesList = [];
-            }
-
-            return { user, companies: companiesList, showArchived, totalCount, search };
-        },
+        details: { route: "companies", showArchived, sortBy },
+        run: () => loadCompaniesPageData({
+            request,
+            db: context.cloudflare.env.DB,
+            user,
+        }),
     });
 }
 
@@ -70,7 +34,7 @@ export default function CompaniesPage() {
     const { companies: companiesList, showArchived, totalCount } = useLoaderData<typeof loader>();
     useUrlToast();
 
-    const columns: Column<typeof companiesList[0]>[] = [
+    const columns: Column<CompaniesPageRow>[] = [
         {
             key: "id",
             label: "ID",
@@ -145,7 +109,7 @@ export default function CompaniesPage() {
                 title="Companies"
                 rightActions={
                     <Link to={showArchived ? "/companies" : "/companies?archived=true"}>
-                        <Button variant="secondary">
+                        <Button variant="outline">
                             {showArchived ? "Hide Archived" : "Show Archived"}
                         </Button>
                     </Link>

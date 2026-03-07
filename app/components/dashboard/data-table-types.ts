@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { ButtonVariant } from "./Button";
 
 export interface Column<T> {
   key: string;
@@ -34,7 +35,7 @@ export interface DataTableProps<T> {
   tabs?: Tab<T>[];
   defaultTabId?: string;
   onTabChange?: (tabId: string) => void;
-  disablePagination?: boolean;
+  pagination?: boolean;
   initialPageSize?: number;
   data?: T[];
   totalCount?: number;
@@ -46,8 +47,10 @@ export interface DataTableProps<T> {
   emptyAction?: {
     label: string;
     onClick: () => void;
-    variant?: "primary" | "secondary";
+    variant?: ButtonVariant;
   };
   searchQuery?: string;
   serverPagination?: boolean;
+  caption?: string;
+  ariaLabel?: string;
 }

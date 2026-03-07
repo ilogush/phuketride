@@ -10,10 +10,11 @@ import IdBadge from '~/components/dashboard/IdBadge'
 import { PlusIcon, TruckIcon, TagIcon, CubeIcon } from '@heroicons/react/24/outline'
 import { GenericDictionaryForm, type FieldConfig } from '~/components/dashboard/GenericDictionaryForm'
 import { useState } from 'react'
-import { useToast } from '~/lib/toast'
 import { getRequestMetadata } from '~/lib/audit-logger'
 import type { Column } from '~/components/dashboard/DataTable'
 import { type BrandRow, type ModelRow, type TemplateRow, handleCarTemplatesAction, loadCarTemplatesData } from "~/lib/car-templates.server";
+import { useAsyncToastAction } from '~/lib/useAsyncToastAction'
+import { useUrlToast } from '~/lib/useUrlToast'
 
 type BrandFormData = { name: string }
 type ModelFormData = { name: string; brand_id: string }
@@ -38,12 +39,13 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
     const { brands, models, templates } = loaderData
+    useUrlToast()
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
     const activeTab = searchParams.get('tab') || 'templates'
     const [showBrandModal, setShowBrandModal] = useState(false)
     const [showModelModal, setShowModelModal] = useState(false)
-    const toast = useToast()
+    const { run } = useAsyncToastAction()
 
     type ActionResult = { success?: boolean; message?: string; error?: string }
 
@@ -89,22 +91,28 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         formData.append('intent', 'create_brand')
         formData.append('name', form.name)
 
-        try {
-            const response = await fetch('/car-templates', {
-                method: 'POST',
-                body: formData,
-            })
-            const result = (await response.json()) as ActionResult
-            if (result.success) {
-                await toast.success(result.message || 'Brand created successfully')
-                setShowBrandModal(false)
-                window.location.reload()
-            } else {
-                await toast.error(result.error || 'Failed to create brand')
+        await run(
+            async () => {
+                const response = await fetch('/car-templates', {
+                    method: 'POST',
+                    body: formData,
+                })
+                const result = (await response.json()) as ActionResult
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to create brand')
+                }
+                return result
+            },
+            {
+                successMessage: 'Brand created successfully',
+                errorMessage: 'Failed to create brand',
+                getSuccessMessage: (result) => result.message,
+                onSuccess: () => {
+                    setShowBrandModal(false)
+                    window.location.reload()
+                },
             }
-        } catch (error) {
-            await toast.error('Failed to create brand')
-        }
+        )
     }
 
     const handleModelSubmit = async (data: Record<string, unknown>) => {
@@ -114,22 +122,28 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
         formData.append('name', form.name)
         formData.append('brand_id', form.brand_id)
 
-        try {
-            const response = await fetch('/car-templates', {
-                method: 'POST',
-                body: formData,
-            })
-            const result = (await response.json()) as ActionResult
-            if (result.success) {
-                await toast.success(result.message || 'Model created successfully')
-                setShowModelModal(false)
-                window.location.reload()
-            } else {
-                await toast.error(result.error || 'Failed to create model')
+        await run(
+            async () => {
+                const response = await fetch('/car-templates', {
+                    method: 'POST',
+                    body: formData,
+                })
+                const result = (await response.json()) as ActionResult
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to create model')
+                }
+                return result
+            },
+            {
+                successMessage: 'Model created successfully',
+                errorMessage: 'Failed to create model',
+                getSuccessMessage: (result) => result.message,
+                onSuccess: () => {
+                    setShowModelModal(false)
+                    window.location.reload()
+                },
             }
-        } catch (error) {
-            await toast.error('Failed to create model')
-        }
+        )
     }
 
     const brandColumns: Column<BrandRow>[] = [
@@ -238,7 +252,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                 rightActions={
                     activeTab === 'brands' ? (
                         <Button
-                            variant="primary"
+                            variant="solid"
                             icon={<PlusIcon className="w-5 h-5" />}
                             onClick={() => setShowBrandModal(true)}
                         >
@@ -246,7 +260,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                         </Button>
                     ) : activeTab === 'models' ? (
                         <Button
-                            variant="primary"
+                            variant="solid"
                             icon={<PlusIcon className="w-5 h-5" />}
                             onClick={() => setShowModelModal(true)}
                         >
@@ -254,7 +268,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                         </Button>
                     ) : (
                         <Link to="/car-templates/create">
-                            <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                            <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
                                 Create
                             </Button>
                         </Link>

@@ -56,15 +56,17 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Oops!";
-  let details = "An unexpected error occurred.";
+  let title = "Something went wrong";
+  let details = "Please refresh the page or try again in a few moments.";
   let stack: string | undefined;
+  let statusCode: number | null = null;
 
   if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
+    statusCode = error.status;
+    title = error.status === 404 ? "Page not found" : "Request failed";
     details =
       error.status === 404
-        ? "The requested page could not be found."
+        ? "The page you are looking for does not exist."
         : error.statusText || details;
   } else if (import.meta.env.DEV && error && error instanceof Error) {
     details = error.message;
@@ -72,11 +74,26 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   }
 
   return (
-    <main className="pt-16 p-4 container mx-auto">
-      <h1>{message}</h1>
-      <p>{details}</p>
+    <main className="min-h-screen bg-[#fafafa] flex items-center justify-center px-4">
+      <section className="w-full max-w-xl rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
+        {statusCode && (
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+            Error {statusCode}
+          </p>
+        )}
+        <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
+        <p className="mt-3 text-sm text-gray-600">{details}</p>
+        {!stack && (
+          <a
+            href="/home"
+            className="mt-6 inline-flex items-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 transition-colors"
+          >
+            Back to dashboard
+          </a>
+        )}
+      </section>
       {stack && (
-        <pre className="w-full p-4 overflow-x-auto">
+        <pre className="w-full max-w-5xl mt-6 p-4 overflow-x-auto text-xs bg-white border border-gray-200 rounded-2xl">
           <code>{stack}</code>
         </pre>
       )}

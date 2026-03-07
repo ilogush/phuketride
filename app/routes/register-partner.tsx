@@ -1,9 +1,8 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction, redirect } from "react-router";
 import { Form, Link, useActionData, useLoaderData } from "react-router";
 import { getUserFromSession, serializeSession } from "~/lib/auth.server";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
-import { useToast } from "~/lib/toast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 import Button from "~/components/public/Button";
@@ -18,6 +17,7 @@ import {
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { parseWithSchema } from "~/lib/validation.server";
 import { partnerRegistrationSchema } from "~/schemas/registration";
+import { useActionToast } from "~/lib/useActionToast";
 
 export const meta: MetaFunction = () => {
     const title = "Partner Registration | Phuket Ride";
@@ -108,14 +108,8 @@ export default function RegisterPartnerPage() {
     const { districts: districtsList } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const [showPassword, setShowPassword] = useState(false);
-    const toast = useToast();
     const { validateLatinInput } = useLatinValidation();
-
-    useEffect(() => {
-        if (actionData?.error) {
-            toast.error(actionData.error);
-        }
-    }, [actionData?.error, toast]);
+    useActionToast(actionData?.error);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#fafafa] py-12">
@@ -130,66 +124,61 @@ export default function RegisterPartnerPage() {
 
                     <Form method="post" className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <AuthFormField id="name" label="First Name" required>
-                                <AuthTextInput
-                                    id="name"
-                                    name="name"
-                                    type="text"
-                                    autoComplete="given-name"
-                                    required
-                                    pattern="[a-zA-Z\s\-']+"
-                                    onChange={(e) => validateLatinInput(e, "First Name")}
-                                    placeholder="John"
-                                />
-                            </AuthFormField>
+                            <AuthTextInput
+                                id="name"
+                                label="First Name"
+                                name="name"
+                                type="text"
+                                autoComplete="given-name"
+                                required
+                                pattern="[a-zA-Z\s\-']+"
+                                onChange={(e) => validateLatinInput(e, "First Name")}
+                                placeholder="John"
+                            />
 
-                            <AuthFormField id="surname" label="Last Name" required>
-                                <AuthTextInput
-                                    id="surname"
-                                    name="surname"
-                                    type="text"
-                                    autoComplete="family-name"
-                                    required
-                                    pattern="[a-zA-Z\s\-']+"
-                                    onChange={(e) => validateLatinInput(e, "Last Name")}
-                                    placeholder="Smith"
-                                />
-                            </AuthFormField>
+                            <AuthTextInput
+                                id="surname"
+                                label="Last Name"
+                                name="surname"
+                                type="text"
+                                autoComplete="family-name"
+                                required
+                                pattern="[a-zA-Z\s\-']+"
+                                onChange={(e) => validateLatinInput(e, "Last Name")}
+                                placeholder="Smith"
+                            />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <AuthFormField id="email" label="Email Address" required>
-                                <AuthTextInput
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    autoComplete="email"
-                                    required
-                                    placeholder="john.smith@example.com"
-                                />
-                            </AuthFormField>
+                            <AuthTextInput
+                                id="email"
+                                label="Email Address"
+                                name="email"
+                                type="email"
+                                autoComplete="email"
+                                required
+                                placeholder="john.smith@example.com"
+                            />
 
-                            <AuthFormField id="phone" label="Phone Number" required>
-                                <AuthTextInput
-                                    id="phone"
-                                    name="phone"
-                                    type="tel"
-                                    autoComplete="tel"
-                                    required
-                                    placeholder="+66812345678"
-                                />
-                            </AuthFormField>
+                            <AuthTextInput
+                                id="phone"
+                                label="Phone Number"
+                                name="phone"
+                                type="tel"
+                                autoComplete="tel"
+                                required
+                                placeholder="+66812345678"
+                            />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <AuthFormField id="telegram" label="Telegram">
-                                <AuthTextInput
-                                    id="telegram"
-                                    name="telegram"
-                                    type="text"
-                                    placeholder="@username"
-                                />
-                            </AuthFormField>
+                            <AuthTextInput
+                                id="telegram"
+                                label="Telegram"
+                                name="telegram"
+                                type="text"
+                                placeholder="@username"
+                            />
 
                             <AuthFormField id="password" label="Password" required>
                                 <div className="relative">
@@ -201,6 +190,7 @@ export default function RegisterPartnerPage() {
                                         required
                                         minLength={6}
                                         placeholder="Min 6 characters"
+                                        className="pr-14"
                                     />
                                     <Button
                                         type="button"
@@ -218,53 +208,49 @@ export default function RegisterPartnerPage() {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <AuthFormField id="companyName" label="Company Name" required>
-                                <AuthTextInput
-                                    id="companyName"
-                                    name="companyName"
-                                    type="text"
-                                    required
-                                    placeholder="Your Company Name"
-                                />
-                            </AuthFormField>
+                            <AuthTextInput
+                                id="companyName"
+                                label="Company Name"
+                                name="companyName"
+                                type="text"
+                                required
+                                placeholder="Your Company Name"
+                            />
 
-                            <AuthFormField id="districtId" label="District (Phuket)" required>
-                                <AuthSelect
-                                    id="districtId"
-                                    name="districtId"
-                                    required
-                                >
-                                    <option value="">Select district</option>
-                                    {districtsList.map((district: ActiveDistrictRow) => (
-                                        <option key={district.id} value={district.id}>
-                                            {district.name}
-                                        </option>
-                                    ))}
-                                </AuthSelect>
-                            </AuthFormField>
+                            <AuthSelect
+                                id="districtId"
+                                label="District (Phuket)"
+                                name="districtId"
+                                required
+                            >
+                                <option value="">Select district</option>
+                                {districtsList.map((district: ActiveDistrictRow) => (
+                                    <option key={district.id} value={district.id}>
+                                        {district.name}
+                                    </option>
+                                ))}
+                            </AuthSelect>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <AuthFormField id="street" label="Street" required>
-                                <AuthTextInput
-                                    id="street"
-                                    name="street"
-                                    type="text"
-                                    required
-                                    onChange={(e) => validateLatinInput(e, "Street")}
-                                    placeholder="Street name"
-                                />
-                            </AuthFormField>
+                            <AuthTextInput
+                                id="street"
+                                label="Street"
+                                name="street"
+                                type="text"
+                                required
+                                onChange={(e) => validateLatinInput(e, "Street")}
+                                placeholder="Street name"
+                            />
 
-                            <AuthFormField id="houseNumber" label="House Number" required>
-                                <AuthTextInput
-                                    id="houseNumber"
-                                    name="houseNumber"
-                                    type="text"
-                                    required
-                                    placeholder="123/45"
-                                />
-                            </AuthFormField>
+                            <AuthTextInput
+                                id="houseNumber"
+                                label="House Number"
+                                name="houseNumber"
+                                type="text"
+                                required
+                                placeholder="123/45"
+                            />
                         </div>
 
                         <Button

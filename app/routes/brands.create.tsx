@@ -54,7 +54,7 @@ export default function CreateBrandPage() {
                 title="Add New Brand"
                 leftActions={<BackButton to="/brands" />}
                 rightActions={
-                    <Button type="submit" variant="primary" form="brand-form">
+                    <Button type="submit" variant="solid" form="brand-form">
                         Create Brand
                     </Button>
                 }

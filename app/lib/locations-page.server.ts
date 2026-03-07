@@ -1,6 +1,4 @@
-import type { LoaderFunctionArgs } from "react-router";
 import type { SessionUser } from "~/lib/auth.server";
-import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
 import { QUERY_LIMITS } from "~/lib/query-limits";
 
 const PHUKET_LOCATION_ID = 1;
@@ -121,21 +119,21 @@ async function loadAdminDistricts(db: D1Database): Promise<LocationsPageDistrict
 }
 
 export async function loadLocationsPageData({
-    request,
-    context,
+    db,
     user,
+    companyId,
+    isModMode,
 }: {
-    request: Request;
-    context: LoaderFunctionArgs["context"];
+    db: D1Database;
     user: SessionUser;
+    companyId: number | null;
+    isModMode: boolean;
 }) {
-    const effectiveCompanyId = getEffectiveCompanyId(request, user);
-    const isModMode = user.role === "admin" && effectiveCompanyId !== null;
     const canUseCompanyDeliveryView = user.role === "partner" || isModMode;
 
-    const districts = canUseCompanyDeliveryView && effectiveCompanyId
-        ? await loadPartnerDistricts(context.cloudflare.env.DB, effectiveCompanyId)
-        : await loadAdminDistricts(context.cloudflare.env.DB);
+    const districts = canUseCompanyDeliveryView && companyId
+        ? await loadPartnerDistricts(db, companyId)
+        : await loadAdminDistricts(db);
 
     return { districts, user, isModMode };
 }

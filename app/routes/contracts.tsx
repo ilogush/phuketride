@@ -134,11 +134,11 @@ export default function ContractsPage() {
                 <div className="flex gap-2">
                     {contract.status === "active" && (
                         <Link to={`/contracts/${contract.id}/close`}>
-                            <Button variant="primary" size="sm">Close</Button>
+                            <Button variant="solid" size="sm">Close</Button>
                         </Link>
                     )}
                     <Link to={`/contracts/${contract.id}/edit`}>
-                        <Button variant="secondary" size="sm">{contract.status === "closed" ? "View/Edit" : "Edit"}</Button>
+                        <Button variant="outline" size="sm">{contract.status === "closed" ? "View/Edit" : "Edit"}</Button>
                     </Link>
                 </div>
             )
@@ -151,7 +151,7 @@ export default function ContractsPage() {
                 title="Contracts"
                 rightActions={
                     <Link to="/contracts/new">
-                        <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                        <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
                             New Contract
                         </Button>
                     </Link>

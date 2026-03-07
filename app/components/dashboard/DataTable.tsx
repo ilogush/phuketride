@@ -15,7 +15,7 @@ export default function DataTable<T>({
     tabs,
     defaultTabId,
     onTabChange,
-    disablePagination = false,
+    pagination,
     initialPageSize = 20,
     data: providedData,
     totalCount: providedTotalCount,
@@ -26,7 +26,9 @@ export default function DataTable<T>({
     emptyIcon,
     emptyAction,
     searchQuery = '',
-    serverPagination = false
+    serverPagination = false,
+    caption,
+    ariaLabel
 }: DataTableProps<T>) {
     if (!tabs && (!columns || (!fetchData && !providedData))) {
         throw new Error('Either tabs or both columns and fetchData must be provided')
@@ -43,11 +45,12 @@ export default function DataTable<T>({
 
     const currentColumns = tabs ? tabs.find(t => t.id === activeTab)?.columns || [] : (columns || [])
     const currentFetchData = tabs ? tabs.find(t => t.id === activeTab)?.fetchData : fetchData
+    const paginationEnabled = pagination ?? true
 
     const { currentData, error, filteredData, isLoading, totalCount } = useDataTableData({
         activeTab,
         currentFetchData,
-        disablePagination,
+        paginationEnabled,
         page,
         pageSize,
         providedData,
@@ -71,26 +74,36 @@ export default function DataTable<T>({
 
             <div className="border border-gray-200 rounded-3xl overflow-hidden bg-white">
                 <div className="overflow-x-auto sm:mx-0">
-                    <table className="min-w-full divide-y divide-gray-100 bg-transparent">
+                    <table className="min-w-full divide-y divide-gray-100 bg-transparent" aria-label={ariaLabel}>
+                        {caption && <caption className="sr-only">{caption}</caption>}
                         <thead>
                             <tr className="bg-gray-50/50">
                                 {currentColumns.map((col, idx) => {
+                                    const isSorted = sortBy === col.key
+                                    const ariaSort = !col.sortable
+                                        ? undefined
+                                        : isSorted
+                                            ? (sortOrder === 'asc' ? 'ascending' : 'descending')
+                                            : 'none'
                                     return (
                                         <th
                                             key={col.key}
                                             scope="col"
+                                            aria-sort={ariaSort}
                                             className={`${idx === 0 ? 'pl-4' : 'px-4'} py-2 text-left text-xs font-normal text-gray-500 tracking-tight uppercase ${idx > 2 ? 'hidden sm:table-cell' : ''} ${col.className || ''}`}
-                                            onClick={() => {
-                                                if (!col.sortable) return
-                                                handleSortChange(col.key)
-                                            }}
                                         >
-                                            <span className={col.sortable ? 'cursor-pointer select-none inline-flex items-center gap-1' : ''}>
-                                                {col.label}
-                                                {col.sortable && sortBy === col.key && (
-                                                    <span aria-hidden>{sortOrder === 'asc' ? '▲' : '▼'}</span>
-                                                )}
-                                            </span>
+                                            {col.sortable ? (
+                                                <button
+                                                    type="button"
+                                                    className="cursor-pointer select-none inline-flex items-center gap-1"
+                                                    onClick={() => handleSortChange(col.key)}
+                                                >
+                                                    {col.label}
+                                                    {isSorted && <span aria-hidden>{sortOrder === 'asc' ? '▲' : '▼'}</span>}
+                                                </button>
+                                            ) : (
+                                                <span>{col.label}</span>
+                                            )}
                                         </th>
                                     );
                                 })}
@@ -154,7 +167,7 @@ export default function DataTable<T>({
                 </div>
             </div>
 
-            {!disablePagination && (
+            {paginationEnabled && (
                     <SimplePagination
                     currentPage={page}
                     totalPages={Math.max(1, Math.ceil(totalCount / pageSize))}

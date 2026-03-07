@@ -4,7 +4,7 @@ import Button from '~/components/dashboard/Button'
 import FormField from '~/components/dashboard/FormField'
 import { Input } from '~/components/dashboard/Input'
 import { Textarea } from '~/components/dashboard/Textarea'
-import { useToast } from '~/lib/toast'
+import { useAsyncToastAction } from '~/lib/useAsyncToastAction'
 import { useDateMasking } from '~/lib/useDateMasking'
 import { formatDateTimeForDisplay, parseDateTimeFromDisplay } from '~/lib/formatters'
 
@@ -32,7 +32,7 @@ export default function MaintenanceForm({
     onCancel
 }: MaintenanceFormProps) {
     const navigate = useNavigate()
-    const toast = useToast()
+    const { notifyError, run } = useAsyncToastAction()
     const { maskDateTimeInput } = useDateMasking()
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [formData, setFormData] = useState({
@@ -78,46 +78,48 @@ export default function MaintenanceForm({
         e.preventDefault()
 
         if (!validate()) {
-            await toast.error('Please fix validation errors')
+            await notifyError('Please fix validation errors')
             return
         }
 
-        try {
-            setIsSubmitting(true)
+        setIsSubmitting(true)
 
-            const response = await fetch('/api/maintenance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    company_car_id: carId,
-                    maintenance_type: formData.maintenance_type,
-                    description: formData.description || undefined,
-                    mileage: parseInt(formData.mileage),
-                    cost: formData.cost ? parseFloat(formData.cost) : undefined,
-                    notes: formData.notes || undefined,
-                    performed_at: parseDateTimeFromDisplay(formData.performed_at),
-                    next_maintenance_date: formData.next_maintenance_date
-                        ? parseDateTimeFromDisplay(formData.next_maintenance_date)
-                        : undefined
+        await run(
+            async () => {
+                const response = await fetch('/api/maintenance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        company_car_id: carId,
+                        maintenance_type: formData.maintenance_type,
+                        description: formData.description || undefined,
+                        mileage: parseInt(formData.mileage),
+                        cost: formData.cost ? parseFloat(formData.cost) : undefined,
+                        notes: formData.notes || undefined,
+                        performed_at: parseDateTimeFromDisplay(formData.performed_at),
+                        next_maintenance_date: formData.next_maintenance_date
+                            ? parseDateTimeFromDisplay(formData.next_maintenance_date)
+                            : undefined
+                    })
                 })
-            })
 
-            if (!response.ok) {
-                const errorData = (await response.json()) as { error?: string }
-                throw new Error(errorData.error || 'Failed to create maintenance record')
+                if (!response.ok) {
+                    const errorData = (await response.json()) as { error?: string }
+                    throw new Error(errorData.error || 'Failed to create maintenance record')
+                }
+
+                return response
+            },
+            {
+                successMessage: 'Maintenance record created successfully',
+                errorMessage: 'Failed to create maintenance record',
+                onSuccess: async () => {
+                    onSuccess?.()
+                },
             }
+        )
 
-            await toast.success('Maintenance record created successfully')
-
-            if (onSuccess) {
-                onSuccess()
-            }
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to create maintenance record'
-            await toast.error(message)
-        } finally {
-            setIsSubmitting(false)
-        }
+        setIsSubmitting(false)
     }
 
     return (
@@ -224,7 +226,7 @@ export default function MaintenanceForm({
                     <Button
                         type="button"
                         onClick={onCancel}
-                        variant="secondary"
+                        variant="outline"
                         disabled={isSubmitting}
                     >
                         Cancel
@@ -232,7 +234,7 @@ export default function MaintenanceForm({
                 )}
                 <Button
                     type="submit"
-                    variant="primary"
+                    variant="solid"
                     loading={isSubmitting}
                 >
                     Create Maintenance Record

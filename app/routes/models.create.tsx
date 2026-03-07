@@ -67,7 +67,7 @@ export default function CreateModelPage() {
                 title="Add New Model"
                 leftActions={<BackButton to="/models" />}
                 rightActions={
-                    <Button type="submit" variant="primary" form="model-form">
+                    <Button type="submit" variant="solid" form="model-form">
                         Create Model
                     </Button>
                 }

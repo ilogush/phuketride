@@ -114,12 +114,12 @@ export default function EditUserPage() {
                 leftActions={<BackButton to="/users" />}
                 rightActions={
                     <div className="flex items-center gap-2">
-                        <Button type="submit" variant="primary" form="profile-form">
+                        <Button type="submit" variant="solid" form="profile-form">
                             Save
                         </Button>
                         <Form method="post">
                             <input type="hidden" name="intent" value="deleteUser" />
-                            <Button type="submit" variant="secondary" title="Delete user">
+                            <Button type="submit" variant="outline" title="Delete user">
                                 <TrashIcon className="w-5 h-5" />
                             </Button>
                         </Form>

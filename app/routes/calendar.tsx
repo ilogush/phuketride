@@ -102,7 +102,7 @@ export default function CalendarPage() {
                 title="Calendar"
                 rightActions={
                     <Link to={modCompanyId ? `/calendar/new?modCompanyId=${modCompanyId}` : "/calendar/new"}>
-                        <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                        <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
                             Add Event
                         </Button>
                     </Link>

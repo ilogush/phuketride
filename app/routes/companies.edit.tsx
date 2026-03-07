@@ -1,5 +1,5 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
 import { useUrlToast } from "~/lib/useUrlToast";
 
 function getCompanyId(raw: string | undefined): number {
@@ -11,13 +11,13 @@ function getCompanyId(raw: string | undefined): number {
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  await requireAuth(request);
+  await requireAdminUserMutationAccess(request);
   const companyId = getCompanyId(params.companyId);
   return redirect(`/home?modCompanyId=${companyId}`);
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  await requireAuth(request);
+  await requireAdminUserMutationAccess(request);
   const companyId = getCompanyId(params.companyId);
   return redirect(`/home?modCompanyId=${companyId}`);
 }

@@ -178,12 +178,12 @@ export default function EditCarFormGrid({
                   { id: "4WD", name: "4WD" },
                 ]}
               />
-              <FeatureToggleField label="Rear Camera" enabled={rearCamera} onChange={setRearCamera} />
-              <FeatureToggleField label="Bluetooth" enabled={bluetoothEnabled} onChange={setBluetoothEnabled} />
-              <FeatureToggleField label="CarPlay" enabled={carplayEnabled} onChange={setCarplayEnabled} />
-              <FeatureToggleField label="Android Auto" enabled={androidAutoEnabled} onChange={setAndroidAutoEnabled} />
-              <FeatureToggleField label="Air conditioning" enabled={featureAirConditioning} onChange={setFeatureAirConditioning} />
-              <FeatureToggleField label="ABS" enabled={featureAbs} onChange={setFeatureAbs} />
+              <FeatureToggleField label="Rear Camera" checked={rearCamera} onCheckedChange={setRearCamera} />
+              <FeatureToggleField label="Bluetooth" checked={bluetoothEnabled} onCheckedChange={setBluetoothEnabled} />
+              <FeatureToggleField label="CarPlay" checked={carplayEnabled} onCheckedChange={setCarplayEnabled} />
+              <FeatureToggleField label="Android Auto" checked={androidAutoEnabled} onCheckedChange={setAndroidAutoEnabled} />
+              <FeatureToggleField label="Air conditioning" checked={featureAirConditioning} onCheckedChange={setFeatureAirConditioning} />
+              <FeatureToggleField label="ABS" checked={featureAbs} onCheckedChange={setFeatureAbs} />
             </div>
             <input type="hidden" name="transmission" value={selectedTemplate?.transmission || car.transmission || "automatic"} />
             <input type="hidden" name="engineVolume" value={selectedTemplate?.engineVolume || car.engineVolume || 1.5} />
@@ -238,7 +238,7 @@ export default function EditCarFormGrid({
                 <label className="block text-xs text-gray-600 mb-1">Full Insurance</label>
                 <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
                   <span className="text-sm text-gray-900">{fullInsuranceEnabled ? "Enabled" : "Disabled"}</span>
-                  <Toggle enabled={fullInsuranceEnabled} onChange={setFullInsuranceEnabled} />
+                  <Toggle checked={fullInsuranceEnabled} onCheckedChange={setFullInsuranceEnabled} />
                 </div>
               </div>
               <input type="hidden" name="fullInsuranceEnabled" value={fullInsuranceEnabled ? "true" : "false"} />

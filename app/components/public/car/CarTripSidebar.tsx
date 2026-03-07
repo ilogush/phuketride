@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
+import AuthSelect from "~/components/public/AuthSelect";
 import Button from "~/components/public/Button";
 import DateRangePicker from "~/components/public/DateRangePicker";
 import {
+  buildDefaultTripDateRange,
+  parseTripDateTime,
+  type DateRangeValue,
+} from "~/components/public/trip-date.model";
+import {
   ArrowRightIcon,
   ChatBubbleBottomCenterTextIcon,
-  ChevronDownIcon,
   HeartIcon,
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
@@ -30,30 +35,6 @@ interface CarTripSidebarProps {
 
 const money = (value: number) => `฿${Math.round(value).toLocaleString()}`;
 
-interface DateRangeValue {
-  startDate: string;
-  endDate: string;
-  startTime: string;
-  endTime: string;
-}
-
-const initialRange = (): DateRangeValue => {
-  const now = new Date();
-  const end = new Date(now);
-  end.setDate(now.getDate() + 3);
-
-  const toDate = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-  return {
-    startDate: toDate(now),
-    endDate: toDate(end),
-    startTime: "10:00",
-    endTime: "10:00",
-  };
-};
-
-const parseDateTime = (date: string, time: string) => new Date(`${date}T${time}:00`);
 export default function CarTripSidebar({
   carId,
   carPathSegment,
@@ -69,7 +50,7 @@ export default function CarTripSidebar({
   weeklySchedule,
   holidays,
 }: CarTripSidebarProps) {
-  const [trip, setTrip] = useState<DateRangeValue>(initialRange);
+  const [trip, setTrip] = useState<DateRangeValue>(buildDefaultTripDateRange);
   const [isFavorite, setIsFavorite] = useState(false);
   const activeDistricts = returnDistricts.filter((d) => d.isActive);
   const districtOptions = activeDistricts.length ? activeDistricts : returnDistricts;
@@ -94,8 +75,10 @@ export default function CarTripSidebar({
       : `mailto:${hostEmail || "host+test@phuketride.com"}`;
 
   const { days, pickupAfterHoursFee, returnAfterHoursFee, finalTotal } = useMemo(() => {
-    const start = parseDateTime(trip.startDate, trip.startTime);
-    const end = parseDateTime(trip.endDate, trip.endTime);
+    const start = parseTripDateTime(trip.startDate, trip.startTime) ?? new Date();
+    const end =
+      parseTripDateTime(trip.endDate, trip.endTime) ??
+      new Date(start.getTime() + 3 * 24 * 60 * 60 * 1000);
     const { days: safeDays, total: base } = calculateBaseTripTotal(baseDaily, start, end);
     const pickupNonWorking = afterHoursFee > 0 && isNonWorkingDateTime({
       date: start,
@@ -174,31 +157,29 @@ export default function CarTripSidebar({
         <div className="pt-4 space-y-2">
           <div>
             <h3 className="text-xl font-semibold text-gray-800">Pickup & return location</h3>
-            <p className="text-sm text-gray-500">Pickup district</p>
-            <div className="relative mt-1">
-              <select
+            <div className="mt-1 space-y-2">
+              <AuthSelect
+                id="pickupDistrictId"
+                label="Pickup district"
                 value={pickupDistrictId}
                 onChange={(event) => setPickupDistrictId(Number(event.target.value))}
-                className="w-full appearance-none  rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800 focus:border-green-600 focus:outline-none"
+                inputClassName="appearance-none py-2 text-base text-gray-800 focus:border-green-600 focus:ring-green-600"
               >
                 {districtOptions.map((district) => (
                   <option key={`pickup-${district.id}`} value={district.id}>{district.name}</option>
                 ))}
-              </select>
-              <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
-            </div>
-            <p className="mt-2 text-sm text-gray-500">Return district</p>
-            <div className="relative mt-1">
-              <select
+              </AuthSelect>
+              <AuthSelect
+                id="returnDistrictId"
+                label="Return district"
                 value={returnDistrictId}
                 onChange={(event) => setReturnDistrictId(Number(event.target.value))}
-                className="w-full appearance-none  rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800 focus:border-green-600 focus:outline-none"
+                inputClassName="appearance-none py-2 text-base text-gray-800 focus:border-green-600 focus:ring-green-600"
               >
                 {districtOptions.map((district) => (
                   <option key={district.id} value={district.id}>{district.name}</option>
                 ))}
-              </select>
-              <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
+              </AuthSelect>
             </div>
           </div>
         </div>

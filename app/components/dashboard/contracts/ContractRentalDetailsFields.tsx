@@ -1,6 +1,5 @@
-import FormInput from "~/components/dashboard/FormInput";
-import FormSelect from "~/components/dashboard/FormSelect";
 import { Input } from "~/components/dashboard/Input";
+import { Select } from "~/components/dashboard/Select";
 
 type DistrictOption = { id: number | string; name: string };
 
@@ -31,21 +30,22 @@ export default function ContractRentalDetailsFields({ districts, onDateChange, d
         placeholder="DD/MM/YYYY HH:mm"
         onChange={onDateChange}
       />
-      <FormSelect
+      <Select
         label="Pickup District"
         name="pickup_district_id"
         options={districts}
         defaultValue={defaults?.pickupDistrictId ?? undefined}
         placeholder="Select district"
+        showPlaceholderOption
         required
       />
-      <FormInput
+      <Input
         label="Hotel"
         name="pickup_hotel"
         defaultValue={defaults?.pickupHotel ?? undefined}
         placeholder="Type or select hotel..."
       />
-      <FormInput
+      <Input
         label="Room Number"
         name="pickup_room"
         defaultValue={defaults?.pickupRoom ?? undefined}
@@ -60,21 +60,22 @@ export default function ContractRentalDetailsFields({ districts, onDateChange, d
         placeholder="DD/MM/YYYY HH:mm"
         onChange={onDateChange}
       />
-      <FormSelect
+      <Select
         label="Return District"
         name="return_district_id"
         options={districts}
         defaultValue={defaults?.returnDistrictId ?? undefined}
         placeholder="Select district"
+        showPlaceholderOption
         required
       />
-      <FormInput
+      <Input
         label="Return Hotel"
         name="return_hotel"
         defaultValue={defaults?.returnHotel ?? undefined}
         placeholder="Type or select return hotel..."
       />
-      <FormInput
+      <Input
         label="Return Room Number"
         name="return_room"
         defaultValue={defaults?.returnRoom ?? undefined}

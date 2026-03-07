@@ -1,13 +1,15 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, MouseEvent, ReactNode } from 'react'
 import { useButtonInteraction } from '~/lib/useButtonInteraction'
+
+export type ButtonVariant = 'solid' | 'outline' | 'ghost' | 'plain'
 
 interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'onClick'> {
     children?: ReactNode
-    onClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void | Promise<void>
+    onClick?: (e?: MouseEvent<HTMLButtonElement>) => void | Promise<void>
     disabled?: boolean
     type?: 'button' | 'submit' | 'reset'
     className?: string
-    variant?: 'primary' | 'secondary' | 'ghost' | 'unstyled'
+    variant?: ButtonVariant
     size?: 'sm' | 'md' | 'lg'
     icon?: ReactNode
     iconPosition?: 'left' | 'right'
@@ -22,7 +24,7 @@ export default function Button({
     disabled,
     type = 'button',
     className = '',
-    variant = 'primary',
+    variant = 'solid',
     size = 'md',
     icon,
     iconPosition = 'left',
@@ -38,7 +40,7 @@ export default function Button({
         type,
     })
 
-    const baseClasses = 'flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+    const baseClasses = 'inline-flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
 
     const sizeClasses = {
         sm: 'px-2 sm:px-3 py-1 text-xs sm:text-sm',
@@ -55,10 +57,10 @@ export default function Button({
     }
 
     const variantClasses = {
-        primary: 'bg-gray-800 text-white border border-transparent hover:bg-gray-700 font-medium',
-        secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-transparent font-medium',
+        solid: 'bg-gray-800 text-white border border-transparent hover:bg-gray-700 font-medium',
+        outline: 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-transparent font-medium',
         ghost: 'bg-transparent text-gray-700 hover:bg-gray-100 border border-transparent font-medium',
-        unstyled: ''
+        plain: ''
     }
 
     const buttonClasses = [

@@ -7,10 +7,8 @@ import BodyTypeFilters from "~/components/public/BodyTypeFilters";
 import PopularCarsSection from "~/components/public/PopularCarsSection";
 import Footer from "~/components/public/Footer";
 import { HOME_FAQ_ITEMS, WHY_CHOOSE_ITEMS } from "~/components/public/home-content";
-import { buildCarPathSegment, buildCompanySlug } from "~/lib/car-path";
-import { getCarPhotoUrls } from "~/lib/car-photos";
 import { MinusIcon, PlusIcon } from "@heroicons/react/24/outline";
-import { QUERY_LIMITS } from "~/lib/query-limits";
+import { loadPublicHomePage } from "~/lib/home-page.server";
 
 export function meta({ }: Route.MetaArgs) {
   return [
@@ -41,131 +39,7 @@ export function meta({ }: Route.MetaArgs) {
 }
 
 export async function loader({ context, request }: Route.LoaderArgs) {
-  const d1 = context.cloudflare.env.DB;
-
-  let rows: Array<Record<string, unknown>> = [];
-  try {
-    const rowsResult = await d1
-      .prepare(
-        `
-        SELECT
-          cc.id AS id,
-          cc.license_plate AS licensePlate,
-          cc.company_id AS companyId,
-          cb.name AS brandName,
-          cm.name AS modelName,
-          bt.name AS bodyType,
-          cc.year AS year,
-          cc.transmission AS transmission,
-          ft.name AS fuelType,
-          cc.price_per_day AS pricePerDay,
-          cc.deposit AS deposit,
-          cc.photos AS photos,
-          c.name AS companyName,
-          l.name AS locationName,
-          d.name AS districtName,
-          c.street AS street,
-          c.house_number AS houseNumber,
-          crm.total_rating AS rating,
-          crm.total_ratings AS totalRatings
-        FROM company_cars cc
-        LEFT JOIN car_templates ct ON cc.template_id = ct.id
-        LEFT JOIN car_brands cb ON ct.brand_id = cb.id
-        LEFT JOIN car_models cm ON ct.model_id = cm.id
-        LEFT JOIN body_types bt ON ct.body_type_id = bt.id
-        LEFT JOIN fuel_types ft ON cc.fuel_type_id = ft.id
-        INNER JOIN companies c ON cc.company_id = c.id
-        LEFT JOIN locations l ON c.location_id = l.id
-        LEFT JOIN districts d ON c.district_id = d.id
-        LEFT JOIN car_rating_metrics crm ON cc.id = crm.company_car_id
-        WHERE cc.status = 'available'
-          AND cc.archived_at IS NULL
-          AND c.archived_at IS NULL
-        ORDER BY cc.created_at DESC
-        LIMIT ${QUERY_LIMITS.XL}
-        `
-      )
-      .all();
-    rows = (rowsResult.results ?? []) as Array<Record<string, unknown>>;
-  } catch {
-    const fallbackRowsResult = await d1
-      .prepare(
-        `
-        SELECT
-          cc.id AS id,
-          cc.company_id AS companyId,
-          cc.price_per_day AS pricePerDay,
-          cc.deposit AS deposit,
-          cc.photos AS photos,
-          cc.year AS year,
-          cc.transmission AS transmission,
-          c.name AS companyName
-        FROM company_cars cc
-        INNER JOIN companies c ON cc.company_id = c.id
-        WHERE cc.status = 'available'
-        ORDER BY cc.created_at DESC
-        LIMIT ${QUERY_LIMITS.XL}
-        `
-      )
-      .all()
-      .catch(() => ({ results: [] as Record<string, unknown>[] }));
-    rows = (fallbackRowsResult.results ?? []) as Array<Record<string, unknown>>;
-  }
-
-  const districtsResult = await d1
-    .prepare("SELECT name FROM districts ORDER BY name")
-    .all()
-    .catch(() => ({ results: [] as Record<string, unknown>[] }));
-  const districtsRows = ((districtsResult.results ?? []) as Array<Record<string, unknown>>);
-
-  const cars = rows.map((row) => {
-    const photoUrls = getCarPhotoUrls(row.photos, request.url);
-    const fallbackPhotoUrl = photoUrls[0] || null;
-
-    const districtTitle =
-      (typeof row.districtName === "string" && row.districtName) ||
-      (typeof row.locationName === "string" && row.locationName) ||
-      (typeof row.companyName === "string" && row.companyName) ||
-      "Available cars";
-    const officeAddress = [row.street, row.houseNumber].filter(Boolean).map(String).join(" ");
-
-    return {
-      id: Number(row.id),
-      licensePlate: String(row.licensePlate || ""),
-      companyId: Number(row.companyId),
-      brandName: (row.brandName as string) || "Car",
-      modelName: (row.modelName as string) || `#${String(row.id)}`,
-      bodyType: (row.bodyType as string) || "",
-      year: (row.year as number | null) ?? null,
-      transmission: (row.transmission as string | null) ?? null,
-      fuelType: (row.fuelType as string | null) ?? null,
-      pricePerDay: Number(row.pricePerDay || 0),
-      deposit: Number(row.deposit || 0),
-      photoUrl: photoUrls[0] || fallbackPhotoUrl,
-      photoUrls,
-      districtTitle,
-      officeAddress: officeAddress || String(row.companyName || ""),
-      rating: row.rating ? Number(row.rating) : null,
-      totalRatings: row.totalRatings ? Number(row.totalRatings) : null,
-      pathSegment: buildCarPathSegment(
-        String(row.companyName || ""),
-        (row.brandName as string) || "Car",
-        (row.modelName as string) || "",
-        String(row.licensePlate || ""),
-      ),
-      companySlug: buildCompanySlug(String(row.companyName || "")),
-    };
-  });
-
-  const districts = Array.from(
-    new Set(
-      districtsRows
-        .map((row) => row.name)
-        .filter((name): name is string => typeof name === "string" && Boolean(name))
-    )
-  );
-
-  return { cars, districts };
+  return loadPublicHomePage(context.cloudflare.env.DB, request);
 }
 
 export default function Home() {

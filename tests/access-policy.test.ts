@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
     requireAdminUserMutationAccess,
+    requireLocationsAccess,
     requireScopedDashboardAccess,
     requireSelfProfileAccess,
     requireUserDirectoryAccess,
@@ -100,4 +101,21 @@ test("requireSelfProfileAccess keeps authenticated user context", async () => {
     const access = await requireSelfProfileAccess(request);
     assert.equal(access.user.id, "user-2");
     assert.equal(access.companyId, 9);
+});
+
+test("requireLocationsAccess keeps admin mod mode scope", async () => {
+    const request = await buildRequest(
+        {
+            id: "admin-3",
+            email: "admin@example.com",
+            role: "admin",
+            name: "Admin",
+            surname: null,
+        },
+        "https://example.com/locations?modCompanyId=21"
+    );
+
+    const access = await requireLocationsAccess(request);
+    assert.equal(access.companyId, 21);
+    assert.equal(access.isModMode, true);
 });

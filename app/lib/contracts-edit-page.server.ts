@@ -1,4 +1,5 @@
 import { mapExtrasByType, type ExtraType } from "~/lib/contract-extras.server";
+import { getEditableContractById } from "~/lib/contracts-repo.server";
 
 type ContractLoaderRow = {
     id: number;
@@ -50,31 +51,7 @@ type ContractExtraRow = {
 };
 
 export async function loadEditContractPageData(db: D1Database, contractId: number, companyId: number | null) {
-    const contractRaw = await db
-        .prepare(`
-            SELECT
-                c.*,
-                cc.id AS carId,
-                cc.company_id AS companyId,
-                cc.license_plate AS licensePlate,
-                u.id AS clientId,
-                u.name AS clientName,
-                u.surname AS clientSurname,
-                u.phone AS clientPhone,
-                u.email AS clientEmail,
-                u.whatsapp AS clientWhatsapp,
-                u.telegram AS clientTelegram,
-                u.passport_number AS clientPassport,
-                u.passport_photos AS clientPassportPhotos,
-                u.driver_license_photos AS clientDriverLicensePhotos
-            FROM contracts c
-            JOIN company_cars cc ON cc.id = c.company_car_id
-            LEFT JOIN users u ON u.id = c.client_id
-            WHERE c.id = ?
-            LIMIT 1
-        `)
-        .bind(contractId)
-        .first() as ContractLoaderRow | null;
+    const contractRaw = await getEditableContractById({ db, contractId }) as ContractLoaderRow | null;
 
     if (!contractRaw) {
         throw new Response("Contract not found", { status: 404 });

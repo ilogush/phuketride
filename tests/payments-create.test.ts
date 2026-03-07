@@ -79,3 +79,37 @@ test("createPaymentRecord writes payment, audit and success feedback", async () 
     assert.equal(db.countCalls("INSERT INTO payments", "run"), 1);
     assert.equal(db.countCalls("INSERT INTO audit_logs", "run"), 1);
 });
+
+test("createPaymentRecord rejects cross-company contract with forbidden response", async () => {
+    const db = new FakeD1Database([
+        {
+            match: "SELECT c.id, cc.company_id AS companyId",
+            first: [null],
+        },
+    ]);
+    const formData = new FormData();
+    formData.set("contractId", "999");
+    formData.set("paymentTypeId", "1");
+    formData.set("amount", "750");
+    formData.set("currency", "THB");
+    formData.set("paymentMethod", "cash");
+    formData.set("status", "completed");
+
+    await assert.rejects(
+        () =>
+            createPaymentRecord({
+                db: db as unknown as D1Database,
+                request: new Request("https://example.com/payments/create?modCompanyId=12", {
+                    method: "POST",
+                    body: formData,
+                }),
+                user: actor,
+                companyId: 12,
+                formData,
+            }),
+        (error: unknown) =>
+            error instanceof Response &&
+            error.status === 403
+    );
+    assert.equal(db.countCalls("INSERT INTO payments", "run"), 0);
+});

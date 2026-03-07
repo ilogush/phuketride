@@ -5,8 +5,8 @@ import { useState } from "react";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import Button from "~/components/dashboard/Button";
 import FormSection from "~/components/dashboard/FormSection";
-import FormInput from "~/components/dashboard/FormInput";
-import FormSelect from "~/components/dashboard/FormSelect";
+import { Input } from "~/components/dashboard/Input";
+import { Select } from "~/components/dashboard/Select";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import { useLatinValidation } from "~/lib/useLatinValidation";
@@ -90,7 +90,7 @@ export default function CreateBookingPage() {
                 title="Create Booking"
                 leftActions={<BackButton to="/bookings" />}
                 rightActions={
-                    <Button type="submit" variant="primary" form="create-booking-form">
+                    <Button type="submit" variant="solid" form="create-booking-form">
                         Create Booking
                     </Button>
                 }
@@ -99,7 +99,7 @@ export default function CreateBookingPage() {
             <Form id="create-booking-form" method="post" className="space-y-6">
                 <FormSection title="Car Selection" icon={<ArrowLeftIcon className="w-5 h-5" />}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormSelect
+                        <Select
                             name="carId"
                             label="Car"
                             required
@@ -108,8 +108,9 @@ export default function CreateBookingPage() {
                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedCarId(e.target.value)}
                             options={cars.map((car: { id: number; name: string; pricePerDay: number }) => ({ id: car.id, name: `${car.name} - ${car.pricePerDay} THB/day` }))}
                             placeholder="Select car"
+                            showPlaceholderOption
                         />
-                        <FormInput
+                        <Input
                             type="text"
                             name="startDate"
                             label="Start Date"
@@ -120,7 +121,7 @@ export default function CreateBookingPage() {
                                 setDates(prev => ({ ...prev, start: e.target.value }));
                             }}
                         />
-                        <FormInput
+                        <Input
                             type="text"
                             name="endDate"
                             label="End Date"
@@ -151,21 +152,21 @@ export default function CreateBookingPage() {
 
                 <FormSection title="Client Information">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormInput
+                        <Input
                             name="clientName"
                             label="First Name"
                             required
                             onChange={(e) => validateLatinInput(e, 'First Name')}
                         />
-                        <FormInput
+                        <Input
                             name="clientSurname"
                             label="Last Name"
                             required
                             onChange={(e) => validateLatinInput(e, 'Last Name')}
                         />
-                        <FormInput name="clientPhone" label="Phone" required />
-                        <FormInput type="email" name="clientEmail" label="Email" />
-                        <FormInput
+                        <Input name="clientPhone" label="Phone" required />
+                        <Input type="email" name="clientEmail" label="Email" />
+                        <Input
                             name="clientPassport"
                             label="Passport Number"
                             onChange={(e) => validateLatinInput(e, 'Passport')}
@@ -175,14 +176,14 @@ export default function CreateBookingPage() {
 
                 <FormSection title="Deposit">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormInput type="number" name="depositAmount" label="Deposit Amount" step="0.01" />
+                        <Input type="number" name="depositAmount" label="Deposit Amount" step="0.01" />
                         <div className="flex items-center gap-2">
                             <input type="checkbox" name="depositPaid" id="depositPaid" className="rounded" />
                             <label htmlFor="depositPaid" className="text-sm font-medium text-gray-700">
                                 Deposit Paid
                             </label>
                         </div>
-                        <FormSelect
+                        <Select
                             name="depositPaymentMethod"
                             label="Payment Method"
                             placeholder="Select method"
@@ -191,60 +192,63 @@ export default function CreateBookingPage() {
                                 { id: "bank_transfer", name: "Bank Transfer" },
                                 { id: "card", name: "Card" },
                             ]}
+                            showPlaceholderOption
                         />
                     </div>
                 </FormSection>
 
                 <FormSection title="Pickup Location">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormSelect
+                        <Select
                             name="pickupDistrictId"
                             label="District"
                             placeholder="Select district"
                             options={districts.map((d: { id: number; name: string }) => ({ id: d.id, name: d.name }))}
+                            showPlaceholderOption
                         />
-                        <FormInput name="pickupHotel" label="Hotel" />
-                        <FormInput name="pickupRoom" label="Room" />
+                        <Input name="pickupHotel" label="Hotel" />
+                        <Input name="pickupRoom" label="Room" />
                     </div>
                 </FormSection>
 
                 <FormSection title="Return Location">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormSelect
+                        <Select
                             name="returnDistrictId"
                             label="District"
                             placeholder="Select district"
                             options={districts.map((d: { id: number; name: string }) => ({ id: d.id, name: d.name }))}
+                            showPlaceholderOption
                         />
-                        <FormInput name="returnHotel" label="Hotel" />
-                        <FormInput name="returnRoom" label="Room" />
+                        <Input name="returnHotel" label="Hotel" />
+                        <Input name="returnRoom" label="Room" />
                     </div>
                 </FormSection>
 
                 <FormSection title="Additional Services">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <FormInput
+                        <Input
                             type="number"
                             name="fullInsurance"
                             label="Full Insurance (per day)"
                             step="0.01"
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExtras(prev => ({ ...prev, insurance: Number(e.target.value) || 0 }))}
                         />
-                        <FormInput
+                        <Input
                             type="number"
                             name="babySeat"
                             label="Baby Seat (per day)"
                             step="0.01"
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExtras(prev => ({ ...prev, babySeat: Number(e.target.value) || 0 }))}
                         />
-                        <FormInput
+                        <Input
                             type="number"
                             name="islandTrip"
                             label="Island Trip (total)"
                             step="0.01"
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExtras(prev => ({ ...prev, islandTrip: Number(e.target.value) || 0 }))}
                         />
-                        <FormInput
+                        <Input
                             type="number"
                             name="krabiTrip"
                             label="Krabi Trip (total)"

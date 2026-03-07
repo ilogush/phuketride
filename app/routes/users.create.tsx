@@ -81,7 +81,7 @@ export default function CreateUserPage() {
                 title="Add New User"
                 leftActions={<BackButton to="/users" />}
                 rightActions={
-                    <Button type="submit" variant="primary" form="profile-form">
+                    <Button type="submit" variant="solid" form="profile-form">
                         Create User
                     </Button>
                 }

@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import { requireAuth } from "~/lib/auth.server";
 import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import {
     BuildingOfficeIcon,
@@ -16,12 +15,9 @@ import type { ComponentType, SVGProps } from "react";
 import StatCard from "~/components/dashboard/StatCard";
 import TasksWidget from "~/components/dashboard/TasksWidget";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { getEffectiveCompanyId } from "~/lib/mod-mode.server";
+import { loadDashboardHomePageData } from "~/lib/dashboard-home.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { parseWithSchema } from "~/lib/validation.server";
-import {
-    loadDashboardHomeData,
-} from "~/lib/dashboard-metrics.server";
 import { deleteDashboardTaskFromForm } from "~/lib/admin-analytics.server";
 import { dashboardTaskDeleteSchema } from "~/schemas/admin-analytics";
 import { redirectWithRequestError } from "~/lib/route-feedback";
@@ -69,32 +65,18 @@ const ICON_MAP: Record<string, IconComponent> = {
 };
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request);
-    const effectiveCompanyId = getEffectiveCompanyId(request, user);
+    const { user, companyId } = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
     return trackServerOperation({
         event: "dashboard-home.load",
         scope: "route.loader",
         request,
         userId: user.id,
-        companyId: effectiveCompanyId,
+        companyId,
         details: { route: "dashboard-home", role: user.role },
-        run: async () => {
-            try {
-                return {
-                    user,
-                    ...(await loadDashboardHomeData({
-                        db: context.cloudflare.env.DB,
-                        user: {
-                            id: user.id,
-                            role: user.role,
-                        },
-                        effectiveCompanyId,
-                    })),
-                };
-            } catch {
-                return { user, statCards: [], tasks: [] };
-            }
-        },
+        run: () => loadDashboardHomePageData({
+            request,
+            db: context.cloudflare.env.DB,
+        }),
     });
 }
 

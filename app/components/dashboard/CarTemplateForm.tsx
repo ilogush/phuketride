@@ -176,8 +176,8 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
                                 <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
                                     <span className="text-sm text-gray-900">{formData.feature_airbags ? "Enabled" : "Disabled"}</span>
                                     <Toggle
-                                        enabled={formData.feature_airbags}
-                                        onChange={(enabled) => setFormData(prev => ({ ...prev, feature_airbags: enabled }))}
+                                        checked={formData.feature_airbags}
+                                        onCheckedChange={(enabled) => setFormData(prev => ({ ...prev, feature_airbags: enabled }))}
                                     />
                                 </div>
                             </FormField>

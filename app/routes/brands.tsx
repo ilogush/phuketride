@@ -38,7 +38,7 @@ export default function BrandsPage() {
                 title="Car Brands"
                 rightActions={
                     <Link to="/brands/create">
-                        <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                        <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
                             Add Brand
                         </Button>
                     </Link>

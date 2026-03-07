@@ -81,7 +81,7 @@ export default function CompanyDetailPageView({
                 The company you are looking for does not exist.
               </p>
               <Link to="/companies" className="mt-4 inline-block">
-                <Button variant="secondary">
+                <Button variant="outline">
                   <ArrowLeftIcon className="w-4 h-4 mr-2" />
                   Back to Companies
                 </Button>
@@ -225,7 +225,7 @@ export default function CompanyDetailPageView({
                     <p className="text-gray-500">{company.email}</p>
                   </div>
                 </div>
-                <Button variant="secondary">Edit Profile</Button>
+                <Button variant="outline">Edit Profile</Button>
               </div>
 
               <div className="mt-6 border-b border-gray-200">

@@ -19,7 +19,7 @@ interface UseDataTableDataOptions<T> {
   activeTab: string;
   searchQuery: string;
   serverPagination: boolean;
-  disablePagination: boolean;
+  paginationEnabled: boolean;
 }
 
 export function useDataTableData<T>({
@@ -34,7 +34,7 @@ export function useDataTableData<T>({
   activeTab,
   searchQuery,
   serverPagination,
-  disablePagination,
+  paginationEnabled,
 }: UseDataTableDataOptions<T>) {
   const [internalData, setInternalData] = useState<T[]>([]);
   const [internalTotalCount, setInternalTotalCount] = useState(0);
@@ -101,13 +101,13 @@ export function useDataTableData<T>({
   }, [data, deferredSearchQuery, serverPagination]);
 
   const currentData = useMemo(() => {
-    if (currentFetchData || serverPagination || disablePagination) {
+    if (currentFetchData || serverPagination || !paginationEnabled) {
       return filteredData;
     }
 
     const start = (page - 1) * pageSize;
     return filteredData.slice(start, start + pageSize);
-  }, [currentFetchData, disablePagination, filteredData, page, pageSize, serverPagination]);
+  }, [currentFetchData, filteredData, page, pageSize, serverPagination, paginationEnabled]);
 
   return {
     currentData,

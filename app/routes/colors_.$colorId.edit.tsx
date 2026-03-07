@@ -84,7 +84,7 @@ export default function EditColorModal() {
     return (
         <Modal
             title="Edit Color"
-            isOpen={true}
+            open={true}
             onClose={() => navigate("/colors")}
             size="md"
         >
@@ -126,7 +126,7 @@ export default function EditColorModal() {
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
-                    <Button type="submit" variant="primary">
+                    <Button type="submit" variant="solid">
                         Update Color
                     </Button>
                 </div>

@@ -77,7 +77,7 @@ export default function CreateCarPage() {
                 leftActions={<BackButton to="/cars" />}
                 title="Add"
                 rightActions={
-                    <Button type="submit" form="create-car-form" variant="primary">
+                    <Button type="submit" form="create-car-form" variant="solid">
                         Create
                     </Button>
                 }
@@ -279,7 +279,7 @@ export default function CreateCarPage() {
                             <label className="block text-sm text-gray-500 mb-1">Full Insurance</label>
                             <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
                                 <span className="text-sm text-gray-900">{fullInsuranceEnabled ? "Enabled" : "Disabled"}</span>
-                                <Toggle enabled={fullInsuranceEnabled} onChange={setFullInsuranceEnabled} />
+                                <Toggle checked={fullInsuranceEnabled} onCheckedChange={setFullInsuranceEnabled} />
                             </div>
                         </div>
                         <input type="hidden" name="fullInsuranceEnabled" value={fullInsuranceEnabled ? "true" : "false"} />

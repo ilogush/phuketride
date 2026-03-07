@@ -6,6 +6,7 @@ import { uploadToR2 } from "~/lib/r2.server";
 import { getCarPhotoUrls } from "~/lib/car-photos";
 import { getCachedFuelTypes } from "~/lib/dictionaries-cache.server";
 import { parseWithSchema } from "~/lib/validation.server";
+import { getRequestModCompanyId, withModCompanyId } from "~/lib/mod-mode.server";
 
 type EditCarActionArgs = {
   request: Request;
@@ -21,15 +22,8 @@ type FuelTypeRow = {
 };
 
 export async function handleEditCarAction({ request, context, user, params, formData }: EditCarActionArgs) {
-  const requestUrl = new URL(request.url);
-  const modCompanyIdParam = requestUrl.searchParams.get("modCompanyId");
-  const hasModCompanyId = !!modCompanyIdParam && Number.isFinite(Number(modCompanyIdParam)) && Number(modCompanyIdParam) > 0;
-
-  const withModCompany = (path: string) => {
-    if (!hasModCompanyId) return path;
-    const separator = path.includes("?") ? "&" : "?";
-    return `${path}${separator}modCompanyId=${Number(modCompanyIdParam)}`;
-  };
+  const modCompanyIdValue = getRequestModCompanyId(request, user);
+  const withModCompany = (path: string) => withModCompanyId(path, modCompanyIdValue);
 
   const carId = Number(params.id);
   if (!Number.isFinite(carId) || carId <= 0) {

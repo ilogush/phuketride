@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import Button from './Button'
+import type { ButtonVariant } from './Button'
 
 interface EmptyStateProps {
     icon?: ReactNode
@@ -8,6 +9,7 @@ interface EmptyStateProps {
     action?: {
         label: string
         onClick: () => void
+        variant?: ButtonVariant
     }
 }
 
@@ -26,7 +28,7 @@ export default function EmptyState({ icon, title, description, action }: EmptySt
                 </p>
             )}
             {action && (
-                <Button variant="primary" onClick={action.onClick}>
+                <Button variant={action.variant ?? 'solid'} onClick={action.onClick}>
                     {action.label}
                 </Button>
             )}

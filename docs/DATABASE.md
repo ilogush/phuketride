@@ -160,11 +160,89 @@
 - календарные выборки;
 - overlap checks по контрактам.
 
-Нужны индексы под:
+### Текущие индексы (по миграциям)
 
-- `company_id + status`
-- `company_car_id + start_date + end_date`
-- частые сортировки и фильтры dashboard
+#### Users
+- `idx_users_email` - для login/lookup
+- `idx_users_role` - для role-based lists
+- `idx_users_passport_number` - для client lookup
+- `idx_users_archived_at` - для фильтрации archived
+- `idx_users_role_created_at_id` - для сортировки с tiebreaker
+- `idx_users_role_email_id` - для сортировки по email
+- `idx_users_role_name_id` - для сортировки по имени
+
+#### Companies
+- `idx_companies_archived_created_at_id` - для списка с сортировкой
+- `idx_companies_archived_name_id` - для сортировки по имени
+- `idx_companies_archived_car_count_id` - для сортировки по количеству машин
+
+#### Company Cars
+- `idx_company_cars_license_plate_archived` - для поиска по номеру
+- `idx_company_cars_company_status_created_at` - для dashboard lists
+- `idx_company_cars_company_status_license_plate` - для сортировки по номеру
+- `idx_company_cars_company_status_price` - для сортировки по цене
+- `idx_company_cars_company_status_mileage` - для сортировки по пробегу
+- `idx_company_cars_template_id` - для JOIN optimization
+- `idx_company_cars_color_id` - для JOIN optimization
+
+#### Contracts
+- `idx_contracts_company_car_id` - для связи с машиной
+- `idx_contracts_client_id` - для связи с клиентом
+- `idx_contracts_manager_id` - для связи с менеджером
+- `idx_contracts_status` - для фильтрации по статусу
+- `idx_contracts_start_date` - для календарных queries
+- `idx_contracts_end_date` - для календарных queries
+- `idx_contracts_status_created_at_id` - для списков с сортировкой
+- `idx_contracts_client_status_created_at` - для клиентских списков
+- `idx_contracts_company_car_created_at` - для истории по машине
+- `idx_contracts_status_start_date_id` - для сортировки по дате начала
+- `idx_contracts_status_end_date_id` - для сортировки по дате окончания
+- `idx_contracts_status_total_amount_id` - для сортировки по сумме
+
+#### Bookings
+- `idx_bookings_company_car_id` - для связи с машиной
+- `idx_bookings_company_car_status_created_at` - для dashboard lists
+
+#### Payments
+- `idx_payments_contract_id` - для связи с контрактом
+- `idx_payments_payment_type_id` - для связи с типом платежа
+- `idx_payments_status` - для фильтрации по статусу
+- `idx_payments_extra_type` - для фильтрации extras
+- `idx_payments_status_created_at_id` - для списков с сортировкой
+- `idx_payments_contract_status_created_at` - для истории по контракту
+
+#### Calendar Events
+- `idx_calendar_events_company_status_start_date` - для календарных views
+- `idx_calendar_events_company_start_status` - для фильтрации событий
+
+#### Car Reviews
+- `idx_car_reviews_car_created_at` - для отзывов по машине
+- `idx_car_reviews_reviewer_user` - для отзывов пользователя
+
+#### Managers
+- `idx_managers_company_active_user` - для списков менеджеров компании
+
+#### Car Templates (JOIN optimization)
+- `idx_car_templates_brand_model` - для JOIN с brands/models
+- `idx_car_templates_body_type_id` - для JOIN с body types
+- `idx_car_templates_fuel_type_id` - для JOIN с fuel types
+
+### Index Strategy
+
+- Composite indexes для hot paths: `(company_id, status, sort_field, id)`
+- Tiebreaker `id DESC` для стабильной пагинации
+- Foreign key indexes для JOIN performance
+- Covering indexes где возможно (включают все поля SELECT)
+- Избегаем дублирующих индексов (D1 может использовать prefix)
+
+### Query Optimization Rules
+
+- Используйте JOINs вместо N+1 queries
+- Кэшируйте dictionaries (brands, models, colors, districts)
+- Избегайте sequential queries где возможен Promise.all
+- Для списков всегда используйте repo layer с typed queries
+- Detail queries должны получать все данные одним запросом с JOINs
+- См. Query Budget в docs/README.md для лимитов по экранам
 
 ## Operational discipline
 

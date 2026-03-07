@@ -9,6 +9,10 @@ import {
     runMutationWithFeedback,
     type MutationFeedbackOptions,
 } from "~/lib/admin-actions";
+import {
+    invalidateEntityCache,
+    type INVALIDATION_RULES,
+} from "~/lib/cache-invalidation.server";
 
 type AdminRouteContext = {
     cloudflare: {
@@ -33,6 +37,10 @@ type AdminMutationAudit =
         afterState?: unknown;
     }
     | undefined;
+
+type AdminMutationCache = {
+    invalidate?: Array<keyof typeof INVALIDATION_RULES>;
+};
 
 export async function requireAdminDb(
     request: Request,
@@ -66,8 +74,9 @@ export async function runAdminMutationAction(params: {
     mutate: (args: { db: D1Database; user: SessionUser }) => Promise<void>;
     feedback: MutationFeedbackOptions;
     audit?: AdminMutationAudit;
+    cache?: AdminMutationCache;
 }) {
-    const { request, context, mutate, feedback, audit } = params;
+    const { request, context, mutate, feedback, audit, cache } = params;
     const { user, db } = await requireAdminDb(request, context);
 
     return runMutationWithFeedback(
@@ -86,6 +95,13 @@ export async function runAdminMutationAction(params: {
                     beforeState: audit.beforeState,
                     afterState: audit.afterState,
                     ...getRequestMetadata(request),
+                });
+            }
+
+            // Invalidate cache after successful mutation
+            if (cache?.invalidate) {
+                cache.invalidate.forEach((entityType) => {
+                    invalidateEntityCache(entityType);
                 });
             }
         },

@@ -39,7 +39,7 @@ export default function DistrictModal({
   return (
     <Modal
       title={editingDistrict ? "Edit District" : "Add"}
-      isOpen={isOpen}
+      open={isOpen}
       onClose={onClose}
       size="md"
     >
@@ -87,11 +87,11 @@ export default function DistrictModal({
 
         <div className="flex justify-end gap-3 pt-4">
           {editingDistrict && (
-            <Button type="submit" form="delete-district-form" variant="secondary">
+            <Button type="submit" form="delete-district-form" variant="outline">
               Delete
             </Button>
           )}
-          <Button type="submit" variant="primary">
+          <Button type="submit" variant="solid">
             {editingDistrict ? "Update" : "Create"}
           </Button>
         </div>

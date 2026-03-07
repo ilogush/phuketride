@@ -4,7 +4,7 @@ type DbType = D1Database;
 
 /**
  * Verify that a car belongs to the user's company
- * Throws error if validation fails
+ * Throws Response(403) if validation fails
  */
 export async function validateCarOwnership(
     db: DbType,
@@ -17,12 +17,13 @@ export async function validateCarOwnership(
         .first<{ id: number }>();
 
     if (!car) {
-        throw new Error("Car not found or doesn't belong to your company");
+        throw new Response("Car not found or doesn't belong to your company", { status: 403 });
     }
 }
 
 /**
  * Verify that a contract belongs to the user's company
+ * Throws Response(403) if validation fails
  */
 export async function validateContractOwnership(
     db: DbType,
@@ -43,10 +44,14 @@ export async function validateContractOwnership(
         .first<{ id: number; companyId: number }>();
 
     if (!contract || contract.companyId !== companyId) {
-        throw new Error("Contract not found or doesn't belong to your company");
+        throw new Response("Contract not found or doesn't belong to your company", { status: 403 });
     }
 }
 
+/**
+ * Verify that a booking belongs to the user's company
+ * Throws Response(403) if validation fails
+ */
 export async function validateBookingOwnership(
     db: DbType,
     bookingId: number,
@@ -66,10 +71,14 @@ export async function validateBookingOwnership(
         .first<{ id: number }>();
 
     if (!booking) {
-        throw new Error("Booking not found or doesn't belong to your company");
+        throw new Response("Booking not found or doesn't belong to your company", { status: 403 });
     }
 }
 
+/**
+ * Verify that a company exists
+ * Throws Response(403) if validation fails
+ */
 export async function validateCompanyAccess(
     db: DbType,
     companyId: number
@@ -80,7 +89,7 @@ export async function validateCompanyAccess(
         .first<{ id: number }>();
 
     if (!company) {
-        throw new Error("Company not found");
+        throw new Response("Company not found", { status: 403 });
     }
 }
 

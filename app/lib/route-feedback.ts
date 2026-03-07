@@ -24,22 +24,26 @@ export function redirectWithError(path: string, message: string) {
     return redirect(toErrorPath(path, message));
 }
 
-export function withModCompanyId(path: string, modCompanyId: string | null) {
-    if (!modCompanyId) return path;
-    const separator = path.includes("?") ? "&" : "?";
-    return `${path}${separator}modCompanyId=${modCompanyId}`;
-}
-
-function getRequestModCompanyId(request: Request): string | null {
+/**
+ * DEPRECATED: Use withModCompanyId from mod-mode.server.ts instead
+ * This is kept for backward compatibility with existing route-feedback patterns
+ */
+function getRequestModCompanyIdRaw(request: Request): string | null {
     const url = new URL(request.url);
     const raw = url.searchParams.get("modCompanyId");
     return raw && raw.trim() ? raw : null;
 }
 
+function withModCompanyIdString(path: string, modCompanyId: string | null) {
+    if (!modCompanyId) return path;
+    const separator = path.includes("?") ? "&" : "?";
+    return `${path}${separator}modCompanyId=${modCompanyId}`;
+}
+
 export function redirectWithRequestSuccess(request: Request, path: string, message: string) {
-    return redirectWithSuccess(withModCompanyId(path, getRequestModCompanyId(request)), message);
+    return redirectWithSuccess(withModCompanyIdString(path, getRequestModCompanyIdRaw(request)), message);
 }
 
 export function redirectWithRequestError(request: Request, path: string, message: string) {
-    return redirectWithError(withModCompanyId(path, getRequestModCompanyId(request)), message);
+    return redirectWithError(withModCompanyIdString(path, getRequestModCompanyIdRaw(request)), message);
 }

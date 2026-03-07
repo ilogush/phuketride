@@ -42,18 +42,18 @@ export default function FormActions({
         <div className={`flex ${alignClasses[align]} gap-4 pt-6 ${className}`}>
             {cancelTo ? (
                 <Link to={cancelTo}>
-                    <Button variant="secondary" type="button">
+                    <Button variant="outline" type="button">
                         {cancelLabel}
                     </Button>
                 </Link>
             ) : (
-                <Button variant="secondary" onClick={handleCancel} type="button">
+                <Button variant="outline" onClick={handleCancel} type="button">
                     {cancelLabel}
                 </Button>
             )}
             <Button 
                 type="submit" 
-                variant="primary"
+                variant="solid"
                 disabled={submitDisabled}
                 loading={submitLoading}
                 form={submitForm}

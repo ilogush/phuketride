@@ -61,7 +61,7 @@ export default function NewColorModal() {
     return (
         <Modal
             title="Add Color"
-            isOpen={true}
+            open={true}
             onClose={() => navigate("/colors")}
             size="md"
         >
@@ -103,7 +103,7 @@ export default function NewColorModal() {
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
-                    <Button type="submit" variant="primary">
+                    <Button type="submit" variant="solid">
                         Create Color
                     </Button>
                 </div>

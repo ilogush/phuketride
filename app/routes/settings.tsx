@@ -8,7 +8,6 @@ import { useState } from "react";
 import {
     PlusIcon,
 } from "@heroicons/react/24/outline";
-import { useToast } from "~/lib/toast";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { isPhuketName, normalizeCompanyRow, normalizeCurrencyRow } from "~/lib/settings-normalizers";
 import type { Currency } from "~/lib/settings-normalizers";
@@ -23,6 +22,7 @@ import CurrenciesTab from "~/components/dashboard/settings/CurrenciesTab";
 import GeneralSettingsTab from "~/components/dashboard/settings/GeneralSettingsTab";
 import { handleSettingsAction } from "~/lib/settings-actions.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
+import { useAsyncToastAction } from "~/lib/useAsyncToastAction";
 
 type CompanySettings = {
     id: number;
@@ -162,7 +162,7 @@ export default function SettingsPage() {
         description: "",
     });
     const [isCurrencyModalOpen, setIsCurrencyModalOpen] = useState(false);
-    const toast = useToast();
+    const { notifySuccess } = useAsyncToastAction();
     useUrlToast();
 
     const tabs = [
@@ -204,7 +204,7 @@ export default function SettingsPage() {
     const getHeaderActions = () => {
         if (activeTab === "general") {
             return (
-                <Button type="submit" variant="primary" form="settings-form">
+                <Button type="submit" variant="solid" form="settings-form">
                     Save
                 </Button>
             );
@@ -212,7 +212,7 @@ export default function SettingsPage() {
         if (activeTab === "payments") {
             return (
                 <Button
-                    variant="primary"
+                    variant="solid"
                     icon={<PlusIcon className="w-5 h-5" />}
                     onClick={() => {
                         setPaymentFormData({
@@ -230,7 +230,7 @@ export default function SettingsPage() {
         if (activeTab === "currencies") {
             return (
                 <Button
-                    variant="primary"
+                    variant="solid"
                     icon={<PlusIcon className="w-5 h-5" />}
                     onClick={() => {
                         setIsCurrencyModalOpen(true);
@@ -292,7 +292,7 @@ export default function SettingsPage() {
                     isCurrencyModalOpen={isCurrencyModalOpen}
                     setIsCurrencyModalOpen={setIsCurrencyModalOpen}
                     onToggleCurrency={handleToggleCurrency}
-                    onCurrencyCreated={() => toast.success("Currency added")}
+                    onCurrencyCreated={() => notifySuccess("Currency added")}
                 />
             )}
         </div >

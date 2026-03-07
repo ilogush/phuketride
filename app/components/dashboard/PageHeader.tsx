@@ -47,7 +47,7 @@ export default function PageHeader({
         if (actionType === 'link' && href) {
             finalActions = (
                 <Link to={href}>
-                    <Button variant="primary" icon={actionIcon} loading={loading}>
+                    <Button variant="solid" icon={actionIcon} loading={loading}>
                         {actionLabel}
                     </Button>
                 </Link>
@@ -55,7 +55,7 @@ export default function PageHeader({
         } else if (actionType === 'submit' || actionType === 'button') {
             finalActions = (
                 <Button
-                    variant="primary"
+                    variant="solid"
                     icon={actionIcon}
                     onClick={onAction}
                     type={actionType}

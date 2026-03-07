@@ -221,7 +221,7 @@ export default function UsersPage() {
                 title="Users Management"
                 rightActions={
                     <Link to="/users/create">
-                        <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                        <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
                             Add
                         </Button>
                     </Link>

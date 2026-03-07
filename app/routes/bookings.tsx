@@ -81,7 +81,7 @@ export default function BookingsPage() {
                 title="Bookings Management"
                 rightActions={
                     <Link to="/bookings/create">
-                        <Button variant="primary">
+                        <Button variant="solid">
                             <PlusIcon className="w-5 h-5 mr-2" />
                             New Booking
                         </Button>
@@ -96,7 +96,7 @@ export default function BookingsPage() {
                     <div className="flex gap-2">
                         <Button
                             type="button"
-                            variant="unstyled"
+                            variant="plain"
                             onClick={() => handleStatusChange("all")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "all" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                         >
@@ -104,7 +104,7 @@ export default function BookingsPage() {
                         </Button>
                         <Button
                             type="button"
-                            variant="unstyled"
+                            variant="plain"
                             onClick={() => handleStatusChange("pending")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "pending" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                         >
@@ -112,7 +112,7 @@ export default function BookingsPage() {
                         </Button>
                         <Button
                             type="button"
-                            variant="unstyled"
+                            variant="plain"
                             onClick={() => handleStatusChange("confirmed")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "confirmed" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                         >
@@ -120,7 +120,7 @@ export default function BookingsPage() {
                         </Button>
                         <Button
                             type="button"
-                            variant="unstyled"
+                            variant="plain"
                             onClick={() => handleStatusChange("converted")}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${status === "converted" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
                         >

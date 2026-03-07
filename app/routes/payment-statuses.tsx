@@ -35,7 +35,7 @@ export default function PaymentStatusesPage() {
             <PageHeader
                 title="Payment Statuses"
                 rightActions={
-                    <Button variant="primary" icon={<PlusIcon className="w-5 h-5" />}>
+                    <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
                         Add Status
                     </Button>
                 }

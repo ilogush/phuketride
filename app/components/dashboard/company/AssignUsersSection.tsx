@@ -57,7 +57,7 @@ export default function AssignUsersSection({
                     <Button
                       key={user.id}
                       type="button"
-                      variant="unstyled"
+                      variant="plain"
                       onClick={() => onSelectManager(user)}
                       className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                     >
@@ -80,7 +80,7 @@ export default function AssignUsersSection({
               <label className="block text-xs text-gray-600">Assigned User</label>
               <Button
                 type="button"
-                variant="secondary"
+                variant="outline"
                 onClick={onRemoveManager}
               >
                 Remove

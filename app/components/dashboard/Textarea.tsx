@@ -1,36 +1,30 @@
 import { textareaBaseStyles } from '~/lib/styles/input'
+import FormFeedbackMessage from '~/components/shared/FormFeedbackMessage'
 
-interface TextareaProps {
+export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange'> {
     label?: string
-    placeholder?: string
-    value?: string
-    onChange?: (value: string) => void
     error?: string
-    required?: boolean
-    disabled?: boolean
-    rows?: number
-    className?: string
-    id?: string
-    name?: string
+    isEdit?: boolean
+    onChange?: (value: string) => void
 }
 
 export function Textarea({
     label,
-    placeholder,
-    value,
     onChange,
     error,
     required = false,
     disabled = false,
+    isEdit = true,
     rows = 4,
     className = '',
     id,
-    name
+    name,
+    ...props
 }: TextareaProps) {
+    const isFieldDisabled = disabled || !isEdit
+
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        if (onChange) {
-            onChange(e.target.value)
-        }
+        onChange?.(e.target.value)
     }
 
     return (
@@ -43,16 +37,13 @@ export function Textarea({
             <textarea
                 id={id || name}
                 name={name}
-                value={value}
                 onChange={handleChange}
-                placeholder={placeholder}
-                disabled={disabled}
+                disabled={isFieldDisabled}
                 rows={rows}
                 className={`${textareaBaseStyles} ${error ? 'border-gray-600' : ''}`}
+                {...props}
             />
-            {error && (
-                <p className="mt-1 text-sm text-gray-700">{error}</p>
-            )}
+            <FormFeedbackMessage message={error} tone="error" className="mt-1 text-sm" />
         </div>
     )
 }

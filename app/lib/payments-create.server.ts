@@ -4,7 +4,7 @@ import { QUERY_LIMITS } from "~/lib/query-limits";
 import { paymentSchema } from "~/schemas/payment";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
-import { validateContractOwnership } from "~/lib/security.server";
+import { assertContractOwnershipAccess } from "~/lib/access-policy.server";
 import type { SessionUser } from "~/lib/auth.server";
 
 export async function loadPaymentCreatePageData(args: {
@@ -61,9 +61,11 @@ export async function createPaymentRecord(args: {
         return redirectWithRequestError(args.request, "/payments/create", parsed.error);
     }
 
-    if (args.companyId !== null) {
-        await validateContractOwnership(args.db, parsed.data.contractId, args.companyId);
-    }
+    await assertContractOwnershipAccess({
+        db: args.db,
+        companyId: args.companyId,
+        contractId: parsed.data.contractId,
+    });
 
     const now = new Date().toISOString();
     const insertResult = await args.db

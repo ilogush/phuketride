@@ -83,7 +83,7 @@ export default function EditProfilePage() {
                 title="Edit Profile"
                 leftActions={<BackButton to="/profile" />}
                 rightActions={
-                    <Button type="submit" variant="primary" form="profile-form">
+                    <Button type="submit" variant="solid" form="profile-form">
                         Save
                     </Button>
                 }

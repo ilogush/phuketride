@@ -1,23 +1,13 @@
-import type { DateRangeValue } from "./DateRangePicker";
-
-const pad = (value: number) => String(value).padStart(2, "0");
+import {
+  buildDefaultTripDateRange,
+  toDateInput,
+  type DateRangeValue,
+} from "./trip-date.model";
 
 export const weekDays = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
-export const toDateInput = (date: Date) =>
-  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-
 export const defaultDates = (): DateRangeValue => {
-  const start = new Date();
-  const end = new Date(start);
-  end.setDate(start.getDate() + 3);
-
-  return {
-    startDate: toDateInput(start),
-    endDate: toDateInput(end),
-    startTime: "10:00",
-    endTime: "10:00",
-  };
+  return buildDefaultTripDateRange();
 };
 
 export const parseDate = (value: string) => {
@@ -39,7 +29,7 @@ export const formatTimeDisplay = (value: string) => {
 export const timeOptions = Array.from({ length: 48 }, (_, index) => {
   const hour = Math.floor(index / 2);
   const minute = index % 2 === 0 ? 0 : 30;
-  const value = `${pad(hour)}:${pad(minute)}`;
+  const value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
   const date = new Date(2026, 0, 1, hour, minute, 0, 0);
   return { value, label: date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }) };
 });

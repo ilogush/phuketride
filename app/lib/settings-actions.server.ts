@@ -2,7 +2,7 @@ import { type ActionFunctionArgs, redirect } from "react-router";
 import type { PaymentTemplateRow } from "~/lib/db-types";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import type { SessionUser } from "~/lib/auth.server";
-import { getAdminModCompanyId } from "~/lib/mod-mode.server";
+import { getAdminModCompanyId, withModCompanyId } from "~/lib/mod-mode.server";
 import { invalidateSettingsCaches } from "~/lib/dictionaries-cache.server";
 import { enforcePhuketCurrencyInvariant } from "~/lib/settings-currency-policy.server";
 import { isPhuketName, normalizeCompanyRow } from "~/lib/settings-normalizers";
@@ -429,13 +429,7 @@ export async function handleSettingsAction(args: SettingsActionArgs) {
   const { request, context, user, companyId, formData } = args;
   const intent = formData.get("intent");
   const adminModCompanyId = getAdminModCompanyId(request, user);
-  const withMode = (path: string) => {
-    if (!adminModCompanyId) {
-      return path;
-    }
-    const separator = path.includes("?") ? "&" : "?";
-    return `${path}${separator}modCompanyId=${adminModCompanyId}`;
-  };
+  const withMode = (path: string) => withModCompanyId(path, adminModCompanyId);
 
   const currentCompanyRow = await context.cloudflare.env.DB
     .prepare(`

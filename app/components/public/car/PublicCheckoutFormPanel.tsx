@@ -1,9 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import { ChevronLeftIcon } from "@heroicons/react/24/solid";
 import { Link } from "react-router";
-
-const textInputClass =
-  "w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-base text-gray-700 placeholder:text-gray-400 focus:border-green-600 focus:outline-none";
+import AuthTextInput from "~/components/public/AuthTextInput";
+import PublicSwitch from "~/components/public/PublicSwitch";
 
 const money = (value: number) => `฿${Math.round(value).toLocaleString()}`;
 
@@ -76,24 +75,42 @@ export default function PublicCheckoutFormPanel({
           </Link>
         </div>
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium text-gray-900">Mobile number</span>
-            <input name="clientPhone" className={textInputClass} placeholder="Mobile number" required defaultValue="" />
-          </label>
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium text-gray-900">Email</span>
-            <input type="email" name="clientEmail" className={textInputClass} placeholder="Email" defaultValue="" />
-          </label>
+          <AuthTextInput
+            id="clientPhone"
+            label="Mobile number"
+            name="clientPhone"
+            placeholder="Mobile number"
+            required
+            defaultValue=""
+            inputClassName="py-2 text-base text-gray-700 focus:border-green-600 focus:ring-green-600"
+          />
+          <AuthTextInput
+            id="clientEmail"
+            label="Email"
+            type="email"
+            name="clientEmail"
+            placeholder="Email"
+            defaultValue=""
+            inputClassName="py-2 text-base text-gray-700 focus:border-green-600 focus:ring-green-600"
+          />
         </div>
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium text-gray-900">First name on driver’s license</span>
-            <input name="clientName" className={textInputClass} required defaultValue="" />
-          </label>
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium text-gray-900">Last name on driver’s license</span>
-            <input name="clientSurname" className={textInputClass} required defaultValue="" />
-          </label>
+          <AuthTextInput
+            id="clientName"
+            label="First name on driver’s license"
+            name="clientName"
+            required
+            defaultValue=""
+            inputClassName="py-2 text-base text-gray-700 focus:border-green-600 focus:ring-green-600"
+          />
+          <AuthTextInput
+            id="clientSurname"
+            label="Last name on driver’s license"
+            name="clientSurname"
+            required
+            defaultValue=""
+            inputClassName="py-2 text-base text-gray-700 focus:border-green-600 focus:ring-green-600"
+          />
         </div>
       </section>
 
@@ -116,15 +133,7 @@ export default function PublicCheckoutFormPanel({
           <section className={`rounded-2xl bg-gray-50 p-4 ${withFullInsurance ? "bg-green-50" : ""}`}>
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-xl font-semibold text-gray-800">Full insurance</h2>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={withFullInsurance}
-                onClick={() => setWithFullInsurance((v) => !v)}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${withFullInsurance ? "bg-green-600" : "bg-gray-300"}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${withFullInsurance ? "translate-x-4" : "translate-x-0.5"}`} />
-              </button>
+              <PublicSwitch checked={withFullInsurance} onChange={() => setWithFullInsurance((v) => !v)} />
             </div>
             <p className="mt-1 text-sm text-gray-700">{`${money(fullInsurance)} / day`}</p>
             <ul className="mt-3 space-y-1 text-sm text-gray-600">
@@ -195,15 +204,7 @@ export default function PublicCheckoutFormPanel({
               <p className="text-xs text-gray-600">Remove daily route restrictions for island travel plan changes.</p>
               <p className="text-xs text-green-700">Included for this listing</p>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={withUnlimitedTrips}
-              onClick={() => setWithUnlimitedTrips((v) => !v)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${withUnlimitedTrips ? "bg-green-600" : "bg-gray-300"}`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${withUnlimitedTrips ? "translate-x-4" : "translate-x-0.5"}`} />
-            </button>
+            <PublicSwitch checked={withUnlimitedTrips} onChange={() => setWithUnlimitedTrips((v) => !v)} />
           </div>
         </div>
 
@@ -216,16 +217,11 @@ export default function PublicCheckoutFormPanel({
               </p>
               <p className="text-xs text-gray-600">Limited-stock item, confirmed with your booking request.</p>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={withBabySeat && hasBabySeatOption}
-              onClick={() => hasBabySeatOption && setWithBabySeat((v) => !v)}
+            <PublicSwitch
+              checked={withBabySeat && hasBabySeatOption}
+              onChange={() => hasBabySeatOption && setWithBabySeat((v) => !v)}
               disabled={!hasBabySeatOption}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${withBabySeat && hasBabySeatOption ? "bg-green-600" : "bg-gray-300"} ${hasBabySeatOption ? "" : "cursor-not-allowed opacity-60"}`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${withBabySeat && hasBabySeatOption ? "translate-x-4" : "translate-x-0.5"}`} />
-            </button>
+            />
           </div>
         </div>
 
@@ -238,16 +234,11 @@ export default function PublicCheckoutFormPanel({
               </p>
               <p className="text-xs text-gray-600">One-time add-on for trips to the islands of Koh Samui and Koh Phangan.</p>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={withIslandTrip && hasIslandTripOption}
-              onClick={() => hasIslandTripOption && setWithIslandTrip((v) => !v)}
+            <PublicSwitch
+              checked={withIslandTrip && hasIslandTripOption}
+              onChange={() => hasIslandTripOption && setWithIslandTrip((v) => !v)}
               disabled={!hasIslandTripOption}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${withIslandTrip && hasIslandTripOption ? "bg-green-600" : "bg-gray-300"} ${hasIslandTripOption ? "" : "cursor-not-allowed opacity-60"}`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${withIslandTrip && hasIslandTripOption ? "translate-x-4" : "translate-x-0.5"}`} />
-            </button>
+            />
           </div>
         </div>
 
@@ -260,16 +251,11 @@ export default function PublicCheckoutFormPanel({
               </p>
               <p className="text-xs text-gray-600">One-time add-on for approved Krabi direction routes.</p>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={withKrabiTrip && hasKrabiTripOption}
-              onClick={() => hasKrabiTripOption && setWithKrabiTrip((v) => !v)}
+            <PublicSwitch
+              checked={withKrabiTrip && hasKrabiTripOption}
+              onChange={() => hasKrabiTripOption && setWithKrabiTrip((v) => !v)}
               disabled={!hasKrabiTripOption}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${withKrabiTrip && hasKrabiTripOption ? "bg-green-600" : "bg-gray-300"} ${hasKrabiTripOption ? "" : "cursor-not-allowed opacity-60"}`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${withKrabiTrip && hasKrabiTripOption ? "translate-x-4" : "translate-x-0.5"}`} />
-            </button>
+            />
           </div>
         </div>
       </section>

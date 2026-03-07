@@ -1,5 +1,5 @@
-import FormInput from "~/components/dashboard/FormInput";
-import FormSelect from "~/components/dashboard/FormSelect";
+import { Input } from "~/components/dashboard/Input";
+import { Select } from "~/components/dashboard/Select";
 import Toggle from "~/components/dashboard/Toggle";
 
 interface CurrencyOption {
@@ -39,22 +39,24 @@ export default function ExtrasPaymentsSection({ currencies, items }: ExtrasPayme
           <div key={item.key} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700">{item.title}</span>
-              <Toggle enabled={item.enabled} onChange={item.onToggle} />
+              <Toggle checked={item.enabled} onCheckedChange={item.onToggle} />
             </div>
             {item.enabled && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
-                <FormInput label="Amount" name={`extra_${item.key}_amount`} type="number" placeholder="0.00" />
-                <FormSelect
+                <Input label="Amount" name={`extra_${item.key}_amount`} type="number" placeholder="0.00" />
+                <Select
                   label="Currency"
                   name={`extra_${item.key}_currency`}
                   options={currencyOptions}
                   placeholder="Select Currency"
+                  showPlaceholderOption
                 />
-                <FormSelect
+                <Select
                   label="Method"
                   name={`extra_${item.key}_method`}
                   options={PAYMENT_METHODS}
                   placeholder="Select Method"
+                  showPlaceholderOption
                 />
               </div>
             )}

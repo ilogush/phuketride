@@ -83,7 +83,7 @@ export default function CreateCompanyPage() {
                 title="Add New Company"
                 leftActions={<BackButton to="/companies" />}
                 rightActions={
-                    <Button type="submit" variant="primary" form="company-form">
+                    <Button type="submit" variant="solid" form="company-form">
                         Create
                     </Button>
                 }

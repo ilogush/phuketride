@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loader as logsLoader, action as logsAction } from "../app/routes/logs";
 import { loader as companyLoader } from "../app/routes/companies.$companyId";
+import { loader as locationsLoader, action as locationsAction } from "../app/routes/locations";
 import { requireBookingAccess } from "../app/lib/access-policy.server";
 import { serializeSession, type SessionUser } from "../app/lib/auth.server";
 import { setRuntimeEnv } from "../app/lib/runtime-env.server";
@@ -145,6 +146,65 @@ test("requireBookingAccess rejects cross-company booking ownership", async () =>
 
     await assert.rejects(
         () => requireBookingAccess(request, db as unknown as D1Database, 55),
-        /Booking not found or doesn't belong to your company/
+        (error: unknown) =>
+            error instanceof Response &&
+            error.status === 403 &&
+            (error.statusText === "" || typeof error.statusText === "string")
     );
+});
+
+test("locations loader rejects manager before touching DB", async () => {
+    const db = new FakeD1Database([]);
+    const request = await buildRequest(
+        {
+            id: "manager-2",
+            email: "manager@example.com",
+            role: "manager",
+            name: "Manager",
+            surname: null,
+            companyId: 12,
+        },
+        "https://example.com/locations"
+    );
+
+    await assert.rejects(
+        () => locationsLoader({
+            request,
+            context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+            params: {},
+        } as never),
+        (error: unknown) => error instanceof Response && error.status === 403
+    );
+    assert.equal(db.calls.length, 0);
+});
+
+test("locations action rejects manager before touching DB", async () => {
+    const db = new FakeD1Database([]);
+    const body = new URLSearchParams({ intent: "bulkUpdate", updates: "[]" });
+    const request = await buildRequest(
+        {
+            id: "manager-2",
+            email: "manager@example.com",
+            role: "manager",
+            name: "Manager",
+            surname: null,
+            companyId: 12,
+        },
+        "https://example.com/locations",
+        {
+            method: "POST",
+            body,
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        }
+    );
+
+    await assert.rejects(
+        () => locationsAction({
+            request,
+            context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+            params: {},
+        } as never),
+        (error: unknown) => error instanceof Response && error.status === 403
+    );
+    assert.equal(db.calls.length, 0);
 });

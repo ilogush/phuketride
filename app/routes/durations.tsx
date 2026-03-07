@@ -121,7 +121,7 @@ export default function DurationsPage() {
             render: (item) => (
                 <Button
                     type="button"
-                    variant="secondary"
+                    variant="outline"
                     size="sm"
                     onClick={() => openEditModal(item)}
                 >
@@ -140,7 +140,7 @@ export default function DurationsPage() {
                 durations.length === 0 ? (
                     <Form method="post">
                         <input type="hidden" name="intent" value="seed" />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit" variant="outline">
                             Load Default Data
                         </Button>
                     </Form>
@@ -151,7 +151,7 @@ export default function DurationsPage() {
                     <DataTable
                         columns={columns}
                         data={durations}
-                        disablePagination={true}
+                        pagination={false}
                         emptyTitle="No durations configured"
                         emptyDescription="Add rental duration periods to get started"
                     />

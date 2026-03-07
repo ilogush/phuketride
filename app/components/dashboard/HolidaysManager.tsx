@@ -3,7 +3,7 @@ import Button from "~/components/dashboard/Button";
 import { CalendarIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { parseDateFromDisplay } from "~/lib/formatters";
-import { useToast } from "~/lib/toast";
+import { useAsyncToastAction } from "~/lib/useAsyncToastAction";
 
 interface HolidaysManagerProps {
     value?: string; // JSON string array of dates
@@ -25,7 +25,7 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
 
     const [newDate, setNewDate] = useState("");
 
-    const toast = useToast();
+    const { notifyError } = useAsyncToastAction();
 
     const handleAddHoliday = () => {
         if (newDate) {
@@ -39,7 +39,7 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
                     setNewDate("");
                 }
             } catch (error) {
-                toast.error(error instanceof Error ? error.message : "Invalid date");
+                void notifyError(error instanceof Error ? error.message : "Invalid date");
             }
         }
     };
@@ -75,7 +75,7 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
                             type="button"
                             onClick={handleAddHoliday}
                             disabled={newDate.length < 10}
-                            variant="primary"
+                            variant="solid"
                         >
                             Add
                         </Button>
@@ -99,7 +99,7 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
                                 </span>
                                 <Button
                                     type="button"
-                                    variant="unstyled"
+                                    variant="plain"
                                     onClick={() => handleRemoveHoliday(date)}
                                     className="text-gray-400 hover:text-red-600"
                                 >

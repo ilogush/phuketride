@@ -78,7 +78,7 @@ export default function DocumentPhotosUpload({
                         />
                         <Button
                             type="button"
-                            variant="unstyled"
+                            variant="plain"
                             onClick={() => handleRemove(photo.id)}
                             className="absolute top-1 right-1 w-6 h-6 !p-0 rounded-full bg-red-500 text-white hover:bg-red-600"
                         >

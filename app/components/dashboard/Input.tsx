@@ -1,13 +1,15 @@
-import React, { forwardRef, useState, useEffect } from 'react'
+import React, { forwardRef, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import FormFeedbackMessage from '~/components/shared/FormFeedbackMessage'
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string
     error?: string
     addonLeft?: ReactNode
     addonRight?: ReactNode
+    isEdit?: boolean
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(({
@@ -20,16 +22,19 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
     addonLeft,
     addonRight,
     disabled,
+    isEdit = true,
     type,
     placeholder,
     value,
     onChange,
     onFocus,
+    onBlur,
     ...props
 }, ref) => {
     const [isFocused, setIsFocused] = useState(false)
     const [hasUserInput, setHasUserInput] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
+    const isFieldDisabled = disabled || !isEdit
 
     // Check if this is a numeric field with zero-like placeholder
     const isNumericWithZeroPlaceholder = type === 'number' && placeholder &&
@@ -52,6 +57,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
         setIsFocused(false)
+        if (onBlur) onBlur(e)
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,7 +83,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
         placeholder:text-gray-400 focus:outline-none transition-colors
         ${addonLeft ? 'pl-2' : 'pl-4'}
         ${(isPassword || addonRight) ? 'pr-2' : 'pr-4'}
-        ${disabled ? 'cursor-not-allowed opacity-50' : ''}
+        ${isFieldDisabled ? 'cursor-not-allowed opacity-50' : ''}
     `.trim()
 
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
@@ -92,7 +98,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
             <div className={`
                 flex items-center border rounded-xl bg-white transition-colors h-10 overflow-hidden
                 ${error ? 'border-red-500' : 'border-gray-300 focus-within:border-gray-500'}
-                ${disabled ? 'bg-gray-50' : 'bg-white'}
+                ${isFieldDisabled ? 'bg-gray-50' : 'bg-white'}
             `}>
                 {addonLeft && (
                     <span className="inline-flex items-center pl-3 text-gray-500 sm:text-sm">
@@ -104,7 +110,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     id={id || name}
                     name={name}
                     type={inputType}
-                    disabled={disabled}
+                    disabled={isFieldDisabled}
                     className={innerInputClasses}
                     placeholder={shouldShowPlaceholder ? placeholder : ''}
                     {...(value !== undefined ? { value } : {})}
@@ -118,7 +124,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="inline-flex items-center px-3 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
-                        disabled={disabled}
+                        disabled={isFieldDisabled}
                     >
                         {showPassword ? (
                             <EyeSlashIcon className="w-5 h-5" />
@@ -133,9 +139,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     </span>
                 )}
             </div>
-            {error && (
-                <p className="mt-1 text-sm text-red-600 font-medium">{error}</p>
-            )}
+            <FormFeedbackMessage message={error} tone="error" className="mt-1 text-sm font-medium" />
         </div>
     )
 })

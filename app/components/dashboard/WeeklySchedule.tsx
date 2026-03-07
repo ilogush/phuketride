@@ -95,8 +95,8 @@ export default function WeeklySchedule({ value, onChange }: WeeklyScheduleProps)
                             <div className="text-sm font-medium text-gray-900">{label}</div>
                             <div className="flex items-center gap-2">
                                 <Toggle
-                                    enabled={daySchedule.open}
-                                    onChange={() => handleToggle(key as keyof WeeklyScheduleData)}
+                                    checked={daySchedule.open}
+                                    onCheckedChange={() => handleToggle(key as keyof WeeklyScheduleData)}
                                 />
                                 <span className={`text-xs font-bold ${daySchedule.open ? "text-green-600" : "text-gray-400"}`}>
                                     {daySchedule.open ? "OPEN" : "CLOSED"}

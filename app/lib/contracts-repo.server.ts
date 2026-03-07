@@ -1,19 +1,67 @@
 import type { SortOrder } from "~/lib/query-filters.server";
 import type { ContractListRow } from "~/lib/db-types";
-
-type D1DatabaseLike = {
-    prepare: (query: string) => {
-        bind: (...values: unknown[]) => {
-            all: () => Promise<{ results?: unknown[] }>;
-            first: () => Promise<unknown>;
-        };
-        all: () => Promise<{ results?: unknown[] }>;
-        first: () => Promise<unknown>;
-    };
-};
+import {
+  type D1DatabaseLike,
+  type ListQueryParams,
+  type CountQueryParams,
+  type StatusCount,
+  normalizeCount,
+  normalizeStatusCounts,
+  buildSortClause,
+} from "~/lib/repo-types.server";
 
 type CountRow = { count?: number | string } | null;
 type StatusCountRow = { status: string; count: number | string };
+type ClosableContractRow = {
+    id: number;
+    companyId: number;
+    company_car_id: number;
+    client_id: string | null;
+    start_date: string;
+    end_date: string;
+    start_mileage: number | null;
+    fuel_level: string | null;
+    cleanliness: string | null;
+    brandName: string | null;
+    modelName: string | null;
+    clientName: string | null;
+    clientSurname: string | null;
+};
+type EditableContractRow = {
+    id: number;
+    company_car_id: number;
+    start_date: string;
+    end_date: string;
+    pickup_district_id: number | null;
+    pickup_hotel: string | null;
+    pickup_room: string | null;
+    return_district_id: number | null;
+    return_hotel: string | null;
+    return_room: string | null;
+    delivery_cost: number | null;
+    return_cost: number | null;
+    deposit_amount: number | null;
+    deposit_payment_method: string | null;
+    total_amount: number | null;
+    fuel_level: string | null;
+    cleanliness: string | null;
+    start_mileage: number | null;
+    carId: number;
+    companyId: number;
+    licensePlate: string;
+    clientId: string;
+    clientName: string | null;
+    clientSurname: string | null;
+    clientPhone: string | null;
+    clientEmail: string | null;
+    clientWhatsapp: string | null;
+    clientTelegram: string | null;
+    clientPassport: string | null;
+    clientPassportPhotos: string | null;
+    clientDriverLicensePhotos: string | null;
+    notes: string | null;
+    photos: string | null;
+};
 
 const CONTRACT_SORT_SQL: Record<string, string> = {
     id: "c.id",
@@ -25,9 +73,7 @@ const CONTRACT_SORT_SQL: Record<string, string> = {
 };
 
 function getContractSortClause(sortBy: string, sortOrder: SortOrder): string {
-    const sortColumn = CONTRACT_SORT_SQL[sortBy] || CONTRACT_SORT_SQL.createdAt;
-    const direction = sortOrder === "asc" ? "ASC" : "DESC";
-    return `ORDER BY ${sortColumn} ${direction}, c.id DESC`;
+    return buildSortClause(CONTRACT_SORT_SQL, sortBy, sortOrder, "createdAt", "c.id");
 }
 
 export async function listContractsPage(params: {
@@ -75,7 +121,7 @@ export async function listContractsPage(params: {
 export async function listContractStatusCounts(params: {
     db: D1DatabaseLike;
     companyId: number | null;
-}) {
+}): Promise<StatusCount[]> {
     const { db, companyId } = params;
     const result = companyId
         ? await db.prepare(`
@@ -91,7 +137,7 @@ export async function listContractStatusCounts(params: {
             GROUP BY status
         `).all();
 
-    return (result.results || []) as StatusCountRow[];
+    return normalizeStatusCounts(result.results as StatusCountRow[]);
 }
 
 export async function countContractsPage(params: {
@@ -99,7 +145,7 @@ export async function countContractsPage(params: {
     companyId: number | null;
     status: string;
     search: string;
-}) {
+}): Promise<number> {
     const { db, companyId, status, search } = params;
     const q = `%${search}%`;
     const row = companyId
@@ -117,5 +163,61 @@ export async function countContractsPage(params: {
             ${search ? "AND (CAST(c.id AS TEXT) LIKE ? OR CAST(c.start_date AS TEXT) LIKE ? OR CAST(c.end_date AS TEXT) LIKE ? OR CAST(c.total_amount AS TEXT) LIKE ?)" : ""}
         `).bind(...(search ? [status, q, q, q, q] : [status])).first() as CountRow;
 
-    return Number(row?.count || 0);
+    return normalizeCount(row);
+}
+
+export async function getClosableContractById(params: {
+    db: D1DatabaseLike;
+    contractId: number;
+}) {
+    const { db, contractId } = params;
+    return await db.prepare(`
+        SELECT
+            c.*,
+            cc.company_id AS companyId,
+            cb.name AS brandName,
+            cm.name AS modelName,
+            u.name AS clientName,
+            u.surname AS clientSurname
+        FROM contracts c
+        JOIN company_cars cc ON cc.id = c.company_car_id
+        LEFT JOIN car_templates ct ON ct.id = cc.template_id
+        LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+        LEFT JOIN car_models cm ON cm.id = ct.model_id
+        LEFT JOIN users u ON u.id = c.client_id
+        WHERE c.id = ?
+        LIMIT 1
+    `).bind(contractId).first() as ClosableContractRow | null;
+}
+
+export async function getEditableContractById(params: {
+    db: D1DatabaseLike;
+    contractId: number;
+}) {
+    const { db, contractId } = params;
+    return await db
+        .prepare(`
+            SELECT
+                c.*,
+                cc.id AS carId,
+                cc.company_id AS companyId,
+                cc.license_plate AS licensePlate,
+                u.id AS clientId,
+                u.name AS clientName,
+                u.surname AS clientSurname,
+                u.phone AS clientPhone,
+                u.email AS clientEmail,
+                u.whatsapp AS clientWhatsapp,
+                u.telegram AS clientTelegram,
+                u.passport_number AS clientPassport,
+                u.passport_photos AS clientPassportPhotos,
+                u.driver_license_photos AS clientDriverLicensePhotos
+            FROM contracts c
+            JOIN company_cars cc ON cc.id = c.company_car_id
+            LEFT JOIN users u ON u.id = c.client_id
+            WHERE c.id = ?
+            LIMIT 1
+        `)
+        .bind(contractId)
+        .first() as EditableContractRow | null;
 }

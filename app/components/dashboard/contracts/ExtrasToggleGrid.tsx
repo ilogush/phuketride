@@ -17,7 +17,7 @@ export default function ExtrasToggleGrid({ items }: ExtrasToggleGridProps) {
       {items.map((item) => (
         <div key={item.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
           <span className="text-sm font-medium text-gray-700">{item.label}</span>
-          <Toggle enabled={item.enabled} onChange={item.onToggle} />
+          <Toggle checked={item.enabled} onCheckedChange={item.onToggle} />
         </div>
       ))}
     </div>

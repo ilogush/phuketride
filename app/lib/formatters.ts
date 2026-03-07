@@ -120,3 +120,14 @@ export function parseJSON<T>(jsonString: string | null): T | null {
         return null;
     }
 }
+
+/**
+ * Get default contract close date/time in DD/MM/YYYY HH:mm format
+ */
+export function getDefaultContractCloseDateTime(now = new Date()): string {
+    return `${formatDateForDisplay(now)} ${now.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    })}`;
+}
