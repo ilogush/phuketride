@@ -34,20 +34,20 @@ export default function HostTools() {
                         <h2 className="text-2xl font-bold text-gray-900 mt-12 mb-4">
                             Built for your success
                         </h2>
-                        <div className="grid md:grid-cols-2 gap-6 mb-8">
-                            <div className="bg-gray-50 rounded-2xl p-6">
+                        <div className="grid md:grid-cols-2 gap-4 mb-8">
+                            <div className="bg-gray-50 rounded-2xl p-4">
                                 <h3 className="font-bold text-gray-900 mb-2 text-lg">Smart Pricing</h3>
                                 <p className="text-gray-600">Our dynamic pricing algorithm adjusts your rates based on demand, local events, and seasonality to maximize your revenue.</p>
                             </div>
-                            <div className="bg-gray-50 rounded-2xl p-6">
+                            <div className="bg-gray-50 rounded-2xl p-4">
                                 <h3 className="font-bold text-gray-900 mb-2 text-lg">Performance Analytics</h3>
                                 <p className="text-gray-600">Track your earnings, utilization rates, and customer reviews through our comprehensive host dashboard.</p>
                             </div>
-                            <div className="bg-gray-50 rounded-2xl p-6">
+                            <div className="bg-gray-50 rounded-2xl p-4">
                                 <h3 className="font-bold text-gray-900 mb-2 text-lg">Calendar Management</h3>
                                 <p className="text-gray-600">Easily manage your vehicle's availability. Sync with other calendars to prevent double bookings.</p>
                             </div>
-                            <div className="bg-gray-50 rounded-2xl p-6">
+                            <div className="bg-gray-50 rounded-2xl p-4">
                                 <h3 className="font-bold text-gray-900 mb-2 text-lg">Automated Communication</h3>
                                 <p className="text-gray-600">Save time with automated check-in instructions and follow-up messages for your guests.</p>
                             </div>

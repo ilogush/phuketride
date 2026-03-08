@@ -112,16 +112,16 @@ export default function Carculator() {
                         <h2 className="text-2xl font-bold text-gray-900 mt-16 mb-6">
                             Maximize your car's value
                         </h2>
-                        <div className="grid md:grid-cols-3 gap-6">
-                            <div className="p-6 border border-gray-100 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow">
+                        <div className="grid md:grid-cols-3 gap-4">
+                            <div className="p-4 border border-gray-100 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow">
                                 <h3 className="font-bold text-gray-900 mb-3 text-lg">Keep it clean</h3>
                                 <p className="text-gray-600 text-sm leading-relaxed">Regular cleaning and maintenance result in better reviews and higher daily rates.</p>
                             </div>
-                            <div className="p-6 border border-gray-100 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow">
+                            <div className="p-4 border border-gray-100 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow">
                                 <h3 className="font-bold text-gray-900 mb-3 text-lg">Be responsive</h3>
                                 <p className="text-gray-600 text-sm leading-relaxed">Quickly responding to booking requests increases your car's visibility in search results.</p>
                             </div>
-                            <div className="p-6 border border-gray-100 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow">
+                            <div className="p-4 border border-gray-100 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow">
                                 <h3 className="font-bold text-gray-900 mb-3 text-lg">Detailed description</h3>
                                 <p className="text-gray-600 text-sm leading-relaxed">Mention all unique features of your vehicle to attract more specialized rental requests.</p>
                             </div>

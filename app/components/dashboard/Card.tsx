@@ -11,7 +11,7 @@ export default function Card({ children, className = '', padding = 'md' }: CardP
     const paddingClasses = {
         sm: 'p-3',
         md: 'p-4',
-        lg: 'p-6'
+        lg: 'p-4'
     }
 
     return (

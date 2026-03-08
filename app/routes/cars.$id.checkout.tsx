@@ -115,7 +115,7 @@ export default function CheckoutPage() {
           <input type="hidden" name="withIslandTrip" value={String(withIslandTrip && hasIslandTripOption)} />
           <input type="hidden" name="withKrabiTrip" value={String(withKrabiTrip && hasKrabiTripOption)} />
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-start">
             <section className="lg:col-span-2">
               <PublicCheckoutFormPanel
                 data={data}

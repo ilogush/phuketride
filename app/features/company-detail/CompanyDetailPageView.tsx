@@ -73,7 +73,7 @@ export default function CompanyDetailPageView({
             isSidebarOpen={isSidebarOpen}
           />
           <main className="p-4">
-            <div className="p-6">
+            <div className="p-4">
               <h1 className="text-2xl font-bold text-gray-900 mb-4">
                 Company Not Found
               </h1>
@@ -212,7 +212,7 @@ export default function CompanyDetailPageView({
               <span>Companies</span>
             </Link>
 
-            <div className="p-6">
+            <div className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center">

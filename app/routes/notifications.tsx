@@ -82,7 +82,7 @@ export default function Notifications() {
                         {notifications.map((notification) => (
                             <div
                                 key={notification.id}
-                                className={`p-6 hover:bg-gray-50 transition-colors ${
+                                className={`p-4 hover:bg-gray-50 transition-colors ${
                                     !notification.read ? "bg-blue-50" : ""
                                 }`}
                             >

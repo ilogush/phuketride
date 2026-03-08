@@ -39,7 +39,7 @@ export default function ReportsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {reports.map((report) => (
-                    <Card key={report.name} className="p-6 border-gray-200">
+                    <Card key={report.name} className="p-4 border-gray-200">
                         <div className="flex items-start justify-between">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-gray-50 rounded-2xl">

@@ -107,7 +107,7 @@ export default function Modal({
                     </Button>
                 </div>
 
-                <div className="overflow-y-auto flex-1 p-4 sm:p-6">
+                <div className="overflow-y-auto flex-1 p-4 sm:p-4">
                     {children}
                 </div>
 

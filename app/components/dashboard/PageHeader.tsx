@@ -72,7 +72,7 @@ export default function PageHeader({
 
     return (
         <div>
-            <div className={`flex items-center ${hasRightActions ? 'justify-between' : 'justify-start'} gap-2 sm:gap-6`}>
+            <div className={`flex items-center ${hasRightActions ? 'justify-between' : 'justify-start'} gap-2 sm:gap-4`}>
                 <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                     {leftActions}
                     {title && (

@@ -132,7 +132,7 @@ export default function BookingsPage() {
                             <Link
                                 key={booking.id}
                                 to={`/bookings/${booking.id}`}
-                                className="block p-6 hover:bg-gray-50 transition-colors"
+                                className="block p-4 hover:bg-gray-50 transition-colors"
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex-1">

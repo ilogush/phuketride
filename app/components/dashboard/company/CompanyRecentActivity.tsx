@@ -13,7 +13,7 @@ interface CompanyRecentActivityProps {
 
 export default function CompanyRecentActivity({ recentActivity }: CompanyRecentActivityProps) {
   return (
-    <div className="p-6">
+    <div className="p-4">
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
       {recentActivity.length > 0 ? (
         <div className="space-y-4">

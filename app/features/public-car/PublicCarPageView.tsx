@@ -149,7 +149,7 @@ export default function PublicCarPageView({
       <main className="max-w-5xl mx-auto px-4 space-y-6">
         <CarGallery title={title} photos={photos} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <section className="lg:col-span-2 space-y-6">
             <section className="space-y-4">
               <h1 className="text-3xl font-semibold leading-tight tracking-tight text-gray-900 sm:text-4xl">

@@ -91,7 +91,7 @@ export default function MyContractsPageView({
               <Link
                 key={contract.id}
                 to={`/my-contracts/${contract.id}`}
-                className="block p-6 transition-colors hover:bg-gray-50"
+                className="block p-4 transition-colors hover:bg-gray-50"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">

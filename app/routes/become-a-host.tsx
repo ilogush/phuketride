@@ -56,18 +56,18 @@ export default function BecomeAHost() {
             <h2 className="text-2xl font-bold text-gray-900 mt-12 mb-4">
               How it works
             </h2>
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-gray-50 rounded-2xl p-6">
+            <div className="grid md:grid-cols-3 gap-4 mb-8">
+              <div className="bg-gray-50 rounded-2xl p-4">
                 <div className="text-3xl font-black text-gray-900 mb-2">1</div>
                 <h3 className="font-bold text-gray-900 mb-2">List your car</h3>
                 <p className="text-gray-600">Create a free listing with photos and set your availability</p>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-6">
+              <div className="bg-gray-50 rounded-2xl p-4">
                 <div className="text-3xl font-black text-gray-900 mb-2">2</div>
                 <h3 className="font-bold text-gray-900 mb-2">Accept bookings</h3>
                 <p className="text-gray-600">Review renter requests and accept bookings that work for you</p>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-6">
+              <div className="bg-gray-50 rounded-2xl p-4">
                 <div className="text-3xl font-black text-gray-900 mb-2">3</div>
                 <h3 className="font-bold text-gray-900 mb-2">Start earning</h3>
                 <p className="text-gray-600">Hand over your keys and get paid directly to your bank account</p>

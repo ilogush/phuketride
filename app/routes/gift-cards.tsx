@@ -57,18 +57,18 @@ export default function GiftCards() {
             <h2 className="text-2xl font-bold text-gray-900 mt-12 mb-4">
               How gift cards work
             </h2>
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-gray-50 rounded-2xl p-6">
+            <div className="grid md:grid-cols-3 gap-4 mb-8">
+              <div className="bg-gray-50 rounded-2xl p-4">
                 <div className="text-3xl font-black text-gray-900 mb-2">1</div>
                 <h3 className="font-bold text-gray-900 mb-2">Purchase</h3>
                 <p className="text-gray-600">Choose an amount and complete your purchase instantly</p>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-6">
+              <div className="bg-gray-50 rounded-2xl p-4">
                 <div className="text-3xl font-black text-gray-900 mb-2">2</div>
                 <h3 className="font-bold text-gray-900 mb-2">Deliver</h3>
                 <p className="text-gray-600">Send via email or print at home for physical gifting</p>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-6">
+              <div className="bg-gray-50 rounded-2xl p-4">
                 <div className="text-3xl font-black text-gray-900 mb-2">3</div>
                 <h3 className="font-bold text-gray-900 mb-2">Redeem</h3>
                 <p className="text-gray-600">Recipient can use the code for any booking on Phuket Ride</p>
@@ -97,7 +97,7 @@ export default function GiftCards() {
               </li>
             </ul>
 
-            <div className="bg-gray-50 rounded-2xl p-6 mb-8">
+            <div className="bg-gray-50 rounded-2xl p-4 mb-8">
               <h3 className="font-bold text-gray-900 mb-2">Important Information</h3>
               <ul className="space-y-2 text-gray-600">
                 <li>• Gift cards are valid for 12 months from date of purchase</li>

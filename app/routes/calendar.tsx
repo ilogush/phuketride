@@ -130,8 +130,8 @@ export default function CalendarPage() {
 
             <div className="flex items-start gap-4">
                 {/* Main Calendar Section */}
-                <div className="flex-1 space-y-4">
-                    <Card className="p-6">
+                <div className="flex-1 p-4 space-y-4">
+                    <Card className="p-4">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-4">
                                 <h2 className="text-xl font-bold text-gray-900">

@@ -20,7 +20,7 @@ export default function AdminCard({
     contentClassName = "space-y-4",
 }: AdminCardProps) {
     return (
-        <BasePanel className={`shadow-sm p-3 ${className}`}>
+        <BasePanel className={`shadow-sm p-4 ${className}`}>
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                     <div className="w-5 h-5 text-gray-600">

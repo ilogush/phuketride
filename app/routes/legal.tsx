@@ -77,16 +77,16 @@ export default function Legal() {
             <p className="text-gray-600 mb-4">
               Cancellation terms vary by booking. Hosts can choose from several cancellation policy options:
             </p>
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-gray-50 rounded-2xl p-6">
+            <div className="grid md:grid-cols-3 gap-4 mb-8">
+              <div className="bg-gray-50 rounded-2xl p-4">
                 <h3 className="font-bold text-gray-900 mb-2">Flexible</h3>
                 <p className="text-gray-600 text-sm">Full refund up to 24 hours before pickup</p>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-6">
+              <div className="bg-gray-50 rounded-2xl p-4">
                 <h3 className="font-bold text-gray-900 mb-2">Moderate</h3>
                 <p className="text-gray-600 text-sm">Full refund up to 72 hours before pickup</p>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-6">
+              <div className="bg-gray-50 rounded-2xl p-4">
                 <h3 className="font-bold text-gray-900 mb-2">Strict</h3>
                 <p className="text-gray-600 text-sm">50% refund up to 7 days before pickup</p>
               </div>
@@ -106,7 +106,7 @@ export default function Legal() {
               <li>• Return vehicles in the same condition (renters)</li>
             </ul>
 
-            <div className="bg-gray-50 rounded-2xl p-6 mb-8">
+            <div className="bg-gray-50 rounded-2xl p-4 mb-8">
               <h3 className="font-bold text-gray-900 mb-4">Legal Documents</h3>
               <ul className="space-y-3">
                 <li>

@@ -97,7 +97,7 @@ export default function MyPayments() {
                 {payments.length > 0 ? (
                     <div className="divide-y divide-gray-200">
                         {payments.map((payment: ClientPaymentRow) => (
-                            <div key={payment.id} className="p-6 hover:bg-gray-50 transition-colors">
+                            <div key={payment.id} className="p-4 hover:bg-gray-50 transition-colors">
                                 <div className="flex items-center justify-between">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-3 mb-2">

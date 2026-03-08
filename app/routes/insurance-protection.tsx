@@ -34,8 +34,8 @@ export default function InsuranceProtection() {
             <h2 className="text-2xl font-bold text-gray-900 mt-12 mb-4">
               What's included
             </h2>
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-              <div className="bg-gray-50 rounded-2xl p-6">
+            <div className="grid md:grid-cols-2 gap-4 mb-8">
+              <div className="bg-gray-50 rounded-2xl p-4">
                 <h3 className="font-bold text-gray-900 mb-3 text-lg">Liability Insurance</h3>
                 <p className="text-gray-600 mb-4">Coverage for bodily injury and property damage to third parties up to ฿1,000,000 per incident.</p>
                 <ul className="space-y-2 text-sm text-gray-600">
@@ -44,7 +44,7 @@ export default function InsuranceProtection() {
                   <li>✓ Legal defense costs</li>
                 </ul>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-6">
+              <div className="bg-gray-50 rounded-2xl p-4">
                 <h3 className="font-bold text-gray-900 mb-3 text-lg">Physical Damage Protection</h3>
                 <p className="text-gray-600 mb-4">Protection against damage to the rental vehicle with customizable deductible options.</p>
                 <ul className="space-y-2 text-sm text-gray-600">
@@ -59,7 +59,7 @@ export default function InsuranceProtection() {
               Protection plans
             </h2>
             <div className="space-y-6 mb-8">
-              <div className="border border-gray-200 rounded-2xl p-6">
+              <div className="border border-gray-200 rounded-2xl p-4">
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="font-bold text-gray-900 text-lg">Basic Protection</h3>
@@ -74,7 +74,7 @@ export default function InsuranceProtection() {
                 </ul>
               </div>
 
-              <div className="border border-gray-200 rounded-2xl p-6">
+              <div className="border border-gray-200 rounded-2xl p-4">
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="font-bold text-gray-900 text-lg">Standard Protection</h3>
@@ -89,7 +89,7 @@ export default function InsuranceProtection() {
                 </ul>
               </div>
 
-              <div className="border border-gray-200 rounded-2xl p-6">
+              <div className="border border-gray-200 rounded-2xl p-4">
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="font-bold text-gray-900 text-lg">Premium Protection</h3>
@@ -109,7 +109,7 @@ export default function InsuranceProtection() {
             <h2 className="text-2xl font-bold text-gray-900 mt-12 mb-4">
               What's not covered
             </h2>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 mb-8">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-8">
               <ul className="space-y-2 text-gray-700">
                 <li>• Damage caused by driving under the influence of alcohol or drugs</li>
                 <li>• Damage from off-road driving or racing</li>

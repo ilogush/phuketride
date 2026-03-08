@@ -31,7 +31,7 @@ export default function FormSection({
         '2': 'gap-2',
         '3': 'gap-3',
         '4': 'gap-4',
-        '6': 'gap-6'
+        '6': 'gap-4'
     }[gap]
 
     const contentClasses = grid 
