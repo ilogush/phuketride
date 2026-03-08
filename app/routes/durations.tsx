@@ -61,12 +61,11 @@ export default function DurationsPage() {
     const submit = useSubmit();
     const navigation = useNavigation();
 
-    const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingDuration, setEditingDuration] = useState<RentalDuration | null>(null);
 
     const { handleFormSubmit, handleDelete } = useDictionaryFormActions({
         editingItem: editingDuration,
-        setIsFormOpen,
+        setIsFormOpen: () => {}, // No longer used
         setEditingItem: setEditingDuration,
     });
 
@@ -129,50 +128,44 @@ export default function DurationsPage() {
                                 Seed Defaults
                             </Button>
                         )}
-                        <Button
-                            variant="solid"
-                            icon={<PlusIcon className="w-5 h-5" />}
-                            onClick={() => {
-                                setEditingDuration(null);
-                                setIsFormOpen(true);
-                            }}
-                        >
-                            Add
-                        </Button>
                     </div>
                 }
             />
 
-            <DataTable<RentalDuration>
-                columns={columns}
-                data={durations}
-                isLoading={navigation.state === "loading"}
-                emptyTitle="No durations found"
-                emptyDescription="Add rental duration periods to get started"
-                emptyIcon={<ClockIcon className="w-10 h-10 text-gray-400" />}
-                getRowClassName={() => "cursor-pointer"}
-                onRowClick={(item) => {
-                    setEditingDuration(item);
-                    setIsFormOpen(true);
-                }}
-            />
+            <div className="flex flex-col lg:flex-row gap-4 items-start">
+                <div className="flex-1 w-full">
+                    <DataTable<RentalDuration>
+                        columns={columns}
+                        data={durations}
+                        isLoading={navigation.state === "loading"}
+                        emptyTitle="No durations found"
+                        emptyDescription="Add rental duration periods to get started"
+                        emptyIcon={<ClockIcon className="w-10 h-10 text-gray-400" />}
+                        getRowClassName={() => "cursor-pointer"}
+                        onRowClick={(item) => {
+                            setEditingDuration(item);
+                        }}
+                    />
+                </div>
 
-            {isFormOpen && (
-                <GenericDictionaryForm
-                    title={editingDuration ? "Edit Rental Duration" : "Add Rental Duration"}
-                    fields={fields}
-                    data={editingDuration ? {
-                        rangeName: editingDuration.rangeName,
-                        minDays: String(editingDuration.minDays),
-                        maxDays: editingDuration.maxDays ? String(editingDuration.maxDays) : "0",
-                        priceMultiplier: String(editingDuration.priceMultiplier),
-                        discountLabel: editingDuration.discountLabel || ""
-                    } : null}
-                    onSubmit={handleFormSubmit}
-                    onCancel={() => setIsFormOpen(false)}
-                    onDelete={editingDuration ? () => handleDelete("Delete this duration?") : undefined}
-                />
-            )}
+                <div className="w-full lg:w-80 shrink-0">
+                    <GenericDictionaryForm
+                        mode="sidebar"
+                        title={editingDuration ? "Edit Rental Duration" : "Add Rental Duration"}
+                        fields={fields}
+                        data={editingDuration ? {
+                            rangeName: editingDuration.rangeName,
+                            minDays: String(editingDuration.minDays),
+                            maxDays: editingDuration.maxDays ? String(editingDuration.maxDays) : "0",
+                            priceMultiplier: String(editingDuration.priceMultiplier),
+                            discountLabel: editingDuration.discountLabel || ""
+                        } : null}
+                        onSubmit={handleFormSubmit}
+                        onCancel={() => { setEditingDuration(null); }}
+                        onDelete={editingDuration ? () => handleDelete("Delete this duration?") : undefined}
+                    />
+                </div>
+            </div>
         </div>
     );
 }

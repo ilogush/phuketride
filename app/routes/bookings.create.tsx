@@ -29,7 +29,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId: scopedCompanyId,
         details: { route: "bookings.create" },
-        run: async () => loadRentalCreateBaseData(sdb.db, scopedCompanyId),
+        run: async () => loadRentalCreateBaseData(sdb.db as any, scopedCompanyId),
     });
 }
 
@@ -43,7 +43,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         userId: user.id,
         companyId: companyId!,
         details: { route: "bookings.create" },
-        run: async () => createBookingAction({ db: sdb.db, request, user, companyId: companyId!, formData }),
+        run: async () => sdb.bookings.createAction({ request, user, formData }),
     });
 }
 
@@ -86,9 +86,9 @@ export default function CreateBookingPage() {
     const totalAmount = baseAmount + extrasAmount;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <PageHeader
-                title="Create Booking"
+                title="New Booking"
                 leftActions={<BackButton to="/bookings" />}
                 rightActions={
                     <Button type="submit" variant="solid" form="create-booking-form">
@@ -97,7 +97,7 @@ export default function CreateBookingPage() {
                 }
             />
 
-            <Form id="create-booking-form" method="post" className="space-y-6">
+            <Form id="create-booking-form" method="post" className="space-y-4">
                 <FormSection title="Car Selection" icon={<ArrowLeftIcon className="w-5 h-5" />}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Select

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Toggle from "~/components/dashboard/Toggle";
-import { ClockIcon } from "@heroicons/react/24/outline";
+import { useToast } from "~/lib/toast";
 
 interface DaySchedule {
     open: boolean;
@@ -34,16 +34,17 @@ const defaultSchedule: WeeklyScheduleData = {
 };
 
 const days = [
-    { key: "sunday", label: "Sunday" },
     { key: "monday", label: "Monday" },
     { key: "tuesday", label: "Tuesday" },
     { key: "wednesday", label: "Wednesday" },
     { key: "thursday", label: "Thursday" },
     { key: "friday", label: "Friday" },
     { key: "saturday", label: "Saturday" },
+    { key: "sunday", label: "Sunday" },
 ];
 
 export default function WeeklySchedule({ value, onChange }: WeeklyScheduleProps) {
+    const toast = useToast();
     const [schedule, setSchedule] = useState<WeeklyScheduleData>(() => {
         if (value) {
             try {
@@ -56,12 +57,16 @@ export default function WeeklySchedule({ value, onChange }: WeeklyScheduleProps)
     });
 
     const handleToggle = (day: keyof WeeklyScheduleData) => {
+        const newStatus = !schedule[day].open;
         const newSchedule = {
             ...schedule,
-            [day]: { ...schedule[day], open: !schedule[day].open },
+            [day]: { ...schedule[day], open: newStatus },
         };
         setSchedule(newSchedule);
         onChange?.(JSON.stringify(newSchedule));
+        
+        const dayLabel = days.find(d => d.key === day)?.label;
+        toast.success(`${dayLabel} status updated to ${newStatus ? 'OPEN' : 'CLOSED'}`);
     };
 
     const handleTimeChange = (day: keyof WeeklyScheduleData, field: "startTime" | "endTime", value: string) => {
@@ -76,22 +81,21 @@ export default function WeeklySchedule({ value, onChange }: WeeklyScheduleProps)
     return (
         <div className="bg-white rounded-3xl shadow-sm p-4">
             <div className="flex items-center gap-2 mb-4">
-                <ClockIcon className="w-5 h-5 text-gray-600" />
                 <h3 className="text-sm font-bold text-gray-900">Weekly Schedule</h3>
             </div>
 
             <div className="space-y-3">
-                <div className="grid grid-cols-4 gap-4 text-xs font-bold text-gray-600 pb-2 border-b border-gray-100">
-                    <div>day</div>
-                    <div>status</div>
-                    <div>start time</div>
-                    <div>end time</div>
+                <div className="grid grid-cols-4 gap-4 px-4 py-2 bg-gray-50/50 rounded-xl text-xs font-normal text-gray-500 tracking-tight uppercase border-b border-gray-100">
+                    <div>Day</div>
+                    <div>Status</div>
+                    <div>Start Time</div>
+                    <div>End Time</div>
                 </div>
 
                 {days.map(({ key, label }) => {
                     const daySchedule = schedule[key as keyof WeeklyScheduleData];
                     return (
-                        <div key={key} className="grid grid-cols-4 gap-4 items-center">
+                        <div key={key} className="grid grid-cols-4 gap-4 items-center px-4">
                             <div className="text-sm font-medium text-gray-900">{label}</div>
                             <div className="flex items-center gap-2">
                                 <Toggle
@@ -108,7 +112,7 @@ export default function WeeklySchedule({ value, onChange }: WeeklyScheduleProps)
                                         type="time"
                                         value={daySchedule.startTime}
                                         onChange={(e) => handleTimeChange(key as keyof WeeklyScheduleData, "startTime", e.target.value)}
-                                        className="w-full px-3 py-2 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300"
+                                        className="w-full px-3 py-2 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 [&::-webkit-calendar-picker-indicator]:hidden"
                                     />
                                 ) : (
                                     <span className="text-sm text-gray-400">-</span>
@@ -120,7 +124,7 @@ export default function WeeklySchedule({ value, onChange }: WeeklyScheduleProps)
                                         type="time"
                                         value={daySchedule.endTime}
                                         onChange={(e) => handleTimeChange(key as keyof WeeklyScheduleData, "endTime", e.target.value)}
-                                        className="w-full px-3 py-2 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300"
+                                        className="w-full px-3 py-2 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 [&::-webkit-calendar-picker-indicator]:hidden"
                                     />
                                 ) : (
                                     <span className="text-sm text-gray-400">-</span>

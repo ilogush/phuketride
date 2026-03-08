@@ -119,13 +119,6 @@ export default function CalendarPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Calendar"
-                rightActions={
-                    <Link to={modCompanyId ? `/calendar/new?modCompanyId=${modCompanyId}` : "/calendar/new"}>
-                        <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
-                            Add Event
-                        </Button>
-                    </Link>
-                }
             />
 
             <div className="flex items-start gap-4">

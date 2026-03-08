@@ -228,7 +228,11 @@ export default function LocationsPage() {
                 rightActions={
                     <div className="flex gap-2">
                         {isPartner && (
-                            <Button variant="solid" onClick={handleSaveAll}>
+                            <Button 
+                                variant="solid" 
+                                onClick={handleSaveAll}
+                                loading={navigation.state === "submitting"}
+                            >
                                 Save
                             </Button>
                         )}

@@ -17,11 +17,11 @@ type CreateCarActionArgs = {
   db: D1Database;
   assets: R2Bucket;
   user: SessionUser;
+  companyId: number;
   formData: FormData;
 };
 
-export async function handleCreateCarAction({ request, db, assets, user, formData }: CreateCarActionArgs) {
-  const companyId = user.companyId;
+export async function handleCreateCarAction({ request, db, assets, user, companyId, formData }: CreateCarActionArgs) {
   if (!companyId) {
     return redirectWithRequestError(request, "/cars/create", "Company is required");
   }
@@ -152,7 +152,7 @@ export async function handleCreateCarAction({ request, db, assets, user, formDat
       db,
       userId: user.id,
       role: user.role,
-      companyId: user.companyId,
+      companyId: companyId,
       entityType: "car",
       entityId: newCar.id,
       action: "create",

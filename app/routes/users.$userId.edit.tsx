@@ -72,10 +72,9 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             }
 
             if (intent === "deleteUser") {
-                const result = await deleteManagedUser({
-                    db: sdb.db,
+                const result = await sdb.users.deleteAction({
                     request,
-                    actor: sessionUser,
+                    user: sessionUser,
                     targetUserId: userId,
                     currentUser,
                 });
@@ -86,17 +85,13 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
                 return redirectWithRequestSuccess(request, "/users", "User deleted successfully");
             }
 
-            // parseWithSchema(userSchema, ...) is delegated to updateManagedUser in user-profile.server.
-            const result = await updateManagedUser({
-                db: sdb.db,
-                bucket: context.cloudflare.env.ASSETS,
+            const result = await sdb.users.updateAction({
                 request,
-                actor: sessionUser,
+                user: sessionUser,
                 targetUserId: userId,
                 currentUser,
                 formData,
-                allowEmailChange: true,
-                allowRoleChange: true,
+                assets: context.cloudflare.env.ASSETS,
             });
             if (!result.ok) {
                 return redirectWithRequestError(request, `/users/${userId}/edit`, result.error);

@@ -1,7 +1,13 @@
 import { Link } from "react-router";
 import Button from "../dashboard/Button";
 import AdminCard from "../dashboard/AdminCard";
-import { PlusIcon, CalendarIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, CalendarIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { useState } from "react";
+import { Form } from "react-router";
+import { Input } from "../dashboard/Input";
+import { Select } from "../dashboard/Select";
+import { Textarea } from "../dashboard/Textarea";
+import { useDateMasking } from "~/lib/useDateMasking";
 
 interface TaskItem {
     id: string | number;
@@ -18,11 +24,25 @@ interface CalendarTasksSidebarProps {
 }
 
 export default function CalendarTasksSidebar({ date, tasks, modCompanyId }: CalendarTasksSidebarProps) {
+    const [showAddForm, setShowAddForm] = useState(false);
+    const { maskDateTimeInput } = useDateMasking();
+
     const formattedDate = date.toLocaleDateString('en-US', { 
         weekday: 'long', 
         day: 'numeric', 
         month: 'long' 
     });
+
+    const eventTypes = [
+        { id: "general", name: "General" },
+        { id: "meeting", name: "Meeting" },
+        { id: "delivery", name: "Delivery" },
+        { id: "pickup", name: "Pickup" },
+        { id: "maintenance", name: "Maintenance" },
+        { id: "document_expiry", name: "Document Expiry" },
+        { id: "payment_due", name: "Payment Due" },
+        { id: "other", name: "Other" },
+    ];
 
     const modModeSuffix = modCompanyId ? `&modCompanyId=${modCompanyId}` : "";
 
@@ -84,15 +104,78 @@ export default function CalendarTasksSidebar({ date, tasks, modCompanyId }: Cale
                 </div>
 
                 <div className="pt-2">
-                    <Link to={`/calendar/new?date=${date.toISOString().split('T')[0]}${modModeSuffix}`} className="block">
+                    {showAddForm ? (
+                        <div className="border-t border-gray-100 pt-4 mt-2">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">New Event</h4>
+                                <button 
+                                    onClick={() => setShowAddForm(false)}
+                                    className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                                >
+                                    <XMarkIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <Form method="post" action={`/calendar/new${modModeSuffix ? '?' + modModeSuffix.substring(1) : ''}`} className="space-y-3">
+                                <Input
+                                    label="Title"
+                                    name="title"
+                                    placeholder="Event title"
+                                    required
+                                    className="text-xs"
+                                />
+                                <Select
+                                    label="Type"
+                                    name="eventType"
+                                    options={eventTypes}
+                                    defaultValue="general"
+                                    required
+                                    className="text-xs"
+                                />
+                                <div className="grid grid-cols-1 gap-2">
+                                    <Input
+                                        label="Start Time"
+                                        name="startDate"
+                                        placeholder="DD/MM/YYYY HH:mm"
+                                        defaultValue={`${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()} 09:00`}
+                                        required
+                                        onChange={maskDateTimeInput}
+                                        className="text-xs"
+                                    />
+                                    <input type="hidden" name="color" value="#3B82F6" />
+                                </div>
+                                <Input
+                                    label="End Time (Optional)"
+                                    name="endDate"
+                                    placeholder="DD/MM/YYYY HH:mm"
+                                    onChange={maskDateTimeInput}
+                                    className="text-xs"
+                                />
+                                <Textarea
+                                    label="Description"
+                                    name="description"
+                                    rows={2}
+                                    placeholder="Optional..."
+                                    className="text-xs"
+                                />
+                                <Button 
+                                    type="submit" 
+                                    variant="solid" 
+                                    className="w-full justify-center py-2.5 rounded-xl shadow-sm mt-2"
+                                >
+                                    Save Event
+                                </Button>
+                            </Form>
+                        </div>
+                    ) : (
                         <Button 
-                            variant="solid" 
-                            className="w-full justify-center py-3 rounded-2xl shadow-sm"
+                            variant="outline" 
+                            className="w-full justify-center py-3 rounded-2xl shadow-sm border border-gray-100 hover:border-gray-200"
                             icon={<PlusIcon className="w-5 h-5" />}
+                            onClick={() => setShowAddForm(true)}
                         >
-                            Add Task
+                            Add Event
                         </Button>
-                    </Link>
+                    )}
                 </div>
             </AdminCard>
         </div>

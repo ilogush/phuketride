@@ -55,7 +55,8 @@ export async function uploadAvatarFromBase64(
 
     const base64Content = matches[2];
 
-    const storageFileName = `avatars/${userId}.webp`;
+    const timestamp = Date.now();
+    const storageFileName = `avatars/${userId}-${timestamp}.webp`;
 
     // Convert base64 to ArrayBuffer
     const binaryString = atob(base64Content);
@@ -131,9 +132,7 @@ export async function deleteAvatar(
     bucket: R2Bucket,
     avatarUrl: string
 ): Promise<void> {
-    if (!avatarUrl) return;
-
-    // Extract file path from URL
-    const fileName = avatarUrl.replace("/assets/", "");
-    await bucket.delete(fileName);
+    const key = parseAssetKey(avatarUrl);
+    if (!key) return;
+    await bucket.delete(key);
 }

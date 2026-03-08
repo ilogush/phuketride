@@ -53,8 +53,7 @@ const getMenuItems = (role: UserRole) => {
             ...baseItems,
             { to: "/companies", icon: BuildingOfficeIcon, label: "Companies" },
             { to: "/users", icon: UsersIcon, label: "Users" },
-            { to: "/car-templates", icon: RectangleStackIcon, label: "Car Management" },
-            { to: "/payments", icon: BanknotesIcon, label: "Payments" },
+            { to: "/car-templates", icon: RectangleStackIcon, label: "Car" },
             { to: "/locations", icon: MapPinIcon, label: "Locations" },
             { to: "/hotels", icon: BuildingOffice2Icon, label: "Hotels" },
             { to: "/durations", icon: ClockIcon, label: "Durations" },
@@ -70,10 +69,8 @@ const getMenuItems = (role: UserRole) => {
             { to: "/contracts", icon: DocumentTextIcon, label: "Contracts" },
             { to: "/cars", icon: TruckIcon, label: "Cars" },
             { to: "/locations", icon: MapPinIcon, label: "Delivery" },
-            { to: "/payments", icon: BanknotesIcon, label: "Payments" },
             { to: "/users", icon: UsersIcon, label: "Users" },
-            { to: "/calendar", icon: CalendarIcon, label: "Calendar" },
-            { to: "/logs", icon: ClipboardDocumentCheckIcon, label: "Logs" },
+            { to: "/calendar", icon: CalendarIcon, label: "Calendar" },            { to: "/logs", icon: ClipboardDocumentCheckIcon, label: "Logs" },
             { to: "/settings", icon: Cog6ToothIcon, label: "Settings" },
         ];
     }
@@ -82,7 +79,6 @@ const getMenuItems = (role: UserRole) => {
         return [
             ...baseItems,
             { to: "/contracts", icon: DocumentTextIcon, label: "Contracts" },
-            { to: "/payments", icon: BanknotesIcon, label: "Payments" },
             { to: "/calendar", icon: CalendarIcon, label: "Calendar" },
             { to: "/profile", icon: UserIcon, label: "Profile" },
         ];

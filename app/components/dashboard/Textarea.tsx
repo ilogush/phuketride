@@ -41,6 +41,12 @@ export function Textarea({
                 disabled={isFieldDisabled}
                 rows={rows}
                 className={`${textareaBaseStyles} ${error ? 'border-gray-600' : ''}`}
+                onKeyDown={(e) => {
+                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                        e.stopPropagation()
+                    }
+                    if (props.onKeyDown) props.onKeyDown(e)
+                }}
                 {...props}
             />
             <FormFeedbackMessage message={error} tone="error" className="mt-1 text-sm" />

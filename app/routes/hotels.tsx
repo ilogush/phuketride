@@ -185,12 +185,12 @@ export default function HotelsPage() {
     const navigation = useNavigation();
     const [searchParams, setSearchParams] = useSearchParams();
     
-    const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingHotel, setEditingHotel] = useState<Hotel | null>(null);
+    const [selectedLocationId, setSelectedLocationId] = useState<string>("1");
 
     const { handleFormSubmit, handleDelete } = useDictionaryFormActions({
         editingItem: editingHotel,
-        setIsFormOpen,
+        setIsFormOpen: () => {}, // No longer used
         setEditingItem: setEditingHotel,
     });
 
@@ -223,8 +223,6 @@ export default function HotelsPage() {
             ),
         },
     ];
-
-    const [selectedLocationId, setSelectedLocationId] = useState<string>("1");
 
     // Filter districts by selected location for the form
     const filteredDistricts = districts.filter(d => String(d.locationId) === selectedLocationId);
@@ -261,61 +259,53 @@ export default function HotelsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Hotels"
-                rightActions={
-                    <Button
-                        variant="solid"
-                        icon={<PlusIcon className="w-5 h-5" />}
-                        onClick={() => {
-                            setEditingHotel(null);
-                            setSelectedLocationId(locations[0]?.id || "1");
-                            setIsFormOpen(true);
+                rightActions={null}
+            />
+            
+            <div className="flex flex-col lg:flex-row gap-4 items-start">
+                <div className="flex-1 w-full">
+                    <DataTable<Hotel>
+                        columns={columns}
+                        data={hotels}
+                        totalCount={totalCount}
+                        serverPagination={true}
+                        isLoading={navigation.state === "loading"}
+                        emptyTitle="No hotels found"
+                        getRowClassName={() => "cursor-pointer"}
+                        onRowClick={(item) => {
+                            setEditingHotel(item);
+                            setSelectedLocationId(String(item.locationId));
                         }}
-                    >
-                        Add
-                    </Button>
-                }
-            />
+                    />
+                </div>
 
-            <DataTable<Hotel>
-                columns={columns}
-                data={hotels}
-                totalCount={totalCount}
-                serverPagination={true}
-                isLoading={navigation.state === "loading"}
-                emptyTitle="No hotels found"
-                getRowClassName={() => "cursor-pointer"}
-                onRowClick={(item) => {
-                    setEditingHotel(item);
-                    setSelectedLocationId(String(item.locationId));
-                    setIsFormOpen(true);
-                }}
-            />
-
-            {isFormOpen && (
-                <GenericDictionaryForm
-                    title={editingHotel ? "Edit Hotel" : "Add Hotel"}
-                    fields={[
-                        ...fields.slice(0, 1),
-                        {
-                            ...fields[1],
-                            transform: (val) => {
-                                setSelectedLocationId(val);
-                                return val;
-                            }
-                        },
-                        ...fields.slice(2)
-                    ]}
-                    data={editingHotel ? {
-                        name: editingHotel.name,
-                        locationId: String(editingHotel.locationId),
-                        districtId: String(editingHotel.districtId),
-                        address: editingHotel.address
-                    } : null}
-                    onSubmit={handleFormSubmit}
-                    onCancel={() => setIsFormOpen(false)}
-                    onDelete={editingHotel ? handleDelete : undefined}
-                />
-            )}
+                <div className="w-full lg:w-80 shrink-0">
+                    <GenericDictionaryForm
+                        mode="sidebar"
+                        title={editingHotel ? "Edit Hotel" : "Add Hotel"}
+                        fields={[
+                            ...fields.slice(0, 1),
+                            {
+                                ...fields[1],
+                                transform: (val) => {
+                                    setSelectedLocationId(val);
+                                    return val;
+                                }
+                            },
+                            ...fields.slice(2)
+                        ]}
+                        data={editingHotel ? {
+                            name: editingHotel.name,
+                            locationId: String(editingHotel.locationId),
+                            districtId: String(editingHotel.districtId),
+                            address: editingHotel.address
+                        } : null}
+                        onSubmit={handleFormSubmit}
+                        onCancel={() => { setEditingHotel(null); }}
+                        onDelete={editingHotel ? handleDelete : undefined}
+                    />
+                </div>
+            </div>
         </div>
     );
 }

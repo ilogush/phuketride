@@ -29,7 +29,7 @@ import { trackServerOperation } from "~/lib/telemetry.server"
 
 export async function loader({ request, context }: Route.LoaderArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context)
-    
+
     return trackServerOperation({
         event: "car_templates.load",
         scope: "route.loader",
@@ -48,7 +48,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context)
     const formData = await request.formData()
     const metadata = getRequestMetadata(request)
-    
+
     return sdb.carTemplates.handleAction({
         user,
         companyId,
@@ -269,7 +269,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
     return (
         <div className="space-y-4">
             <PageHeader
-                title="Car Management"
+                title="Car"
                 rightActions={
                     activeTab === 'brands' ? (
                         <Button
@@ -297,9 +297,9 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                 }
             />
 
-            <Tabs 
-                tabs={tabs} 
-                activeTab={activeTab} 
+            <Tabs
+                tabs={tabs}
+                activeTab={activeTab}
                 baseUrl="/car-templates"
             />
 

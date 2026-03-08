@@ -153,7 +153,6 @@ export default function SettingsPage() {
 
     const tabs = [
         { id: "general", label: "General" },
-        { id: "payments", label: "Payments" },
         { id: "currencies", label: "Currencies" },
     ];
 
@@ -195,37 +194,6 @@ export default function SettingsPage() {
                 </Button>
             );
         }
-        if (activeTab === "payments") {
-            return (
-                <Button
-                    variant="solid"
-                    icon={<PlusIcon className="w-5 h-5" />}
-                    onClick={() => {
-                        setPaymentFormData({
-                            name: "",
-                            sign: "+",
-                            description: "",
-                        });
-                        setIsPaymentModalOpen(true);
-                    }}
-                >
-                    Add
-                </Button>
-            );
-        }
-        if (activeTab === "currencies") {
-            return (
-                <Button
-                    variant="solid"
-                    icon={<PlusIcon className="w-5 h-5" />}
-                    onClick={() => {
-                        setIsCurrencyModalOpen(true);
-                    }}
-                >
-                    Add
-                </Button>
-            );
-        }
         return null;
     };
 
@@ -256,18 +224,6 @@ export default function SettingsPage() {
             )
             }
 
-            {activeTab === "payments" && (
-                <PaymentTemplatesTab
-                    paymentTypes={paymentTypes}
-                    settingsActionUrl={settingsActionUrl}
-                    isPaymentModalOpen={isPaymentModalOpen}
-                    editingPaymentTemplate={editingPaymentTemplate}
-                    paymentFormData={paymentFormData}
-                    setIsPaymentModalOpen={setIsPaymentModalOpen}
-                    setEditingPaymentTemplate={setEditingPaymentTemplate}
-                    setPaymentFormData={setPaymentFormData}
-                />
-            )}
 
             {activeTab === "currencies" && (
                 <CurrenciesTab

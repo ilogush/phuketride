@@ -43,11 +43,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
         details: { route: "payments.create" },
         run: async () => {
             const formData = await request.formData();
-            return createPaymentRecord({
-                db: sdb.db,
+            return sdb.payments.createAction({
                 request,
                 user,
-                companyId,
                 formData,
             });
         },
@@ -59,9 +57,9 @@ export default function RecordPaymentPage() {
     useUrlToast();
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <PageHeader
-                title="Record Payment"
+                title="New Payment"
                 leftActions={<BackButton to="/payments" />}
             />
 

@@ -30,6 +30,7 @@ import * as contractsEditAction from "./contracts-edit-action.server";
 import * as carsCreateAction from "./cars-create-action.server";
 import * as carsEditAction from "./cars-edit-action.server";
 import * as bookingsCreateAction from "./bookings-create.server";
+import type { SessionUser } from "./auth.server";
 import type { AppLoadContext } from "~/types/context";
 
 
@@ -120,6 +121,8 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 bookingsRepo.countBookingsPage({ ...params, db, companyId }),
             getById: (bookingId: number) =>
                 bookingsRepo.getBookingDetailById({ db, bookingId, companyId }),
+            createAction: (args: Omit<Parameters<typeof bookingsCreateAction.createBookingAction>[0], "db" | "companyId">) =>
+                bookingsCreateAction.createBookingAction({ ...args, db: db as any, companyId: companyId! }),
         },
 
         contracts: {
@@ -133,6 +136,10 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 contractsRepo.getEditableContractById({ db, contractId, companyId }),
             getClosable: (contractId: number) =>
                 contractsRepo.getClosableContractById({ db, contractId, companyId }),
+            newAction: (args: Omit<Parameters<typeof contractsNewAction.handleCreateContractAction>[0], "db">) =>
+                contractsNewAction.handleCreateContractAction({ ...args, db: db as any }),
+            editAction: (args: Omit<Parameters<typeof contractsEditAction.handleEditContractAction>[0], "db">) =>
+                contractsEditAction.handleEditContractAction({ ...args, db: db as any }),
         },
 
         cars: {
@@ -146,8 +153,23 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 carsRepo.getEditableCarById({ db, carId, companyId }),
             getCreateData: () =>
                 carsCreateRepo.loadCreateCarPageData(db as any),
-            createAction: (args: Omit<Parameters<typeof carsCreateAction.handleCreateCarAction>[0], "db">) =>
-                carsCreateAction.handleCreateCarAction({ ...args, db: db as any }),
+            createAction: ({ request, user, formData, assets }: { request: Request; user: SessionUser; formData: FormData; assets: R2Bucket }) => carsCreateAction.handleCreateCarAction({
+                request,
+                db: db as any,
+                assets,
+                user,
+                companyId: companyId!,
+                formData
+            }),
+            editAction: ({ request, user, formData, params, assets }: { request: Request; user: SessionUser; formData: FormData; params: any; assets: R2Bucket }) => carsEditAction.handleEditCarAction({
+                db: db as any,
+                assets,
+                request,
+                context: { cloudflare: { env: { DB: db as any, ASSETS: assets } } } as any,
+                user,
+                params,
+                formData
+            }),
         },
 
         companies: {
@@ -161,6 +183,8 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 companiesRepo.getCompanySettings({ db, id }),
             getCreateData: () =>
                 companiesCreateRepo.loadCreateCompanyPageData(db as any),
+            handleSettingsAction: (args: Omit<Parameters<typeof settingsActions.handleSettingsAction>[0], "db">) =>
+                settingsActions.handleSettingsAction({ ...args, db: db as any }),
         },
 
         payments: {
@@ -174,6 +198,8 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 paymentsRepo.getPaymentById({ db, paymentId, companyId }),
             getCreateData: () =>
                 paymentsCreateRepo.loadPaymentCreatePageData({ db: db as any, companyId }),
+            createAction: (args: Omit<Parameters<typeof paymentsCreateRepo.createPaymentRecord>[0], "db" | "companyId">) =>
+                paymentsCreateRepo.createPaymentRecord({ ...args, db: db as any, companyId: companyId! }),
         },
 
         users: {
@@ -193,6 +219,30 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 userProfileRepo.loadEditableProfilePageData(db as any, userId),
             getProfileUser: (userId: string) =>
                 userProfileRepo.loadEditableProfileUser(db as any, userId),
+            createAction: ({ request, user, formData }: { request: Request; user: SessionUser; formData: FormData }) => userProfileRepo.createManagedUser({
+                db: db as any,
+                request,
+                actor: { ...user, companyId: companyId ?? undefined },
+                formData
+            }),
+            updateAction: ({ request, user, targetUserId, currentUser, formData, assets }: { request: Request; user: SessionUser; targetUserId: string; currentUser: any; formData: FormData; assets: R2Bucket }) => userProfileRepo.updateManagedUser({
+                db: db as any,
+                bucket: assets,
+                request,
+                actor: { ...user, companyId: companyId ?? undefined },
+                targetUserId,
+                currentUser,
+                formData,
+                allowEmailChange: true,
+                allowRoleChange: true,
+            }),
+            deleteAction: ({ request, user, targetUserId, currentUser }: { request: Request; user: SessionUser; targetUserId: string; currentUser: any }) => userProfileRepo.deleteManagedUser({
+                db: db as any,
+                request,
+                actor: { ...user, companyId: companyId ?? undefined },
+                targetUserId,
+                currentUser
+            }),
         },
 
         carTemplates: {

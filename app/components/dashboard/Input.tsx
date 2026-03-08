@@ -117,6 +117,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     onChange={handleChange}
                     onFocus={handleFocus}
                     onBlur={handleBlur}
+                    onKeyDown={(e) => {
+                        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                            e.stopPropagation()
+                        }
+                        if (props.onKeyDown) props.onKeyDown(e)
+                    }}
                     {...props}
                 />
                 {isPassword && (

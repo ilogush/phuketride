@@ -174,12 +174,11 @@ export default function ColorsPage() {
     const navigation = useNavigation();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingColor, setEditingColor] = useState<Color | null>(null);
 
     const { handleFormSubmit, handleDelete } = useDictionaryFormActions({
         editingItem: editingColor,
-        setIsFormOpen,
+        setIsFormOpen: () => {}, // No longer used
         setEditingItem: setEditingColor,
     });
 
@@ -246,47 +245,41 @@ export default function ColorsPage() {
                                 Seed Defaults
                             </Button>
                         )}
-                        <Button
-                            variant="solid"
-                            icon={<PlusIcon className="w-5 h-5" />}
-                            onClick={() => {
-                                setEditingColor(null);
-                                setIsFormOpen(true);
-                            }}
-                        >
-                            Add
-                        </Button>
                     </div>
                 }
             />
 
-            <DataTable<Color>
-                columns={columns}
-                data={colors}
-                totalCount={totalCount}
-                serverPagination={true}
-                isLoading={navigation.state === "loading"}
-                emptyTitle="No colors found"
-                getRowClassName={() => "cursor-pointer"}
-                onRowClick={(item) => {
-                    setEditingColor(item);
-                    setIsFormOpen(true);
-                }}
-            />
+            <div className="flex flex-col lg:flex-row gap-4 items-start">
+                <div className="flex-1 w-full">
+                    <DataTable<Color>
+                        columns={columns}
+                        data={colors}
+                        totalCount={totalCount}
+                        serverPagination={true}
+                        isLoading={navigation.state === "loading"}
+                        emptyTitle="No colors found"
+                        getRowClassName={() => "cursor-pointer"}
+                        onRowClick={(item) => {
+                            setEditingColor(item);
+                        }}
+                    />
+                </div>
 
-            {isFormOpen && (
-                <GenericDictionaryForm
-                    title={editingColor ? "Edit Color" : "Add Color"}
-                    fields={fields}
-                    data={editingColor ? {
-                        name: editingColor.name,
-                        hexCode: editingColor.hexCode
-                    } : null}
-                    onSubmit={handleFormSubmit}
-                    onCancel={() => { setIsFormOpen(false); setEditingColor(null); }}
-                    onDelete={editingColor ? () => handleDelete("Are you sure you want to delete this color?") : undefined}
-                />
-            )}
+                <div className="w-full lg:w-80 shrink-0">
+                    <GenericDictionaryForm
+                        mode="sidebar"
+                        title={editingColor ? "Edit Color" : "Add Color"}
+                        fields={fields}
+                        data={editingColor ? {
+                            name: editingColor.name,
+                            hexCode: editingColor.hexCode
+                        } : null}
+                        onSubmit={handleFormSubmit}
+                        onCancel={() => { setEditingColor(null); }}
+                        onDelete={editingColor ? () => handleDelete("Are you sure you want to delete this color?") : undefined}
+                    />
+                </div>
+            </div>
         </div>
     );
 }

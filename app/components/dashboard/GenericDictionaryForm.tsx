@@ -8,6 +8,8 @@ import Toggle from '~/components/dashboard/Toggle'
 import { Input } from '~/components/dashboard/Input'
 import { Select } from '~/components/dashboard/Select'
 import { Textarea } from '~/components/dashboard/Textarea'
+import AdminCard from '~/components/dashboard/AdminCard'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 
 export type FieldType = 'text' | 'number' | 'select' | 'textarea' | 'checkbox' | 'color' | 'toggle'
 
@@ -37,6 +39,8 @@ interface GenericDictionaryFormProps {
     onDelete?: () => void
     submitLabel?: string
     gridCols?: number
+    mode?: 'modal' | 'sidebar'
+    icon?: React.ReactNode
 }
 
 const GRID_CLASS_NAMES: Record<number, string> = {
@@ -73,7 +77,9 @@ export function GenericDictionaryForm({
     onCancel,
     onDelete,
     submitLabel,
-    gridCols = 4
+    gridCols = 4,
+    mode = 'modal',
+    icon
 }: GenericDictionaryFormProps) {
     const [formData, setFormData] = useState<Record<string, unknown>>({})
     const [errors, setErrors] = useState<Record<string, string>>({})
@@ -315,6 +321,41 @@ export function GenericDictionaryForm({
     const gridClassName = GRID_CLASS_NAMES[gridCols] || GRID_CLASS_NAMES[4]
     const defaultColSpanClassName = COL_SPAN_CLASS_NAMES[gridCols] || COL_SPAN_CLASS_NAMES[4]
 
+    const formContent = (
+        <form id={formId} onSubmit={handleSubmit} className={`grid ${mode === 'sidebar' ? 'grid-cols-1' : gridClassName} gap-4`}>
+            {fields.map(field => (
+                <div key={field.name} className={mode === 'sidebar' ? '' : (field.className || defaultColSpanClassName)}>
+                    {renderField(field)}
+                </div>
+            ))}
+        </form>
+    )
+
+    if (mode === 'sidebar') {
+        return (
+            <AdminCard
+                title={title}
+                icon={icon}
+                headerActions={
+                    <button
+                        onClick={onCancel}
+                        className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                    >
+                        <XMarkIcon className="w-4 h-4" />
+                    </button>
+                }
+            >
+                {formContent}
+                <div className="flex gap-2 pt-2">
+                    <Button type="submit" form={formId} variant="solid" className="flex-1 justify-center">
+                        {submitLabel || (data ? 'Save' : 'Add')}
+                    </Button>
+                    {data && onDelete && <DeleteButton onClick={onDelete} />}
+                </div>
+            </AdminCard>
+        )
+    }
+
     return (
         <Modal
             title={title}
@@ -328,13 +369,7 @@ export function GenericDictionaryForm({
                 </div>
             }
         >
-            <form id={formId} onSubmit={handleSubmit} className={`grid ${gridClassName} gap-4`}>
-                {fields.map(field => (
-                    <div key={field.name} className={field.className || defaultColSpanClassName}>
-                        {renderField(field)}
-                    </div>
-                ))}
-            </form>
+            {formContent}
         </Modal>
     )
 }

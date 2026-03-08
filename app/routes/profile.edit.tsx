@@ -4,7 +4,6 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import BackButton from "~/components/dashboard/BackButton";
 import ProfileForm from "~/components/dashboard/ProfileForm";
-import { useUrlToast } from "~/lib/useUrlToast";
 import {
     loadEditableProfilePageData,
     loadEditableProfileUser,
@@ -75,7 +74,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function EditProfilePage() {
     const { user, currentUserRole, hotels, locations, districts } = useLoaderData<typeof loader>();
-    useUrlToast();
 
     return (
         <div className="space-y-4">

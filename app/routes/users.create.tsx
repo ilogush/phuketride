@@ -9,14 +9,15 @@ import { createManagedUser, loadProfileReferenceData } from "~/lib/user-profile.
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
+import { getScopedDb } from "~/lib/db-factory.server";
 
 export const meta: MetaFunction = () => [
-    { title: "Create User — Phuket Ride Admin" },
+    { title: "New User — Phuket Ride Admin" },
     { name: "robots", content: "noindex, nofollow" },
 ];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId } = await requireAdminUserMutationAccess(request);
+    const { user, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
     return trackServerOperation({
         event: "users.create.load",
         scope: "route.loader",
@@ -24,12 +25,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId,
         details: { route: "users.create" },
-        run: async () => loadProfileReferenceData(context.cloudflare.env.DB),
+        run: async () => {
+            const data = await sdb.users.getProfileData("");
+            return data;
+        },
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const { user, companyId } = await requireAdminUserMutationAccess(request);
+    const { user, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
     return trackServerOperation({
         event: "users.create",
         scope: "route.action",
@@ -39,11 +43,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
         details: { route: "users.create" },
         run: async () => {
             const formData = await request.formData();
-            // parseWithSchema(userSchema, ...) is delegated to createManagedUser in user-profile.server.
-            const result = await createManagedUser({
-                db: context.cloudflare.env.DB,
+            const result = await sdb.users.createAction({
                 request,
-                actor: user,
+                user,
                 formData,
             });
             if (!result.ok) {
@@ -83,7 +85,7 @@ export default function CreateUserPage() {
     return (
         <div className="space-y-4">
             <PageHeader
-                title="Add New User"
+                title="New User"
                 leftActions={<BackButton to="/users" />}
                 rightActions={
                     <Button type="submit" variant="solid" form="profile-form">

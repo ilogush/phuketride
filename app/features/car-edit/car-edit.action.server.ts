@@ -1,7 +1,6 @@
 import type { ActionFunctionArgs } from "react-router";
-
+import { getScopedDb } from "~/lib/db-factory.server";
 import { requireAuth } from "~/lib/auth.server";
-import { handleEditCarAction } from "~/lib/cars-edit-action.server";
 
 export async function submitCarEditAction(args: {
   request: Request;
@@ -9,16 +8,14 @@ export async function submitCarEditAction(args: {
   params: ActionFunctionArgs["params"];
 }) {
   const { request, context, params } = args;
-  const user = await requireAuth(request);
+  const { user, sdb } = await getScopedDb(request, context as any);
   const formData = await request.formData();
 
-  return handleEditCarAction({
-    db: context.cloudflare.env.DB,
-    assets: context.cloudflare.env.ASSETS,
+  return sdb.cars.editAction({
     request,
-    context,
     user,
+    formData,
     params,
-    formData
+    assets: (context as any).cloudflare.env.ASSETS,
   });
 }

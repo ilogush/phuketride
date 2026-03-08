@@ -85,7 +85,7 @@ export default function CreateCarPage() {
         <div className="space-y-4">
             <PageHeader
                 leftActions={<BackButton to="/cars" />}
-                title="Add"
+                title="New Car"
                 rightActions={
                     <Button type="submit" form="create-car-form" variant="solid">
                         Create

@@ -1,9 +1,9 @@
-import { memo, useState } from "react";
+import { memo, useState, useEffect } from "react";
 
 interface AvatarProps {
     src?: string | null;
     initials: string;
-    size?: "sm" | "md" | "lg" | "xl";
+    size?: "xs" | "sm" | "md" | "lg" | "xl";
     className?: string;
 }
 
@@ -14,8 +14,14 @@ const Avatar = memo(function Avatar({
     className = "",
 }: AvatarProps) {
     const [imgError, setImgError] = useState(false);
+    
+    // Reset imgError when src changes
+    useEffect(() => {
+        setImgError(false);
+    }, [src]);
 
     const sizeClasses = {
+        xs: "w-8 h-8 text-xs",
         sm: "w-10 h-10 text-sm",
         md: "w-10 h-10 text-xl",
         lg: "w-20 h-20 text-2xl",
@@ -35,7 +41,7 @@ const Avatar = memo(function Avatar({
 
     return (
         <div
-            className={`${sizeClasses[size]} rounded-full bg-green-500 flex items-center justify-center text-white font-bold flex-shrink-0 ${className}`}
+            className={`${sizeClasses[size]} rounded-full bg-gray-900 flex items-center justify-center text-white font-bold flex-shrink-0 ${className}`}
         >
             {initials}
         </div>

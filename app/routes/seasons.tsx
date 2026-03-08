@@ -73,12 +73,12 @@ export default function SeasonsPage() {
     const navigation = useNavigation();
     const submit = useSubmit();
 
-    const [isFormOpen, setIsFormOpen] = useState(false);
+
     const [editingSeason, setEditingSeason] = useState<Season | null>(null);
 
     const { handleFormSubmit, handleDelete } = useDictionaryFormActions({
         editingItem: editingSeason,
-        setIsFormOpen,
+        setIsFormOpen: () => {}, // No longer used
         setEditingItem: setEditingSeason,
     });
 
@@ -171,59 +171,53 @@ export default function SeasonsPage() {
                                 Seed Defaults
                             </Button>
                         )}
-                        <Button
-                            variant="solid"
-                            icon={<PlusIcon className="w-5 h-5" />}
-                            onClick={() => {
-                                setEditingSeason(null);
-                                setIsFormOpen(true);
-                            }}
-                        >
-                            Add
-                        </Button>
                     </div>
                 }
             />
 
-            <DataTable<Season>
-                columns={columns}
-                data={seasons}
-                isLoading={navigation.state === "loading"}
-                emptyTitle="No seasons found"
-                emptyDescription="Define seasonal pricing periods for your rental business"
-                emptyIcon={<SunIcon className="w-10 h-10 text-gray-400" />}
-                getRowClassName={() => "cursor-pointer"}
-                onRowClick={(item) => {
-                    setEditingSeason(item);
-                    setIsFormOpen(true);
-                }}
-            />
+            <div className="flex flex-col lg:flex-row gap-4 items-start">
+                <div className="flex-1 w-full">
+                    <DataTable<Season>
+                        columns={columns}
+                        data={seasons}
+                        isLoading={navigation.state === "loading"}
+                        emptyTitle="No seasons found"
+                        emptyDescription="Define seasonal pricing periods for your rental business"
+                        emptyIcon={<SunIcon className="w-10 h-10 text-gray-400" />}
+                        getRowClassName={() => "cursor-pointer"}
+                        onRowClick={(item) => {
+                            setEditingSeason(item);
+                        }}
+                    />
+                </div>
 
-            {isFormOpen && (
-                <GenericDictionaryForm
-                    title={editingSeason ? "Edit Season" : "Add Season"}
-                    fields={fields}
-                    gridCols={4}
-                    data={editingSeason ? {
-                        seasonName: editingSeason.seasonName,
-                        startMonth: String(editingSeason.startMonth),
-                        startDay: String(editingSeason.startDay),
-                        endMonth: String(editingSeason.endMonth),
-                        endDay: String(editingSeason.endDay),
-                        priceMultiplier: String(editingSeason.priceMultiplier),
-                        discountLabel: editingSeason.discountLabel || ""
-                    } : {
-                        startMonth: "12",
-                        startDay: "1",
-                        endMonth: "1",
-                        endDay: "31",
-                        priceMultiplier: "1"
-                    }}
-                    onSubmit={handleFormSubmit}
-                    onCancel={() => setIsFormOpen(false)}
-                    onDelete={editingSeason ? () => handleDelete("Delete this season?") : undefined}
-                />
-            )}
+                <div className="w-full lg:w-80 shrink-0">
+                    <GenericDictionaryForm
+                        mode="sidebar"
+                        title={editingSeason ? "Edit Season" : "Add Season"}
+                        fields={fields}
+                        gridCols={4}
+                        data={editingSeason ? {
+                            seasonName: editingSeason.seasonName,
+                            startMonth: String(editingSeason.startMonth),
+                            startDay: String(editingSeason.startDay),
+                            endMonth: String(editingSeason.endMonth),
+                            endDay: String(editingSeason.endDay),
+                            priceMultiplier: String(editingSeason.priceMultiplier),
+                            discountLabel: editingSeason.discountLabel || ""
+                        } : {
+                            startMonth: "12",
+                            startDay: "1",
+                            endMonth: "1",
+                            endDay: "31",
+                            priceMultiplier: "1"
+                        }}
+                        onSubmit={handleFormSubmit}
+                        onCancel={() => { setEditingSeason(null); }}
+                        onDelete={editingSeason ? () => handleDelete("Delete this season?") : undefined}
+                    />
+                </div>
+            </div>
         </div>
     );
 }

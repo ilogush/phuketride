@@ -54,6 +54,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                     name={name}
                     disabled={isFieldDisabled}
                     className={baseStyle}
+                    onKeyDown={(e) => {
+                        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                            e.stopPropagation()
+                        }
+                        if (props.onKeyDown) props.onKeyDown(e)
+                    }}
                     {...props}
                 >
                     {shouldShowPlaceholderOption && (
