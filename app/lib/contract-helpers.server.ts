@@ -47,7 +47,7 @@ export async function getContractWithAmountPaid(
                 id, company_car_id, client_id, manager_id, booking_id,
                 start_date, end_date, actual_end_date,
                 total_amount, total_currency,
-                deposit_amount, deposit_currency, deposit_payment_method,
+                deposit_amount, deposit_currency,
                 pickup_district_id, pickup_hotel, pickup_room, delivery_cost,
                 return_district_id, return_hotel, return_room, return_cost,
                 start_mileage, end_mileage, fuel_level, cleanliness,

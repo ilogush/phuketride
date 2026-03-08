@@ -208,7 +208,7 @@ export async function submitPublicCheckout(args: {
             `
             INSERT INTO bookings (
               company_car_id, client_id, manager_id, start_date, end_date, estimated_amount, currency,
-              deposit_amount, deposit_paid, deposit_payment_method,
+              deposit_amount, deposit_paid,
               client_name, client_surname, client_phone, client_email,
               pickup_district_id, return_district_id, delivery_cost, return_cost,
               full_insurance_enabled, full_insurance_price,
@@ -255,7 +255,7 @@ export async function submitPublicCheckout(args: {
             `
             INSERT INTO contracts (
               company_car_id, client_id, manager_id, start_date, end_date, total_amount, total_currency,
-              deposit_amount, deposit_currency, deposit_payment_method,
+              deposit_amount, deposit_currency,
               pickup_district_id, return_district_id, delivery_cost, return_cost,
               status, notes, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, 'THB', ?, 'THB', NULL, ?, ?, ?, ?, 'active', ?, ?, ?)
@@ -306,7 +306,7 @@ export async function submitPublicCheckout(args: {
               .prepare(
                 `
                 INSERT INTO payments (
-                  contract_id, payment_type_id, amount, currency, payment_method, status, notes, created_by, created_at, updated_at
+                  contract_id, payment_type_id, amount, currency, status, notes, created_by, created_at, updated_at
                 ) VALUES (?, ?, ?, 'THB', 'cash', 'pending', ?, ?, ?, ?)
                 `,
               )

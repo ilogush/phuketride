@@ -8,7 +8,6 @@ import { Textarea } from "~/components/dashboard/Textarea";
 import FormActions from "~/components/dashboard/FormActions";
 import BackButton from "~/components/dashboard/BackButton";
 import { BanknotesIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { createPaymentRecord } from "~/lib/payments-create.server";
 
@@ -54,7 +53,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function RecordPaymentPage() {
     const { contracts, paymentTypes, currencies } = useLoaderData<typeof loader>();
-    useUrlToast();
 
     return (
         <div className="space-y-4">
@@ -79,17 +77,6 @@ export default function RecordPaymentPage() {
                             options={paymentTypes.map(t => ({ id: t.id, name: t.name }))}
                             placeholder="Select type"
                             showPlaceholderOption
-                            required
-                        />
-                        <Select
-                            label="Method"
-                            name="paymentMethod"
-                            options={[
-                                { id: "cash", name: "Cash" },
-                                { id: "card", name: "Card" },
-                                { id: "bank_transfer", name: "Bank Transfer" },
-                            ]}
-                            defaultValue="cash"
                             required
                         />
                         <Select

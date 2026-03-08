@@ -4,8 +4,6 @@ import ProfileForm from "~/components/dashboard/ProfileForm";
 import BackButton from "~/components/dashboard/BackButton";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
-import { useUrlToast } from "~/lib/useUrlToast";
-import { createManagedUser, loadProfileReferenceData } from "~/lib/user-profile.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
@@ -59,7 +57,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function CreateUserPage() {
     const { hotels, locations, districts } = useLoaderData<typeof loader>();
-    useUrlToast();
 
     // Empty user object for create mode
     const emptyUser = {

@@ -9,7 +9,6 @@ import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 import { runAdminMutationAction } from "~/lib/admin-crud.server";
-import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
     await requireAdminUserMutationAccess(request);
@@ -92,6 +91,5 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 }
 
 export default function UserRedirectPage() {
-    useUrlToast();
     return null;
 }

@@ -9,7 +9,6 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { BuildingOfficeIcon } from "@heroicons/react/24/outline";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { loadCompaniesPageData, type CompaniesPageRow } from "~/lib/companies-page.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 
@@ -38,7 +37,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function CompaniesPage() {
     const { companies: companiesList, showArchived, totalCount } = useLoaderData<typeof loader>();
-    useUrlToast();
     const navigation = useNavigation();
 
     const columns: Column<CompaniesPageRow>[] = [

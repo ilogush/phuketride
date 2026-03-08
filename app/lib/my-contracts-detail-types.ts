@@ -7,7 +7,6 @@ export interface ContractDetailsRow {
   totalCurrency: string;
   depositAmount: number | null;
   depositCurrency: string | null;
-  depositPaymentMethod: string | null;
   pickupHotel: string | null;
   pickupRoom: string | null;
   deliveryCost: number | null;
@@ -50,7 +49,6 @@ export interface ContractPaymentRow {
   id: number;
   amount: number;
   currency: string;
-  paymentMethod: string | null;
   status: string | null;
   notes: string | null;
   createdAt: string;

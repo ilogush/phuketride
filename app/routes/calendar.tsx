@@ -3,7 +3,6 @@ import { useState, useMemo } from "react";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import Card from "~/components/dashboard/Card";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import type { CalendarListBooking, CalendarListContract, CalendarListEvent } from "~/lib/calendar-page.server";
@@ -33,7 +32,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function CalendarPage() {
     const { events, contracts, bookings, currentMonth, currentYear } = useLoaderData<typeof loader>();
-    useUrlToast();
     const [searchParams] = useSearchParams();
     const modCompanyId = searchParams.get("modCompanyId");
     const modModeSuffix = modCompanyId ? `&modCompanyId=${modCompanyId}` : "";

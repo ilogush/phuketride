@@ -13,7 +13,6 @@ import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import IdBadge from "~/components/dashboard/IdBadge";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
@@ -169,7 +168,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function ColorsPage() {
     const { colors, totalCount, search } = useLoaderData<typeof loader>();
-    useUrlToast();
     const submit = useSubmit();
     const navigation = useNavigation();
     const [searchParams, setSearchParams] = useSearchParams();

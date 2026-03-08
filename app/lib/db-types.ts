@@ -94,8 +94,6 @@ export type PaymentListRow = {
     status: string;
     created_at?: string | null;
     createdAt?: string | null;
-    payment_method?: string | null;
-    paymentMethod?: string | null;
     contractId?: number | null;
     paymentTypeName?: string | null;
     paymentTypeSign?: string | null;

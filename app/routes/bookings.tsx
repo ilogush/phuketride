@@ -9,9 +9,9 @@ import Tabs from "~/components/dashboard/Tabs";
 import StatusBadge from "~/components/dashboard/StatusBadge";
 import IdBadge from "~/components/dashboard/IdBadge";
 import { formatContactPhone } from "~/lib/phone";
+import { getCurrencySymbol } from "~/lib/formatters";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { getScopedDb } from "~/lib/db-factory.server";
 import type { BookingListRow } from "~/lib/db-types";
@@ -64,7 +64,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         },
     });
 }export default function BookingsPage() {
-    useUrlToast();
     const { bookings, totalCount, status, search } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigation = useNavigation();
@@ -120,7 +119,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             sortable: true,
             render: (item) => (
                 <div className="flex flex-col items-end">
-                    <span className="font-bold">{item.currency} {item.estimatedAmount.toFixed(2)}</span>
+                    <span className="font-bold">{getCurrencySymbol(item.currency)}{item.estimatedAmount.toFixed(2)}</span>
                     {item.depositPaid ? (
                         <span className="text-[10px] text-green-600 font-bold uppercase">Dep. Paid</span>
                     ) : (item.depositAmount ?? 0) > 0 ? (

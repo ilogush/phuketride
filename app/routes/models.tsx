@@ -12,7 +12,6 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon, CubeIcon } from "@heroicons/react/24/outline";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { modelSchema } from "~/schemas/dictionary";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
@@ -143,7 +142,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function ModelsPage() {
     const { models, brands, bodyTypes, totalCount, search, page, pageSize } = useLoaderData<typeof loader>();
-    useUrlToast();
     const navigation = useNavigation();
     const [searchParams, setSearchParams] = useSearchParams();
 

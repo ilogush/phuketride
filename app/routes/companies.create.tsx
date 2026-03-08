@@ -9,7 +9,6 @@ import FormSection from "~/components/dashboard/FormSection";
 import WeeklySchedule from "~/components/dashboard/WeeklySchedule";
 import HolidaysManager from "~/components/dashboard/HolidaysManager";
 import { useState } from "react";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { createCompanyAction } from "~/lib/companies-create.server";
 import AssignUsersSection, { type AssignableUser } from "~/components/dashboard/company/AssignUsersSection";
@@ -61,7 +60,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function CreateCompanyPage() {
     const { locations, districts, users } = useLoaderData<typeof loader>();
-    useUrlToast();
     const { validateLatinInput } = useLatinValidation();
     const [weeklySchedule, setWeeklySchedule] = useState("");
     const [holidays, setHolidays] = useState("");

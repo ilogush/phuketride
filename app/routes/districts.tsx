@@ -12,7 +12,6 @@ import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import IdBadge from "~/components/dashboard/IdBadge";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { districtActionSchema } from "~/schemas/dictionary";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
@@ -159,7 +158,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function DistrictsPage() {
     const { districts, locations, totalCount, search } = useLoaderData<typeof loader>();
-    useUrlToast();
     const navigation = useNavigation();
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -214,7 +212,7 @@ export default function DistrictsPage() {
     const fields: FieldConfig[] = [
         { name: "name", label: "District Name", type: "text", required: true, placeholder: "e.g., Rawai" },
         { name: "locationId", label: "Location", type: "select", options: locations, required: true },
-        { name: "deliveryPrice", label: "Delivery Fee (THB)", type: "number", placeholder: "500" },
+        { name: "deliveryPrice", label: "Delivery Fee (฿)", type: "number", placeholder: "500" },
         { name: "beaches", label: "Beaches / Highlights", type: "textarea", placeholder: "Rawai Beach, Nai Harn..." }
     ];
 

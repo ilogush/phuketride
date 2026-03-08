@@ -11,7 +11,6 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
@@ -181,7 +180,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function HotelsPage() {
     const { hotels, locations, districts, totalCount, search } = useLoaderData<typeof loader>();
-    useUrlToast();
     const navigation = useNavigation();
     const [searchParams, setSearchParams] = useSearchParams();
     

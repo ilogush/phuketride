@@ -41,8 +41,9 @@ type EditableContractRow = {
     delivery_cost: number | null;
     return_cost: number | null;
     deposit_amount: number | null;
-    deposit_payment_method: string | null;
     total_amount: number | null;
+    total_currency: string | null;
+    deposit_currency: string | null;
     fuel_level: string | null;
     cleanliness: string | null;
     start_mileage: number | null;

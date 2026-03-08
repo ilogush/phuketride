@@ -205,7 +205,10 @@ export async function handleCreateContractAction({ db, assets, request, user, co
     const endDate = parseDisplayDateTimeToDate(String(formData.get("end_date") || ""));
     const totalAmount = Number(formData.get("total_amount"));
     const depositAmount = Number(formData.get("deposit_amount")) || 0;
-    const totalCurrency = "THB";
+    
+    const currencyId = Number(formData.get("currency_id")) || 1;
+    const currencyCodeById = await getCurrencyCodeById(db);
+    const totalCurrency = currencyCodeById.get(currencyId) || "THB";
 
     if (!Number.isFinite(companyCarId) || companyCarId <= 0) {
       throw new Error("Car is required");
@@ -262,7 +265,7 @@ export async function handleCreateContractAction({ db, assets, request, user, co
       .prepare(`
         INSERT INTO contracts (
           company_car_id, client_id, manager_id, start_date, end_date, total_amount, total_currency,
-          deposit_amount, deposit_currency, deposit_payment_method,
+          deposit_amount, deposit_currency,
           pickup_district_id, pickup_hotel, pickup_room, delivery_cost, return_district_id, return_hotel, return_room, return_cost,
           start_mileage, fuel_level, cleanliness, status, notes, photos, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
@@ -277,7 +280,6 @@ export async function handleCreateContractAction({ db, assets, request, user, co
         totalCurrency,
         depositAmount,
         totalCurrency,
-        (formData.get("deposit_payment_method") as string) || null,
         pickupDistrictId,
         (formData.get("pickup_hotel") as string) || null,
         (formData.get("pickup_room") as string) || null,
@@ -297,14 +299,13 @@ export async function handleCreateContractAction({ db, assets, request, user, co
       .run();
 
     const contractId = Number(contractInsert.meta.last_row_id);
-    const currencyCodeById = await getCurrencyCodeById(db);
 
     const finalStmts: D1PreparedStatement[] = [];
 
     for (const extraType of EXTRA_TYPES) {
       const enabled = extraFlags[extraType];
       if (!enabled) continue;
-      const { amount, currencyId, paymentMethod } = getExtraInputFromFormData(formData, extraType);
+      const { amount, currencyId } = getExtraInputFromFormData(formData, extraType);
       const currencyCode = (currencyId ? currencyCodeById.get(currencyId) : null) || "THB";
       finalStmts.push(getCreateExtraPaymentStmt({
         db,
@@ -314,8 +315,7 @@ export async function handleCreateContractAction({ db, assets, request, user, co
         amount,
         currency: currencyCode,
         currencyId,
-        paymentMethod,
-      }));
+        }));
     }
 
     finalStmts.push(getUpdateCarStatusStmt(db, companyCarId, "rented"));

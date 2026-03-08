@@ -1,6 +1,12 @@
 type DbType = D1Database;
 
-export const EXTRA_TYPES = ["full_insurance", "baby_seat", "island_trip", "krabi_trip"] as const;
+export const EXTRA_TYPES = [
+    "full_insurance",
+    "delivery_fee_after_hours",
+    "baby_seat",
+    "island_trip",
+    "krabi_trip",
+] as const;
 export type ExtraType = (typeof EXTRA_TYPES)[number];
 
 export interface ExtraPaymentRow {
@@ -10,12 +16,12 @@ export interface ExtraPaymentRow {
     amount: number | null;
     currency: string | null;
     currencyId: number | null;
-    paymentMethod: string | null;
 }
 
 export function getExtraFlagsFromFormData(formData: FormData): Record<ExtraType, boolean> {
     return {
         full_insurance: formData.get("fullInsurance") === "true",
+        delivery_fee_after_hours: formData.get("deliveryFeeAfterHours") === "true",
         baby_seat: formData.get("babySeat") === "true",
         island_trip: formData.get("islandTrip") === "true",
         krabi_trip: formData.get("krabiTrip") === "true",
@@ -26,7 +32,6 @@ export function getExtraInputFromFormData(formData: FormData, extraType: ExtraTy
     return {
         amount: Number(formData.get(`extra_${extraType}_amount`)) || 0,
         currencyId: Number(formData.get(`extra_${extraType}_currency`)) || null,
-        paymentMethod: (formData.get(`extra_${extraType}_method`) as string) || null,
     };
 }
 
@@ -52,23 +57,21 @@ export function getCreateExtraPaymentStmt(params: {
     amount: number;
     currency: string;
     currencyId?: number | null;
-    paymentMethod?: string | null;
     nowIso?: string;
 }): D1PreparedStatement {
     const nowIso = params.nowIso || new Date().toISOString();
     return params.db
         .prepare(`
             INSERT INTO payments (
-                contract_id, amount, currency, currency_id, payment_method, status, created_by, created_at, updated_at,
+                contract_id, amount, currency, currency_id, status, created_by, created_at, updated_at,
                 extra_type, extra_enabled, extra_price
-            ) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, 1, ?)
+            ) VALUES (?, ?, ?, ?, 'completed', ?, ?, ?, ?, 1, ?)
         `)
         .bind(
             params.contractId,
             params.amount,
             params.currency,
             params.currencyId ?? null,
-            params.paymentMethod ?? null,
             params.userId,
             nowIso,
             nowIso,

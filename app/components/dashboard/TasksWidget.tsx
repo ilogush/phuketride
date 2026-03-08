@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { Link, Form } from 'react-router'
 import Modal from './Modal'
-import Button from './Button'
+import Button from '~/components/dashboard/Button'
+import DeleteButton from '~/components/dashboard/DeleteButton'
+import { TrashIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline'
+import AdminCard from './AdminCard'
 
 interface Task {
     id: string
@@ -41,7 +44,7 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
 
     const getEntityUrl = (entity: Task['relatedEntity']) => {
         if (!entity) return null
-        
+
         const urlMap = {
             contract: `/contracts/${entity.id}/edit`,
             car: `/cars/${entity.id}/edit`,
@@ -49,24 +52,24 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
             user: `/users/${entity.id}/edit`,
             company: `/companies/${entity.id}/edit`,
         }
-        
+
         return urlMap[entity.type]
     }
 
     return (
-        <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
-            {/* Header */}
-            <div className="px-4 py-3 flex justify-between items-center bg-gray-50/50 border-b border-gray-100">
-                <h2 className="text-sm font-bold text-gray-900 tracking-tight">My Tasks</h2>
-                <div className="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center">
+        <AdminCard
+            title="My Tasks"
+            icon={<ClipboardDocumentCheckIcon className="w-5 h-5" />}
+            headerActions={
+                <div className="w-6 h-6 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center">
                     <span className="text-xs font-bold text-gray-600">
                         {tasks.length}
                     </span>
                 </div>
-            </div>
-
+            }
+        >
             {/* Tasks Table */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto -mx-4 -mb-4">
                 <table className="min-w-full divide-y divide-gray-100">
                     <thead>
                         <tr className="bg-gray-50/50">
@@ -116,29 +119,14 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                                         </span>
                                     )}
                                 </td>
-                                <td className="pr-4 py-2 text-sm text-gray-900 whitespace-nowrap align-middle">
-                                    <div className="flex gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setSelectedTask(task)}
-                                        >
-                                            View
-                                        </Button>
-                                        {task.id !== "company-setup" && (
-                                            <Form method="post">
-                                                <input type="hidden" name="intent" value="delete" />
-                                                <input type="hidden" name="taskId" value={task.id} />
-                                                <Button
-                                                    type="submit"
-                                                    variant="outline"
-                                                    size="sm"
-                                                >
-                                                    Delete
-                                                </Button>
-                                            </Form>
-                                        )}
-                                    </div>
+                                <td className="pr-4 py-2 text-sm text-gray-900 whitespace-nowrap align-middle text-right">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setSelectedTask(task)}
+                                    >
+                                        View
+                                    </Button>
                                 </td>
                             </tr>
                         ))}
@@ -153,26 +141,23 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                     onClose={() => setSelectedTask(null)}
                     maxWidth="lg"
                     actions={
-                        <>
-                            {selectedTask.id !== "company-setup" && (
-                                <Form method="post" onSubmit={() => setSelectedTask(null)}>
-                                    <input type="hidden" name="intent" value="delete" />
-                                    <input type="hidden" name="taskId" value={selectedTask.id} />
-                                    <Button
-                                        type="submit"
-                                        variant="outline"
-                                    >
-                                        Delete Task
-                                    </Button>
-                                </Form>
-                            )}
+                        <div className="flex justify-end items-center gap-2 w-full">
+                            <Form method="post" onSubmit={() => setSelectedTask(null)}>
+                                <input type="hidden" name="intent" value="delete" />
+                                <input type="hidden" name="taskId" value={selectedTask.id} />
+                                <DeleteButton
+                                    type="submit"
+                                    title="Delete Task"
+                                />
+                            </Form>
                             <Button
                                 variant="solid"
                                 onClick={() => setSelectedTask(null)}
+                                className="px-8"
                             >
                                 Close
                             </Button>
-                        </>
+                        </div>
                     }
                 >
                     <div className="space-y-4">
@@ -249,6 +234,6 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                     </div>
                 </Modal>
             )}
-        </div>
+        </AdminCard>
     )
 }

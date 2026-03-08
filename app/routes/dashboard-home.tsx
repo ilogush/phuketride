@@ -88,7 +88,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function Index() {
     const { statCards, tasks } = useLoaderData<typeof loader>();
-    useUrlToast();
 
     return (
         <div className="space-y-4">

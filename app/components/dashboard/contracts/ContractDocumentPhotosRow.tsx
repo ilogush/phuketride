@@ -1,3 +1,5 @@
+import { PhotoIcon } from "@heroicons/react/24/outline";
+import AdminCard from "~/components/dashboard/AdminCard";
 import DocumentPhotosUpload from "~/components/dashboard/DocumentPhotosUpload";
 
 type PhotoItem = { base64: string; fileName: string };
@@ -16,19 +18,24 @@ export default function ContractDocumentPhotosRow({
   onDriverLicensePhotosChange,
 }: ContractDocumentPhotosRowProps) {
   return (
-    <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
-      <DocumentPhotosUpload
-        currentPhotos={passportPhotos.map((p) => p.base64)}
-        onPhotosChange={onPassportPhotosChange}
-        maxPhotos={3}
-        label="Passport"
-      />
-      <DocumentPhotosUpload
-        currentPhotos={driverLicensePhotos.map((p) => p.base64)}
-        onPhotosChange={onDriverLicensePhotosChange}
-        maxPhotos={3}
-        label="Driver License"
-      />
+    <div className="space-y-4">
+      <AdminCard title="Passport Photos" icon={<PhotoIcon className="w-5 h-5" />}>
+        <DocumentPhotosUpload
+          currentPhotos={passportPhotos.map((p) => p.base64)}
+          onPhotosChange={onPassportPhotosChange}
+          maxPhotos={2}
+          label="Passport"
+        />
+      </AdminCard>
+
+      <AdminCard title="Driver License Photos" icon={<PhotoIcon className="w-5 h-5" />}>
+        <DocumentPhotosUpload
+          currentPhotos={driverLicensePhotos.map((p) => p.base64)}
+          onPhotosChange={onDriverLicensePhotosChange}
+          maxPhotos={2}
+          label="Driver License"
+        />
+      </AdminCard>
     </div>
   );
 }

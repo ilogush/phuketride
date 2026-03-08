@@ -205,7 +205,7 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
 
                 <div className="space-y-4 lg:sticky lg:top-4 h-fit">
                     <AdminCard title="Photos" icon={<PhotoIcon className="w-5 h-5" />}>
-                        <p className="text-xs text-gray-500 mb-3">Car Photos (max 12)</p>
+                        <p className="text-xs text-gray-500 mb-3">Car Photos</p>
                         <CarPhotosUpload
                             currentPhotos={formData.photos.map(p => p.base64)}
                             onPhotosChange={handlePhotosChange}

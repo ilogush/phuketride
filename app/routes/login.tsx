@@ -102,6 +102,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
                     return { error: result.error };
                 }
 
+                await quickAudit({
+                    db: context.cloudflare.env.DB,
+                    userId: result.user.id,
+                    role: result.user.role,
+                    companyId: result.user.companyId || null,
+                    entityType: "user",
+                    entityId: result.user.id,
+                    action: "login",
+                    ...getRequestMetadata(request),
+                });
+
                 return redirect("/home?login=success", {
                     headers: {
                         "Set-Cookie": result.cookie,
@@ -117,7 +128,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function LoginPage() {
     const actionData = useActionData<typeof action>();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [showPassword, setShowPassword] = useState(false);
     const toast = useToast();
     useActionToast(actionData?.error, { type: "error", duration: 5000 });
@@ -130,8 +141,13 @@ export default function LoginPage() {
         // Show logout success only if user just logged out (not after failed login attempt)
         if (logoutSuccess && !actionData?.error && !loginSuccess) {
             void toast.success('Logged out successfully', 5000);
+            
+            // Clear the param from URL
+            const next = new URLSearchParams(searchParams);
+            next.delete('logout');
+            setSearchParams(next, { replace: true });
         }
-    }, [searchParams, actionData, toast]);
+    }, [searchParams, actionData, toast, setSearchParams]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">

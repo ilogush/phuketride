@@ -2,6 +2,9 @@ import { useState } from "react";
 import Toggle from "~/components/dashboard/Toggle";
 import { useToast } from "~/lib/toast";
 
+import { ClockIcon } from "@heroicons/react/24/outline";
+import AdminCard from "~/components/dashboard/AdminCard";
+
 interface DaySchedule {
     open: boolean;
     startTime: string;
@@ -79,11 +82,7 @@ export default function WeeklySchedule({ value, onChange }: WeeklyScheduleProps)
     };
 
     return (
-        <div className="bg-white rounded-3xl shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-4">
-                <h3 className="text-sm font-bold text-gray-900">Weekly Schedule</h3>
-            </div>
-
+        <AdminCard title="Weekly Schedule" icon={<ClockIcon className="w-5 h-5" />}>
             <div className="space-y-3">
                 <div className="grid grid-cols-4 gap-4 px-4 py-2 bg-gray-50/50 rounded-xl text-xs font-normal text-gray-500 tracking-tight uppercase border-b border-gray-100">
                     <div>Day</div>
@@ -134,6 +133,6 @@ export default function WeeklySchedule({ value, onChange }: WeeklyScheduleProps)
                     );
                 })}
             </div>
-        </div>
+        </AdminCard>
     );
 }

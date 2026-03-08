@@ -226,11 +226,11 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
 
             {!isOpen && hoveredItem && (
                 <div
-                    className="fixed z-50 bg-gray-800 text-gray-500 text-xs font-medium px-3 py-1.5 rounded-lg shadow-xl border border-gray-700 pointer-events-none whitespace-nowrap left-[80px]"
-                    style={{ top: hoveredItem.top + 6 }}
+                    className="fixed z-50 bg-gray-900 text-white text-[13px] font-bold px-3 py-2 rounded-xl shadow-2xl border border-gray-800 pointer-events-none whitespace-nowrap left-[82px] animate-in fade-in zoom-in-95 duration-200"
+                    style={{ top: hoveredItem.top + 4 }}
                 >
                     {hoveredItem.label}
-                    <div className="absolute top-1/2 -left-1.5 -mt-1.5 border-[6px] border-transparent border-r-gray-800"></div>
+                    <div className="absolute top-1/2 -left-1.5 -mt-1.5 border-[6px] border-transparent border-r-gray-900"></div>
                 </div>
             )}
         </>

@@ -11,8 +11,6 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
 import { TruckIcon, PlusIcon } from "@heroicons/react/24/outline";
-import IdBadge from "~/components/dashboard/IdBadge";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { loadCarsPageData, type CarsPageCar } from "~/lib/cars-page.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 
@@ -40,7 +38,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function CarsPage() {
     const { cars, statusCounts, activeStatus, totalCount, search } = useLoaderData<typeof loader>();
-    useUrlToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigation = useNavigation();
 
@@ -56,8 +53,8 @@ export default function CarsPage() {
 
     const columns: Column<CarsPageCar>[] = [
         {
-            key: "photo",
-            label: "Photo",
+            key: "car",
+            label: "Car",
             render: (car) => {
                 const firstPhoto = car.previewPhotoUrl as string | null;
                 const editPath = modCompanyId
@@ -65,43 +62,39 @@ export default function CarsPage() {
                     : `/cars/${car.id}/edit`;
 
                 return (
-                    <Link to={editPath} className="block hover:opacity-70 transition-opacity">
-                        {firstPhoto ? (
-                            <img
-                                src={firstPhoto}
-                                alt={`${car.template?.brand?.name} ${car.template?.model?.name}`}
-                                className="w-10 h-10 object-cover rounded-lg"
-                            />
-                        ) : (
-                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <TruckIcon className="w-6 h-6 text-gray-400" />
-                            </div>
-                        )}
-                    </Link>
+                    <div className="flex items-center gap-3">
+                        <Link to={editPath} className="block hover:opacity-70 transition-opacity flex-shrink-0">
+                            {firstPhoto ? (
+                                <img
+                                    src={firstPhoto}
+                                    alt={`${car.template?.brand?.name} ${car.template?.model?.name}`}
+                                    className="w-12 h-12 object-cover rounded-xl"
+                                />
+                            ) : (
+                                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                                    <TruckIcon className="w-6 h-6 text-gray-400" />
+                                </div>
+                            )}
+                        </Link>
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-bold text-gray-900 truncate">
+                                {car.template?.brand?.name || "-"}
+                            </span>
+                            <span className="text-xs text-gray-500 font-medium truncate">
+                                {car.template?.model?.name || "-"}
+                            </span>
+                        </div>
+                    </div>
                 );
             }
         },
         {
             key: "licensePlate",
             label: "License Plate",
-            sortable: true,
             render: (car) => (
-                <div className="flex items-center gap-2">
-                    <IdBadge className="bg-blue-800">
-                        {String(car.id).padStart(3, '0')}
-                    </IdBadge>
-                    <span className="font-mono font-medium">{car.licensePlate}</span>
-                </div>
-            )
-        },
-        {
-            key: "car",
-            label: "Car",
-            render: (car) => (
-                <div className="flex flex-col">
-                    <span className="text-sm font-medium text-gray-900">{car.template?.brand?.name || "-"}</span>
-                    <span className="text-xs text-gray-500">{car.template?.model?.name || "-"}</span>
-                </div>
+                <span className="font-mono text-gray-900">
+                    {car.licensePlate}
+                </span>
             )
         },
         {

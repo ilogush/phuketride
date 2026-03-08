@@ -5,11 +5,6 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import BackButton from "~/components/dashboard/BackButton";
 import { TrashIcon } from "@heroicons/react/24/outline";
-import { useUrlToast } from "~/lib/useUrlToast";
-import {
-    deleteManagedUser,
-    updateManagedUser,
-} from "~/lib/user-profile.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { getScopedDb } from "~/lib/db-factory.server";
@@ -104,7 +99,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 
 export default function EditUserPage() {
     const { user, currentUserRole, hotels, locations, districts } = useLoaderData<typeof loader>();
-    useUrlToast();
 
     return (
         <div className="space-y-4">

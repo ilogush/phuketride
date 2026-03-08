@@ -1,5 +1,7 @@
 import { Form } from "react-router";
 import Card from "~/components/dashboard/Card";
+import Button from "~/components/dashboard/Button";
+import DeleteButton from "~/components/dashboard/DeleteButton";
 
 type Item = Record<string, unknown>;
 
@@ -29,10 +31,10 @@ export default function CarContentSections({ includedItems, rules, features, rev
               <div key={String(item.id)} className="rounded-lg border border-gray-200 p-3">
                 <p className="font-medium text-sm">{String(item.category)} • {String(item.title)}</p>
                 <p className="text-xs text-gray-600">{String(item.description || "")}</p>
-                <Form method="post" className="mt-2">
+                <Form method="post" className="mt-2 flex justify-end">
                   <input type="hidden" name="intent" value="delete_included" />
                   <input type="hidden" name="id" value={String(item.id)} />
-                  <button type="submit" className="text-xs text-red-600 hover:underline">Delete</button>
+                  <DeleteButton type="submit" size="sm" title="Delete" />
                 </Form>
               </div>
             ))}
@@ -53,10 +55,10 @@ export default function CarContentSections({ includedItems, rules, features, rev
               <div key={String(item.id)} className="rounded-lg border border-gray-200 p-3">
                 <p className="font-medium text-sm">{String(item.title)}</p>
                 <p className="text-xs text-gray-600">{String(item.description || "")}</p>
-                <Form method="post" className="mt-2">
+                <Form method="post" className="mt-2 flex justify-end">
                   <input type="hidden" name="intent" value="delete_rule" />
                   <input type="hidden" name="id" value={String(item.id)} />
-                  <button type="submit" className="text-xs text-red-600 hover:underline">Delete</button>
+                  <DeleteButton type="submit" size="sm" title="Delete" />
                 </Form>
               </div>
             ))}
@@ -77,10 +79,10 @@ export default function CarContentSections({ includedItems, rules, features, rev
             {features.map((item) => (
               <div key={String(item.id)} className="rounded-lg border border-gray-200 p-3">
                 <p className="font-medium text-sm">{String(item.category)} • {String(item.name)}</p>
-                <Form method="post" className="mt-2">
+                <Form method="post" className="mt-2 flex justify-end">
                   <input type="hidden" name="intent" value="delete_feature" />
                   <input type="hidden" name="id" value={String(item.id)} />
-                  <button type="submit" className="text-xs text-red-600 hover:underline">Delete</button>
+                  <DeleteButton type="submit" size="sm" title="Delete" />
                 </Form>
               </div>
             ))}
@@ -96,10 +98,10 @@ export default function CarContentSections({ includedItems, rules, features, rev
                   {String(item.reviewerName)} • {String(item.rating)}/5 • Contract #{String(item.contractId || "n/a")}
                 </p>
                 <p className="text-xs text-gray-600">{String(item.reviewText || "")}</p>
-                <Form method="post" className="mt-2">
+                <Form method="post" className="mt-2 flex justify-end">
                   <input type="hidden" name="intent" value="delete_review" />
                   <input type="hidden" name="id" value={String(item.id)} />
-                  <button type="submit" className="text-xs text-red-600 hover:underline">Delete</button>
+                  <DeleteButton type="submit" size="sm" title="Delete" />
                 </Form>
               </div>
             ))}

@@ -48,11 +48,10 @@ export default function MyContractsPageView({
               type="button"
               variant="plain"
               onClick={() => handleStatusChange("all")}
-              className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-                status === "all"
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${status === "all"
                   ? "bg-gray-800 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+                }`}
             >
               All
             </Button>
@@ -60,11 +59,10 @@ export default function MyContractsPageView({
               type="button"
               variant="plain"
               onClick={() => handleStatusChange("active")}
-              className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-                status === "active"
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${status === "active"
                   ? "bg-gray-800 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+                }`}
             >
               Active
             </Button>
@@ -72,11 +70,10 @@ export default function MyContractsPageView({
               type="button"
               variant="plain"
               onClick={() => handleStatusChange("closed")}
-              className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-                status === "closed"
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${status === "closed"
                   ? "bg-gray-800 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+                }`}
             >
               Closed
             </Button>
@@ -102,9 +99,8 @@ export default function MyContractsPageView({
                       <div className="mb-1 flex items-center gap-3">
                         <h2 className="font-semibold text-gray-900">Contract #{contract.id}</h2>
                         <span
-                          className={`rounded-full px-2 py-1 text-xs font-medium ${
-                            statusColors[contract.status]
-                          }`}
+                          className={`rounded-full px-2 py-1 text-xs font-medium ${statusColors[contract.status]
+                            }`}
                         >
                           {contract.status}
                         </span>
@@ -123,7 +119,7 @@ export default function MyContractsPageView({
                     <p className="text-xl font-bold text-gray-900">
                       {contract.totalCurrency} {contract.totalAmount}
                     </p>
-                    <p className="mt-1 text-sm text-blue-600">View Details →</p>
+                    <p className="mt-1 text-sm text-blue-600">View →</p>
                   </div>
                 </div>
               </Link>

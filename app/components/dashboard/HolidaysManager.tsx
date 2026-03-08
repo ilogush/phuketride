@@ -5,59 +5,56 @@ import { useDateMasking } from "~/lib/useDateMasking";
 import { parseDateFromDisplay } from "~/lib/formatters";
 import { useAsyncToastAction } from "~/lib/useAsyncToastAction";
 
+import AdminCard from "~/components/dashboard/AdminCard";
+
 interface HolidaysManagerProps {
-    value?: string; // JSON string array of dates
-    onChange?: (value: string) => void;
+  value?: string; // JSON string array of dates
+  onChange?: (value: string) => void;
 }
 
 export default function HolidaysManager({ value, onChange }: HolidaysManagerProps) {
-    const { maskDateInput } = useDateMasking();
-    const [holidays, setHolidays] = useState<string[]>(() => {
-        if (value) {
-            try {
-                return JSON.parse(value);
-            } catch {
-                return [];
-            }
-        }
+  const { maskDateInput } = useDateMasking();
+  const [holidays, setHolidays] = useState<string[]>(() => {
+    if (value) {
+      try {
+        return JSON.parse(value);
+      } catch {
         return [];
-    });
+      }
+    }
+    return [];
+  });
 
-    const [newDate, setNewDate] = useState("");
+  const [newDate, setNewDate] = useState("");
 
-    const { notifyError } = useAsyncToastAction();
+  const { notifyError } = useAsyncToastAction();
 
-    const handleAddHoliday = () => {
-        if (newDate) {
-            try {
-                const isoDate = parseDateFromDisplay(newDate);
-                // Basic validation for YYYY-MM-DD
-                if (isoDate.match(/^\d{4}-\d{2}-\d{2}$/) && !holidays.includes(isoDate)) {
-                    const newHolidays = [...holidays, isoDate].sort();
-                    setHolidays(newHolidays);
-                    onChange?.(JSON.stringify(newHolidays));
-                    setNewDate("");
-                }
-            } catch (error) {
-                void notifyError(error instanceof Error ? error.message : "Invalid date");
-            }
+  const handleAddHoliday = () => {
+    if (newDate) {
+      try {
+        const isoDate = parseDateFromDisplay(newDate);
+        // Basic validation for YYYY-MM-DD
+        if (isoDate.match(/^\d{4}-\d{2}-\d{2}$/) && !holidays.includes(isoDate)) {
+          const newHolidays = [...holidays, isoDate].sort();
+          setHolidays(newHolidays);
+          onChange?.(JSON.stringify(newHolidays));
+          setNewDate("");
         }
-    };
+      } catch (error) {
+        void notifyError(error instanceof Error ? error.message : "Invalid date");
+      }
+    }
+  };
 
-    const handleRemoveHoliday = (date: string) => {
-        const newHolidays = holidays.filter(h => h !== date);
-        setHolidays(newHolidays);
-        onChange?.(JSON.stringify(newHolidays));
-    };
+  const handleRemoveHoliday = (date: string) => {
+    const newHolidays = holidays.filter((h) => h !== date);
+    setHolidays(newHolidays);
+    onChange?.(JSON.stringify(newHolidays));
+  };
 
-    return (
-        <div className="bg-white rounded-3xl shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-4">
-                <CalendarIcon className="w-5 h-5 text-gray-600" />
-                <h3 className="text-sm font-bold text-gray-900">Holidays & Non-working Days</h3>
-            </div>
-
-            <div className="space-y-4">
+  return (
+    <AdminCard title="Holidays & Non-working Days" icon={<CalendarIcon className="w-5 h-5 text-gray-600" />}>
+      <div className="space-y-4">
                 <div>
                     <label className="block text-xs text-gray-600 mb-1">Add Holiday</label>
                     <div className="flex gap-2">
@@ -115,6 +112,6 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
                     </div>
                 )}
             </div>
-        </div>
-    );
+    </AdminCard>
+  );
 }

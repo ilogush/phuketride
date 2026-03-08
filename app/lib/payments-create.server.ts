@@ -50,13 +50,12 @@ export async function createPaymentRecord(args: {
             paymentTypeId: Number(args.formData.get("paymentTypeId")),
             amount: Number(args.formData.get("amount")),
             currency: (args.formData.get("currency") as string) || "THB",
-            paymentMethod: args.formData.get("paymentMethod") as "cash" | "bank_transfer" | "card",
-            status: (args.formData.get("status") as "pending" | "completed" | "cancelled") || "completed",
-            notes: (args.formData.get("notes") as string) || null,
-            createdBy: args.user.id,
+            status: args.formData.get("status") as any,
+            notes: args.formData.get("notes") as string | null,
         },
         "Validation failed"
     );
+
     if (!parsed.ok) {
         return redirectWithRequestError(args.request, "/payments/create", parsed.error);
     }
@@ -72,9 +71,8 @@ export async function createPaymentRecord(args: {
         .prepare(
             `
             INSERT INTO payments (
-                contract_id, payment_type_id, amount, currency,
-                payment_method, status, notes, created_by, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                contract_id, payment_type_id, amount, currency, status, notes, created_by, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `
         )
         .bind(
@@ -82,7 +80,6 @@ export async function createPaymentRecord(args: {
             parsed.data.paymentTypeId,
             parsed.data.amount,
             parsed.data.currency,
-            parsed.data.paymentMethod,
             parsed.data.status,
             parsed.data.notes,
             args.user.id,

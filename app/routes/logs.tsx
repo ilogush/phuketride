@@ -9,7 +9,6 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { ClipboardDocumentListIcon } from "@heroicons/react/24/outline";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { parseWithSchema } from "~/lib/validation.server";
 import { clearAuditLogsSchema } from "~/schemas/admin-analytics";
@@ -89,13 +88,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         companyId: null,
         details: { route: "logs", page, pageSize },
         run: async () => {
-            const [logs, countRow] = await Promise.all([
+            const [logs, totalCount] = await Promise.all([
                 sdb.auditLogs.list({ limit: pageSize, offset }),
                 sdb.auditLogs.count(),
             ]);
             return { 
                 logs: logs as AuditLog[], 
-                totalCount: countRow?.count ?? 0 
+                totalCount: totalCount ?? 0 
             };
         },
     });
@@ -123,7 +122,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function AuditLogsPage() {
-    useUrlToast();
     const { logs, totalCount } = useLoaderData<typeof loader>();
 
     const columns: Column<AuditLog>[] = [
@@ -177,19 +175,32 @@ export default function AuditLogsPage() {
         {
             key: "entityType",
             label: "Target Entity",
-            render: (log) => (
-                <div className="text-sm">
-                    <div className="font-medium text-gray-900">{log.entityType}</div>
-                    <div className="text-gray-500">
-                        {log.companyId ? `company #${log.companyId}` : "-"}
+            render: (log) => {
+                if (log.action === "login" || log.action === "logout") {
+                    return <span className="text-gray-400">—</span>;
+                }
+                return (
+                    <div className="text-sm">
+                        <div className="font-medium text-gray-900">{log.entityType}</div>
+                        <div className="text-gray-500">
+                            {log.companyId ? `company #${log.companyId}` : "-"}
+                        </div>
                     </div>
-                </div>
-            ),
+                );
+            },
         },
         {
             key: "details",
             label: "Change Details",
             render: (log) => {
+                if (log.action === "login") {
+                    return <span className="text-green-600 font-medium italic">Session initialized</span>;
+                }
+
+                if (log.action === "logout") {
+                    return <span className="text-gray-500 font-medium italic">Session terminated</span>;
+                }
+
                 if (!log.beforeState && !log.afterState) {
                     return <span className="text-gray-500">-</span>;
                 }

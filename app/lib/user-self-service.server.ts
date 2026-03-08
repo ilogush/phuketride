@@ -46,7 +46,6 @@ export type ClientPaymentRow = {
     id: number;
     amount: number;
     currency: string;
-    paymentMethod: string | null;
     status: string | null;
     notes: string | null;
     createdAt: string;
@@ -90,8 +89,7 @@ export async function loadClientPaymentsHistoryPage(args: {
             p.id,
             p.amount,
             p.currency,
-            p.payment_method AS paymentMethod,
-            p.status,
+            p.p.status,
             p.notes,
             p.created_at AS createdAt,
             c.id AS contractId,
@@ -140,8 +138,7 @@ export async function loadClientContractDetailPage(args: {
                 c.total_currency AS totalCurrency,
                 c.deposit_amount AS depositAmount,
                 c.deposit_currency AS depositCurrency,
-                c.deposit_payment_method AS depositPaymentMethod,
-                c.pickup_hotel AS pickupHotel,
+                c.c.pickup_hotel AS pickupHotel,
                 c.pickup_room AS pickupRoom,
                 c.delivery_cost AS deliveryCost,
                 c.return_hotel AS returnHotel,
@@ -193,8 +190,7 @@ export async function loadClientContractDetailPage(args: {
                 p.id,
                 p.amount,
                 p.currency,
-                p.payment_method AS paymentMethod,
-                p.status,
+                p.p.status,
                 p.notes,
                 p.created_at AS createdAt,
                 p.extra_type AS extraType,

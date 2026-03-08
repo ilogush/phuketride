@@ -5,7 +5,6 @@ import { getScopedDb } from "~/lib/db-factory.server";
 import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
 import { redirectWithRequestError } from "~/lib/route-feedback";
 import { runAdminMutationAction } from "~/lib/admin-crud.server";
-import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     await getScopedDb(request, context, requireAdminUserMutationAccess);
@@ -81,6 +80,5 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 }
 
 export default function CompanyRedirectPage() {
-    useUrlToast();
     return null;
 }

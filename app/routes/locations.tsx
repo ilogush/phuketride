@@ -14,7 +14,6 @@ import { PlusIcon } from "@heroicons/react/24/outline";
 import Toggle from "~/components/dashboard/Toggle";
 import type { LocationsPageDistrict as District } from "~/lib/admin-dictionaries";
 import { useAsyncToastAction } from "~/lib/useAsyncToastAction";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
@@ -54,7 +53,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function LocationsPage() {
     const { districts, user, isModMode } = useLoaderData<typeof loader>();
-    useUrlToast();
     const submit = useSubmit();
     const navigation = useNavigation();
     
@@ -131,7 +129,7 @@ export default function LocationsPage() {
         { name: "name", label: "District Name", type: "text", required: true, placeholder: "e.g., Patong" },
         { name: "beaches", label: "Beaches / Locations (comma separated)", type: "textarea", required: true, rows: 3, placeholder: "e.g., Patong Beach, Kalim Beach" },
         { name: "streets", label: "Streets / Roads (comma separated)", type: "textarea", rows: 3, placeholder: "e.g., Bangla Road, Beach Road" },
-        { name: "deliveryPrice", label: "Delivery Price (THB)", type: "number", required: true, placeholder: "e.g., 600" },
+        { name: "deliveryPrice", label: "Delivery Price (฿)", type: "number", required: true, placeholder: "e.g., 600" },
     ];
 
     const columns: Column<District>[] = [

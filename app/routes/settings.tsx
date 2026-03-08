@@ -7,7 +7,6 @@ import { useState } from "react";
 import {
     PlusIcon,
 } from "@heroicons/react/24/outline";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { isPhuketName, normalizeCompanyRow, normalizeCurrencyRow } from "~/lib/settings-normalizers";
 import type { Currency } from "~/lib/settings-normalizers";
 import PaymentTemplatesTab from "~/components/dashboard/settings/PaymentTemplatesTab";
@@ -149,7 +148,6 @@ export default function SettingsPage() {
     });
     const [isCurrencyModalOpen, setIsCurrencyModalOpen] = useState(false);
     const { notifySuccess } = useAsyncToastAction();
-    useUrlToast();
 
     const tabs = [
         { id: "general", label: "General" },

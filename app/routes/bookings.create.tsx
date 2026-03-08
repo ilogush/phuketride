@@ -14,7 +14,6 @@ import { parseDateFromDisplay } from "~/lib/formatters";
 import { calculateBaseTripTotal } from "~/lib/pricing";
 import { createBookingAction } from "~/lib/bookings-create.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { loadRentalCreateBaseData } from "~/lib/rental-create-page.server";
 import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import { getScopedDb } from "~/lib/db-factory.server";
@@ -51,7 +50,6 @@ export default function CreateBookingPage() {
     const { cars, districts } = useLoaderData<typeof loader>();
     const { validateLatinInput } = useLatinValidation();
     const { maskDateInput } = useDateMasking();
-    useUrlToast();
 
     // Live pricing calculation
     const [selectedCarId, setSelectedCarId] = useState<string>("");
@@ -107,7 +105,7 @@ export default function CreateBookingPage() {
                             className="col-span-full"
                             value={selectedCarId}
                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedCarId(e.target.value)}
-                            options={cars.map((car: { id: number; name: string; pricePerDay: number }) => ({ id: car.id, name: `${car.name} - ${car.pricePerDay} THB/day` }))}
+                            options={cars.map((car: { id: number; name: string; pricePerDay: number }) => ({ id: car.id, name: `${car.name} - ฿${car.pricePerDay}/day` }))}
                             placeholder="Select car"
                             showPlaceholderOption
                         />
@@ -141,11 +139,11 @@ export default function CreateBookingPage() {
                         <div className="flex justify-between items-center">
                             <div>
                                 <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">Estimated Total</p>
-                                <p className="text-2xl font-bold">{totalAmount.toLocaleString()} THB</p>
+                                <p className="text-2xl font-bold">฿{totalAmount.toLocaleString()}</p>
                             </div>
                             <div className="text-right text-sm text-gray-400">
-                                <p>{days} days @ {selectedCar?.pricePerDay} THB</p>
-                                {extrasAmount > 0 && <p>+ {extrasAmount.toLocaleString()} THB extras</p>}
+                                <p>{days} days @ ฿{selectedCar?.pricePerDay}</p>
+                                {extrasAmount > 0 && <p>+ ฿{extrasAmount.toLocaleString()} extras</p>}
                             </div>
                         </div>
                     </div>
@@ -184,18 +182,7 @@ export default function CreateBookingPage() {
                                 Deposit Paid
                             </label>
                         </div>
-                        <Select
-                            name="depositPaymentMethod"
-                            label="Payment Method"
-                            placeholder="Select method"
-                            options={[
-                                { id: "cash", name: "Cash" },
-                                { id: "bank_transfer", name: "Bank Transfer" },
-                                { id: "card", name: "Card" },
-                            ]}
-                            showPlaceholderOption
-                        />
-                    </div>
+                        </div>
                 </FormSection>
 
                 <FormSection title="Pickup Location">

@@ -50,7 +50,6 @@ export type BookingForConversionRow = {
   estimatedAmount: number;
   currency: string | null;
   depositAmount: number | null;
-  depositPaymentMethod: string | null;
   fullInsuranceEnabled: number | boolean | null;
   fullInsurancePrice: number | null;
   babySeatEnabled: number | boolean | null;

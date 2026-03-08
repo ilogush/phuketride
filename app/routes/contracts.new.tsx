@@ -11,11 +11,11 @@ import ContractDocumentPhotosRow from "~/components/dashboard/contracts/Contract
 import ContractNotesField from "~/components/dashboard/contracts/ContractNotesField";
 import ContractRentalDetailsFields from "~/components/dashboard/contracts/ContractRentalDetailsFields";
 import ContractClientDetailsFields from "~/components/dashboard/contracts/ContractClientDetailsFields";
+import AdminCard from "~/components/dashboard/AdminCard";
 import ContractCarDetailsFields from "~/components/dashboard/contracts/ContractCarDetailsFields";
 import ContractCarPhotosCard from "~/components/dashboard/contracts/ContractCarPhotosCard";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { loadContractCreatePageData } from "~/lib/rental-create-page.server";
 import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
@@ -25,6 +25,7 @@ import {
     CalendarIcon,
     UserIcon,
     BanknotesIcon,
+    DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
@@ -37,7 +38,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId: scopedCompanyId,
         details: { route: "contracts.new" },
-        run: async () => loadContractCreatePageData(sdb.db, scopedCompanyId),
+        run: async () => loadContractCreatePageData(sdb.db as any, scopedCompanyId),
     });
 }
 
@@ -55,6 +56,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             assets: context.cloudflare.env.ASSETS,
             request,
             user,
+            companyId: companyId!,
             formData
         }),
     });
@@ -62,7 +64,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function NewContract() {
     const { cars, districts, currencies } = useLoaderData<typeof loader>();
-    useUrlToast();
     const { validateLatinInput } = useLatinValidation();
     const { maskDateTimeInput } = useDateMasking();
 
@@ -73,6 +74,43 @@ export default function NewContract() {
     const [carPhotos, setCarPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [passportPhotos, setPassportPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [driverLicensePhotos, setDriverLicensePhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
+    const [deliveryCost, setDeliveryCost] = useState<string | number>("");
+    const [returnCost, setReturnCost] = useState<string | number>("");
+    const [rentalAmount, setRentalAmount] = useState<string | number>("");
+    const [extraAmounts, setExtraAmounts] = useState<Record<string, string | number>>({
+        full_insurance: "",
+        island_trip: "",
+        krabi_trip: "",
+        baby_seat: "",
+    });
+    const [extraMethods, setExtraMethods] = useState<Record<string, string>>({
+        full_insurance: "",
+        island_trip: "",
+        krabi_trip: "",
+        baby_seat: "",
+    });
+
+    const handleExtraAmountChange = (key: string, value: string) => {
+        setExtraAmounts(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handleExtraMethodChange = (key: string, value: string) => {
+        setExtraMethods(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handlePickupDistrictChange = (id: string) => {
+        const district = districts.find(d => String(d.id) === id);
+        if (district) {
+            setDeliveryCost(district.deliveryPrice ?? 0);
+        }
+    };
+
+    const handleReturnDistrictChange = (id: string) => {
+        const district = districts.find(d => String(d.id) === id);
+        if (district) {
+            setReturnCost(district.deliveryPrice ?? 0);
+        }
+    };
 
     const extraPaymentItems = [
         { key: "full_insurance", title: "Full Insurance", enabled: fullInsurance, onToggle: setFullInsurance },
@@ -121,6 +159,8 @@ export default function NewContract() {
                             <ContractRentalDetailsFields
                                 districts={districts}
                                 onDateChange={maskDateTimeInput}
+                                onPickupDistrictChange={handlePickupDistrictChange}
+                                onReturnDistrictChange={handleReturnDistrictChange}
                             />
                         </FormSection>
 
@@ -132,45 +172,59 @@ export default function NewContract() {
                             <ContractClientDetailsFields onLatinNameInput={validateLatinInput} />
                         </FormSection>
 
-                        {/* Payments */}
+                        {/* Financial Summary */}
                         <FormSection
-                            title="Payments"
+                            title="Financial Summary"
                             icon={<BanknotesIcon className="w-6 h-6" />}
                         >
-                            <ExtrasPaymentsSection currencies={currencies} items={extraPaymentItems} />
+                            <div className="space-y-6">
+                                <ExtrasPaymentsSection items={extraPaymentItems} />
+                                <div className="pt-6 border-t border-gray-100">
+                                    <h3 className="text-sm font-semibold text-gray-900 mb-4">Pricing Details</h3>
+                                    <ContractFinancialFields 
+                                        currencies={currencies} 
+                                        values={{ 
+                                            rentalAmount,
+                                            deliveryCost, 
+                                            returnCost,
+                                            extras: extraPaymentItems.filter(i => i.enabled).map(i => ({
+                                                key: i.key,
+                                                title: i.title,
+                                                amount: extraAmounts[i.key] || "",
+                                                method: extraMethods[i.key] || ""
+                                            }))
+                                        }}
+                                        onRentalAmountChange={setRentalAmount}
+                                        onDeliveryCostChange={setDeliveryCost}
+                                        onReturnCostChange={setReturnCost}
+                                        onExtraAmountChange={handleExtraAmountChange}
+                                        onExtraMethodChange={handleExtraMethodChange}
+                                    />
+                                </div>
+                            </div>
                         </FormSection>
                     </Form>
                 </div>
 
                 {/* Right Sidebar */}
                 <div className="lg:col-span-1 space-y-4">
-                    {/* Financial Summary */}
-                    <div className="bg-white rounded-3xl border border-gray-200 p-4">
-                        <h3 className="text-sm font-medium text-gray-700 mb-3">Financial Summary</h3>
-                        <div className="space-y-3">
-                            <ContractFinancialFields />
-                        </div>
-                    </div>
+
 
                     {/* Car Photos */}
                     <ContractCarPhotosCard onPhotosChange={setCarPhotos} />
 
                     {/* Document Photos */}
-                    <div className="bg-white rounded-3xl border border-gray-200 p-4">
-                        <h3 className="text-sm font-medium text-gray-700 mb-3">Document Photos</h3>
                         <ContractDocumentPhotosRow
                             passportPhotos={passportPhotos}
                             onPassportPhotosChange={setPassportPhotos}
                             driverLicensePhotos={driverLicensePhotos}
                             onDriverLicensePhotosChange={setDriverLicensePhotos}
                         />
-                    </div>
 
                     {/* Notes & Terms */}
-                    <div className="bg-white rounded-3xl border border-gray-200 p-4">
-                        <h3 className="text-sm font-medium text-gray-700 mb-3">Notes & Terms</h3>
+                    <AdminCard title="Notes & Terms" icon={<DocumentTextIcon className="w-5 h-5" />}>
                         <ContractNotesField />
-                    </div>
+                    </AdminCard>
 
                 </div>
             </div>

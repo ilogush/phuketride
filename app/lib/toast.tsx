@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo, type ReactNode } from 'react'
 import ToastContainer from '~/components/dashboard/ToastContainer'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
@@ -88,8 +88,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         [showToast]
     )
 
+    const value = useMemo(() => ({ showToast, success, error, warning, info }), [showToast, success, error, warning, info])
+
     return (
-        <ToastContext.Provider value={{ showToast, success, error, warning, info }}>
+        <ToastContext.Provider value={value}>
             {children}
             <ToastContainer toasts={toasts} onRemove={removeToast} />
         </ToastContext.Provider>

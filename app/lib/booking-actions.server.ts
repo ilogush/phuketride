@@ -19,8 +19,7 @@ async function loadBookingForAction(db: D1Database, bookingId: number) {
         .prepare(`
             SELECT
                 b.id, b.status, b.company_car_id AS companyCarId, b.client_id AS clientId, cc.company_id AS companyId, b.start_date AS startDate, b.end_date AS endDate,
-                estimated_amount AS estimatedAmount, currency, deposit_amount AS depositAmount, deposit_payment_method AS depositPaymentMethod,
-                full_insurance_enabled AS fullInsuranceEnabled, full_insurance_price AS fullInsurancePrice,
+                estimated_amount AS estimatedAmount, currency, deposit_amount AS depositAmount AS full_insurance_enabled AS fullInsuranceEnabled, full_insurance_price AS fullInsurancePrice,
                 baby_seat_enabled AS babySeatEnabled, baby_seat_price AS babySeatPrice,
                 island_trip_enabled AS islandTripEnabled, island_trip_price AS islandTripPrice,
                 krabi_trip_enabled AS krabiTripEnabled, krabi_trip_price AS krabiTripPrice,
@@ -120,7 +119,7 @@ export async function convertBookingToContract(args: BookingActionArgs) {
         .prepare(`
             INSERT INTO contracts (
                 company_car_id, client_id, manager_id, start_date, end_date, total_amount, total_currency,
-                deposit_amount, deposit_currency, deposit_payment_method,
+                deposit_amount, deposit_currency,
                 pickup_district_id, pickup_hotel, pickup_room, delivery_cost, return_district_id, return_hotel, return_room, return_cost,
                 status, notes, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
@@ -135,8 +134,7 @@ export async function convertBookingToContract(args: BookingActionArgs) {
             booking.currency,
             booking.depositAmount,
             booking.currency,
-            booking.depositPaymentMethod,
-            booking.pickupDistrictId,
+            booking.booking.pickupDistrictId,
             booking.pickupHotel,
             booking.pickupRoom,
             booking.deliveryCost || 0,

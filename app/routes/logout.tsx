@@ -1,8 +1,24 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
 import { Link } from "react-router";
-import { logout } from "~/lib/auth.server";
+import { logout, requireAuth } from "~/lib/auth.server";
+import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, context }: LoaderFunctionArgs) {
+    const user = await requireAuth(request).catch(() => null);
+    
+    if (user) {
+        await quickAudit({
+            db: context.cloudflare.env.DB,
+            userId: user.id,
+            role: user.role,
+            companyId: user.companyId || null,
+            entityType: "user",
+            entityId: user.id,
+            action: "logout",
+            ...getRequestMetadata(request),
+        });
+    }
+
     const cookie = await logout(request);
 
     return redirect("/login?logout=success", {
@@ -12,7 +28,22 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
 }
 
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request, context }: ActionFunctionArgs) {
+    const user = await requireAuth(request).catch(() => null);
+    
+    if (user) {
+        await quickAudit({
+            db: context.cloudflare.env.DB,
+            userId: user.id,
+            role: user.role,
+            companyId: user.companyId || null,
+            entityType: "user",
+            entityId: user.id,
+            action: "logout",
+            ...getRequestMetadata(request),
+        });
+    }
+
     const cookie = await logout(request);
 
     return redirect("/login?logout=success", {

@@ -1,5 +1,6 @@
 import { Form } from "react-router";
 import Button from "~/components/dashboard/Button";
+import DeleteButton from "~/components/dashboard/DeleteButton";
 import { Input } from "~/components/dashboard/Input";
 import { Textarea } from "~/components/dashboard/Textarea";
 import AdminCard from "~/components/dashboard/AdminCard";
@@ -109,7 +110,7 @@ export default function PaymentTemplatesTab({
                           <Form method="post" action={settingsActionUrl} reloadDocument>
                             <input type="hidden" name="intent" value="deletePaymentTemplate" />
                             <input type="hidden" name="id" value={template.id} />
-                            <Button type="submit" variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">Delete</Button>
+                            <DeleteButton type="submit" size="sm" title="Delete" />
                           </Form>
                         )}
                       </div>

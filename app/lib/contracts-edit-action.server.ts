@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { SessionUser } from "~/lib/auth.server";
 import { createContractEvents } from "~/lib/calendar-events.server";
 import { parseDateTimeFromDisplay } from "~/lib/formatters";
-import { EXTRA_TYPES, getCreateExtraPaymentStmt, getExtraFlagsFromFormData } from "~/lib/contract-extras.server";
+import { EXTRA_TYPES, getCreateExtraPaymentStmt, getExtraFlagsFromFormData, getExtraInputFromFormData, getCurrencyCodeById } from "~/lib/contract-extras.server";
 import { updateCarStatus } from "~/lib/contract-helpers.server";
 import { uploadPhotoItemsToR2, type UploadPhotoItem } from "~/lib/r2.server";
 import { parseWithSchema } from "~/lib/validation.server";
@@ -30,7 +30,6 @@ type ContractExtraRow = {
   paymentTypeId: number | null;
   currency: string | null;
   currencyId: number | null;
-  paymentMethod: string | null;
   status: string | null;
   notes: string | null;
 };
@@ -207,18 +206,25 @@ export async function handleEditContractAction({ db, assets, request, user, comp
       returnRoom: (formData.get("return_room") as string) || null,
       returnCost: Number(formData.get("return_cost")) || 0,
       depositAmount: Number(formData.get("deposit_amount")) || 0,
-      depositPaymentMethod: (formData.get("deposit_payment_method") as string) || null,
-      totalAmount: Number(formData.get("total_amount")) || existingContract.total_amount,
-      fuelLevel: String(formData.get("fuel_level") || existingContract.fuel_level || "Full"),
-      cleanliness: String(formData.get("cleanliness") || existingContract.cleanliness || "Clean"),
-      startMileage: Number(formData.get("start_mileage")) || existingContract.start_mileage || 0,
+      totalAmount: Number(formData.get("total_amount")) || 0,
+      fuelLevel: (formData.get("fuel_level") as string) || null,
+      cleanliness: (formData.get("cleanliness") as string) || null,
+      startMileage: Number(formData.get("start_mileage")) || 0,
+      notes: (formData.get("notes") as string) || null,
       fullInsuranceEnabled: extraFlags.full_insurance,
+      deliveryFeeAfterHoursEnabled: extraFlags.delivery_fee_after_hours,
       babySeatEnabled: extraFlags.baby_seat,
       islandTripEnabled: extraFlags.island_trip,
       krabiTripEnabled: extraFlags.krabi_trip,
-      notes: (formData.get("notes") as string) || null,
-      updatedAt: new Date(),
     };
+
+    const currencyMap = await getCurrencyCodeById(db);
+    const chosenCurrencyId = Number(formData.get("currency_id"));
+    if (chosenCurrencyId) {
+      const code = currencyMap.get(chosenCurrencyId) || "THB";
+      updatePayload.totalCurrency = code;
+      updatePayload.depositCurrency = code;
+    }
 
     if (photosValue.length > 0) {
       updatePayload.photos = JSON.stringify(photosValue);
@@ -229,7 +235,7 @@ export async function handleEditContractAction({ db, assets, request, user, comp
         UPDATE contracts
         SET company_car_id = ?, start_date = ?, end_date = ?, pickup_district_id = ?, pickup_hotel = ?, pickup_room = ?,
             delivery_cost = ?, return_district_id = ?, return_hotel = ?, return_room = ?, return_cost = ?, deposit_amount = ?,
-            deposit_payment_method = ?, total_amount = ?, fuel_level = ?, cleanliness = ?, start_mileage = ?,
+            deposit_currency = ?, total_amount = ?, total_currency = ?, fuel_level = ?, cleanliness = ?, start_mileage = ?,
             notes = ?,
             photos = COALESCE(?, photos), updated_at = ?
         WHERE id = ?
@@ -247,8 +253,9 @@ export async function handleEditContractAction({ db, assets, request, user, comp
         updatePayload.returnRoom,
         updatePayload.returnCost,
         updatePayload.depositAmount,
-        updatePayload.depositPaymentMethod,
+        updatePayload.depositCurrency,
         updatePayload.totalAmount,
+        updatePayload.totalCurrency,
         updatePayload.fuelLevel,
         updatePayload.cleanliness,
         updatePayload.startMileage,
@@ -261,6 +268,7 @@ export async function handleEditContractAction({ db, assets, request, user, comp
 
     const extraEnabledByType: Record<(typeof EXTRA_TYPES)[number], boolean> = {
       full_insurance: Boolean(updatePayload.fullInsuranceEnabled),
+      delivery_fee_after_hours: Boolean(updatePayload.deliveryFeeAfterHoursEnabled),
       baby_seat: Boolean(updatePayload.babySeatEnabled),
       island_trip: Boolean(updatePayload.islandTripEnabled),
       krabi_trip: Boolean(updatePayload.krabiTripEnabled),
@@ -269,7 +277,7 @@ export async function handleEditContractAction({ db, assets, request, user, comp
     const existingExtrasResult = await db
       .prepare(`
         SELECT id, extra_type AS extraType, extra_price AS extraPrice, amount, currency, currency_id AS currencyId,
-               payment_type_id AS paymentTypeId, payment_method AS paymentMethod, status, notes
+               payment_type_id AS paymentTypeId, status, notes
         FROM payments
         WHERE contract_id = ? AND extra_type IS NOT NULL
       `)
@@ -282,7 +290,10 @@ export async function handleEditContractAction({ db, assets, request, user, comp
 
     for (const extraType of EXTRA_TYPES) {
       const existingExtra = existingByType.get(extraType);
-      if (!extraEnabledByType[extraType]) {
+      const isEnabled = extraEnabledByType[extraType];
+      const extraInput = getExtraInputFromFormData(formData, extraType);
+      
+      if (!isEnabled) {
         if (existingExtra?.id) {
           extraStmts.push(
             db.prepare("DELETE FROM payments WHERE id = ?").bind(existingExtra.id)
@@ -296,10 +307,23 @@ export async function handleEditContractAction({ db, assets, request, user, comp
           db
             .prepare(`
               UPDATE payments
-              SET extra_enabled = 1, extra_price = COALESCE(extra_price, amount, 0), updated_at = ?
+              SET 
+                extra_enabled = 1, 
+                amount = ?,
+                currency_id = ?,
+                currency = ?,
+                extra_price = ?,
+                updated_at = ?
               WHERE id = ?
             `)
-            .bind(new Date().toISOString(), existingExtra.id)
+            .bind(
+              extraInput.amount,
+              extraInput.currencyId,
+              currencyMap.get(extraInput.currencyId ?? 0) ?? "THB",
+              extraInput.amount,
+              new Date().toISOString(), 
+              existingExtra.id
+            )
         );
         continue;
       }
@@ -309,8 +333,9 @@ export async function handleEditContractAction({ db, assets, request, user, comp
         contractId,
         userId: user.id,
         extraType,
-        amount: 0,
-        currency: "THB",
+        amount: extraInput.amount,
+        currencyId: extraInput.currencyId,
+        currency: currencyMap.get(extraInput.currencyId ?? 0) ?? "THB",
       }));
     }
 

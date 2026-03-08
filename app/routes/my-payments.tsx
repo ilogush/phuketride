@@ -10,8 +10,8 @@ import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { loadClientPaymentsHistoryPage, type ClientPaymentRow } from "~/lib/user-self-service.server";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { requireSelfProfileAccess } from "~/lib/access-policy.server";
+import { getCurrencySymbol } from "~/lib/formatters";
 
 export const meta: MetaFunction = () => [
     { title: "My Payments | Phuket Ride" },
@@ -38,7 +38,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export default function MyPayments() {
-    useUrlToast();
     const { payments, totalPages, currentPage, status } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -116,11 +115,6 @@ export default function MyPayments() {
                                             <p className="text-sm text-gray-500">
                                                 {format(new Date(payment.createdAt), "MMM dd, yyyy HH:mm")}
                                             </p>
-                                            {payment.paymentMethod && (
-                                                <p className="text-sm text-gray-500">
-                                                    Method: {payment.paymentMethod}
-                                                </p>
-                                            )}
                                             <Link to={`/my-contracts/${payment.contractId}`} className="text-sm text-blue-600 hover:text-blue-700">
                                                 View Contract →
                                             </Link>
@@ -128,7 +122,7 @@ export default function MyPayments() {
                                     </div>
                                     <div className="text-right">
                                         <p className={`text-2xl font-bold ${payment.paymentTypeSign === '+' ? 'text-green-600' : 'text-red-600'}`}>
-                                            {payment.paymentTypeSign}{payment.currency} {payment.amount}
+                                            {payment.paymentTypeSign}{getCurrencySymbol(payment.currency)}{payment.amount}
                                         </p>
                                     </div>
                                 </div>

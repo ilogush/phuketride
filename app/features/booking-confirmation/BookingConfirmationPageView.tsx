@@ -6,8 +6,9 @@ import Footer from "~/components/public/Footer";
 import Header from "~/components/public/Header";
 
 import type { BookingConfirmationLoaderData } from "./booking-confirmation.loader.server";
+import { getCurrencySymbol } from "~/lib/formatters";
 
-const money = (value: number) => `฿${Math.round(value || 0).toLocaleString()}`;
+const money = (value: number) => Math.round(value || 0).toLocaleString();
 
 export default function BookingConfirmationPageView({
   status,
@@ -65,15 +66,13 @@ export default function BookingConfirmationPageView({
               <p>
                 <span className="text-gray-500">Trip total:</span>{" "}
                 {bookingSummary
-                  ? `${money(bookingSummary.totalAmount)} ${
-                      bookingSummary.totalCurrency || "THB"
-                    }`
+                  ? `${getCurrencySymbol(bookingSummary.totalCurrency)}${money(bookingSummary.totalAmount)}`
                   : "-"}
               </p>
               <p>
                 <span className="text-gray-500">Deposit:</span>{" "}
                 {bookingSummary
-                  ? `${money(bookingSummary.depositAmount || 0)} THB`
+                  ? `${getCurrencySymbol(bookingSummary.totalCurrency)}${money(bookingSummary.depositAmount || 0)}`
                   : "-"}
               </p>
             </div>

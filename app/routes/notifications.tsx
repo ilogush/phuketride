@@ -6,7 +6,6 @@ import { format } from "date-fns";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Card from "~/components/dashboard/Card";
 import EmptyState from "~/components/dashboard/EmptyState";
-import { useUrlToast } from "~/lib/useUrlToast";
 import {
 	getUserNotificationContracts,
 	getUserNotificationWindows,
@@ -57,7 +56,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export default function Notifications() {
-    useUrlToast();
     const { notifications } = useLoaderData<typeof loader>();
 
     const getIcon = (type: string) => {

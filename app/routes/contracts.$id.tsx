@@ -1,5 +1,4 @@
 import { type LoaderFunctionArgs, redirect } from "react-router";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { getScopedDb } from "~/lib/db-factory.server";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
@@ -14,6 +13,5 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 }
 
 export default function ContractRedirectPage() {
-    useUrlToast();
     return null;
 }

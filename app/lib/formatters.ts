@@ -131,3 +131,18 @@ export function getDefaultContractCloseDateTime(now = new Date()): string {
         hour12: false,
     })}`;
 }
+
+/**
+ * Get the symbol for a currency code
+ */
+export function getCurrencySymbol(code: string | null | undefined): string {
+    if (!code) return "฿";
+    const mapped: Record<string, string> = {
+        THB: "฿",
+        USD: "$",
+        EUR: "€",
+        GBP: "£",
+        RUB: "₽",
+    };
+    return mapped[code.toUpperCase()] || code;
+}

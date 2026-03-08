@@ -6,7 +6,6 @@ import PageHeader from '~/components/dashboard/PageHeader'
 import BackButton from '~/components/dashboard/BackButton'
 import Button from '~/components/dashboard/Button'
 import { createCarTemplate, loadCarTemplateFormOptions } from '~/lib/car-template-form.server'
-import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
     await requireAdmin(request)
@@ -24,7 +23,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function CreateCarTemplatePage({ loaderData }: Route.ComponentProps) {
-    useUrlToast();
     const { brands, models, bodyTypes, fuelTypes } = loaderData
 
     return (

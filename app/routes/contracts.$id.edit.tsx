@@ -4,7 +4,6 @@ import { getScopedDb } from "~/lib/db-factory.server";
 import ContractEditPageView from "~/features/contract-edit/ContractEditPageView";
 import { loadEditContractPageData } from "~/lib/contracts-edit-page.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
-import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const contractId = parseInt(params.id!);
@@ -43,6 +42,5 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 
 export default function EditContract() {
     const data = useLoaderData<typeof loader>();
-    useUrlToast();
     return <ContractEditPageView {...data} />;
 }

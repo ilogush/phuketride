@@ -19,7 +19,6 @@ import { getRequestMetadata } from '~/lib/audit-logger'
 import type { Column } from '~/components/dashboard/DataTable'
 import type { BrandRow, ModelRow, TemplateRow } from "~/lib/car-templates";
 import { useAsyncToastAction } from '~/lib/useAsyncToastAction'
-import { useUrlToast } from '~/lib/useUrlToast'
 
 type BrandFormData = { name: string }
 type ModelFormData = { name: string; brand_id: string }
@@ -59,7 +58,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
     const { brands, models, templates } = loaderData
-    useUrlToast()
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
     const navigation = useNavigation()

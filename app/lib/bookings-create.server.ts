@@ -35,7 +35,6 @@ export async function createBookingAction({ db, request, user, companyId, formDa
     clientPassport,
     depositAmount,
     depositPaid,
-    depositPaymentMethod,
     pickupDistrictId,
     pickupHotel,
     pickupRoom,
@@ -112,12 +111,12 @@ export async function createBookingAction({ db, request, user, companyId, formDa
       .prepare(`
         INSERT INTO bookings (
           company_car_id, client_id, manager_id, start_date, end_date, estimated_amount, currency,
-          deposit_amount, deposit_paid, deposit_payment_method, client_name, client_surname, client_phone,
+          deposit_amount, deposit_paid, client_name, client_surname, client_phone,
           client_email, client_passport, pickup_district_id, pickup_hotel, pickup_room, return_district_id,
           return_hotel, return_room, full_insurance_enabled, full_insurance_price, baby_seat_enabled,
           baby_seat_price, island_trip_enabled, island_trip_price, krabi_trip_enabled, krabi_trip_price,
           status, notes, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, 'THB', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, 'THB', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
       `)
       .bind(
         Number(carId),
@@ -128,7 +127,6 @@ export async function createBookingAction({ db, request, user, companyId, formDa
         estimatedAmount,
         depositAmount ? Number(depositAmount) : 0,
         depositPaid === "on" ? 1 : 0,
-        depositPaymentMethod || null,
         clientName,
         clientSurname,
         clientPhone,

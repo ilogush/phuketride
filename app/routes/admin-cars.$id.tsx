@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs, redirect } from "react-router";
 import { requireCarAccess } from "~/lib/access-policy.server";
-import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     const carId = Number(params.id);
@@ -15,6 +14,5 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 }
 
 export default function CarDetailsRedirectPage() {
-    useUrlToast();
     return null;
 }

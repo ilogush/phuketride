@@ -11,7 +11,6 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon, SunIcon } from "@heroicons/react/24/outline";
-import { useUrlToast } from "~/lib/useUrlToast";
 import type { AdminSeasonRow } from "~/lib/admin-dictionaries";
 import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
 import { getScopedDb } from "~/lib/db-factory.server";
@@ -69,7 +68,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function SeasonsPage() {
     const { seasons } = useLoaderData<typeof loader>();
-    useUrlToast();
     const navigation = useNavigation();
     const submit = useSubmit();
 

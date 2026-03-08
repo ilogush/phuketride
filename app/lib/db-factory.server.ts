@@ -253,10 +253,11 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
 
         auditLogs: {
             list: (options?: { limit?: number; offset?: number }) =>
-                analyticsRepo.listAuditLogs(db as any, options),
+                analyticsRepo.listAuditLogs(db as any, { ...options, companyId }),
             count: () =>
-                db.prepare("SELECT COUNT(*) as count FROM audit_logs").first() as Promise<{ count: number } | null>,
-            clear: () => analyticsRepo.clearAuditLogs(db as any),
+                analyticsRepo.countAuditLogs(db as any, companyId),
+            clear: () => analyticsRepo.clearAuditLogs(db as any, companyId),
+            quickAudit: (args: any) => auditLogger.quickAudit({ db: db as any, ...args }),
         },
 
         dashboard: {

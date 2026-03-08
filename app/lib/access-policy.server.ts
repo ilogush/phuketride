@@ -105,13 +105,18 @@ export async function requireAdminUserMutationAccess(request: Request) {
 }
 
 export async function requireAdminAnalyticsAccess(request: Request) {
-    const user = await requireAdmin(request);
+    const user = await requireAuth(request);
+    if (!["admin", "partner"].includes(user.role)) {
+        throw new Response("Forbidden", { status: 403 });
+    }
+
+    const companyId = user.role === "partner" ? user.companyId ?? null : null;
 
     return {
         user,
-        companyId: null,
-        adminModCompanyId: null,
-        isModMode: false,
+        companyId,
+        adminModCompanyId: getAdminModCompanyId(request, user),
+        isModMode: getAdminModCompanyId(request, user) !== null,
     };
 }
 

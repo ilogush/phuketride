@@ -10,7 +10,6 @@ import {
     loadEditableCarTemplate,
     updateCarTemplate,
 } from '~/lib/car-template-form.server'
-import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, context, params }: Route.LoaderArgs) {
     await requireAdmin(request)
@@ -41,7 +40,6 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 }
 
 export default function EditCarTemplatePage({ loaderData }: Route.ComponentProps) {
-    useUrlToast();
     const { template, brands, models, bodyTypes, fuelTypes } = loaderData
     const formTemplate = {
         ...template,

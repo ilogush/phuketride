@@ -3,7 +3,6 @@ import { useLoaderData } from "react-router";
 import ContractClosePageView from "~/features/contract-close/ContractClosePageView";
 import { submitContractCloseAction } from "~/features/contract-close/contract-close.action.server";
 import { loadContractClosePage } from "~/features/contract-close/contract-close.loader.server";
-import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     return loadContractClosePage({
@@ -23,6 +22,5 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
 
 export default function CloseContract() {
     const { contract } = useLoaderData<typeof loader>();
-    useUrlToast();
     return <ContractClosePageView contract={contract} />;
 }

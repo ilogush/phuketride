@@ -12,26 +12,6 @@ import {
 } from "~/lib/admin-analytics-repo.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 
-export async function loadAuditLogsPageData(args: {
-    db: D1Database;
-    limit?: number;
-    offset?: number;
-}) {
-    const [logs, countRow] = await Promise.all([
-        listAuditLogs(args.db, { limit: args.limit, offset: args.offset }),
-        args.db.prepare("SELECT COUNT(*) as count FROM audit_logs").first<{ count: number }>(),
-    ]);
-    return { logs, totalCount: countRow?.count ?? 0 };
-}
-
-export async function clearAuditLogsFromForm(args: {
-    db: D1Database;
-    request: Request;
-}) {
-    await clearAuditLogs(args.db);
-    return redirectWithRequestSuccess(args.request, "/logs", "Audit logs cleared successfully");
-}
-
 function getStartOfDay(referenceDate: Date) {
     const value = new Date(referenceDate);
     value.setHours(0, 0, 0, 0);
@@ -96,6 +76,7 @@ export async function loadDashboardChartsData(args: {
 
 export async function loadReportsPageData(args: {
     db: D1Database;
+    companyId: number | null;
     now?: Date;
 }) {
     const now = args.now ?? new Date();
@@ -106,6 +87,7 @@ export async function loadReportsPageData(args: {
     const summary = await getAnalyticsReportSummary(args.db, {
         startMs: start.getTime(),
         todayStartMs: todayStart.getTime(),
+        companyId: args.companyId,
     });
 
     return {

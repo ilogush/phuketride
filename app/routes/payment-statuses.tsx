@@ -11,7 +11,6 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon, BanknotesIcon } from "@heroicons/react/24/outline";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { z } from "zod";
@@ -112,7 +111,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function PaymentStatusesPage() {
     const { statuses } = useLoaderData<typeof loader>();
-    useUrlToast();
     const navigation = useNavigation();
 
     const [isFormOpen, setIsFormOpen] = useState(false);

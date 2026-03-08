@@ -12,7 +12,6 @@ import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
 import { UserGroupIcon, PlusIcon } from "@heroicons/react/24/outline";
 import IdBadge from "~/components/dashboard/IdBadge";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { formatContactPhone } from "~/lib/phone";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
@@ -123,7 +122,6 @@ export default function UsersPage() {
     const { user, users: usersList, roleCounts, isModMode, activeTab, totalCount, search } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigation = useNavigation();
-    useUrlToast();
     const isPartner = user.role === "partner" || isModMode;
 
     const tabs = isPartner
@@ -187,25 +185,12 @@ export default function UsersPage() {
         },
     ];
 
-    const handleSearch = (value: string) => {
-        const next = new URLSearchParams(searchParams);
-        if (value) {
-            next.set("search", value);
-        } else {
-            next.delete("search");
-        }
-        next.set("page", "1");
-        setSearchParams(next, { preventScrollReset: true });
-    };
+
 
     return (
         <div className="space-y-4">
             <PageHeader
                 title="Users"
-                withSearch
-                searchValue={search || ""}
-                onSearchChange={handleSearch}
-                searchPlaceholder="Search by name or email..."
                 rightActions={
                     <Link to="/users/create">
                         <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
@@ -231,7 +216,6 @@ export default function UsersPage() {
                 columns={columns}
                 totalCount={totalCount}
                 serverPagination
-                searchQuery={search || ""}
                 isLoading={navigation.state === "loading"}
                 emptyTitle="No users found"
                 emptyDescription={`No users with role "${currentTab}"`}

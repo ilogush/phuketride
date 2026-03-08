@@ -58,7 +58,6 @@ test("createPaymentRecord writes payment, audit and success feedback", async () 
     formData.set("paymentTypeId", "1");
     formData.set("amount", "750");
     formData.set("currency", "THB");
-    formData.set("paymentMethod", "cash");
     formData.set("status", "completed");
 
     const response = await createPaymentRecord({
@@ -92,7 +91,6 @@ test("createPaymentRecord rejects cross-company contract with forbidden response
     formData.set("paymentTypeId", "1");
     formData.set("amount", "750");
     formData.set("currency", "THB");
-    formData.set("paymentMethod", "cash");
     formData.set("status", "completed");
 
     await assert.rejects(

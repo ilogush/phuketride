@@ -11,7 +11,6 @@ export const bookingSchema = z.object({
   clientPassport: z.string().optional(),
   depositAmount: z.string().optional(),
   depositPaid: z.string().optional(),
-  depositPaymentMethod: z.string().optional(),
   pickupDistrictId: z.string().optional(),
   pickupHotel: z.string().optional(),
   pickupRoom: z.string().optional(),

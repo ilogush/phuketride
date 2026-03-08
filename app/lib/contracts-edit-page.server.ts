@@ -1,5 +1,7 @@
 import { mapExtrasByType, type ExtraType } from "~/lib/contract-extras.server";
 import { getEditableContractById } from "~/lib/contracts-repo.server";
+import { getCachedActiveCurrenciesForCompany, getCachedDistricts } from "~/lib/dictionaries-cache.server";
+import type { D1DatabaseLike as D1Database } from "./repo-types.server";
 
 type ContractLoaderRow = {
     id: number;
@@ -15,8 +17,9 @@ type ContractLoaderRow = {
     delivery_cost: number | null;
     return_cost: number | null;
     deposit_amount: number | null;
-    deposit_payment_method: string | null;
     total_amount: number | null;
+    total_currency: string | null;
+    deposit_currency: string | null;
     fuel_level: string | null;
     cleanliness: string | null;
     start_mileage: number | null;
@@ -45,7 +48,6 @@ type ContractExtraRow = {
     paymentTypeId: number | null;
     currency: string | null;
     currencyId: number | null;
-    paymentMethod: string | null;
     status: string | null;
     notes: string | null;
 };
@@ -69,7 +71,6 @@ export async function loadEditContractPageData(sdb: ScopedDb, contractId: number
                 payment_type_id AS paymentTypeId,
                 currency,
                 currency_id AS currencyId,
-                payment_method AS paymentMethod,
                 status,
                 notes
             FROM payments
@@ -94,24 +95,14 @@ export async function loadEditContractPageData(sdb: ScopedDb, contractId: number
         deliveryCost: contractRaw.delivery_cost,
         returnCost: contractRaw.return_cost,
         depositAmount: contractRaw.deposit_amount,
-        depositPaymentMethod: contractRaw.deposit_payment_method,
         totalAmount: contractRaw.total_amount,
+        totalCurrency: contractRaw.total_currency,
+        depositCurrency: contractRaw.deposit_currency,
         fuelLevel: contractRaw.fuel_level,
         cleanliness: contractRaw.cleanliness,
-        fullInsuranceEnabled: !!extrasMap.full_insurance,
-        babySeatEnabled: !!extrasMap.baby_seat,
-        islandTripEnabled: !!extrasMap.island_trip,
-        krabiTripEnabled: !!extrasMap.krabi_trip,
-        fullInsurancePrice: extrasMap.full_insurance?.extraPrice ?? extrasMap.full_insurance?.amount ?? 0,
-        babySeatPrice: extrasMap.baby_seat?.extraPrice ?? extrasMap.baby_seat?.amount ?? 0,
-        islandTripPrice: extrasMap.island_trip?.extraPrice ?? extrasMap.island_trip?.amount ?? 0,
-        krabiTripPrice: extrasMap.krabi_trip?.extraPrice ?? extrasMap.krabi_trip?.amount ?? 0,
         startMileage: contractRaw.start_mileage,
-        companyCar: {
-            id: contractRaw.carId,
-            companyId: contractRaw.companyId,
-            licensePlate: contractRaw.licensePlate,
-        },
+        notes: contractRaw.notes,
+        photos: contractRaw.photos,
         client: {
             id: contractRaw.clientId,
             name: contractRaw.clientName,
@@ -120,13 +111,19 @@ export async function loadEditContractPageData(sdb: ScopedDb, contractId: number
             email: contractRaw.clientEmail,
             whatsapp: contractRaw.clientWhatsapp,
             telegram: contractRaw.clientTelegram,
-            passportNumber: contractRaw.clientPassport,
+            passport: contractRaw.clientPassport,
             passportPhotos: contractRaw.clientPassportPhotos,
             driverLicensePhotos: contractRaw.clientDriverLicensePhotos,
         },
+        companyCar: {
+            id: contractRaw.carId,
+            companyId: contractRaw.companyId,
+            licensePlate: contractRaw.licensePlate,
+        },
+        extras: extrasMap,
     };
 
-    const [cars, districts] = await Promise.all([
+    const [cars, districts, currencies, extraSettings, contractPayments] = await Promise.all([
         sdb.db
             .prepare("SELECT id, license_plate AS licensePlate FROM company_cars WHERE company_id = ? AND status = 'available' AND archived_at IS NULL")
             .bind(sdb.companyId ?? contract.companyCar.companyId)
@@ -135,11 +132,51 @@ export async function loadEditContractPageData(sdb: ScopedDb, contractId: number
                 id: row.id,
                 name: row.licensePlate,
             }))),
+        getCachedDistricts(sdb.db as any),
+        getCachedActiveCurrenciesForCompany(sdb.db as any, sdb.companyId!),
         sdb.db
-            .prepare("SELECT id, name FROM districts WHERE is_active = 1")
+            .prepare("SELECT delivery_fee_after_hours, island_trip_price, krabi_trip_price, baby_seat_price_per_day FROM companies WHERE id = ?")
+            .bind(sdb.companyId ?? contract.companyCar.companyId)
+            .first() as Promise<{
+              delivery_fee_after_hours?: number | null;
+              island_trip_price?: number | null;
+              krabi_trip_price?: number | null;
+              baby_seat_price_per_day?: number | null;
+            } | null>,
+        sdb.db
+            .prepare(`
+                SELECT
+                    id, amount, currency, status, created_at AS createdAt, extra_type AS extraType, notes
+                FROM payments
+                WHERE contract_id = ?
+                ORDER BY created_at DESC
+            `)
+            .bind(contractId)
             .all()
-            .then((result) => (result.results || []) as Array<{ id: number; name: string }>),
     ]);
 
-    return { contract, cars, districts, client: contract.client };
+    const totalCurrencyRow = (currencies as any[])?.find(c => c.code === contractRaw.total_currency);
+    const depositCurrencyRow = (currencies as any[])?.find(c => c.code === contractRaw.deposit_currency);
+
+    return { 
+        contract: {
+            ...contract,
+            totalCurrencyId: totalCurrencyRow?.id,
+            depositCurrencyId: depositCurrencyRow?.id,
+        }, 
+        cars, 
+        districts, 
+        client: contract.client,
+        currencies: (currencies as any[]) || [{ id: 1, code: "THB", symbol: "฿" }],
+        extraSettings,
+        payments: (contractPayments.results || []) as Array<{
+            id: number;
+            amount: number;
+            currency: string;
+            status: string;
+            createdAt: string;
+            extraType: string | null;
+            notes: string | null;
+        }>
+    };
 }

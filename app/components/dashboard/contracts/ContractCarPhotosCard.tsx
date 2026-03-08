@@ -1,3 +1,5 @@
+import { TruckIcon } from "@heroicons/react/24/outline";
+import AdminCard from "~/components/dashboard/AdminCard";
 import CarPhotosUpload from "~/components/dashboard/CarPhotosUpload";
 
 type PhotoItem = { base64: string; fileName: string };
@@ -7,17 +9,17 @@ type ContractCarPhotosCardProps = {
   onPhotosChange: (photos: PhotoItem[]) => void;
 };
 
-export default function ContractCarPhotosCard({ currentPhotos = [], onPhotosChange }: ContractCarPhotosCardProps) {
+export default function ContractCarPhotosCard({
+  currentPhotos = [],
+  onPhotosChange,
+}: ContractCarPhotosCardProps) {
   return (
-    <div className="bg-white rounded-3xl border border-gray-200 p-4">
-      <label className="block text-sm font-medium text-gray-700 mb-3">
-        Car Photos (max 12)
-      </label>
+    <AdminCard title="Car Photos" icon={<TruckIcon className="w-5 h-5" />}>
       <CarPhotosUpload
         currentPhotos={currentPhotos}
         onPhotosChange={onPhotosChange}
         maxPhotos={12}
       />
-    </div>
+    </AdminCard>
   );
 }

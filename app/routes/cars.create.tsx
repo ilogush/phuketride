@@ -13,7 +13,6 @@ import AdminCard from "~/components/dashboard/AdminCard";
 import CarPhotosUpload from "~/components/dashboard/CarPhotosUpload";
 import DocumentPhotosUpload from "~/components/dashboard/DocumentPhotosUpload";
 import CarTemplateDetails from "~/components/dashboard/cars/CarTemplateDetails";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { ExclamationTriangleIcon, Cog6ToothIcon, PhotoIcon, WrenchScrewdriverIcon, BanknotesIcon, ShieldCheckIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import SeasonalPricingMatrix from "~/components/dashboard/cars/SeasonalPricingMatrix";
@@ -62,7 +61,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function CreateCarPage() {
     const { templates, colors, seasons, durations } = useLoaderData<typeof loader>();
-    useUrlToast();
     const { validateLatinInput } = useLatinValidation();
     const [photos, setPhotos] = useState<Array<{ base64: string; fileName: string }>>([]);
     const [pricePerDay, setPricePerDay] = useState(2343);
@@ -338,7 +336,7 @@ export default function CreateCarPage() {
                         <AdminCard title="Photos" icon={<PhotoIcon className="w-5 h-5" />}>
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <h4 className="block text-sm text-gray-500 mb-1">Car Photos (max 12)</h4>
+                                    <h4 className="block text-sm text-gray-500 mb-1">Car Photos</h4>
                                     <CarPhotosUpload
                                         currentPhotos={[]}
                                         onPhotosChange={setPhotos}

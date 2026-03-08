@@ -75,7 +75,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function ContractsPage() {
     const { contracts: contractsList, statusCounts, activeTab, totalCount, search } = useLoaderData<typeof loader>();
-    useUrlToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigation = useNavigation();
 

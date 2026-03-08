@@ -8,6 +8,7 @@ import type {
   ContractPaymentRow,
   ExistingReviewRow,
 } from "~/lib/my-contracts-detail-types";
+import { getCurrencySymbol } from "~/lib/formatters";
 
 type MyContractDetailsCardsProps = {
   contract: ContractDetailsRow;
@@ -112,14 +113,14 @@ export default function MyContractDetailsCards({
           <div className="flex justify-between">
             <span className="text-gray-600">Total Amount</span>
             <span className="font-semibold">
-              {contract.totalCurrency} {contract.totalAmount}
+              {getCurrencySymbol(contract.totalCurrency)}{contract.totalAmount}
             </span>
           </div>
           {contract.depositAmount ? (
             <div className="flex justify-between">
               <span className="text-gray-600">Deposit</span>
               <span className="font-semibold">
-                {contract.depositCurrency} {contract.depositAmount}
+                {getCurrencySymbol(contract.depositCurrency)}{contract.depositAmount}
               </span>
             </div>
           ) : null}
@@ -127,7 +128,7 @@ export default function MyContractDetailsCards({
             <div key={`extra-${extra.id}`} className="flex justify-between">
               <span className="text-gray-600">{extraNameMap[String(extra.extraType)] || extra.extraType}</span>
               <span className="font-semibold">
-                {extra.currency || contract.totalCurrency} {Number(extra.extraPrice ?? extra.amount ?? 0)}
+                {getCurrencySymbol(extra.currency || contract.totalCurrency)}{Number(extra.extraPrice ?? extra.amount ?? 0)}
               </span>
             </div>
           ))}
@@ -204,9 +205,8 @@ export default function MyContractDetailsCards({
                 </div>
                 <div className="text-right">
                   <p className={`font-semibold ${payment.paymentTypeSign === "-" ? "text-red-600" : "text-green-600"}`}>
-                    {(payment.paymentTypeSign || "+")}{payment.currency} {payment.amount}
+                    {(payment.paymentTypeSign || "+")}{getCurrencySymbol(payment.currency)}{payment.amount}
                   </p>
-                  <p className="text-sm text-gray-500">{payment.paymentMethod}</p>
                 </div>
               </div>
             ))}

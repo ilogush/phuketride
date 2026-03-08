@@ -1,11 +1,13 @@
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
 
-type DistrictOption = { id: number | string; name: string };
+type DistrictOption = { id: number | string; name: string; deliveryPrice?: number | null };
 
 type ContractRentalDetailsFieldsProps = {
   districts: DistrictOption[];
   onDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onPickupDistrictChange?: (districtId: string) => void;
+  onReturnDistrictChange?: (districtId: string) => void;
   defaults?: {
     startDateTime?: string;
     pickupDistrictId?: number | string | null;
@@ -18,7 +20,13 @@ type ContractRentalDetailsFieldsProps = {
   };
 };
 
-export default function ContractRentalDetailsFields({ districts, onDateChange, defaults }: ContractRentalDetailsFieldsProps) {
+export default function ContractRentalDetailsFields({ 
+  districts, 
+  onDateChange, 
+  onPickupDistrictChange,
+  onReturnDistrictChange,
+  defaults 
+}: ContractRentalDetailsFieldsProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <Input
@@ -35,6 +43,7 @@ export default function ContractRentalDetailsFields({ districts, onDateChange, d
         name="pickup_district_id"
         options={districts}
         defaultValue={defaults?.pickupDistrictId ?? undefined}
+        onChange={(e) => onPickupDistrictChange?.(e.target.value)}
         placeholder="Select district"
         showPlaceholderOption
         required
@@ -65,6 +74,7 @@ export default function ContractRentalDetailsFields({ districts, onDateChange, d
         name="return_district_id"
         options={districts}
         defaultValue={defaults?.returnDistrictId ?? undefined}
+        onChange={(e) => onReturnDistrictChange?.(e.target.value)}
         placeholder="Select district"
         showPlaceholderOption
         required

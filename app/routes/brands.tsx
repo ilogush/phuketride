@@ -12,7 +12,6 @@ import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon, TagIcon } from "@heroicons/react/24/outline";
 import IdBadge from "~/components/dashboard/IdBadge";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { brandSchema } from "~/schemas/dictionary";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
@@ -123,7 +122,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function BrandsPage() {
     const { brands, totalCount, search } = useLoaderData<typeof loader>();
-    useUrlToast();
     const navigation = useNavigation();
     const [searchParams, setSearchParams] = useSearchParams();
 

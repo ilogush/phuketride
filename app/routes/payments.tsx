@@ -13,7 +13,6 @@ import StatusBadge from "~/components/dashboard/StatusBadge";
 import IdBadge from "~/components/dashboard/IdBadge";
 import { BanknotesIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { format, isValid } from "date-fns";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
 import { getScopedDb } from "~/lib/db-factory.server";
@@ -62,11 +61,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             const paymentsList = rawPayments.map((p) => ({
                 ...p,
                 createdAt: p.created_at ?? p.createdAt ?? null,
-                paymentMethod: p.payment_method ?? p.paymentMethod ?? null,
                 contract: p.contractId ? { id: p.contractId } : null,
-                paymentType: p.paymentTypeName ? { name: p.paymentTypeName, sign: p.paymentTypeSign ?? null } : null,
-                currency: p.currencyCode ? { code: p.currencyCode, symbol: p.currencySymbol ?? null } : null,
-                creator: p.creatorName || p.creatorSurname ? { name: p.creatorName ?? null, surname: p.creatorSurname ?? null } : null,
+                paymentType: { name: p.paymentTypeName, sign: p.paymentTypeSign },
+                currency: { code: p.currencyCode, symbol: p.currencySymbol },
+                creator: { name: p.creatorName, surname: p.creatorSurname }
             }));
 
             const statusCounts = { all: 0, pending: 0, completed: 0, cancelled: 0 };
@@ -85,7 +83,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function PaymentsPage() {
     const { payments: paymentsList, statusCounts, activeTab, totalCount } = useLoaderData<typeof loader>();
-    useUrlToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigation = useNavigation();
 
@@ -135,19 +132,6 @@ export default function PaymentsPage() {
             }
         },
         {
-            key: "paymentMethod",
-            label: "Method",
-            render: (payment) => {
-                const methodMap: Record<string, string> = {
-                    cash: "Cash",
-                    card: "Card",
-                    bank_transfer: "Bank Transfer",
-                    online: "Online"
-                };
-                return methodMap[payment.paymentMethod || ""] || payment.paymentMethod || "-";
-            }
-        },
-        {
             key: "status",
             label: "Status",
             sortable: true,
@@ -171,11 +155,9 @@ export default function PaymentsPage() {
             sortable: true,
             render: (payment) => {
                 const currencySymbol = payment.currency?.symbol || "฿";
-                const currencyCode = payment.currency?.code || "THB";
-                const isThb = currencyCode.toUpperCase() === "THB";
                 return (
                     <span className="font-medium text-gray-900">
-                        {isThb ? `${currencySymbol}${payment.amount}` : `${payment.amount} ${currencyCode}`}
+                        {currencySymbol}{payment.amount}
                     </span>
                 );
             }

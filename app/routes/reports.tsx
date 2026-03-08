@@ -4,10 +4,10 @@ import PageHeader from "~/components/dashboard/PageHeader";
 import Card from "~/components/dashboard/Card";
 import { ChartBarIcon } from "@heroicons/react/24/outline";
 import Button from "~/components/dashboard/Button";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { loadReportsPageData } from "~/lib/admin-analytics.server";
 import { requireAdminAnalyticsAccess } from "~/lib/access-policy.server";
+import { getScopedDb } from "~/lib/db-factory.server";
 
 export const meta: MetaFunction = () => [
     { title: "Reports — Phuket Ride Admin" },
@@ -15,22 +15,22 @@ export const meta: MetaFunction = () => [
 ];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user } = await requireAdminAnalyticsAccess(request);
+    const { user, companyId } = await getScopedDb(request, context, (r) => requireAdminAnalyticsAccess(r));
     return trackServerOperation({
         event: "reports.load",
         scope: "route.loader",
         request,
         userId: user.id,
-        companyId: null,
+        companyId,
         details: { route: "reports" },
         run: async () => loadReportsPageData({
             db: context.cloudflare.env.DB,
+            companyId,
         }),
     });
 }
 
 export default function ReportsPage() {
-    useUrlToast();
     const { reports } = useLoaderData<typeof loader>();
 
     return (

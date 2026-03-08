@@ -2,27 +2,32 @@ import { TrashIcon } from '@heroicons/react/24/outline'
 import Button from './Button'
 
 interface DeleteButtonProps {
-    onClick: () => void
+    onClick?: () => void
     disabled?: boolean
     title?: string
     className?: string
+    type?: 'button' | 'submit'
+    size?: 'sm' | 'md' | 'lg'
 }
 
 export default function DeleteButton({
     onClick,
     disabled = false,
     title = "Delete",
-    className = ""
+    className = "",
+    type = "button",
+    size = "md"
 }: DeleteButtonProps) {
     return (
         <Button
-            type="button"
+            type={type}
             onClick={onClick}
             disabled={disabled}
-            variant="outline"
-            className={className}
+            variant="ghost"
+            size={size}
+            className={`text-gray-400 hover:text-gray-900 ${className}`}
             title={title}
-            icon={<TrashIcon className="w-5 h-5" />}
+            icon={<TrashIcon className={`${size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'}`} />}
         />
     )
 }

@@ -50,10 +50,15 @@ function toNumber(value: number | string | null | undefined) {
 
 export async function listAuditLogs(
     db: D1Database,
-    options?: { limit?: number; offset?: number }
+    options?: { limit?: number; offset?: number; companyId?: number | null }
 ) {
     const limit = options?.limit ?? QUERY_LIMITS.LARGE;
     const offset = options?.offset ?? 0;
+    const companyId = options?.companyId ?? null;
+
+    const whereClause = companyId !== null ? "WHERE a.company_id = ?" : "";
+    const binding = companyId !== null ? [companyId] : [];
+
     const result = await db
         .prepare(
             `
@@ -66,17 +71,38 @@ export async function listAuditLogs(
               u.name AS userName, u.surname AS userSurname
             FROM audit_logs a
             LEFT JOIN users u ON a.user_id = u.id
+            ${whereClause}
             ORDER BY a.created_at DESC
             LIMIT ${limit} OFFSET ${offset}
             `
         )
+        .bind(...binding)
         .all<AuditLogRow>();
 
     return result.results ?? [];
 }
 
-export async function clearAuditLogs(db: D1Database) {
-    await db.prepare("DELETE FROM audit_logs").run();
+export async function countAuditLogs(
+    db: D1Database,
+    companyId: number | null = null
+) {
+    const whereClause = companyId !== null ? "WHERE company_id = ?" : "";
+    const binding = companyId !== null ? [companyId] : [];
+
+    const result = await db
+        .prepare(`SELECT count(*) AS count FROM audit_logs ${whereClause}`)
+        .bind(...binding)
+        .first<CountRow>();
+    
+    return toNumber(result?.count);
+}
+
+export async function clearAuditLogs(db: D1Database, companyId: number | null = null) {
+    if (companyId !== null) {
+        await db.prepare("DELETE FROM audit_logs WHERE company_id = ?").bind(companyId).run();
+    } else {
+        await db.prepare("DELETE FROM audit_logs").run();
+    }
 }
 
 export async function countContractsCreatedBetween(
@@ -183,21 +209,60 @@ export async function countContractsByStatus(
 
 export async function getAnalyticsReportSummary(
     db: D1Database,
-    params: { startMs: number; todayStartMs: number }
+    params: { startMs: number; todayStartMs: number; companyId: number | null }
 ) {
+    const { companyId } = params;
+    
+    // Base queries
+    const contractsLast7DaysQuery = companyId !== null 
+        ? "SELECT COUNT(*) FROM contracts c INNER JOIN company_cars cc ON cc.id = c.company_car_id WHERE c.created_at >= ? AND cc.company_id = ?"
+        : "SELECT COUNT(*) FROM contracts WHERE created_at >= ?";
+    
+    const activeContractsQuery = companyId !== null
+        ? "SELECT COUNT(*) FROM contracts c INNER JOIN company_cars cc ON cc.id = c.company_car_id WHERE c.status = 'active' AND cc.company_id = ?"
+        : "SELECT COUNT(*) FROM contracts WHERE status = 'active'";
+    
+    const closedTodayQuery = companyId !== null
+        ? "SELECT COUNT(*) FROM contracts c INNER JOIN company_cars cc ON cc.id = c.company_car_id WHERE c.status = 'closed' AND c.updated_at >= ? AND cc.company_id = ?"
+        : "SELECT COUNT(*) FROM contracts WHERE status = 'closed' AND updated_at >= ?";
+    
+    const auditEntriesQuery = companyId !== null
+        ? "SELECT COUNT(*) FROM audit_logs WHERE company_id = ?"
+        : "SELECT COUNT(*) FROM audit_logs";
+        
+    // Global metrics (only for admin, or limited for partner)
+    const locationsTrackedQuery = companyId !== null
+        ? "SELECT COUNT(DISTINCT location_id) FROM companies WHERE id = ? AND location_id IS NOT NULL"
+        : "SELECT COUNT(DISTINCT location_id) FROM companies WHERE location_id IS NOT NULL";
+        
+    const companiesTrackedQuery = companyId !== null
+        ? "SELECT COUNT(*) FROM companies WHERE id = ?"
+        : "SELECT COUNT(*) FROM companies";
+
     const result = await db
         .prepare(
             `
             SELECT
-              (SELECT COUNT(*) FROM contracts WHERE created_at >= ?) AS contractsCreatedLast7Days,
-              (SELECT COUNT(DISTINCT location_id) FROM companies WHERE location_id IS NOT NULL) AS locationsTracked,
-              (SELECT COUNT(*) FROM companies) AS companiesTracked,
-              (SELECT COUNT(*) FROM contracts WHERE status = 'active') AS activeContracts,
-              (SELECT COUNT(*) FROM contracts WHERE status = 'closed' AND updated_at >= ?) AS closedToday,
-              (SELECT COUNT(*) FROM audit_logs) AS auditEntries
+              (${contractsLast7DaysQuery}) AS contractsCreatedLast7Days,
+              (${locationsTrackedQuery}) AS locationsTracked,
+              (${companiesTrackedQuery}) AS companiesTracked,
+              (${activeContractsQuery}) AS activeContracts,
+              (${closedTodayQuery}) AS closedToday,
+              (${auditEntriesQuery}) AS auditEntries
             `
         )
-        .bind(params.startMs, params.todayStartMs)
+        .bind(
+            ...(companyId !== null
+                ? [
+                    params.startMs, companyId, // contracts last 7 days
+                    companyId,                // locations tracked
+                    companyId,                // companies tracked
+                    companyId,                // active contracts
+                    params.todayStartMs, companyId, // closed today
+                    companyId                 // audit entries
+                ]
+                : [params.startMs, params.todayStartMs])
+        )
         .first<{
             contractsCreatedLast7Days: number | string | null;
             locationsTracked: number | string | null;

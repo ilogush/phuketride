@@ -7,7 +7,6 @@ import { Select } from "~/components/dashboard/Select";
 import { Textarea } from "~/components/dashboard/Textarea";
 import Modal from "~/components/dashboard/Modal";
 import Button from "~/components/dashboard/Button";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { CalendarIcon } from "@heroicons/react/24/outline";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { createCalendarEventFromForm } from "~/lib/calendar-page.server";
@@ -62,7 +61,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function NewCalendarEvent() {
     const navigate = useNavigate();
-    useUrlToast();
     const { maskDateTimeInput } = useDateMasking();
 
     const eventTypes = [

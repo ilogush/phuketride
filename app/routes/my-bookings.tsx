@@ -6,7 +6,6 @@ import Button from "~/components/dashboard/Button";
 import SimplePagination from "~/components/dashboard/SimplePagination";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { loadClientRentalHistoryPage } from "~/lib/user-self-service.server";
-import { useUrlToast } from "~/lib/useUrlToast";
 import { requireSelfProfileAccess } from "~/lib/access-policy.server";
 
 export const meta: MetaFunction = () => [
@@ -58,7 +57,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export default function MyBookingsPage() {
-    useUrlToast();
     const { bookings, totalPages, currentPage, status } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
 
