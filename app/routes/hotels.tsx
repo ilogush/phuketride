@@ -261,10 +261,6 @@ export default function HotelsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Hotels"
-                withSearch
-                searchValue={search}
-                onSearchChange={handleSearch}
-                searchPlaceholder="Search hotels..."
                 rightActions={
                     <Button
                         variant="solid"

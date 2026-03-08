@@ -64,8 +64,6 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 locationsPageRepo.loadLocationsPageData({ ...params, db: db as any }),
             handleAction: (args: Omit<Parameters<typeof locationsActions.handleLocationsAction>[0], "db">) =>
                 locationsActions.handleLocationsAction({ ...args, db: db as any }),
-            getPageData: (params: Omit<Parameters<typeof locationsPageRepo.loadLocationsPageData>[0], "db">) =>
-                locationsPageRepo.loadLocationsPageData({ ...params, db: db as any }),
         },
 
         districts: {
@@ -148,6 +146,8 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 carsRepo.getEditableCarById({ db, carId, companyId }),
             getCreateData: () =>
                 carsCreateRepo.loadCreateCarPageData(db as any),
+            createAction: (args: Omit<Parameters<typeof carsCreateAction.handleCreateCarAction>[0], "db">) =>
+                carsCreateAction.handleCreateCarAction({ ...args, db: db as any }),
         },
 
         companies: {

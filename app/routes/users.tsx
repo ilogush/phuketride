@@ -11,6 +11,7 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import StatusBadge from "~/components/dashboard/StatusBadge";
 import Button from "~/components/dashboard/Button";
 import { UserGroupIcon, PlusIcon } from "@heroicons/react/24/outline";
+import IdBadge from "~/components/dashboard/IdBadge";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { formatContactPhone } from "~/lib/phone";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
@@ -119,7 +120,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export default function UsersPage() {
-    const { user, users: usersList, roleCounts, isModMode, activeTab, totalCount } = useLoaderData<typeof loader>();
+    const { user, users: usersList, roleCounts, isModMode, activeTab, totalCount, search } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigation = useNavigation();
     useUrlToast();
@@ -150,23 +151,25 @@ export default function UsersPage() {
                 const surname = user.surname || "";
 
                 return (
-                    <Link to={`/users/${user.id}/edit`} className="flex items-start gap-3 hover:opacity-80 transition-opacity">
-                        {user.avatarUrl ? (
-                            <img
-                                src={user.avatarUrl}
-                                alt={`${fullName} ${surname}`.trim() || user.email}
-                                className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0"
-                            />
-                        ) : (
-                            <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0 cursor-pointer">
-                                {initials || "?"}
-                            </div>
-                        )}
+                    <div className="flex items-start gap-3">
+                        <Link to={`/users/${user.id}/edit`} className="hover:opacity-80 transition-opacity flex-shrink-0">
+                            {user.avatarUrl ? (
+                                <img
+                                    src={user.avatarUrl}
+                                    alt={`${fullName} ${surname}`.trim() || user.email}
+                                    className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                                />
+                            ) : (
+                                <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-medium cursor-pointer">
+                                    {initials || "?"}
+                                </div>
+                            )}
+                        </Link>
                         <div className="flex flex-col">
                             <span className="font-medium">{fullName}</span>
                             {surname && <span className="text-sm text-gray-500">{surname}</span>}
                         </div>
-                    </Link>
+                    </div>
                 );
             }
         },
@@ -180,14 +183,14 @@ export default function UsersPage() {
             key: "role",
             label: "Role",
             sortable: true,
-            render: (user) => <StatusBadge variant="info">{user.role}</StatusBadge>
+            render: (user) => <span className="capitalize text-gray-700">{user.role}</span>
         },
     ];
 
     return (
         <div className="space-y-4">
             <PageHeader
-                title="Users Management"
+                title="Users"
                 rightActions={
                     <Link to="/users/create">
                         <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
@@ -214,8 +217,6 @@ export default function UsersPage() {
                 totalCount={totalCount}
                 serverPagination
                 isLoading={navigation.state === "loading"}
-                getRowClassName={() => "cursor-pointer"}
-                onRowClick={(item) => (window.location.href = `/users/${item.id}/edit`)}
                 emptyTitle="No users found"
                 emptyDescription={`No users with role "${currentTab}"`}
                 emptyIcon={<UserGroupIcon className="w-10 h-10" />}

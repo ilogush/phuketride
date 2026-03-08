@@ -11,6 +11,7 @@ import {
     updateManagedUser,
 } from "~/lib/user-profile.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
+import { requireSelfProfileAccess } from "~/lib/access-policy.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {

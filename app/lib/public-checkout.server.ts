@@ -98,7 +98,8 @@ export async function calculateCheckoutPricing(args: {
   const effectiveRentalDays = Math.max(tripDays, minRentalDays);
   const baseTripCost = effectiveRentalDays * Math.max(0, Number(car.pricePerDay || 0));
   const fullInsurancePrice = resolveSelectedFullInsurancePrice(car);
-  const selectedInsurance = withFullInsurance ? fullInsurancePrice : 0;
+  const isFullInsuranceValid = withFullInsurance && effectiveRentalDays >= 7;
+  const selectedInsurance = isFullInsuranceValid ? fullInsurancePrice : 0;
   const babySeatExtra = withBabySeat ? Number(car.babySeatPricePerDay || 0) * effectiveRentalDays : 0;
   const islandTripExtra = withIslandTrip ? Number(car.islandTripPrice || 0) : 0;
   const krabiTripExtra = withKrabiTrip ? Number(car.krabiTripPrice || 0) : 0;
@@ -118,7 +119,7 @@ export async function calculateCheckoutPricing(args: {
   const salesTax = subtotal * 0.07;
   const refundableRateFee = bookingRate === "refundable" ? 1000 : 0;
   const totalAmount = Math.round(subtotal + salesTax + refundableRateFee);
-  const depositAmount = withFullInsurance ? 0 : Math.max(0, Number(car.deposit || 0));
+  const depositAmount = isFullInsuranceValid ? 0 : Math.max(0, Number(car.deposit || 0));
 
   return {
     resolvedPickupDistrictId,
@@ -139,5 +140,6 @@ export async function calculateCheckoutPricing(args: {
     salesTax,
     totalAmount,
     depositAmount,
+    isFullInsuranceValid,
   };
 }

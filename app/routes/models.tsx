@@ -210,10 +210,6 @@ export default function ModelsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Car Models"
-                withSearch
-                searchValue={search}
-                onSearchChange={handleSearch}
-                searchPlaceholder="Search models..."
                 rightActions={
                     <Button
                         variant="solid"

@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs } from "react-router";
 import { loadDashboardChartsData } from "~/lib/admin-analytics.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     try {

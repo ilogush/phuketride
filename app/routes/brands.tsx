@@ -11,6 +11,7 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon, TagIcon } from "@heroicons/react/24/outline";
+import IdBadge from "~/components/dashboard/IdBadge";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { brandSchema } from "~/schemas/dictionary";
 import { parseWithSchema } from "~/lib/validation.server";
@@ -136,7 +137,16 @@ export default function BrandsPage() {
     });
 
     const columns: Column<Brand>[] = [
-        { key: "id", label: "ID", className: "w-16" },
+        { 
+            key: "id", 
+            label: "ID", 
+            className: "w-16",
+            render: (item) => (
+                <IdBadge>
+                    {String(item.id).padStart(3, '0')}
+                </IdBadge>
+            )
+        },
         { 
             key: "name", 
             label: "Name",
@@ -178,10 +188,6 @@ export default function BrandsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Brands"
-                withSearch
-                searchValue={search}
-                onSearchChange={handleSearch}
-                searchPlaceholder="Search brands..."
                 rightActions={
                     <Button
                         variant="solid"

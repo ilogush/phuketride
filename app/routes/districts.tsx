@@ -11,6 +11,7 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
+import IdBadge from "~/components/dashboard/IdBadge";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { districtActionSchema } from "~/schemas/dictionary";
 import { parseWithSchema } from "~/lib/validation.server";
@@ -175,7 +176,12 @@ export default function DistrictsPage() {
         {
             key: "id",
             label: "ID",
-            className: "w-16"
+            className: "w-16",
+            render: (item) => (
+                <IdBadge>
+                    {String(item.id).padStart(3, '0')}
+                </IdBadge>
+            )
         },
         {
             key: "name",
@@ -225,10 +231,6 @@ export default function DistrictsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Districts"
-                withSearch
-                searchValue={search}
-                onSearchChange={handleSearch}
-                searchPlaceholder="Search districts..."
                 rightActions={
                     <Button
                         variant="solid"

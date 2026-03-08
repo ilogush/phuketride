@@ -39,7 +39,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export default function CarsPage() {
-    const { cars, statusCounts, activeStatus, totalCount } = useLoaderData<typeof loader>();
+    const { cars, statusCounts, activeStatus, totalCount, search } = useLoaderData<typeof loader>();
     useUrlToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigation = useNavigation();
@@ -164,7 +164,7 @@ export default function CarsPage() {
             <PageHeader
                 title="Cars"
                 rightActions={
-                    <Link to="/cars/create">
+                    <Link to={modCompanyId ? `/cars/create?modCompanyId=${modCompanyId}` : "/cars/create"}>
                         <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
                             Add
                         </Button>

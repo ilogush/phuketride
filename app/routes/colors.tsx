@@ -12,6 +12,7 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon } from "@heroicons/react/24/outline";
+import IdBadge from "~/components/dashboard/IdBadge";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
@@ -187,7 +188,11 @@ export default function ColorsPage() {
             key: "id",
             label: "ID",
             className: "w-16",
-            render: (item) => String(item.id).padStart(3, "0")
+            render: (item) => (
+                <IdBadge>
+                    {String(item.id).padStart(3, '0')}
+                </IdBadge>
+            )
         },
         {
             key: "name",
@@ -230,10 +235,6 @@ export default function ColorsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Car Colors"
-                withSearch
-                searchValue={search}
-                onSearchChange={handleSearch}
-                searchPlaceholder="Search colors..."
                 rightActions={
                     <div className="flex gap-2">
                         {totalCount === 0 && (

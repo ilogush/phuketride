@@ -235,7 +235,7 @@ export async function submitPublicCheckout(args: {
             pricing.resolvedReturnDistrictId || null,
             pricing.deliveryFee + pricing.pickupAfterHoursFee,
             pricing.returnFee + pricing.returnAfterHoursFee,
-            data.withFullInsurance === "true" ? 1 : 0,
+            pricing.isFullInsuranceValid ? 1 : 0,
             pricing.selectedInsurance,
             data.withBabySeat === "true" ? 1 : 0,
             pricing.babySeatExtra,

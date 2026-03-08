@@ -41,13 +41,13 @@ type CheckoutActionData = {
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { sdb } = await getScopedDb(request, context, requirePublicAccess);
-  return submitPublicCheckout({ request, db: sdb.db });
+  return submitPublicCheckout({ request, db: sdb.db as any });
 }
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
   const { sdb } = await getScopedDb(request, context, requirePublicAccess);
   return loadPublicCheckoutPage({
-    db: sdb.db,
+    db: sdb.db as any,
     request,
     routeCarPath: params.id,
   });
@@ -67,7 +67,7 @@ export default function CheckoutPage() {
 
   const standardInsurance = Number(data.insuranceTotal || 0);
   const fullInsurance = Number(data.fullInsuranceMinPrice || data.fullInsuranceMaxPrice || 0);
-  const hasFullInsurance = fullInsurance > 0;
+  const hasFullInsurance = fullInsurance > 0 && data.effectiveRentalDays >= 7;
   const hasBabySeatOption = Number(data.babySeatPricePerDay || 0) > 0;
   const hasIslandTripOption = Number(data.islandTripPrice || 0) > 0;
   const hasKrabiTripOption = Number(data.krabiTripPrice || 0) > 0;

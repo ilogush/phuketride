@@ -82,6 +82,10 @@ export async function createBookingAction({ db, request, user, companyId, formDa
       return redirectWithRequestError(request, "/bookings/create", "Car price per day is not set");
     }
 
+    if (fullInsurance && days < 7) {
+      return redirectWithRequestError(request, "/bookings/create", "Full Insurance is only available for rentals of 7 days or more");
+    }
+
     let estimatedAmount = car.pricePerDay * days;
 
     if (fullInsurance) estimatedAmount += Number(fullInsurance) * days;

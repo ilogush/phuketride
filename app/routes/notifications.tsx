@@ -1,4 +1,5 @@
 import { type LoaderFunctionArgs } from "react-router";
+import { requireSelfProfileAccess } from "~/lib/access-policy.server";
 import { useLoaderData } from "react-router";
 import { BellIcon, CalendarIcon, CurrencyDollarIcon, TruckIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
