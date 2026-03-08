@@ -128,88 +128,90 @@ export default function CalendarPage() {
                 }
             />
 
-            <div className="flex bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-sm min-h-[700px]">
+            <div className="flex items-start gap-4">
                 {/* Main Calendar Section */}
-                <div className="flex-1 p-6 space-y-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-4">
-                            <h2 className="text-xl font-bold text-gray-900">
-                                {monthNames[currentMonth]} {currentYear}
-                            </h2>
-                            <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-2xl">
-                                <Link to={prevMonth()}>
-                                    <Button variant="ghost" size="sm" icon={<ChevronLeftIcon className="w-5 h-5" />} className="rounded-xl" />
-                                </Link>
-                                <Link to={nextMonth()}>
-                                    <Button variant="ghost" size="sm" icon={<ChevronRightIcon className="w-5 h-5" />} className="rounded-xl" />
-                                </Link>
+                <div className="flex-1 space-y-4">
+                    <Card className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-4">
+                                <h2 className="text-xl font-bold text-gray-900">
+                                    {monthNames[currentMonth]} {currentYear}
+                                </h2>
+                                <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-2xl">
+                                    <Link to={prevMonth()}>
+                                        <Button variant="ghost" size="sm" icon={<ChevronLeftIcon className="w-5 h-5" />} className="rounded-xl" />
+                                    </Link>
+                                    <Link to={nextMonth()}>
+                                        <Button variant="ghost" size="sm" icon={<ChevronRightIcon className="w-5 h-5" />} className="rounded-xl" />
+                                    </Link>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="overflow-hidden border border-gray-100 rounded-2xl">
-                        <div className="grid grid-cols-7 bg-gray-50/50 border-b border-gray-100">
-                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                                <div key={day} className="px-2 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">
-                                    {day}
-                                </div>
-                            ))}
-                        </div>
-                        <div className="grid grid-cols-7">
-                            {Array.from({ length: totalCells }).map((_, i) => {
-                                const day = i - firstDayOfWeek + 1;
-                                const isValidDay = day > 0 && day <= daysInMonth;
-                                const dayData = isValidDay ? dayDataMap.get(day) : null;
-                                const dayEvents = dayData?.events || [];
-                                const totalItems = (dayData?.events.length || 0) + (dayData?.contracts.length || 0) + (dayData?.bookings.length || 0);
-
-                                return (
-                                    <div
-                                        key={i}
-                                        onClick={() => isValidDay && setSelectedDay(day)}
-                                        onMouseEnter={() => isValidDay && setSelectedDay(day)}
-                                        className={`min-h-[100px] border-r border-b border-gray-100 p-2 relative group transition-all ${
-                                            isValidDay 
-                                                ? `cursor-pointer ${selectedDay === day ? 'bg-gray-50/80 ring-2 ring-inset ring-gray-200' : 'hover:bg-gray-50/40'}` 
-                                                : 'bg-gray-50/10'
-                                        }`}
-                                    >
-                                        {isValidDay && (
-                                            <>
-                                                <div className="flex items-center justify-between">
-                                                    <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
-                                                        isToday(day)
-                                                            ? 'bg-gray-900 text-white'
-                                                            : selectedDay === day ? 'text-gray-900 bg-gray-200' : 'text-gray-400 group-hover:text-gray-900'
-                                                        }`}>
-                                                        {day}
-                                                    </span>
-                                                    {totalItems > 0 && (
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                                                    )}
-                                                </div>
-                                                <div className="mt-2 space-y-1 overflow-hidden">
-                                                    {dayEvents.slice(0, 2).map((event) => (
-                                                        <div
-                                                            key={event.id}
-                                                            className="text-[10px] px-1.5 py-0.5 rounded-lg truncate bg-gray-800/5 text-gray-800 font-medium"
-                                                        >
-                                                            {event.title}
-                                                        </div>
-                                                    ))}
-                                                    {totalItems > 2 && (
-                                                        <div className="text-[10px] text-gray-400 font-bold px-1.5">
-                                                            + {totalItems - 2} more
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        )}
+                        <div className="overflow-hidden border border-gray-100 rounded-2xl">
+                            <div className="grid grid-cols-7 bg-gray-50/50 border-b border-gray-100">
+                                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                                    <div key={day} className="px-2 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">
+                                        {day}
                                     </div>
-                                );
-                            })}
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-7">
+                                {Array.from({ length: totalCells }).map((_, i) => {
+                                    const day = i - firstDayOfWeek + 1;
+                                    const isValidDay = day > 0 && day <= daysInMonth;
+                                    const dayData = isValidDay ? dayDataMap.get(day) : null;
+                                    const dayEvents = dayData?.events || [];
+                                    const totalItems = (dayData?.events.length || 0) + (dayData?.contracts.length || 0) + (dayData?.bookings.length || 0);
+
+                                    return (
+                                        <div
+                                            key={i}
+                                            onClick={() => isValidDay && setSelectedDay(day)}
+                                            onMouseEnter={() => isValidDay && setSelectedDay(day)}
+                                            className={`min-h-[100px] border-r border-b border-gray-100 p-2 relative group transition-all ${
+                                                isValidDay 
+                                                    ? `cursor-pointer ${selectedDay === day ? 'bg-gray-50/80 ring-2 ring-inset ring-gray-200' : 'hover:bg-gray-50/40'}` 
+                                                    : 'bg-gray-50/10'
+                                            }`}
+                                        >
+                                            {isValidDay && (
+                                                <>
+                                                    <div className="flex items-center justify-between">
+                                                        <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
+                                                            isToday(day)
+                                                                ? 'bg-gray-900 text-white'
+                                                                : selectedDay === day ? 'text-gray-900 bg-gray-200' : 'text-gray-400 group-hover:text-gray-900'
+                                                            }`}>
+                                                            {day}
+                                                        </span>
+                                                        {totalItems > 0 && (
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                                        )}
+                                                    </div>
+                                                    <div className="mt-2 space-y-1 overflow-hidden">
+                                                        {dayEvents.slice(0, 2).map((event) => (
+                                                            <div
+                                                                key={event.id}
+                                                                className="text-[10px] px-1.5 py-0.5 rounded-lg truncate bg-gray-800/5 text-gray-800 font-medium"
+                                                            >
+                                                                {event.title}
+                                                            </div>
+                                                        ))}
+                                                        {totalItems > 2 && (
+                                                            <div className="text-[10px] text-gray-400 font-bold px-1.5">
+                                                                + {totalItems - 2} more
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-                    </div>
+                    </Card>
                 </div>
 
                 {/* Tasks Sidebar */}
