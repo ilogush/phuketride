@@ -39,16 +39,31 @@ export type StatusCount = {
   count: number;
 };
 
-export type D1DatabaseLike = {
-  prepare: (query: string) => {
-    bind: (...values: unknown[]) => {
-      all: () => Promise<{ results?: unknown[] }>;
-      first: () => Promise<unknown>;
-    };
-    all: () => Promise<{ results?: unknown[] }>;
-    first: () => Promise<unknown>;
-  };
+export type D1Result<T = unknown> = {
+  results?: T[];
+  success: boolean;
+  meta: any;
+  error?: string;
 };
+
+export interface D1PreparedStatementLike {
+  bind(...values: unknown[]): D1PreparedStatementLike;
+  all<T = unknown>(): Promise<D1Result<T>>;
+  first<T = unknown>(colName?: string): Promise<T | null>;
+  run(): Promise<D1Result<null>>;
+  raw<T = unknown>(): Promise<T[]>;
+}
+
+export interface D1ExecResult {
+  count: number;
+  duration: number;
+}
+
+export interface D1DatabaseLike {
+  prepare(query: string): D1PreparedStatementLike;
+  batch<T = unknown>(statements: D1PreparedStatementLike[]): Promise<D1Result<T>[]>;
+  exec(query: string): Promise<D1ExecResult>;
+}
 
 /**
  * Base repository interface

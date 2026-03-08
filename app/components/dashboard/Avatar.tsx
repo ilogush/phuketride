@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 
 interface AvatarProps {
     src?: string | null;
@@ -13,6 +13,8 @@ const Avatar = memo(function Avatar({
     size = "md",
     className = "",
 }: AvatarProps) {
+    const [imgError, setImgError] = useState(false);
+
     const sizeClasses = {
         sm: "w-10 h-10 text-sm",
         md: "w-10 h-10 text-xl",
@@ -20,12 +22,13 @@ const Avatar = memo(function Avatar({
         xl: "w-32 h-32 text-4xl",
     };
 
-    if (src) {
+    if (src && !imgError) {
         return (
             <img
                 src={src}
                 alt="Avatar"
                 className={`${sizeClasses[size]} rounded-full object-cover flex-shrink-0 ${className}`}
+                onError={() => setImgError(true)}
             />
         );
     }

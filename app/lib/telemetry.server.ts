@@ -1,3 +1,5 @@
+import type { SessionUser } from "~/lib/auth.server";
+
 type TelemetryLevel = "info" | "error";
 type TelemetrySeverity = "info" | "warn" | "error";
 
@@ -100,6 +102,7 @@ export async function trackServerOperation<T>(args: {
     event: string;
     scope: string;
     request?: Request;
+    user?: SessionUser; // Enhanced typing
     userId?: string;
     companyId?: number | null;
     entityId?: number | string;
@@ -111,6 +114,9 @@ export async function trackServerOperation<T>(args: {
     const scopeMeta = getTelemetryScopeMeta(args.scope);
     const taxonomy = getEventTaxonomy(args.event, args.scope);
     const normalizedDetails = normalizeDetails(args.details);
+
+    const effectiveUserId = args.user?.id || args.userId;
+    const effectiveCompanyId = args.user?.companyId || args.companyId;
 
     try {
         const result = await args.run();
@@ -127,8 +133,8 @@ export async function trackServerOperation<T>(args: {
             durationMs,
             thresholdMs: scopeMeta.thresholdMs,
             slow,
-            userId: args.userId,
-            companyId: args.companyId,
+            userId: effectiveUserId,
+            companyId: effectiveCompanyId,
             entityId: args.entityId,
             details: normalizedDetails,
             ...requestMeta,
@@ -149,8 +155,8 @@ export async function trackServerOperation<T>(args: {
             durationMs,
             thresholdMs: scopeMeta.thresholdMs,
             slow,
-            userId: args.userId,
-            companyId: args.companyId,
+            userId: effectiveUserId,
+            companyId: effectiveCompanyId,
             entityId: args.entityId,
             details: normalizedDetails,
             error: String(toSafeValue(message)),

@@ -16,9 +16,11 @@ import { createBookingAction } from "~/lib/bookings-create.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { loadRentalCreateBaseData } from "~/lib/rental-create-page.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
+import { getScopedDb } from "~/lib/db-factory.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { companyId, user } = await requireScopedDashboardAccess(request);
+    const { companyId, user, sdb } = await getScopedDb(request, context, requireScopedDashboardAccess);
     const scopedCompanyId = companyId!;
     return trackServerOperation({
         event: "bookings.create.load",
@@ -27,12 +29,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId: scopedCompanyId,
         details: { route: "bookings.create" },
-        run: async () => loadRentalCreateBaseData(context.cloudflare.env.DB, scopedCompanyId),
+        run: async () => loadRentalCreateBaseData(sdb.db, scopedCompanyId),
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const { user, companyId } = await requireScopedDashboardAccess(request);
+    const { user, companyId, sdb } = await getScopedDb(request, context, requireScopedDashboardAccess);
     const formData = await request.formData();
     return trackServerOperation({
         event: "bookings.create",
@@ -41,7 +43,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         userId: user.id,
         companyId: companyId!,
         details: { route: "bookings.create" },
-        run: async () => createBookingAction({ request, context, user, companyId: companyId!, formData }),
+        run: async () => createBookingAction({ db: sdb.db, request, user, companyId: companyId!, formData }),
     });
 }
 

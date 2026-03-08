@@ -20,7 +20,7 @@ import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
 import { z } from "zod";
-import type { AdminBrandRow } from "~/lib/admin-dictionaries.server";
+import type { AdminBrandRow } from "~/lib/admin-dictionaries";
 import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 

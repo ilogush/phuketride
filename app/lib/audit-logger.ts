@@ -1,16 +1,51 @@
-export type AuditAction = "create" | "update" | "delete" | "view" | "export" | "clear" | "login_failed" | "login_blocked";
-export type EntityType = "user" | "company" | "car" | "contract" | "payment" | "color" | "model" | "brand" | "district" | "location" | "hotel" | "season" | "duration" | "payment_status" | "booking" | "car_template" | "calendar-event" | "id_document" | "task";
+import type { UserRole } from "~/lib/auth.server";
+
+export type AuditAction =
+    | "create"
+    | "update"
+    | "delete"
+    | "view"
+    | "export"
+    | "clear"
+    | "login"
+    | "logout"
+    | "login_failed"
+    | "login_blocked"
+    | "access_denied";
+
+export type EntityType =
+    | "user"
+    | "company"
+    | "car"
+    | "contract"
+    | "payment"
+    | "booking"
+    | "color"
+    | "model"
+    | "brand"
+    | "district"
+    | "location"
+    | "hotel"
+    | "season"
+    | "duration"
+    | "payment_status"
+    | "car_template"
+    | "calendar_event"
+    | "task"
+    | "id_document"
+    | "system"
+    | "analytics";
 
 interface AuditLogParams {
     db: D1Database;
     userId?: string | null;
-    role: string;
+    role: UserRole | string;
     companyId?: number | null;
     entityType: EntityType;
     entityId?: number | string;
     action: AuditAction;
-    beforeState?: unknown;
-    afterState?: unknown;
+    beforeState?: Record<string, unknown> | null;
+    afterState?: Record<string, unknown> | null;
     ipAddress?: string;
     userAgent?: string;
 }

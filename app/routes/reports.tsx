@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs } from "react-router";
+import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData } from "react-router";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Card from "~/components/dashboard/Card";
@@ -7,6 +7,12 @@ import Button from "~/components/dashboard/Button";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { loadReportsPageData } from "~/lib/admin-analytics.server";
+import { requireAdminAnalyticsAccess } from "~/lib/access-policy.server";
+
+export const meta: MetaFunction = () => [
+    { title: "Reports — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user } = await requireAdminAnalyticsAccess(request);

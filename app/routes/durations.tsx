@@ -12,16 +12,14 @@ import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon, ClockIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { handleDurationsAction } from "~/lib/durations-actions.server";
-import { loadAdminDurations, type AdminDurationRow } from "~/lib/admin-dictionaries.server";
+import type { AdminDurationRow } from "~/lib/admin-dictionaries";
 import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { z } from "zod";
-import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
 import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
-import { type AdminLocationRow } from "~/lib/admin-dictionaries.server"; // Assuming AdminLocationRow is from here
+import type { AdminLocationRow } from "~/lib/admin-dictionaries";
 
 type RentalDuration = AdminDurationRow;
 type Duration = AdminDurationRow; // Alias for clarity in loader return type
@@ -53,21 +51,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const { sdb } = await getScopedDb(request, context);
-    const db = sdb.db as any;
     const formData = await request.formData();
-    
-    const parsed = parseWithSchema(
-        z.object({
-            intent: z.string().min(1),
-        }),
-        {
-            intent: formData.get("intent"),
-        },
-        "Invalid action"
-    );
-    if (!parsed.ok) return redirectWithError("/durations", parsed.error);
-
-    return handleDurationsAction({ request, db, formData });
+    return sdb.durations.handleAction({ request, formData });
 }
 
 export default function DurationsPage() {

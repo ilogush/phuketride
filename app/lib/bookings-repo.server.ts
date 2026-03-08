@@ -1,14 +1,7 @@
 import type { BookingDetailRow } from "~/lib/bookings-detail.server";
 import type { BookingListRow } from "~/lib/db-types";
 
-type D1DatabaseLike = {
-    prepare: (query: string) => {
-        bind: (...values: unknown[]) => {
-            all: () => Promise<{ results?: unknown[] }>;
-            first: () => Promise<unknown>;
-        };
-    };
-};
+import { type D1DatabaseLike } from "~/lib/repo-types.server";
 
 type CountRow = { count?: number | string } | null;
 

@@ -57,6 +57,12 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
   });
 }
 
+export function headers() {
+  return {
+    "Cache-Control": "public, max-age=60, s-maxage=300",
+  };
+}
+
 export default function PublicCarPage() {
   const data = useLoaderData<typeof loader>();
   return <PublicCarPageView {...data} />;

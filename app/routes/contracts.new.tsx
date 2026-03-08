@@ -16,9 +16,10 @@ import ContractCarPhotosCard from "~/components/dashboard/contracts/ContractCarP
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { handleCreateContractAction } from "~/lib/contracts-new-action.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { loadContractCreatePageData } from "~/lib/rental-create-page.server";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
+import { getScopedDb } from "~/lib/db-factory.server";
 import {
     TruckIcon,
     CalendarIcon,
@@ -27,7 +28,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId } = await requireScopedDashboardAccess(request);
+    const { user, companyId, sdb } = await getScopedDb(request, context, requireScopedDashboardAccess);
     const scopedCompanyId = companyId!;
     return trackServerOperation({
         event: "contracts.new.load",
@@ -36,12 +37,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId: scopedCompanyId,
         details: { route: "contracts.new" },
-        run: async () => loadContractCreatePageData(context.cloudflare.env.DB, scopedCompanyId),
+        run: async () => loadContractCreatePageData(sdb.db, scopedCompanyId),
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const { user, companyId } = await requireScopedDashboardAccess(request);
+    const { user, companyId, sdb } = await getScopedDb(request, context, requireScopedDashboardAccess);
     const formData = await request.formData();
     return trackServerOperation({
         event: "contracts.create",
@@ -50,7 +51,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
         userId: user.id,
         companyId: companyId!,
         details: { route: "contracts.new" },
-        run: async () => handleCreateContractAction({ request, context, user, companyId: companyId!, formData }),
+        run: async () => sdb.contracts.newAction({
+            assets: context.cloudflare.env.ASSETS,
+            request,
+            user,
+            formData
+        }),
     });
 }
 

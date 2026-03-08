@@ -13,7 +13,6 @@ import type { Currency } from "~/lib/settings-normalizers";
 import PaymentTemplatesTab from "~/components/dashboard/settings/PaymentTemplatesTab";
 import CurrenciesTab from "~/components/dashboard/settings/CurrenciesTab";
 import GeneralSettingsTab from "~/components/dashboard/settings/GeneralSettingsTab";
-import { handleSettingsAction } from "~/lib/settings-actions.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { useAsyncToastAction } from "~/lib/useAsyncToastAction";
 
@@ -118,7 +117,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             route: "settings",
             intent: String(formData.get("intent") || "unknown"),
         },
-        run: async () => handleSettingsAction({
+        run: async () => sdb.companies.handleSettingsAction({
             request,
             context,
             user,

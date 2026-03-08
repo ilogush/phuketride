@@ -26,6 +26,7 @@ type CompanyDeliverySettingRow = {
 };
 
 type SettingsActionArgs = {
+  db: D1Database;
   request: Request;
   context: SettingsActionContext;
   user: SessionUser;
@@ -41,8 +42,7 @@ type SettingsActionState = {
 
 
 async function handleUpdateGeneral(args: SettingsActionArgs, state: SettingsActionState) {
-    const { context, formData, companyId, request, user } = args;
-    const db = context.cloudflare.env.DB;
+    const { db, formData, companyId, request, user } = args;
 
     const rawData = {
         name: formData.get("name") as string,
@@ -153,13 +153,13 @@ async function handleUpdateGeneral(args: SettingsActionArgs, state: SettingsActi
 }
 
 async function handleSetDefaultCurrency(args: SettingsActionArgs, state: SettingsActionState) {
-  const { context, formData, companyId, request } = args;
+  const { db, formData, companyId, request } = args;
   const currencyId = Number(formData.get("currencyId"));
   const isPhuketCompany = await state.resolveIsPhuketCompany();
 
   try {
     if (isPhuketCompany) {
-      const targetCurrency = await context.cloudflare.env.DB
+      const targetCurrency = await db
         .prepare("SELECT code FROM currencies WHERE id = ? LIMIT 1")
         .bind(currencyId)
         .first() as { code?: string } | null;
@@ -168,12 +168,12 @@ async function handleSetDefaultCurrency(args: SettingsActionArgs, state: Setting
       }
     }
 
-    await context.cloudflare.env.DB
+    await db
       .prepare("UPDATE currencies SET company_id = ?, is_active = 1, updated_at = ? WHERE id = ?")
       .bind(companyId, new Date().toISOString(), currencyId)
       .run();
 
-    await context.cloudflare.env.DB
+    await db
       .prepare("UPDATE currencies SET company_id = NULL WHERE company_id = ? AND id != ?")
       .bind(companyId, currencyId)
       .run();
@@ -187,14 +187,14 @@ async function handleSetDefaultCurrency(args: SettingsActionArgs, state: Setting
 }
 
 async function handleToggleCurrencyActive(args: SettingsActionArgs, state: SettingsActionState) {
-  const { context, formData, companyId, request } = args;
+  const { db, formData, companyId, request } = args;
   const currencyId = Number(formData.get("currencyId"));
   const isActive = formData.get("isActive") === "true";
   const isPhuketCompany = await state.resolveIsPhuketCompany();
 
   try {
     if (isPhuketCompany && !isActive) {
-      const targetCurrency = await context.cloudflare.env.DB
+      const targetCurrency = await db
         .prepare("SELECT code FROM currencies WHERE id = ? LIMIT 1")
         .bind(currencyId)
         .first() as { code?: string } | null;
@@ -203,7 +203,7 @@ async function handleToggleCurrencyActive(args: SettingsActionArgs, state: Setti
       }
     }
 
-    await context.cloudflare.env.DB
+    await db
       .prepare(`
         UPDATE currencies
         SET is_active = ?, company_id = ?, updated_at = ?
@@ -221,7 +221,7 @@ async function handleToggleCurrencyActive(args: SettingsActionArgs, state: Setti
 }
 
 async function handleCreateCurrency(args: SettingsActionArgs, state: SettingsActionState) {
-  const { context, formData, request } = args;
+  const { db, formData, request } = args;
   const name = (formData.get("name") as string)?.trim();
   const code = (formData.get("code") as string)?.trim().toUpperCase();
   const symbol = (formData.get("symbol") as string)?.trim();
@@ -231,7 +231,7 @@ async function handleCreateCurrency(args: SettingsActionArgs, state: SettingsAct
   }
 
   try {
-    await context.cloudflare.env.DB
+    await db
       .prepare(`
         INSERT INTO currencies (name, code, symbol, is_active, company_id, created_at, updated_at)
         VALUES (?, ?, ?, 1, NULL, ?, ?)
@@ -248,14 +248,14 @@ async function handleCreateCurrency(args: SettingsActionArgs, state: SettingsAct
 }
 
 async function handleUpdatePaymentTemplate(args: SettingsActionArgs, state: SettingsActionState) {
-  const { context, formData, companyId, request } = args;
+  const { db, formData, companyId, request } = args;
   const id = Number(formData.get("id"));
   const name = (formData.get("name") as string || "").trim();
   const sign = (formData.get("sign") as "+" | "-") || "+";
   const description = (formData.get("description") as string || "").trim() || null;
 
   try {
-    const template = await context.cloudflare.env.DB
+    const template = await db
       .prepare(`
         SELECT
           id,
@@ -283,7 +283,7 @@ async function handleUpdatePaymentTemplate(args: SettingsActionArgs, state: Sett
       return redirectWithRequestError(request, "/settings", "Payment template name is required");
     }
 
-    await context.cloudflare.env.DB
+    await db
       .prepare(`
         UPDATE payment_types
         SET name = ?, sign = ?, description = ?, is_active = 1, updated_at = ?
@@ -301,13 +301,13 @@ async function handleUpdatePaymentTemplate(args: SettingsActionArgs, state: Sett
 }
 
 async function handleCreatePaymentTemplate(args: SettingsActionArgs, state: SettingsActionState) {
-  const { context, formData, companyId, request } = args;
+  const { db, formData, companyId, request } = args;
   const name = formData.get("name") as string;
   const sign = formData.get("sign") as "+" | "-";
   const description = (formData.get("description") as string) || null;
 
   try {
-    await context.cloudflare.env.DB
+    await db
       .prepare(`
         INSERT INTO payment_types (
           name, sign, description, company_id, is_system, is_active,
@@ -335,11 +335,11 @@ async function handleCreatePaymentTemplate(args: SettingsActionArgs, state: Sett
 }
 
 async function handleDeletePaymentTemplate(args: SettingsActionArgs, state: SettingsActionState) {
-  const { context, formData, companyId, request } = args;
+  const { db, formData, companyId, request } = args;
   const id = Number(formData.get("id"));
 
   try {
-    const template = await context.cloudflare.env.DB
+    const template = await db
       .prepare(`
         SELECT
           id,
@@ -364,7 +364,7 @@ async function handleDeletePaymentTemplate(args: SettingsActionArgs, state: Sett
       return redirectWithRequestError(request, "/settings", "Unauthorized");
     }
 
-    await context.cloudflare.env.DB
+    await db
       .prepare("DELETE FROM payment_types WHERE id = ? AND company_id = ?")
       .bind(id, companyId)
       .run();
@@ -378,12 +378,12 @@ async function handleDeletePaymentTemplate(args: SettingsActionArgs, state: Sett
 }
 
 export async function handleSettingsAction(args: SettingsActionArgs) {
-  const { request, context, user, companyId, formData } = args;
+  const { request, db, user, companyId, formData } = args;
   const intent = formData.get("intent");
   const adminModCompanyId = getAdminModCompanyId(request, user);
   const withMode = (path: string) => withModCompanyId(path, adminModCompanyId);
 
-  const currentCompanyRow = await context.cloudflare.env.DB
+  const currentCompanyRow = await db
     .prepare(`
       SELECT
         id, name, email, phone, telegram, location_id, district_id, street, house_number,
@@ -400,7 +400,7 @@ export async function handleSettingsAction(args: SettingsActionArgs) {
   const resolveIsPhuketCompany = async () => {
     const locationId = (currentCompany as { locationId?: number | null } | null)?.locationId;
     if (!locationId) return false;
-    const location = await context.cloudflare.env.DB
+    const location = await db
       .prepare("SELECT name FROM locations WHERE id = ? LIMIT 1")
       .bind(locationId)
       .first() as { name?: string } | null;

@@ -1,15 +1,6 @@
 type CountValue = number | string | null | undefined;
 
-type D1DatabaseLike = {
-    prepare: (query: string) => {
-        bind: (...values: unknown[]) => {
-            first: <T = unknown>() => Promise<T | null>;
-            all: <T = unknown>() => Promise<{ results?: T[] }>;
-        };
-        first: <T = unknown>() => Promise<T | null>;
-        all: <T = unknown>() => Promise<{ results?: T[] }>;
-    };
-};
+import { type D1DatabaseLike } from "~/lib/repo-types.server";
 
 export type DashboardTaskStatus = "pending" | "in_progress" | "completed";
 

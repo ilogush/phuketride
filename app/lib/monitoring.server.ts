@@ -108,8 +108,7 @@ export function createAlert(
 export function logAlert(alert: Alert): void {
   const prefix = alert.level === "critical" ? "🚨" : alert.level === "warning" ? "⚠️" : "ℹ️";
   
-  // Keep console log for quick debugging in worker console
-  console.log(`${prefix} [${alert.level.toUpperCase()}] ${alert.title}: ${alert.message}`);
+  // Send structured telemetry
 
   // Send structured telemetry
   logTelemetryEvent(alert.level === "critical" ? "error" : "info", {
@@ -245,7 +244,13 @@ export async function performHealthCheck(
     await db.prepare("SELECT 1").first();
     checks.database = true;
   } catch (error) {
-    console.error("Database health check failed:", error);
+    logTelemetryEvent("error", {
+      event: "health_check.database.failed",
+      scope: "monitoring.service",
+      status: "error",
+      severity: "error",
+      details: { error: error instanceof Error ? error.message : String(error) },
+    });
   }
   
   // Check storage
@@ -261,14 +266,26 @@ export async function performHealthCheck(
   try {
     checks.errorRate = await calculateErrorRate(db, 60);
   } catch (error) {
-    console.error("Error rate calculation failed:", error);
+    logTelemetryEvent("error", {
+      event: "health_check.error_rate.failed",
+      scope: "monitoring.service",
+      status: "error",
+      severity: "error",
+      details: { error: error instanceof Error ? error.message : String(error) },
+    });
   }
   
   // Check p95 response time
   try {
     checks.p95ResponseTime = await calculateP95ResponseTime(db, 60);
   } catch (error) {
-    console.error("P95 calculation failed:", error);
+    logTelemetryEvent("error", {
+      event: "health_check.p95.failed",
+      scope: "monitoring.service",
+      status: "error",
+      severity: "error",
+      details: { error: error instanceof Error ? error.message : String(error) },
+    });
   }
   
   // Determine overall status

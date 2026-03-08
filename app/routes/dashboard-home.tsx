@@ -1,4 +1,4 @@
-import { getRequestMetadata, quickAudit } from "~/lib/audit-logger";
+import { getRequestMetadata } from "~/lib/audit-logger";
 import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData, Form } from "react-router";
 import {
@@ -45,8 +45,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
             await sdb.dashboard.deleteTask(result.data.taskId);
 
-            await quickAudit({
-                db: sdb.db as any,
+            await sdb.auditLogs.quickAudit({
                 userId: user.id,
                 role: user.role,
                 companyId,

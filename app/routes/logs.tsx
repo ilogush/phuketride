@@ -10,7 +10,6 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import Button from "~/components/dashboard/Button";
 import { ClipboardDocumentListIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { clearAuditLogsFromForm, loadAuditLogsPageData } from "~/lib/admin-analytics.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { parseWithSchema } from "~/lib/validation.server";
 import { clearAuditLogsSchema } from "~/schemas/admin-analytics";
@@ -74,6 +73,7 @@ const ACTION_COLORS: Record<string, string> = {
     login: "bg-blue-100 text-blue-800",
     logout: "bg-gray-100 text-gray-800",
     clear: "bg-red-100 text-red-800",
+    access_denied: "bg-red-100 text-red-800",
 };
 
 export async function loader({ request, context }: LoaderFunctionArgs) {

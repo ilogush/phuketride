@@ -16,11 +16,9 @@ import { useUrlToast } from "~/lib/useUrlToast";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { ExclamationTriangleIcon, Cog6ToothIcon, PhotoIcon, WrenchScrewdriverIcon, BanknotesIcon, ShieldCheckIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import SeasonalPricingMatrix from "~/components/dashboard/cars/SeasonalPricingMatrix";
-import { handleCreateCarAction } from "~/lib/cars-create-action.server";
 import { formatDateInput, getCarTemplateDisplayName } from "~/lib/car-form-display";
 import { type CarTemplateOption } from "~/lib/cars-create-types";
 import { trackServerOperation } from "~/lib/telemetry.server";
-import { loadCreateCarPageData } from "~/lib/cars-create-page.server";
 
 import { getScopedDb } from "~/lib/db-factory.server";
 
@@ -52,9 +50,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
         userId: user.id,
         companyId: companyId!,
         details: { route: "cars.create" },
-        run: async () => handleCreateCarAction({ 
+        run: async () => sdb.cars.createAction({ 
             request, 
-            db: sdb.db as any, 
             assets: context.cloudflare.env.ASSETS, 
             user, 
             formData 

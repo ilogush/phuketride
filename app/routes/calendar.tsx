@@ -7,7 +7,7 @@ import Card from "~/components/dashboard/Card";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { trackServerOperation } from "~/lib/telemetry.server";
-import { type CalendarListBooking, type CalendarListContract, type CalendarListEvent } from "~/lib/calendar-page.server";
+import type { CalendarListBooking, CalendarListContract, CalendarListEvent } from "~/lib/calendar-page.server";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 

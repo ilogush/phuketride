@@ -10,14 +10,14 @@ import { bookingSchema } from "~/schemas/booking";
 import { checkCarAvailability } from "~/lib/car-availability.server";
 
 type CreateBookingActionArgs = {
+  db: D1Database;
   request: Request;
-  context: { cloudflare: { env: Env } };
   user: SessionUser;
   companyId: number;
   formData: FormData;
 };
 
-export async function createBookingAction({ request, context, user, companyId, formData }: CreateBookingActionArgs) {
+export async function createBookingAction({ db, request, user, companyId, formData }: CreateBookingActionArgs) {
   const data = Object.fromEntries(formData);
     const result = parseWithSchema(bookingSchema, data, "Validation failed");
   if (!result.ok) {
@@ -50,7 +50,7 @@ export async function createBookingAction({ request, context, user, companyId, f
   } = result.data;
 
   try {
-    const car = await context.cloudflare.env.DB
+    const car = await db
       .prepare(`
         SELECT id, price_per_day AS pricePerDay
         FROM company_cars
@@ -68,7 +68,7 @@ export async function createBookingAction({ request, context, user, companyId, f
     const end = new Date(parseDateFromDisplay(endDate));
 
     const conflict = await checkCarAvailability(
-      context.cloudflare.env.DB,
+      db,
       Number(carId),
       start,
       end
@@ -90,21 +90,21 @@ export async function createBookingAction({ request, context, user, companyId, f
     if (krabiTrip) estimatedAmount += Number(krabiTrip);
 
     if (pickupDistrictId) {
-      const district = await context.cloudflare.env.DB
+      const district = await db
         .prepare("SELECT delivery_price AS deliveryPrice FROM districts WHERE id = ? LIMIT 1")
         .bind(Number(pickupDistrictId))
         .first() as { deliveryPrice: number | null } | null;
       if (district) estimatedAmount += district.deliveryPrice || 0;
     }
     if (returnDistrictId) {
-      const district = await context.cloudflare.env.DB
+      const district = await db
         .prepare("SELECT delivery_price AS deliveryPrice FROM districts WHERE id = ? LIMIT 1")
         .bind(Number(returnDistrictId))
         .first() as { deliveryPrice: number | null } | null;
       if (district) estimatedAmount += district.deliveryPrice || 0;
     }
 
-    const bookingInsertStmt = context.cloudflare.env.DB
+    const bookingInsertStmt = db
       .prepare(`
         INSERT INTO bookings (
           company_car_id, client_id, manager_id, start_date, end_date, estimated_amount, currency,
@@ -149,13 +149,13 @@ export async function createBookingAction({ request, context, user, companyId, f
         new Date().toISOString()
       );
 
-    const carUpdateStmt = getUpdateCarStatusStmt(context.cloudflare.env.DB, Number(carId), "booked");
-    const batchResults = await context.cloudflare.env.DB.batch([bookingInsertStmt, carUpdateStmt]);
+    const carUpdateStmt = getUpdateCarStatusStmt(db, Number(carId), "booked");
+    const batchResults = await db.batch([bookingInsertStmt, carUpdateStmt]);
     const bookingId = Number((batchResults[0] as { meta?: { last_row_id?: number } }).meta?.last_row_id || 0);
 
     const metadata = getRequestMetadata(request);
     await getQuickAuditStmt({
-      db: context.cloudflare.env.DB,
+      db,
       userId: user.id,
       role: user.role,
       companyId,

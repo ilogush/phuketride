@@ -73,7 +73,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 
             if (intent === "deleteUser") {
                 const result = await deleteManagedUser({
-                    db: sdb.db as any,
+                    db: sdb.db,
                     request,
                     actor: sessionUser,
                     targetUserId: userId,
@@ -88,7 +88,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 
             // parseWithSchema(userSchema, ...) is delegated to updateManagedUser in user-profile.server.
             const result = await updateManagedUser({
-                db: sdb.db as any,
+                db: sdb.db,
                 bucket: context.cloudflare.env.ASSETS,
                 request,
                 actor: sessionUser,

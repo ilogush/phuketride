@@ -3,17 +3,7 @@ import { QUERY_LIMITS } from "~/lib/query-limits";
 
 const PHUKET_LOCATION_ID = 1;
 
-export interface LocationsPageDistrict {
-    id: number;
-    name: string;
-    locationId: number;
-    beaches: string | null;
-    streets: string | null;
-    isActive: boolean;
-    deliveryPrice: number | null;
-    createdAt: Date;
-    updatedAt: Date;
-}
+import { type LocationsPageDistrict } from "~/lib/admin-dictionaries";
 
 type PartnerDistrictSettingRow = {
     id: number;

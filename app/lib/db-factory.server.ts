@@ -21,7 +21,17 @@ import * as locationsPageRepo from "./locations-page.server";
 import * as calendarPageRepo from "./calendar-page.server";
 import * as paymentsCreateRepo from "./payments-create.server";
 import * as appLayoutRepo from "./app-layout.server";
+import * as seasonsActions from "./seasons-actions.server";
+import * as durationsActions from "./durations-actions.server";
+import * as settingsActions from "./settings-actions.server";
+import * as locationsActions from "./locations-actions.server";
+import * as contractsNewAction from "./contracts-new-action.server";
+import * as contractsEditAction from "./contracts-edit-action.server";
+import * as carsCreateAction from "./cars-create-action.server";
+import * as carsEditAction from "./cars-edit-action.server";
+import * as bookingsCreateAction from "./bookings-create.server";
 import type { AppLoadContext } from "~/types/context";
+
 
 /**
  * Scoped Database Factory
@@ -52,6 +62,10 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
             list: (limit?: number) => cache.getCachedLocations(db as any),
             getPageData: (params: Omit<Parameters<typeof locationsPageRepo.loadLocationsPageData>[0], "db">) =>
                 locationsPageRepo.loadLocationsPageData({ ...params, db: db as any }),
+            handleAction: (args: Omit<Parameters<typeof locationsActions.handleLocationsAction>[0], "db">) =>
+                locationsActions.handleLocationsAction({ ...args, db: db as any }),
+            getPageData: (params: Omit<Parameters<typeof locationsPageRepo.loadLocationsPageData>[0], "db">) =>
+                locationsPageRepo.loadLocationsPageData({ ...params, db: db as any }),
         },
 
         districts: {
@@ -77,10 +91,14 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
 
         durations: {
             list: () => dictRepo.loadAdminDurations(db as any),
+            handleAction: (args: Omit<Parameters<typeof durationsActions.handleDurationsAction>[0], "db">) =>
+                durationsActions.handleDurationsAction({ ...args, db: db as any }),
         },
 
         seasons: {
             list: () => dictRepo.loadAdminSeasons(db as any),
+            handleAction: (args: Omit<Parameters<typeof seasonsActions.handleSeasonsAction>[0], "db">) =>
+                seasonsActions.handleSeasonsAction({ ...args, db: db as any }),
         },
 
         paymentStatuses: {
@@ -179,6 +197,8 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
 
         carTemplates: {
             list: () => carTemplatesRepo.loadCarTemplatesData(db as any),
+            handleAction: (args: Omit<Parameters<typeof carTemplatesRepo.handleCarTemplatesAction>[0], "db">) =>
+                carTemplatesRepo.handleCarTemplatesAction({ ...args, db: db as any }),
         },
 
         auditLogs: {

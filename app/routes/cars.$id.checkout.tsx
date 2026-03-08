@@ -11,6 +11,8 @@ import {
   submitPublicCheckout,
 } from "~/features/public-checkout/public-checkout.service.server";
 import { useActionToast } from "~/lib/useActionToast";
+import { requirePublicAccess } from "~/lib/access-policy.server";
+import { getScopedDb } from "~/lib/db-factory.server";
 
 export function meta({ data }: Route.MetaArgs) {
   const carName = data?.carName || "Car";
@@ -38,12 +40,14 @@ type CheckoutActionData = {
 };
 
 export async function action({ request, context }: Route.ActionArgs) {
-  return submitPublicCheckout({ request, db: context.cloudflare.env.DB });
+  const { sdb } = await getScopedDb(request, context, requirePublicAccess);
+  return submitPublicCheckout({ request, db: sdb.db });
 }
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
+  const { sdb } = await getScopedDb(request, context, requirePublicAccess);
   return loadPublicCheckoutPage({
-    db: context.cloudflare.env.DB,
+    db: sdb.db,
     request,
     routeCarPath: params.id,
   });

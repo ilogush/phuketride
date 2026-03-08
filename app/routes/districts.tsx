@@ -16,11 +16,10 @@ import { districtActionSchema } from "~/schemas/dictionary";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
 import { runAdminMutationAction } from "~/lib/admin-crud.server";
-import {
-    countAdminDistricts,
-    type AdminDistrictRow,
-    type AdminLocationRow,
-} from "~/lib/admin-dictionaries.server";
+import type {
+    AdminDistrictRow,
+    AdminLocationRow,
+} from "~/lib/admin-dictionaries";
 import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";

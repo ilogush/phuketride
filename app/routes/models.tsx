@@ -24,7 +24,7 @@ import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/
 import { getCachedBodyTypes, getCachedCarBrands } from "~/lib/dictionaries-cache.server";
 import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
 import { z } from "zod";
-import type { AdminModelRow } from "~/lib/admin-dictionaries.server";
+import type { AdminModelRow } from "~/lib/admin-dictionaries";
 
 type ModelRow = AdminModelRow;
 

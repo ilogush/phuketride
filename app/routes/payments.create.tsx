@@ -10,7 +10,7 @@ import BackButton from "~/components/dashboard/BackButton";
 import { BanknotesIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { trackServerOperation } from "~/lib/telemetry.server";
-import { createPaymentRecord, loadPaymentCreatePageData } from "~/lib/payments-create.server";
+import { createPaymentRecord } from "~/lib/payments-create.server";
 
 import { getScopedDb } from "~/lib/db-factory.server";
 
@@ -44,7 +44,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         run: async () => {
             const formData = await request.formData();
             return createPaymentRecord({
-                db: sdb.db as any,
+                db: sdb.db,
                 request,
                 user,
                 companyId,

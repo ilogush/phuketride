@@ -137,7 +137,7 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
                     className={`h-16 flex items-center flex-shrink-0 transition-all ${isOpen ? "px-4 justify-between" : "justify-center"
                         }`}
                 >
-                    <NavLink to="/" className={`flex items-center group ${isOpen ? "w-full" : ""}`}>
+                    <NavLink to="/" prefetch="intent" className={`flex items-center group ${isOpen ? "w-full" : ""}`}>
                         <img
                             src="/android-chrome-192x192.png"
                             alt="Phuket Ride"
@@ -166,6 +166,7 @@ export default function Sidebar({ user, isOpen, onClose, isModMode = false, modC
                             <NavLink
                                 key={item.to}
                                 to={getItemHref(item.to)}
+                                prefetch="intent"
                                 end={item.end}
                                 onClick={() => {
                                     if (window.innerWidth < 768 && onClose) {

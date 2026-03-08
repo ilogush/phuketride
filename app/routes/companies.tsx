@@ -39,6 +39,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 export default function CompaniesPage() {
     const { companies: companiesList, showArchived, totalCount } = useLoaderData<typeof loader>();
     useUrlToast();
+    const navigation = useNavigation();
 
     const columns: Column<CompaniesPageRow>[] = [
         {
@@ -127,6 +128,7 @@ export default function CompaniesPage() {
                 columns={columns}
                 totalCount={totalCount}
                 serverPagination
+                isLoading={navigation.state === "loading"}
                 emptyTitle="No companies found"
                 emptyDescription="Start by adding your first company"
                 emptyIcon={<BuildingOfficeIcon className="w-10 h-10" />}

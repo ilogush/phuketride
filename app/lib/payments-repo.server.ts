@@ -1,16 +1,7 @@
 import type { SortOrder } from "~/lib/query-filters.server";
 import type { PaymentListRow } from "~/lib/db-types";
 
-type D1DatabaseLike = {
-    prepare: (query: string) => {
-        bind: (...values: unknown[]) => {
-            all: () => Promise<{ results?: unknown[] }>;
-            first: () => Promise<unknown>;
-        };
-        all: () => Promise<{ results?: unknown[] }>;
-        first: () => Promise<unknown>;
-    };
-};
+import { type D1DatabaseLike } from "~/lib/repo-types.server";
 
 type CountRow = { count?: number | string } | null;
 type StatusCountRow = { status: string; count: number | string };

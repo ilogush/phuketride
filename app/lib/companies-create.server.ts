@@ -9,7 +9,7 @@ type CreateCompanyActionArgs = {
   context: { cloudflare: { env: Env } };
   user: SessionUser;
   formData: FormData;
-  db?: any;
+  db?: D1Database;
 };
 
 type DistrictRow = {
@@ -36,7 +36,7 @@ function parseIntegerValue(value: FormDataEntryValue | null, fallback: number): 
 }
 
 export async function createCompanyAction({ request, context, user, formData, db: providedDb }: CreateCompanyActionArgs) {
-  const db = providedDb || (context?.cloudflare?.env?.DB as any);
+  const db = providedDb || context?.cloudflare?.env?.DB;
   if (!db) {
     throw new Error("Database not providing in createCompanyAction");
   }

@@ -7,58 +7,17 @@ import {
     getCachedSeasons,
 } from "~/lib/dictionaries-cache.server";
 
-export interface AdminColorRow {
-    id: number;
-    name: string;
-    hexCode: string | null;
-}
-
-export interface AdminLocationRow {
-    id: number;
-    name: string;
-}
-
-export interface AdminDistrictRow {
-    id: number;
-    name: string;
-    locationId: number;
-    beaches?: string | null;
-    deliveryPrice?: number | null;
-    createdAt?: Date;
-    updatedAt?: Date;
-}
-
-export interface AdminHotelRow {
-    id: number;
-    name: string;
-    locationId: number;
-    locationName?: string | null;
-    districtId: number;
-    districtName?: string | null;
-    address: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-}
-
-export interface AdminDurationRow {
-    id: number;
-    rangeName: string;
-    minDays: number;
-    maxDays: number | null;
-    priceMultiplier: number;
-    discountLabel: string | null;
-}
-
-export interface AdminSeasonRow {
-    id: number;
-    seasonName: string;
-    startMonth: number;
-    startDay: number;
-    endMonth: number;
-    endDay: number;
-    priceMultiplier: number;
-    discountLabel: string | null;
-}
+import { 
+    type AdminColorRow, 
+    type AdminLocationRow, 
+    type AdminDistrictRow, 
+    type AdminHotelRow, 
+    type AdminDurationRow, 
+    type AdminSeasonRow,
+    type AdminBrandRow,
+    type AdminModelRow,
+    type AdminPaymentStatusRow
+} from "~/lib/admin-dictionaries";
 
 export async function loadAdminColors(db: D1Database) {
     return getCachedColors(db) as Promise<AdminColorRow[]>;
@@ -104,22 +63,7 @@ export async function countAdminColors(db: D1Database, search?: string) {
     return result?.count ?? 0;
 }
 
-export interface AdminBrandRow {
-    id: number;
-    name: string;
-    logo: string | null;
-    modelsCount: number;
-    createdAt: string;
-}
 
-export interface AdminModelRow {
-    id: number;
-    brandName: string;
-    brandId: number;
-    name: string;
-    bodyTypeId?: number | null;
-    bodyTypeName?: string | null;
-}
 
 export async function loadAdminModels(db: D1Database) {
     const result = await db
@@ -394,10 +338,6 @@ export async function loadAdminDurations(db: D1Database) {
     return getCachedRentalDurations(db, QUERY_LIMITS.LARGE) as Promise<AdminDurationRow[]>;
 }
 
-export interface AdminPaymentStatusRow {
-    id: number;
-    name: string;
-}
 
 export async function loadAdminPaymentStatuses(db: D1Database) {
     const result = await db.prepare("SELECT id, name FROM payment_statuses ORDER BY id ASC").all();

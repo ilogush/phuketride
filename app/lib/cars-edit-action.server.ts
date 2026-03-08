@@ -9,6 +9,8 @@ import { parseWithSchema } from "~/lib/validation.server";
 import { getRequestModCompanyId, withModCompanyId } from "~/lib/mod-mode.server";
 
 type EditCarActionArgs = {
+  db: any;
+  assets: any;
   request: Request;
   context: ActionFunctionArgs["context"];
   user: SessionUser;
@@ -21,7 +23,7 @@ type FuelTypeRow = {
   name: string;
 };
 
-export async function handleEditCarAction({ request, context, user, params, formData }: EditCarActionArgs) {
+export async function handleEditCarAction({ db, assets, request, context, user, params, formData }: EditCarActionArgs) {
   const modCompanyIdValue = getRequestModCompanyId(request, user);
   const withModCompany = (path: string) => withModCompanyId(path, modCompanyIdValue);
 
@@ -30,7 +32,7 @@ export async function handleEditCarAction({ request, context, user, params, form
     return redirect(withModCompany(`/cars?error=${encodeURIComponent("Invalid car id")}`));
   }
 
-  const car = await context.cloudflare.env.DB
+  const car = await db
     .prepare(`
       SELECT
         id, company_id, template_id, year, color_id, license_plate, transmission, engine_volume,
@@ -78,7 +80,7 @@ export async function handleEditCarAction({ request, context, user, params, form
   const intent = formData.get("intent");
   if (intent === "archive" || intent === "delete") {
     const { deleteOrArchiveCar } = await import("~/lib/archive.server");
-    const result = await deleteOrArchiveCar(context.cloudflare.env.DB, carId, car.company_id);
+    const result = await deleteOrArchiveCar(db, carId, car.company_id);
     if (result.success) {
       return redirect(withModCompany(`/cars?success=${encodeURIComponent(result.message || "Car updated successfully")}`));
     }
@@ -86,7 +88,7 @@ export async function handleEditCarAction({ request, context, user, params, form
   }
 
   if (intent === "unarchive") {
-    await context.cloudflare.env.DB
+    await db
       .prepare("UPDATE company_cars SET archived_at = NULL, updated_at = ? WHERE id = ?")
       .bind(new Date().toISOString(), carId)
       .run();
@@ -146,7 +148,7 @@ export async function handleEditCarAction({ request, context, user, params, form
   }
 
   try {
-    const duplicateByCompanyResult = await context.cloudflare.env.DB
+    const duplicateByCompanyResult = await db
       .prepare(`
         SELECT cc.id
         FROM company_cars cc
@@ -166,7 +168,7 @@ export async function handleEditCarAction({ request, context, user, params, form
       return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent("Car with same brand, model and license plate already exists in this company")}`));
     }
 
-    const fuelTypes = await getCachedFuelTypes(context.cloudflare.env.DB) as FuelTypeRow[];
+    const fuelTypes = await getCachedFuelTypes(db) as FuelTypeRow[];
     const fuelType = fuelTypes.find((item) => item.name.toLowerCase() === validData.fuelType.toLowerCase());
 
     const photosData = formData.get("photos") as string;
@@ -178,7 +180,7 @@ export async function handleEditCarAction({ request, context, user, params, form
           photoUrls = await Promise.all(
             photos.map(async (photo: { base64: string; fileName: string }) => {
               if (photo.base64.startsWith("/assets/") || photo.base64.startsWith("http")) return photo.base64;
-              return uploadToR2(context.cloudflare.env.ASSETS, photo.base64, `cars/${carId}/${photo.fileName}`);
+              return uploadToR2(assets, photo.base64, `cars/${carId}/${photo.fileName}`);
             })
           );
         }
@@ -187,7 +189,7 @@ export async function handleEditCarAction({ request, context, user, params, form
       }
     }
 
-    await context.cloudflare.env.DB
+    await db
       .prepare(`
         UPDATE company_cars
         SET template_id = ?, year = ?, color_id = ?, license_plate = ?, transmission = ?, engine_volume = ?,
@@ -224,7 +226,7 @@ export async function handleEditCarAction({ request, context, user, params, form
       .run();
 
     if (validData.templateId) {
-      await context.cloudflare.env.DB
+      await db
         .prepare(`
           UPDATE car_templates
           SET
@@ -254,7 +256,7 @@ export async function handleEditCarAction({ request, context, user, params, form
 
     const metadata = getRequestMetadata(request);
     quickAudit({
-      db: context.cloudflare.env.DB,
+      db,
       userId: user.id,
       role: user.role,
       companyId: user.companyId,

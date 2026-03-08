@@ -12,5 +12,5 @@ export async function submitCarContentAction(args: {
     throw new Response("Invalid car id", { status: 400 });
   }
 
-  return handleCarContentManagementAction({ request, context, carId });
+  return handleCarContentManagementAction({ request, context, db: context.cloudflare.env.DB, carId });
 }

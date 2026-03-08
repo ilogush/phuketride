@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs } from "react-router";
+import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData, Link, useSearchParams } from "react-router";
 import { PlusIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
@@ -7,6 +7,12 @@ import SimplePagination from "~/components/dashboard/SimplePagination";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { loadClientRentalHistoryPage } from "~/lib/user-self-service.server";
 import { useUrlToast } from "~/lib/useUrlToast";
+import { requireSelfProfileAccess } from "~/lib/access-policy.server";
+
+export const meta: MetaFunction = () => [
+    { title: "My Bookings | Phuket Ride" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 
 interface MyBookingRow {
     id: number;

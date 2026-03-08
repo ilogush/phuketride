@@ -2,7 +2,6 @@ import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { getScopedDb } from "~/lib/db-factory.server";
 import ContractEditPageView from "~/features/contract-edit/ContractEditPageView";
-import { handleEditContractAction } from "~/lib/contracts-edit-action.server";
 import { loadEditContractPageData } from "~/lib/contracts-edit-page.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { useUrlToast } from "~/lib/useUrlToast";
@@ -32,7 +31,13 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         companyId,
         entityId: Number(params.id),
         details: { route: "contracts.$id.edit" },
-        run: async () => handleEditContractAction({ request, context, user, companyId, params, formData }),
+        run: async () => sdb.contracts.editAction({
+            assets: context.cloudflare.env.ASSETS,
+            request,
+            user,
+            params,
+            formData
+        }),
     });
 }
 

@@ -16,13 +16,11 @@ import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
 import { runAdminMutationAction } from "~/lib/admin-crud.server";
-import {
-    loadAdminDistricts,
-    loadAdminLocations,
-    type AdminDistrictRow,
-    type AdminHotelRow,
-    type AdminLocationRow,
-} from "~/lib/admin-dictionaries.server";
+import type {
+    AdminDistrictRow,
+    AdminHotelRow,
+    AdminLocationRow,
+} from "~/lib/admin-dictionaries";
 import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";

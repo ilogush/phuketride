@@ -42,6 +42,12 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   return loadPublicHomePage(context.cloudflare.env.DB, request);
 }
 
+export function headers() {
+  return {
+    "Cache-Control": "public, max-age=60, s-maxage=300",
+  };
+}
+
 export default function Home() {
   const { cars, districts } = useLoaderData<typeof loader>();
   const [activeBodyType, setActiveBodyType] = useState("All");

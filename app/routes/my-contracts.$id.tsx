@@ -4,18 +4,22 @@ import MyContractDetailPageView from "~/features/my-contract-detail/MyContractDe
 import { submitMyContractDetailAction } from "~/features/my-contract-detail/my-contract-detail.action.server";
 import { loadMyContractDetailPage } from "~/features/my-contract-detail/my-contract-detail.loader.server";
 import { useUrlToast } from "~/lib/useUrlToast";
+import { requireAuthAccess } from "~/lib/access-policy.server";
+import { getScopedDb } from "~/lib/db-factory.server";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
+    const { sdb } = await getScopedDb(request, context, requireAuthAccess);
     return loadMyContractDetailPage({
-        db: context.cloudflare.env.DB,
+        db: sdb.db,
         request,
         contractIdParam: params.id,
     });
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
+    const { sdb } = await getScopedDb(request, context, requireAuthAccess);
     return submitMyContractDetailAction({
-        db: context.cloudflare.env.DB,
+        db: sdb.db,
         request,
         contractIdParam: params.id,
     });

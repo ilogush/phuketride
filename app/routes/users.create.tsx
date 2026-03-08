@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData } from "react-router";
 import ProfileForm from "~/components/dashboard/ProfileForm";
 import BackButton from "~/components/dashboard/BackButton";
@@ -8,6 +8,12 @@ import { useUrlToast } from "~/lib/useUrlToast";
 import { createManagedUser, loadProfileReferenceData } from "~/lib/user-profile.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 import { trackServerOperation } from "~/lib/telemetry.server";
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
+
+export const meta: MetaFunction = () => [
+    { title: "Create User — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user, companyId } = await requireAdminUserMutationAccess(request);

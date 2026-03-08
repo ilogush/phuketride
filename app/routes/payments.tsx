@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
-import { useLoaderData, Link, useSearchParams } from "react-router";
+import { useLoaderData, Link, useSearchParams, useNavigation } from "react-router";
 
 export const meta: MetaFunction = () => [
     { title: "Payments — Phuket Ride Admin" },
@@ -87,6 +87,7 @@ export default function PaymentsPage() {
     const { payments: paymentsList, statusCounts, activeTab, totalCount } = useLoaderData<typeof loader>();
     useUrlToast();
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigation = useNavigation();
 
     const tabs = [
         { id: "completed", label: "Completed", count: statusCounts.completed },
@@ -210,6 +211,7 @@ export default function PaymentsPage() {
                 columns={columns}
                 totalCount={totalCount}
                 serverPagination
+                isLoading={navigation.state === "loading"}
                 emptyTitle="No payments found"
                 emptyDescription={`No payments with status "${activeTab}"`}
                 emptyIcon={<BanknotesIcon className="w-10 h-10" />}

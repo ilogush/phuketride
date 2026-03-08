@@ -17,7 +17,7 @@ import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";
 import { runAdminMutationAction } from "~/lib/admin-crud.server";
-import { type AdminColorRow } from "~/lib/admin-dictionaries.server";
+import { type AdminColorRow } from "~/lib/admin-dictionaries";
 import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
@@ -159,7 +159,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 }
             },
             feedback: { successPath: "/colors", successMessage: "Seeded colors", errorMessage: "Failed to seed colors" },
-            audit: { entityType: "color", action: "create" as any },
+            audit: { entityType: "color", action: "create" },
         });
     }
 

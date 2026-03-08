@@ -36,8 +36,9 @@ type ContractExtraRow = {
 };
 
 type EditContractActionArgs = {
+  db: D1Database;
+  assets: R2Bucket;
   request: Request;
-  context: ActionFunctionArgs["context"];
   user: SessionUser;
   companyId: number | null;
   params: ActionFunctionArgs["params"];
@@ -70,7 +71,7 @@ function parsePhotoList(value: FormDataEntryValue | null): string[] {
   }
 }
 
-export async function handleEditContractAction({ request, context, user, companyId, params, formData }: EditContractActionArgs) {
+export async function handleEditContractAction({ db, assets, request, user, companyId, params, formData }: EditContractActionArgs) {
   const contractId = parseInt(String(params.id || ""), 10);
 
   try {
@@ -97,7 +98,7 @@ export async function handleEditContractAction({ request, context, user, company
       return redirect(`/contracts?error=${encodeURIComponent(parsedEnvelope.error)}`);
     }
 
-    const existingContract = await context.cloudflare.env.DB
+    const existingContract = await db
       .prepare(`
         SELECT
           contracts.id,
@@ -131,12 +132,12 @@ export async function handleEditContractAction({ request, context, user, company
     const driverLicensePhotosValue = parseDocPhotos(formData.get("driverLicensePhotos"));
 
     const uploadedPassportPhotos = await uploadPhotoItemsToR2(
-      context.cloudflare.env.ASSETS,
+      assets,
       passportPhotosValue,
       `users/${existingContract.client_id}/passport`
     );
     const uploadedDriverLicensePhotos = await uploadPhotoItemsToR2(
-      context.cloudflare.env.ASSETS,
+      assets,
       driverLicensePhotosValue,
       `users/${existingContract.client_id}/driver-license`
     );
@@ -156,7 +157,7 @@ export async function handleEditContractAction({ request, context, user, company
     if (uploadedPassportPhotos.length > 0) clientUpdate.passportPhotos = JSON.stringify(uploadedPassportPhotos);
     if (uploadedDriverLicensePhotos.length > 0) clientUpdate.driverLicensePhotos = JSON.stringify(uploadedDriverLicensePhotos);
 
-    await context.cloudflare.env.DB
+    await db
       .prepare(`
         UPDATE users
         SET name = ?, surname = ?, phone = ?, whatsapp = ?, telegram = ?, passport_number = ?,
@@ -223,7 +224,7 @@ export async function handleEditContractAction({ request, context, user, company
       updatePayload.photos = JSON.stringify(photosValue);
     }
 
-    await context.cloudflare.env.DB
+    await db
       .prepare(`
         UPDATE contracts
         SET company_car_id = ?, start_date = ?, end_date = ?, pickup_district_id = ?, pickup_hotel = ?, pickup_room = ?,
@@ -265,7 +266,7 @@ export async function handleEditContractAction({ request, context, user, company
       krabi_trip: Boolean(updatePayload.krabiTripEnabled),
     };
 
-    const existingExtrasResult = await context.cloudflare.env.DB
+    const existingExtrasResult = await db
       .prepare(`
         SELECT id, extra_type AS extraType, extra_price AS extraPrice, amount, currency, currency_id AS currencyId,
                payment_type_id AS paymentTypeId, payment_method AS paymentMethod, status, notes
@@ -284,7 +285,7 @@ export async function handleEditContractAction({ request, context, user, company
       if (!extraEnabledByType[extraType]) {
         if (existingExtra?.id) {
           extraStmts.push(
-            context.cloudflare.env.DB.prepare("DELETE FROM payments WHERE id = ?").bind(existingExtra.id)
+            db.prepare("DELETE FROM payments WHERE id = ?").bind(existingExtra.id)
           );
         }
         continue;
@@ -292,7 +293,7 @@ export async function handleEditContractAction({ request, context, user, company
 
       if (existingExtra?.id) {
         extraStmts.push(
-          context.cloudflare.env.DB
+          db
             .prepare(`
               UPDATE payments
               SET extra_enabled = 1, extra_price = COALESCE(extra_price, amount, 0), updated_at = ?
@@ -304,7 +305,7 @@ export async function handleEditContractAction({ request, context, user, company
       }
 
       extraStmts.push(getCreateExtraPaymentStmt({
-        db: context.cloudflare.env.DB,
+        db,
         contractId,
         userId: user.id,
         extraType,
@@ -314,31 +315,31 @@ export async function handleEditContractAction({ request, context, user, company
     }
 
     if (extraStmts.length > 0) {
-      await context.cloudflare.env.DB.batch(extraStmts);
+      await db.batch(extraStmts);
     }
 
     if (newCompanyCarId !== existingContract.company_car_id) {
-      await updateCarStatus(context.cloudflare.env.DB, existingContract.company_car_id, "available", "Contract car changed");
-      await updateCarStatus(context.cloudflare.env.DB, newCompanyCarId, "rented", "Contract car changed");
+      await updateCarStatus(db, existingContract.company_car_id, "available", "Contract car changed");
+      await updateCarStatus(db, newCompanyCarId, "rented", "Contract car changed");
     }
 
     const targetCompanyId = newCompanyCarId === existingContract.company_car_id
       ? existingContract.companyId
       : (
-        await context.cloudflare.env.DB
+        await db
           .prepare("SELECT company_id AS companyId FROM company_cars WHERE id = ? LIMIT 1")
           .bind(newCompanyCarId)
           .first() as { companyId: number } | null
       )?.companyId;
 
     if (targetCompanyId) {
-      await context.cloudflare.env.DB
+      await db
         .prepare("DELETE FROM calendar_events WHERE related_id = ? AND event_type IN ('pickup', 'contract')")
         .bind(contractId)
         .run();
 
       await createContractEvents({
-        db: context.cloudflare.env.DB,
+        db,
         companyId: targetCompanyId,
         contractId,
         startDate,

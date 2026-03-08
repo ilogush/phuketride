@@ -45,7 +45,7 @@ export async function requireAdminDb(
     context: AdminRouteContext
 ): Promise<{ user: SessionUser; db: D1Database; companyId: number | null }> {
     const { user, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
-    return { user, db: sdb.db as any, companyId };
+    return { user, db: sdb.db, companyId };
 }
 
 export async function loadAdminPageData<TLoaders extends AdminPageLoaderMap>(params: {

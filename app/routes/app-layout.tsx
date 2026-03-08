@@ -3,7 +3,6 @@ import { type LoaderFunctionArgs, isRouteErrorResponse, useRouteError } from "re
 import { Outlet, useLoaderData } from "react-router";
 import Sidebar from "~/components/dashboard/Sidebar";
 import Topbar from "~/components/dashboard/Topbar";
-import { loadAppLayoutData } from "~/lib/app-layout.server";
 import { useToast } from "~/lib/toast";
 import { useUrlToast } from "~/lib/useUrlToast";
 import type { ModModeContextType } from "./app-layout.types";

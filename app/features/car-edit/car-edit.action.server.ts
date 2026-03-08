@@ -12,5 +12,13 @@ export async function submitCarEditAction(args: {
   const user = await requireAuth(request);
   const formData = await request.formData();
 
-  return handleEditCarAction({ request, context, user, params, formData });
+  return handleEditCarAction({
+    db: context.cloudflare.env.DB,
+    assets: context.cloudflare.env.ASSETS,
+    request,
+    context,
+    user,
+    params,
+    formData
+  });
 }

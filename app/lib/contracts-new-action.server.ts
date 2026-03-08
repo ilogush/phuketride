@@ -18,8 +18,9 @@ import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/rout
 import { checkCarAvailability } from "~/lib/car-availability.server";
 
 type CreateContractActionArgs = {
+  db: D1Database;
+  assets: R2Bucket;
   request: Request;
-  context: ActionFunctionArgs["context"];
   user: SessionUser;
   companyId: number;
   formData: FormData;
@@ -51,7 +52,7 @@ function parsePhotoList(value: FormDataEntryValue | null): string[] {
   }
 }
 
-export async function handleCreateContractAction({ request, context, user, companyId, formData }: CreateContractActionArgs) {
+export async function handleCreateContractAction({ db, assets, request, user, companyId, formData }: CreateContractActionArgs) {
   try {
     const parsedEnvelope = parseWithSchema(
       z.object({
@@ -101,7 +102,7 @@ export async function handleCreateContractAction({ request, context, user, compa
     }
 
     let clientId: string;
-    const existingClient = await context.cloudflare.env.DB
+    const existingClient = await db
       .prepare(`
         SELECT id, email, name, surname, phone, passport_photos AS passportPhotos,
                driver_license_photos AS driverLicensePhotos
@@ -125,12 +126,12 @@ export async function handleCreateContractAction({ request, context, user, compa
       clientId = existingClient.id;
 
       const uploadedPassportPhotos = await uploadPhotoItemsToR2(
-        context.cloudflare.env.ASSETS,
+        assets,
         passportPhotosValue,
         `users/${clientId}/passport`
       );
       const uploadedDriverLicensePhotos = await uploadPhotoItemsToR2(
-        context.cloudflare.env.ASSETS,
+        assets,
         driverLicensePhotosValue,
         `users/${clientId}/driver-license`
       );
@@ -143,7 +144,7 @@ export async function handleCreateContractAction({ request, context, user, compa
 
       if (!dataMatches || passportPhotosValue.length > 0 || driverLicensePhotosValue.length > 0) {
         userStmts.push(
-          context.cloudflare.env.DB
+          db
             .prepare(`
               UPDATE users
               SET passport_photos = ?, driver_license_photos = ?, updated_at = ?
@@ -160,18 +161,18 @@ export async function handleCreateContractAction({ request, context, user, compa
     } else {
       clientId = crypto.randomUUID();
       const uploadedPassportPhotos = await uploadPhotoItemsToR2(
-        context.cloudflare.env.ASSETS,
+        assets,
         passportPhotosValue,
         `users/${clientId}/passport`
       );
       const uploadedDriverLicensePhotos = await uploadPhotoItemsToR2(
-        context.cloudflare.env.ASSETS,
+        assets,
         driverLicensePhotosValue,
         `users/${clientId}/driver-license`
       );
 
       userStmts.push(
-        context.cloudflare.env.DB
+        db
           .prepare(`
             INSERT INTO users (
               id, email, role, name, surname, phone, whatsapp, telegram, passport_number,
@@ -196,7 +197,7 @@ export async function handleCreateContractAction({ request, context, user, compa
     }
 
     if (userStmts.length > 0) {
-      await context.cloudflare.env.DB.batch(userStmts);
+      await db.batch(userStmts);
     }
 
     const companyCarId = Number(formData.get("company_car_id"));
@@ -219,7 +220,7 @@ export async function handleCreateContractAction({ request, context, user, compa
       throw new Error("Total amount must be greater than 0");
     }
 
-    const car = await context.cloudflare.env.DB
+    const car = await db
       .prepare(`
         SELECT id, status
         FROM company_cars
@@ -237,7 +238,7 @@ export async function handleCreateContractAction({ request, context, user, compa
     }
 
     const conflict = await checkCarAvailability(
-      context.cloudflare.env.DB,
+      db,
       companyCarId,
       startDate,
       endDate
@@ -257,7 +258,7 @@ export async function handleCreateContractAction({ request, context, user, compa
     const startMileage = Number(formData.get("start_mileage")) || 0;
     const extraFlags = getExtraFlagsFromFormData(formData);
 
-    const contractInsert = await context.cloudflare.env.DB
+    const contractInsert = await db
       .prepare(`
         INSERT INTO contracts (
           company_car_id, client_id, manager_id, start_date, end_date, total_amount, total_currency,
@@ -296,7 +297,7 @@ export async function handleCreateContractAction({ request, context, user, compa
       .run();
 
     const contractId = Number(contractInsert.meta.last_row_id);
-    const currencyCodeById = await getCurrencyCodeById(context.cloudflare.env.DB);
+    const currencyCodeById = await getCurrencyCodeById(db);
 
     const finalStmts: D1PreparedStatement[] = [];
 
@@ -306,7 +307,7 @@ export async function handleCreateContractAction({ request, context, user, compa
       const { amount, currencyId, paymentMethod } = getExtraInputFromFormData(formData, extraType);
       const currencyCode = (currencyId ? currencyCodeById.get(currencyId) : null) || "THB";
       finalStmts.push(getCreateExtraPaymentStmt({
-        db: context.cloudflare.env.DB,
+        db,
         contractId,
         userId: user.id,
         extraType,
@@ -317,9 +318,9 @@ export async function handleCreateContractAction({ request, context, user, compa
       }));
     }
 
-    finalStmts.push(getUpdateCarStatusStmt(context.cloudflare.env.DB, companyCarId, "rented"));
+    finalStmts.push(getUpdateCarStatusStmt(db, companyCarId, "rented"));
     finalStmts.push(...getCreateContractEventsStmts({
-      db: context.cloudflare.env.DB,
+      db,
       companyId,
       contractId,
       startDate,
@@ -327,11 +328,11 @@ export async function handleCreateContractAction({ request, context, user, compa
       createdBy: user.id,
     }));
 
-    await context.cloudflare.env.DB.batch(finalStmts);
+    await db.batch(finalStmts);
 
     const metadata = getRequestMetadata(request);
     await getQuickAuditStmt({
-      db: context.cloudflare.env.DB,
+      db,
       userId: user.id,
       role: user.role,
       companyId,

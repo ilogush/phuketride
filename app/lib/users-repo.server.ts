@@ -1,16 +1,7 @@
 import type { SortOrder } from "~/lib/query-filters.server";
 import type { UserListRow } from "~/lib/db-types";
 
-type D1DatabaseLike = {
-    prepare: (query: string) => {
-        bind: (...values: unknown[]) => {
-            all: () => Promise<{ results?: unknown[] }>;
-            first: () => Promise<unknown>;
-        };
-        all: () => Promise<{ results?: unknown[] }>;
-        first: () => Promise<unknown>;
-    };
-};
+import { type D1DatabaseLike } from "~/lib/repo-types.server";
 
 type CountRow = { count?: number | string } | null;
 type RoleCountRow = { role: string; count: number | string };
@@ -47,17 +38,17 @@ export async function listUsersPage(params: {
     const { db, role, pageSize, offset, search, sortBy, sortOrder, companyId } = params;
     
     let fromSql = "FROM users u";
-    let whereSql = "WHERE u.role = ?";
+    let whereSql = "WHERE u.role = ? AND u.archived_at IS NULL";
     const binds: unknown[] = [role];
 
     if (companyId) {
         if (role === "manager") {
             fromSql = "FROM users u INNER JOIN managers m ON u.id = m.user_id";
-            whereSql = "WHERE u.role = ? AND m.company_id = ? AND m.is_active = 1";
+            whereSql = "WHERE u.role = ? AND m.company_id = ? AND m.is_active = 1 AND u.archived_at IS NULL";
             binds.push(companyId);
         } else if (role === "user") {
             fromSql = "FROM users u INNER JOIN contracts c ON u.id = c.client_id INNER JOIN company_cars cc ON cc.id = c.company_car_id";
-            whereSql = "WHERE u.role = ? AND cc.company_id = ?";
+            whereSql = "WHERE u.role = ? AND cc.company_id = ? AND u.archived_at IS NULL";
             binds.push(companyId);
         }
     }
@@ -88,17 +79,17 @@ export async function countUsersPage(params: {
 }) {
     const { db, role, search, companyId } = params;
     let fromSql = "FROM users u";
-    let whereSql = "WHERE u.role = ?";
+    let whereSql = "WHERE u.role = ? AND u.archived_at IS NULL";
     const binds: unknown[] = [role];
 
     if (companyId) {
         if (role === "manager") {
             fromSql = "FROM users u INNER JOIN managers m ON u.id = m.user_id";
-            whereSql = "WHERE u.role = ? AND m.company_id = ? AND m.is_active = 1";
+            whereSql = "WHERE u.role = ? AND m.company_id = ? AND m.is_active = 1 AND u.archived_at IS NULL";
             binds.push(companyId);
         } else if (role === "user") {
             fromSql = "FROM users u INNER JOIN contracts c ON u.id = c.client_id INNER JOIN company_cars cc ON cc.id = c.company_car_id";
-            whereSql = "WHERE u.role = ? AND cc.company_id = ?";
+            whereSql = "WHERE u.role = ? AND cc.company_id = ? AND u.archived_at IS NULL";
             binds.push(companyId);
         }
     }
@@ -123,6 +114,7 @@ export async function listUserRoleCounts(params: {
     const result = await params.db.prepare(`
         SELECT role, COUNT(*) AS count
         FROM users
+        WHERE archived_at IS NULL
         GROUP BY role
     `).all();
     return (result.results || []) as RoleCountRow[];
@@ -136,7 +128,7 @@ export async function countCompanyManagers(params: {
         SELECT COUNT(*) AS count
         FROM managers m
         INNER JOIN users u ON u.id = m.user_id
-        WHERE m.company_id = ? AND m.is_active = 1 AND u.role = 'manager'
+        WHERE m.company_id = ? AND m.is_active = 1 AND u.role = 'manager' AND u.archived_at IS NULL
     `).bind(params.companyId).first() as CountRow;
     return Number(row?.count || 0);
 }
@@ -150,7 +142,7 @@ export async function countCompanyClients(params: {
         FROM users u
         INNER JOIN contracts c ON u.id = c.client_id
         INNER JOIN company_cars cc ON c.company_car_id = cc.id
-        WHERE cc.company_id = ? AND u.role = 'user'
+        WHERE cc.company_id = ? AND u.role = 'user' AND u.archived_at IS NULL
     `).bind(params.companyId).first() as CountRow;
     return Number(row?.count || 0);
 }
@@ -175,7 +167,7 @@ export async function listCompanyManagersPage(params: {
         SELECT u.id, u.email, u.name, u.surname, u.role, u.phone, u.avatar_url AS avatarUrl
         FROM users u
         INNER JOIN managers m ON u.id = m.user_id
-        WHERE m.company_id = ? AND m.is_active = 1 AND u.role = 'manager'
+        WHERE m.company_id = ? AND m.is_active = 1 AND u.role = 'manager' AND u.archived_at IS NULL
         ${search ? "AND (COALESCE(u.email,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR COALESCE(u.phone,'') LIKE ?)" : ""}
         ${getUserSortClause(sortBy, sortOrder)}
         LIMIT ? OFFSET ?
@@ -198,7 +190,7 @@ export async function countCompanyManagersPage(params: {
         SELECT COUNT(*) AS count
         FROM users u
         INNER JOIN managers m ON u.id = m.user_id
-        WHERE m.company_id = ? AND m.is_active = 1 AND u.role = 'manager'
+        WHERE m.company_id = ? AND m.is_active = 1 AND u.role = 'manager' AND u.archived_at IS NULL
         ${params.search ? "AND (COALESCE(u.email,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR COALESCE(u.phone,'') LIKE ?)" : ""}
     `).bind(...binds).first() as CountRow;
 
@@ -226,7 +218,7 @@ export async function listCompanyClientsPage(params: {
         FROM users u
         INNER JOIN contracts c ON u.id = c.client_id
         INNER JOIN company_cars cc ON c.company_car_id = cc.id
-        WHERE cc.company_id = ? AND u.role = 'user'
+        WHERE cc.company_id = ? AND u.role = 'user' AND u.archived_at IS NULL
         ${search ? "AND (COALESCE(u.email,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR COALESCE(u.phone,'') LIKE ?)" : ""}
         ${getUserSortClause(sortBy, sortOrder)}
         LIMIT ? OFFSET ?
@@ -250,7 +242,7 @@ export async function countCompanyClientsPage(params: {
         FROM users u
         INNER JOIN contracts c ON u.id = c.client_id
         INNER JOIN company_cars cc ON c.company_car_id = cc.id
-        WHERE cc.company_id = ? AND u.role = 'user'
+        WHERE cc.company_id = ? AND u.role = 'user' AND u.archived_at IS NULL
         ${params.search ? "AND (COALESCE(u.email,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR COALESCE(u.surname,'') LIKE ? OR COALESCE(u.phone,'') LIKE ?)" : ""}
     `).bind(...binds).first() as CountRow;
 
@@ -271,7 +263,7 @@ export async function getUserById(params: {
             LEFT JOIN managers m ON u.id = m.user_id AND m.company_id = ?
             LEFT JOIN contracts c ON u.id = c.client_id
             LEFT JOIN company_cars cc ON c.company_car_id = cc.id AND cc.company_id = ?
-            WHERE u.id = ? AND (m.id IS NOT NULL OR cc.id IS NOT NULL)
+            WHERE u.id = ? AND (m.id IS NOT NULL OR cc.id IS NOT NULL) AND u.archived_at IS NULL
             LIMIT 1
         `).bind(companyId, companyId, userId).first() as UserListRow | null;
     }
@@ -279,7 +271,7 @@ export async function getUserById(params: {
     return await db.prepare(`
         SELECT id, email, name, surname, role, phone, avatar_url AS avatarUrl
         FROM users
-        WHERE id = ?
+        WHERE id = ? AND archived_at IS NULL
         LIMIT 1
     `).bind(userId).first() as UserListRow | null;
 }

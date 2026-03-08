@@ -1,5 +1,5 @@
 import type { Route } from './+types/car-templates'
-import { Link, useNavigate, useSearchParams, type MetaFunction } from 'react-router'
+import { Link, useNavigate, useSearchParams, useNavigation, type MetaFunction } from 'react-router'
 
 export const meta: MetaFunction = () => [
     { title: "Car Templates — Phuket Ride Admin" },
@@ -17,7 +17,7 @@ import { GenericDictionaryForm, type FieldConfig } from '~/components/dashboard/
 import { useState } from 'react'
 import { getRequestMetadata } from '~/lib/audit-logger'
 import type { Column } from '~/components/dashboard/DataTable'
-import { type BrandRow, type ModelRow, type TemplateRow, handleCarTemplatesAction, loadCarTemplatesData } from "~/lib/car-templates.server";
+import type { BrandRow, ModelRow, TemplateRow } from "~/lib/car-templates";
 import { useAsyncToastAction } from '~/lib/useAsyncToastAction'
 import { useUrlToast } from '~/lib/useUrlToast'
 
@@ -49,8 +49,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     const formData = await request.formData()
     const metadata = getRequestMetadata(request)
     
-    return handleCarTemplatesAction({
-        db: sdb.db as any, // action still needs raw db for now
+    return sdb.carTemplates.handleAction({
         user,
         companyId,
         formData,
@@ -63,6 +62,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
     useUrlToast()
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
+    const navigation = useNavigation()
     const activeTab = searchParams.get('tab') || 'templates'
     const [showBrandModal, setShowBrandModal] = useState(false)
     const [showModelModal, setShowModelModal] = useState(false)
@@ -313,7 +313,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                             action={{ label: 'Add Brand', onClick: () => setShowBrandModal(true) }}
                         />
                     ) : (
-                        <DataTable columns={brandColumns} data={brands} />
+                        <DataTable columns={brandColumns} data={brands} isLoading={navigation.state === "loading"} />
                     )}
                 </>
             )}
@@ -328,7 +328,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                             action={{ label: 'Add Model', onClick: () => setShowModelModal(true) }}
                         />
                     ) : (
-                        <DataTable columns={modelColumns} data={models} />
+                        <DataTable columns={modelColumns} data={models} isLoading={navigation.state === "loading"} />
                     )}
                 </>
             )}
@@ -346,6 +346,7 @@ export default function CarTemplatesPage({ loaderData }: Route.ComponentProps) {
                         <DataTable
                             columns={templateColumns}
                             data={templates}
+                            isLoading={navigation.state === "loading"}
                         />
                     )}
                 </>

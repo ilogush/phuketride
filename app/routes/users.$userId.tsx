@@ -1,4 +1,10 @@
-import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction, redirect } from "react-router";
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
+
+export const meta: MetaFunction = () => [
+    { title: "User Profile — Phuket Ride Admin" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";

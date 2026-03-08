@@ -2,6 +2,7 @@ import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "reac
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { getScopedDb } from "~/lib/db-factory.server";
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
 import { redirectWithRequestError } from "~/lib/route-feedback";
 import { runAdminMutationAction } from "~/lib/admin-crud.server";
 import { useUrlToast } from "~/lib/useUrlToast";

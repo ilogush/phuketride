@@ -12,8 +12,7 @@ import Button from "~/components/dashboard/Button";
 import PageHeader from "~/components/dashboard/PageHeader";
 import { PlusIcon, SunIcon } from "@heroicons/react/24/outline";
 import { useUrlToast } from "~/lib/useUrlToast";
-import { handleSeasonsAction } from "~/lib/seasons-actions.server";
-import { loadAdminSeasons, type AdminSeasonRow } from "~/lib/admin-dictionaries.server";
+import type { AdminSeasonRow } from "~/lib/admin-dictionaries";
 import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/GenericDictionaryForm";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
@@ -64,9 +63,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const { sdb } = await getScopedDb(request, context);
-    const db = sdb.db as any;
     const formData = await request.formData();
-    return handleSeasonsAction({ request, db, formData });
+    return sdb.seasons.handleAction({ request, formData });
 }
 
 export default function SeasonsPage() {

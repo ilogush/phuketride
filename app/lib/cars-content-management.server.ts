@@ -1,6 +1,7 @@
 import { redirect } from "react-router";
 import { recalcCarRatingMetrics } from "~/lib/car-reviews.server";
-import { requireCarAccess, withModCompanyId } from "~/lib/cars-content.server";
+import { requireCarAccess } from "~/lib/access-policy.server";
+import { withModCompanyId } from "~/lib/mod-mode.server";
 
 type IncludedItemRow = {
     id: number;
@@ -36,7 +37,8 @@ type ReviewRow = {
 };
 
 function redirectToContent(carId: number, modCompanyId: string | null, message: string, key: "success" | "error" = "success") {
-    return redirect(withModCompanyId(`/cars/${carId}/content?${key}=${encodeURIComponent(message)}`, modCompanyId));
+    const modId = modCompanyId ? Number.parseInt(modCompanyId, 10) : null;
+    return redirect(withModCompanyId(`/cars/${carId}/content?${key}=${encodeURIComponent(message)}`, modId));
 }
 
 async function seedDemoContent(db: D1Database, carId: number, userId: string) {
@@ -160,31 +162,32 @@ async function seedDemoContent(db: D1Database, carId: number, userId: string) {
 
 export async function loadCarContentManagementPage(args: {
     request: Request;
-    context: { cloudflare: { env: Env } };
+    context: any;
+    db: D1Database;
     carId: number;
 }) {
-    const { request, context, carId } = args;
-    const { car } = await requireCarAccess(request, context, carId);
+    const { request, context, db, carId } = args;
+    const { car } = await requireCarAccess(request, db, carId);
     const [includedItems, rules, features, reviews, contractsCount] = await Promise.all([
-        context.cloudflare.env.DB.prepare(`
+        db.prepare(`
             SELECT id, category, title, description, icon_key AS iconKey, sort_order AS sortOrder
             FROM car_included_items
             WHERE company_car_id = ?
             ORDER BY sort_order ASC, id ASC
         `).bind(carId).all(),
-        context.cloudflare.env.DB.prepare(`
+        db.prepare(`
             SELECT id, title, description, icon_key AS iconKey, sort_order AS sortOrder
             FROM car_rules
             WHERE company_car_id = ?
             ORDER BY sort_order ASC, id ASC
         `).bind(carId).all(),
-        context.cloudflare.env.DB.prepare(`
+        db.prepare(`
             SELECT id, category, name, sort_order AS sortOrder
             FROM car_features
             WHERE company_car_id = ?
             ORDER BY sort_order ASC, id ASC
         `).bind(carId).all(),
-        context.cloudflare.env.DB.prepare(`
+        db.prepare(`
             SELECT
               cr.id,
               cr.contract_id AS contractId,
@@ -196,7 +199,7 @@ export async function loadCarContentManagementPage(args: {
             WHERE cr.company_car_id = ?
             ORDER BY cr.created_at DESC, cr.id DESC
         `).bind(carId).all(),
-        context.cloudflare.env.DB.prepare("SELECT COUNT(*) AS count FROM contracts WHERE company_car_id = ?").bind(carId).first(),
+        db.prepare("SELECT COUNT(*) AS count FROM contracts WHERE company_car_id = ?").bind(carId).first(),
     ]);
 
     return {
@@ -211,13 +214,14 @@ export async function loadCarContentManagementPage(args: {
 
 export async function handleCarContentManagementAction(args: {
     request: Request;
-    context: { cloudflare: { env: Env } };
+    context: any;
+    db: D1Database;
     carId: number;
 }) {
-    const { request, context, carId } = args;
+    const { request, context, db, carId } = args;
     const url = new URL(request.url);
     const modCompanyId = url.searchParams.get("modCompanyId");
-    const { user } = await requireCarAccess(request, context, carId);
+    const { user } = await requireCarAccess(request, db, carId);
     const formData = await request.formData();
     const intent = String(formData.get("intent") || "");
     const now = Math.floor(Date.now() / 1000);
@@ -228,7 +232,7 @@ export async function handleCarContentManagementAction(args: {
         const description = String(formData.get("description") || "").trim();
         const iconKey = String(formData.get("iconKey") || "sparkles").trim();
         if (!title) return redirectToContent(carId, modCompanyId, "Included title is required", "error");
-        await context.cloudflare.env.DB.prepare(`
+        await db.prepare(`
             INSERT INTO car_included_items (company_car_id, category, title, description, icon_key, sort_order, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM car_included_items WHERE company_car_id = ?), ?, ?)
         `).bind(carId, category, title, description || null, iconKey, carId, now, now).run();
@@ -237,7 +241,7 @@ export async function handleCarContentManagementAction(args: {
 
     if (intent === "delete_included") {
         const id = Number(formData.get("id") || 0);
-        await context.cloudflare.env.DB.prepare("DELETE FROM car_included_items WHERE id = ? AND company_car_id = ?").bind(id, carId).run();
+        await db.prepare("DELETE FROM car_included_items WHERE id = ? AND company_car_id = ?").bind(id, carId).run();
         return redirectToContent(carId, modCompanyId, "Included item deleted");
     }
 
@@ -246,7 +250,7 @@ export async function handleCarContentManagementAction(args: {
         const description = String(formData.get("description") || "").trim();
         const iconKey = String(formData.get("iconKey") || "offroad").trim();
         if (!title) return redirectToContent(carId, modCompanyId, "Rule title is required", "error");
-        await context.cloudflare.env.DB.prepare(`
+        await db.prepare(`
             INSERT INTO car_rules (company_car_id, title, description, icon_key, sort_order, created_at, updated_at)
             VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM car_rules WHERE company_car_id = ?), ?, ?)
         `).bind(carId, title, description || null, iconKey, carId, now, now).run();
@@ -255,7 +259,7 @@ export async function handleCarContentManagementAction(args: {
 
     if (intent === "delete_rule") {
         const id = Number(formData.get("id") || 0);
-        await context.cloudflare.env.DB.prepare("DELETE FROM car_rules WHERE id = ? AND company_car_id = ?").bind(id, carId).run();
+        await db.prepare("DELETE FROM car_rules WHERE id = ? AND company_car_id = ?").bind(id, carId).run();
         return redirectToContent(carId, modCompanyId, "Rule deleted");
     }
 
@@ -263,7 +267,7 @@ export async function handleCarContentManagementAction(args: {
         const category = String(formData.get("category") || "").trim();
         const name = String(formData.get("name") || "").trim();
         if (!category || !name) return redirectToContent(carId, modCompanyId, "Feature category and name are required", "error");
-        await context.cloudflare.env.DB.prepare(`
+        await db.prepare(`
             INSERT INTO car_features (company_car_id, category, name, sort_order, created_at, updated_at)
             VALUES (?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM car_features WHERE company_car_id = ?), ?, ?)
         `).bind(carId, category, name, carId, now, now).run();
@@ -272,19 +276,19 @@ export async function handleCarContentManagementAction(args: {
 
     if (intent === "delete_feature") {
         const id = Number(formData.get("id") || 0);
-        await context.cloudflare.env.DB.prepare("DELETE FROM car_features WHERE id = ? AND company_car_id = ?").bind(id, carId).run();
+        await db.prepare("DELETE FROM car_features WHERE id = ? AND company_car_id = ?").bind(id, carId).run();
         return redirectToContent(carId, modCompanyId, "Feature deleted");
     }
 
     if (intent === "delete_review") {
         const reviewId = Number(formData.get("id") || 0);
-        await context.cloudflare.env.DB.prepare("DELETE FROM car_reviews WHERE id = ? AND company_car_id = ?").bind(reviewId, carId).run();
-        await recalcCarRatingMetrics(context.cloudflare.env.DB, carId);
+        await db.prepare("DELETE FROM car_reviews WHERE id = ? AND company_car_id = ?").bind(reviewId, carId).run();
+        await recalcCarRatingMetrics(db, carId);
         return redirectToContent(carId, modCompanyId, "Review deleted");
     }
 
     if (intent === "seed_demo") {
-        await seedDemoContent(context.cloudflare.env.DB, carId, user.id);
+        await seedDemoContent(db, carId, user.id);
         return redirectToContent(carId, modCompanyId, "Demo users, contracts, reviews and content have been seeded");
     }
 

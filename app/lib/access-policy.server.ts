@@ -9,6 +9,16 @@ type ScopedDashboardAccess = {
     isModMode: boolean;
 };
 
+export type CarAccessResult = ScopedDashboardAccess & {
+    car: {
+        id: number;
+        companyId: number;
+        licensePlate: string | null;
+        brandName: string | null;
+        modelName: string | null;
+    };
+};
+
 
 function isDashboardRole(role: SessionUser["role"]) {
     return role === "admin" || role === "partner" || role === "manager";
@@ -153,10 +163,54 @@ export async function requireCarAccess(
     request: Request,
     db: D1Database,
     carId: number
-) {
+): Promise<CarAccessResult> {
     const access = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
-    if (access.companyId !== null) {
-        await validateCarOwnership(db, carId, access.companyId);
+    
+    const car = await db
+        .prepare(`
+            SELECT
+                cc.id,
+                cc.company_id AS companyId,
+                cc.license_plate AS licensePlate,
+                cb.name AS brandName,
+                cm.name AS modelName
+            FROM company_cars cc
+            LEFT JOIN car_templates ct ON ct.id = cc.template_id
+            LEFT JOIN car_brands cb ON cb.id = ct.brand_id
+            LEFT JOIN car_models cm ON cm.id = ct.model_id
+            WHERE cc.id = ?
+            LIMIT 1
+            `
+        )
+        .bind(carId)
+        .first<{ id: number; companyId: number; licensePlate: string | null; brandName: string | null; modelName: string | null }>();
+
+    if (!car) {
+        throw new Response("Car not found", { status: 404 });
     }
-    return access;
+
+    if (access.companyId !== null && car.companyId !== access.companyId) {
+        throw new Response("Access denied", { status: 403 });
+    }
+
+    return { ...access, car };
+}
+
+export async function requireAuthAccess(request: Request) {
+    const user = await requireAuth(request);
+    return {
+        user,
+        companyId: null,
+        isModMode: false,
+        adminModCompanyId: null,
+    };
+}
+
+export async function requirePublicAccess(request: Request) {
+    return {
+        user: null,
+        companyId: null,
+        isModMode: false,
+        adminModCompanyId: null,
+    };
 }

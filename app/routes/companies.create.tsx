@@ -18,7 +18,6 @@ import {
     BanknotesIcon,
     Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
-import { loadCreateCompanyPageData } from "~/lib/companies-create-page.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { useCompanyManagerAssignment } from "~/components/dashboard/company/useCompanyManagerAssignment";
 
@@ -55,7 +54,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         companyId: null,
         run: async () => {
             const formData = await request.formData();
-            return createCompanyAction({ request, context, user, formData, db: sdb.db as any });
+            return createCompanyAction({ request, context, user, formData, db: sdb.db });
         },
     });
 }

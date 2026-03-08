@@ -79,7 +79,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 await db.prepare("DELETE FROM payment_statuses WHERE id = ?").bind(data.id).run();
             },
             feedback: { successPath: "/payment-statuses", successMessage: "Status deleted", errorMessage: "Failed to delete" },
-            audit: { entityType: "payment_status" as any, entityId: data.id, action: "delete" },
+            audit: { entityType: "payment_status", entityId: data.id, action: "delete" },
         });
     }
 
@@ -91,7 +91,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 await db.prepare("INSERT INTO payment_statuses (name) VALUES (?)").bind(data.name).run();
             },
             feedback: { successPath: "/payment-statuses", successMessage: "Status created", errorMessage: "Failed to create" },
-            audit: { entityType: "payment_status" as any, action: "create", afterState: data },
+            audit: { entityType: "payment_status", action: "create", afterState: data },
         });
     }
 
@@ -103,7 +103,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
                 await db.prepare("UPDATE payment_statuses SET name = ? WHERE id = ?").bind(data.name, data.id).run();
             },
             feedback: { successPath: "/payment-statuses", successMessage: "Status updated", errorMessage: "Failed to update" },
-            audit: { entityType: "payment_status" as any, entityId: data.id, action: "update", afterState: data },
+            audit: { entityType: "payment_status", entityId: data.id, action: "update", afterState: data },
         });
     }
 

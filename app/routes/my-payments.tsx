@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs } from "react-router";
+import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData, useSearchParams, Link } from "react-router";
 import { CurrencyDollarIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
@@ -11,6 +11,12 @@ import Button from "~/components/dashboard/Button";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { loadClientPaymentsHistoryPage, type ClientPaymentRow } from "~/lib/user-self-service.server";
 import { useUrlToast } from "~/lib/useUrlToast";
+import { requireSelfProfileAccess } from "~/lib/access-policy.server";
+
+export const meta: MetaFunction = () => [
+    { title: "My Payments | Phuket Ride" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user } = await requireSelfProfileAccess(request);

@@ -1,4 +1,9 @@
-import { type LoaderFunctionArgs, redirect } from "react-router";
+import { type LoaderFunctionArgs, type MetaFunction, redirect } from "react-router";
+
+export const meta: MetaFunction = () => [
+    { title: "Profile — Phuket Ride" },
+    { name: "robots", content: "noindex, nofollow" },
+];
 import { useUrlToast } from "~/lib/useUrlToast";
 
 export async function loader({ request }: LoaderFunctionArgs) {

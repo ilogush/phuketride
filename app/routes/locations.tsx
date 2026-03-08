@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
-import { useLoaderData, Form, useSubmit } from "react-router";
+import { useLoaderData, Form, useSubmit, useNavigation } from "react-router";
 
 export const meta: MetaFunction = () => [
     { title: "Locations — Phuket Ride Admin" },
@@ -12,8 +12,7 @@ import DataTable, { type Column } from "~/components/dashboard/DataTable";
 import { useState } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import Toggle from "~/components/dashboard/Toggle";
-import { handleLocationsAction } from "~/lib/locations-actions.server";
-import { loadLocationsPageData, type LocationsPageDistrict as District } from "~/lib/locations-page.server";
+import type { LocationsPageDistrict as District } from "~/lib/admin-dictionaries";
 import { useAsyncToastAction } from "~/lib/useAsyncToastAction";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getScopedDb } from "~/lib/db-factory.server";
@@ -45,8 +44,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     });
 
     const formData = await request.formData();
-    return handleLocationsAction({
-        db: sdb.db as any,
+    return sdb.locations.handleAction({
         user,
         formData,
         companyId,
@@ -58,6 +56,7 @@ export default function LocationsPage() {
     const { districts, user, isModMode } = useLoaderData<typeof loader>();
     useUrlToast();
     const submit = useSubmit();
+    const navigation = useNavigation();
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDistrict, setEditingDistrict] = useState<District | null>(null);
@@ -256,6 +255,7 @@ export default function LocationsPage() {
             <DataTable
                 data={localDistricts}
                 columns={columns}
+                isLoading={navigation.state === "loading"}
                 emptyTitle="No districts found"
                 emptyDescription="Start by adding your first district"
             />

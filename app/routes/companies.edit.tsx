@@ -1,5 +1,6 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
 import { getScopedDb } from "~/lib/db-factory.server";
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
 import { useUrlToast } from "~/lib/useUrlToast";
 
 function getCompanyId(raw: string | undefined): number {
