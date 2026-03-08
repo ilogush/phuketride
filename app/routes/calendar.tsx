@@ -1,6 +1,5 @@
-import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
-import { useLoaderData, Outlet, Link, useSearchParams } from "react-router";
-import { useMemo } from "react";
+import { type LoaderFunctionArgs, type MetaFunction, useLoaderData, Outlet, Link, useSearchParams } from "react-router";
+import { useState, useMemo } from "react";
 import PageHeader from "~/components/dashboard/PageHeader";
 import Button from "~/components/dashboard/Button";
 import Card from "~/components/dashboard/Card";
@@ -10,6 +9,7 @@ import { trackServerOperation } from "~/lib/telemetry.server";
 import type { CalendarListBooking, CalendarListContract, CalendarListEvent } from "~/lib/calendar-page.server";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
+import CalendarTasksSidebar from "~/components/calendar/CalendarTasksSidebar";
 
 export const meta: MetaFunction = () => [
     { title: "Calendar — Phuket Ride Admin" },
@@ -37,6 +37,8 @@ export default function CalendarPage() {
     const [searchParams] = useSearchParams();
     const modCompanyId = searchParams.get("modCompanyId");
     const modModeSuffix = modCompanyId ? `&modCompanyId=${modCompanyId}` : "";
+
+    const [selectedDay, setSelectedDay] = useState<number>(new Date().getDate());
 
     const monthNames = ["January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"];
@@ -100,6 +102,19 @@ export default function CalendarPage() {
             currentYear === today.getFullYear();
     };
 
+    const selectedDayTasks = useMemo(() => {
+        const data = dayDataMap.get(selectedDay);
+        if (!data) return [];
+        
+        const tasks: any[] = [];
+        data.events.forEach(e => tasks.push({ id: e.id, title: e.title, type: 'event' }));
+        data.contracts.forEach(e => tasks.push({ id: e.id, title: `Contract #${e.id} ends`, type: 'contract' }));
+        data.bookings.forEach(e => tasks.push({ id: e.id, title: `Booking #${e.id} starts`, type: 'booking' }));
+        return tasks;
+    }, [selectedDay, dayDataMap]);
+
+    const selectedDate = new Date(currentYear, currentMonth, selectedDay);
+
     return (
         <div className="space-y-4">
             <PageHeader
@@ -113,91 +128,97 @@ export default function CalendarPage() {
                 }
             />
 
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-4">
-                    <Link to={prevMonth()}>
-                        <Button variant="ghost" icon={<ChevronLeftIcon className="w-5 h-5" />} />
-                    </Link>
-                    <h2 className="text-xl font-bold text-gray-900">
-                        {monthNames[currentMonth]} {currentYear}
-                    </h2>
-                    <Link to={nextMonth()}>
-                        <Button variant="ghost" icon={<ChevronRightIcon className="w-5 h-5" />} />
-                    </Link>
-                </div>
-            </div>
-
-            <Card className="p-0 overflow-hidden border-gray-200">
-                <div className="grid grid-cols-7 border-b border-gray-100">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                        <div key={day} className="px-2 sm:px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">
-                            {day}
-                        </div>
-                    ))}
-                </div>
-                <div className="grid grid-cols-7">
-                    {Array.from({ length: totalCells }).map((_, i) => {
-                        const day = i - firstDayOfWeek + 1;
-                        const isValidDay = day > 0 && day <= daysInMonth;
-                        const dayData = isValidDay ? dayDataMap.get(day) : null;
-                        const dayEvents = dayData?.events || [];
-                        const dayContracts = dayData?.contracts || [];
-                        const dayBookings = dayData?.bookings || [];
-
-                        return (
-                            <div
-                                key={i}
-                                className={`min-h-[100px] sm:min-h-[120px] border-r border-b border-gray-100 p-1 sm:p-2 ${isValidDay ? 'hover:bg-gray-50/20 transition-colors group cursor-pointer' : 'bg-gray-50/30'
-                                    }`}
-                            >
-                                {isValidDay && (
-                                    <>
-                                        <span className={`text-xs font-bold ${isToday(day)
-                                            ? 'bg-gray-800 text-white rounded-full px-2 py-1'
-                                            : 'text-gray-400 group-hover:text-gray-900'
-                                            } transition-colors`}>
-                                            {day}
-                                        </span>
-                                        <div className="mt-1 space-y-1">
-                                            {dayEvents.map((event) => {
-                                                const color = event.color ?? '#6B7280'
-                                                return (
-                                                    <div
-                                                        key={event.id}
-                                                        className="text-[10px] sm:text-xs px-1 py-0.5 rounded truncate"
-                                                        style={{ backgroundColor: `${color}20`, color }}
-                                                        title={event.title}
-                                                    >
-                                                        {event.title}
-                                                    </div>
-                                                )
-                                            })}
-                                            {dayContracts.map((contract) => (
-                                                <div
-                                                    key={contract.id}
-                                                    className="text-[10px] sm:text-xs px-1 py-0.5 rounded truncate bg-red-50 text-red-600"
-                                                    title={`Contract #${contract.id} ends`}
-                                                >
-                                                    End: #{contract.id}
-                                                </div>
-                                            ))}
-                                            {dayBookings.map((booking) => (
-                                                <div
-                                                    key={booking.id}
-                                                    className="text-[10px] sm:text-xs px-1 py-0.5 rounded truncate bg-blue-50 text-blue-600"
-                                                    title={`Booking #${booking.id} starts`}
-                                                >
-                                                    Book: #{booking.id}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </>
-                                )}
+            <div className="flex bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-sm min-h-[700px]">
+                {/* Main Calendar Section */}
+                <div className="flex-1 p-6 space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-4">
+                            <h2 className="text-xl font-bold text-gray-900">
+                                {monthNames[currentMonth]} {currentYear}
+                            </h2>
+                            <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-2xl">
+                                <Link to={prevMonth()}>
+                                    <Button variant="ghost" size="sm" icon={<ChevronLeftIcon className="w-5 h-5" />} className="rounded-xl" />
+                                </Link>
+                                <Link to={nextMonth()}>
+                                    <Button variant="ghost" size="sm" icon={<ChevronRightIcon className="w-5 h-5" />} className="rounded-xl" />
+                                </Link>
                             </div>
-                        );
-                    })}
+                        </div>
+                    </div>
+
+                    <div className="overflow-hidden border border-gray-100 rounded-2xl">
+                        <div className="grid grid-cols-7 bg-gray-50/50 border-b border-gray-100">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                                <div key={day} className="px-2 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">
+                                    {day}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-7">
+                            {Array.from({ length: totalCells }).map((_, i) => {
+                                const day = i - firstDayOfWeek + 1;
+                                const isValidDay = day > 0 && day <= daysInMonth;
+                                const dayData = isValidDay ? dayDataMap.get(day) : null;
+                                const dayEvents = dayData?.events || [];
+                                const totalItems = (dayData?.events.length || 0) + (dayData?.contracts.length || 0) + (dayData?.bookings.length || 0);
+
+                                return (
+                                    <div
+                                        key={i}
+                                        onClick={() => isValidDay && setSelectedDay(day)}
+                                        onMouseEnter={() => isValidDay && setSelectedDay(day)}
+                                        className={`min-h-[100px] border-r border-b border-gray-100 p-2 relative group transition-all ${
+                                            isValidDay 
+                                                ? `cursor-pointer ${selectedDay === day ? 'bg-gray-50/80 ring-2 ring-inset ring-gray-200' : 'hover:bg-gray-50/40'}` 
+                                                : 'bg-gray-50/10'
+                                        }`}
+                                    >
+                                        {isValidDay && (
+                                            <>
+                                                <div className="flex items-center justify-between">
+                                                    <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
+                                                        isToday(day)
+                                                            ? 'bg-gray-900 text-white'
+                                                            : selectedDay === day ? 'text-gray-900 bg-gray-200' : 'text-gray-400 group-hover:text-gray-900'
+                                                        }`}>
+                                                        {day}
+                                                    </span>
+                                                    {totalItems > 0 && (
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                                    )}
+                                                </div>
+                                                <div className="mt-2 space-y-1 overflow-hidden">
+                                                    {dayEvents.slice(0, 2).map((event) => (
+                                                        <div
+                                                            key={event.id}
+                                                            className="text-[10px] px-1.5 py-0.5 rounded-lg truncate bg-gray-800/5 text-gray-800 font-medium"
+                                                        >
+                                                            {event.title}
+                                                        </div>
+                                                    ))}
+                                                    {totalItems > 2 && (
+                                                        <div className="text-[10px] text-gray-400 font-bold px-1.5">
+                                                            + {totalItems - 2} more
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
-            </Card>
+
+                {/* Tasks Sidebar */}
+                <CalendarTasksSidebar 
+                    date={selectedDate} 
+                    tasks={selectedDayTasks} 
+                    modCompanyId={modCompanyId}
+                />
+            </div>
 
             <Outlet />
         </div>
