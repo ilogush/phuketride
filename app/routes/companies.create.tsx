@@ -200,24 +200,21 @@ export default function CreateCompanyPage() {
                             name="deliveryFeeAfterHours"
                             type="number"
                             step="0.01"
-
-                            addonLeft="฿"
+                            startAdornment="฿"
                         />
                         <Input
                             label="Island Trip Cost"
                             name="islandTripPrice"
                             type="number"
                             step="0.01"
-
-                            addonLeft="฿"
+                            startAdornment="฿"
                         />
                         <Input
                             label="Krabi Trip Cost"
                             name="krabiTripPrice"
                             type="number"
                             step="0.01"
-
-                            addonLeft="฿"
+                            startAdornment="฿"
                         />
                         <Input
                             label="Baby Seat Cost (per day)"
@@ -225,8 +222,7 @@ export default function CreateCompanyPage() {
                             type="number"
                             step="1"
                             min={0}
-
-                            addonLeft="฿"
+                            startAdornment="฿"
                         />
                     </div>
                 </FormSection>

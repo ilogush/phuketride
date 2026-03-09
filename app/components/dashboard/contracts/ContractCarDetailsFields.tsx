@@ -23,7 +23,6 @@ export default function ContractCarDetailsFields({ cars, defaults }: ContractCar
         options={cars}
         defaultValue={defaults?.companyCarId ?? undefined}
         placeholder="Select car"
-        showPlaceholderOption
         required
       />
       <Input

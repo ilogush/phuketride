@@ -81,14 +81,12 @@ export default function RecordPaymentPage() {
                             name="contractId"
                             options={contracts.map(c => ({ id: c.id, name: `Contract #${c.id}` }))}
                             placeholder="Select contract"
-                            showPlaceholderOption
                         />
                         <Select
                             label="Payment Type"
                             name="paymentTypeId"
                             options={paymentTypes.map(t => ({ id: t.id, name: t.name }))}
                             placeholder="Select type"
-                            showPlaceholderOption
                             required
                         />
                         <Select
@@ -100,7 +98,6 @@ export default function RecordPaymentPage() {
                                 { id: "cancelled", name: "Cancelled" }
                             ]}
                             placeholder="Select status"
-                            showPlaceholderOption
                             required
                         />
                         <Input
@@ -115,7 +112,6 @@ export default function RecordPaymentPage() {
                             name="currency"
                             options={currencies.map(c => ({ id: c.code, name: `${c.code} (${c.symbol})` }))}
                             placeholder="Select currency"
-                            showPlaceholderOption
                             required
                         />
                     </div>

@@ -120,7 +120,6 @@ export default function CreateBookingPage() {
                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedCarId(e.target.value)}
                             options={cars.map((car: { id: number; name: string; pricePerDay: number }) => ({ id: car.id, name: `${car.name} - ฿${car.pricePerDay}/day` }))}
                             placeholder="Select car"
-                            showPlaceholderOption
                         />
                         <Input
                             type="text"
@@ -205,7 +204,6 @@ export default function CreateBookingPage() {
                             label="District"
                             placeholder="Select district"
                             options={districts.map((d: { id: number; name: string }) => ({ id: d.id, name: d.name }))}
-                            showPlaceholderOption
                         />
                         <Input name="pickupHotel" label="Hotel" />
                         <Input name="pickupRoom" label="Room" />
@@ -219,7 +217,6 @@ export default function CreateBookingPage() {
                             label="District"
                             placeholder="Select district"
                             options={districts.map((d: { id: number; name: string }) => ({ id: d.id, name: d.name }))}
-                            showPlaceholderOption
                         />
                         <Input name="returnHotel" label="Hotel" />
                         <Input name="returnRoom" label="Room" />

@@ -24,7 +24,6 @@ export function ProfileInformationEditSection({
     <FormSection title="Profile Information" icon={<UserIcon />}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Input
-          isEdit
           label="First Name"
           name="name"
           defaultValue={user.name ?? undefined}
@@ -34,7 +33,6 @@ export function ProfileInformationEditSection({
           required
         />
         <Input
-          isEdit
           label="Last Name"
           name="surname"
           defaultValue={user.surname ?? undefined}
@@ -44,7 +42,6 @@ export function ProfileInformationEditSection({
           required
         />
         <Select
-          isEdit
           label="Role"
           name="role"
           defaultValue={user.role}
@@ -57,11 +54,11 @@ export function ProfileInformationEditSection({
           disabled={!isAdmin}
           required
         />
-        <Input isEdit label="Phone" name="phone" defaultValue={user.phone ?? undefined} placeholder="+66415484865" required />
-        <Input isEdit label="WhatsApp" name="whatsapp" defaultValue={user.whatsapp ?? undefined} placeholder="+66415484865" />
-        <Input isEdit label="Email" name="email" type="email" defaultValue={user.email ?? undefined} placeholder="ilogush@icloud.com" required />
-        <Input isEdit label="Telegram" name="telegram" defaultValue={user.telegram ?? undefined} placeholder="@user_471322f2" />
-        <Input isEdit label="Passport / ID Number" name="passportNumber" defaultValue={user.passportNumber ?? undefined} placeholder="758024093" required />
+        <Input label="Phone" name="phone" defaultValue={user.phone ?? undefined} placeholder="+66415484865" required />
+        <Input label="WhatsApp" name="whatsapp" defaultValue={user.whatsapp ?? undefined} placeholder="+66415484865" />
+        <Input label="Email" name="email" type="email" defaultValue={user.email ?? undefined} placeholder="ilogush@icloud.com" required />
+        <Input label="Telegram" name="telegram" defaultValue={user.telegram ?? undefined} placeholder="@user_471322f2" />
+        <Input label="Passport / ID Number" name="passportNumber" defaultValue={user.passportNumber ?? undefined} placeholder="758024093" required />
       </div>
     </FormSection>
   );
@@ -83,18 +80,16 @@ export function AccommodationEditSection({
   return (
     <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Select isEdit label="Hotel" name="hotelId" defaultValue={user.hotelId?.toString()} options={hotels} />
-        <Input isEdit label="Room Number" name="roomNumber" defaultValue={user.roomNumber ?? undefined} placeholder="900" />
-        <Select isEdit label="Location" name="locationId" defaultValue={user.locationId?.toString()} options={locations} />
+        <Select label="Hotel" name="hotelId" defaultValue={user.hotelId?.toString()} options={hotels} />
+        <Input label="Room Number" name="roomNumber" defaultValue={user.roomNumber ?? undefined} placeholder="900" />
+        <Select label="Location" name="locationId" defaultValue={user.locationId?.toString()} options={locations} />
         {districts.length > 0 ? (
           <Select
-            isEdit
             label="District"
             name="districtId"
             defaultValue={user.districtId?.toString()}
             options={districts}
             placeholder="Select district"
-            showPlaceholderOption
           />
         ) : null}
       </div>
@@ -114,8 +109,8 @@ export function PasswordEditSection({ show }: PasswordEditSectionProps) {
   return (
     <FormSection title="Change Password" icon={<LockClosedIcon />}>
       <div className="space-y-4">
-        <Input isEdit label="New Password" name="newPassword" type="password" placeholder="Enter new password" />
-        <Input isEdit label="Confirm Password" name="confirmPassword" type="password" placeholder="Confirm new password" />
+        <Input label="New Password" name="newPassword" type="password" placeholder="Enter new password" />
+        <Input label="Confirm Password" name="confirmPassword" type="password" placeholder="Confirm new password" />
         <div className="text-xs text-gray-500">Leave empty to keep current password.</div>
       </div>
     </FormSection>
@@ -163,14 +158,14 @@ export function ProfileInformationViewSection({ user }: ProfileInformationViewSe
   return (
     <FormSection title="Profile Information" icon={<UserIcon />}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Input isEdit={false} label="First Name" name="name" value={user.name || ""} />
-        <Input isEdit={false} label="Last Name" name="surname" value={user.surname || ""} />
-        <Input isEdit={false} label="Role" name="role" value={formatRole(user.role)} />
-        <Input isEdit={false} label="Phone" name="phone" value={formatContactPhone(user.phone)} />
-        <Input isEdit={false} label="WhatsApp" name="whatsapp" value={formatContactPhone(user.whatsapp)} />
-        <Input isEdit={false} label="Email" name="email" type="email" value={user.email} />
-        <Input isEdit={false} label="Telegram" name="telegram" value={user.telegram || ""} />
-        <Input isEdit={false} label="Passport / ID Number" name="passportNumber" value={user.passportNumber || ""} />
+        <Input readOnly label="First Name" name="name" value={user.name || ""} />
+        <Input readOnly label="Last Name" name="surname" value={user.surname || ""} />
+        <Input readOnly label="Role" name="role" value={formatRole(user.role)} />
+        <Input readOnly label="Phone" name="phone" value={formatContactPhone(user.phone)} />
+        <Input readOnly label="WhatsApp" name="whatsapp" value={formatContactPhone(user.whatsapp)} />
+        <Input readOnly label="Email" name="email" type="email" value={user.email} />
+        <Input readOnly label="Telegram" name="telegram" value={user.telegram || ""} />
+        <Input readOnly label="Passport / ID Number" name="passportNumber" value={user.passportNumber || ""} />
       </div>
     </FormSection>
   );
@@ -190,9 +185,9 @@ export function AccommodationViewSection({
   return (
     <FormSection title="Accommodation" icon={<BuildingOfficeIcon />}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Input isEdit={false} label="Hotel" name="hotelId" value={hotel?.name || ""} />
-        <Input isEdit={false} label="Room Number" name="roomNumber" value={roomNumber || ""} />
-        <Input isEdit={false} label="Area" name="locationId" value={location?.name || ""} />
+        <Input readOnly label="Hotel" name="hotelId" value={hotel?.name || ""} />
+        <Input readOnly label="Room Number" name="roomNumber" value={roomNumber || ""} />
+        <Input readOnly label="Area" name="locationId" value={location?.name || ""} />
       </div>
     </FormSection>
   );

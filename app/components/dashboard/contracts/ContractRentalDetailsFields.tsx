@@ -45,7 +45,6 @@ export default function ContractRentalDetailsFields({
         defaultValue={defaults?.pickupDistrictId ?? undefined}
         onChange={(e) => onPickupDistrictChange?.(e.target.value)}
         placeholder="Select district"
-        showPlaceholderOption
         required
       />
       <Input
@@ -76,7 +75,6 @@ export default function ContractRentalDetailsFields({
         defaultValue={defaults?.returnDistrictId ?? undefined}
         onChange={(e) => onReturnDistrictChange?.(e.target.value)}
         placeholder="Select district"
-        showPlaceholderOption
         required
       />
       <Input
