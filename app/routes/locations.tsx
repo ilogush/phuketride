@@ -185,7 +185,7 @@ export default function LocationsPage() {
                                 value={district.deliveryPrice || 0}
                                 onChange={(e) => handlePriceChange(item.id, e.target.value)}
                                 disabled={!district.isActive}
-                                addonRight="฿"
+                                endAdornment="฿"
                                 className="max-w-[120px]"
                             />
                         );
@@ -203,7 +203,7 @@ export default function LocationsPage() {
                         <div className="flex gap-2">
                             <Button
                                 type="button"
-                                variant="outline"
+                                variant="secondary"
                                 size="sm"
                                 onClick={() => handleEdit(item)}
                             >
@@ -220,11 +220,11 @@ export default function LocationsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Delivery"
-                rightActions={
+                rightSlot={
                     <div className="flex gap-2">
                         {isPartner && (
                             <Button 
-                                variant="solid" 
+                                variant="primary" 
                                 onClick={handleSaveAll}
                                 loading={navigation.state === "submitting"}
                             >
@@ -232,7 +232,7 @@ export default function LocationsPage() {
                             </Button>
                         )}
                         {isAdmin && (
-                            <Button variant="outline" icon={<PlusIcon className="w-5 h-5" />} onClick={() => setIsModalOpen(true)}>
+                            <Button variant="secondary" leadingIcon={<PlusIcon className="w-5 h-5" />} onClick={() => setIsModalOpen(true)}>
                                 Add
                             </Button>
                         )}

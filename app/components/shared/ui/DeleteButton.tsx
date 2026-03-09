@@ -23,11 +23,11 @@ export default function DeleteButton({
             type={type}
             onClick={onClick}
             disabled={disabled}
-            variant="outline"
+            variant="secondary"
             size={size}
             className={className}
             title={title}
-            icon={<TrashIcon className={`${size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'}`} />}
+            leadingIcon={<TrashIcon className={`${size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'}`} />}
         />
     )
 }

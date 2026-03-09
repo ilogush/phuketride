@@ -104,10 +104,10 @@ export default function EditUserPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Edit User"
-                leftActions={<BackButton to="/users" />}
-                rightActions={
+                leftSlot={<BackButton to="/users" />}
+                rightSlot={
                     <div className="flex items-center gap-2">
-                        <Button type="submit" variant="solid" form="profile-form">
+                        <Button type="submit" variant="primary" form="profile-form">
                             Save
                         </Button>
                         <Form method="post">
@@ -123,7 +123,7 @@ export default function EditUserPage() {
                 hotels={hotels}
                 locations={locations}
                 districts={districts}
-                isEdit={true}
+                isEdit
             />
         </div>
     );

@@ -95,9 +95,9 @@ export default function CreateUserPage() {
         <div className="space-y-4">
             <PageHeader
                 title="New User"
-                leftActions={<BackButton to="/users" />}
-                rightActions={
-                    <Button type="submit" variant="solid" form="profile-form">
+                leftSlot={<BackButton to="/users" />}
+                rightSlot={
+                    <Button type="submit" variant="primary" form="profile-form">
                         Create User
                     </Button>
                 }
@@ -108,7 +108,7 @@ export default function CreateUserPage() {
                 hotels={hotels}
                 locations={locations}
                 districts={districts}
-                isEdit={true}
+                isEdit
             />
         </div>
     );

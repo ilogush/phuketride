@@ -157,7 +157,6 @@ export default function PaymentTemplatesTab({
                 { id: "+", name: "+ (Income)" },
                 { id: "-", name: "- (Expense)" },
               ]}
-              hidePlaceholderOption
               required
             />
             <Textarea
@@ -172,7 +171,7 @@ export default function PaymentTemplatesTab({
             <div className="pt-2">
               <Button 
                 type="submit" 
-                variant="solid" 
+                variant="primary" 
                 className="w-full justify-center py-2.5"
               >
                 {editingPaymentTemplate ? "Update" : "Create"}

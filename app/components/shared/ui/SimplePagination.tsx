@@ -21,18 +21,20 @@ export default function SimplePagination({ currentPage, totalPages, onPageChange
                 <Button
                     onClick={() => onPageChange(currentPage - 1)}
                     disabled={!hasPrevious}
-                    variant="plain"
+                    variant="secondary"
                     size="sm"
                     className="ring-1 ring-gray-200 hover:ring-gray-300"
+                    iconOnly
                 >
                     <ChevronLeftIcon className="w-4 h-4" />
                 </Button>
                 <Button
                     onClick={() => onPageChange(currentPage + 1)}
                     disabled={!hasNext}
-                    variant="plain"
+                    variant="secondary"
                     size="sm"
                     className="ring-1 ring-gray-200 hover:ring-gray-300"
+                    iconOnly
                 >
                     <ChevronRightIcon className="w-4 h-4" />
                 </Button>

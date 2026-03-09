@@ -79,9 +79,9 @@ export default function EditProfilePage() {
         <div className="space-y-4">
             <PageHeader
                 title="Edit Profile"
-                leftActions={<BackButton to="/profile" />}
-                rightActions={
-                    <Button type="submit" variant="solid" form="profile-form">
+                leftSlot={<BackButton to="/profile" />}
+                rightSlot={
+                    <Button type="submit" variant="primary" form="profile-form">
                         Save
                     </Button>
                 }
