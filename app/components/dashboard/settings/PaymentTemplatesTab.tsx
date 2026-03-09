@@ -6,6 +6,7 @@ import { Input } from '~/components/shared/ui/Input';
 import { Textarea } from '~/components/shared/ui/Textarea';
 import AdminCard from '~/components/shared/ui/AdminCard';
 import IdBadge from "~/components/shared/ui/IdBadge";
+import { selectBaseStyles } from "~/lib/styles/input";
 import { BanknotesIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 export type PaymentTemplateItem = {
@@ -153,7 +154,7 @@ export default function PaymentTemplatesTab({
                 name="sign"
                 value={paymentFormData.sign}
                 onChange={(e) => setPaymentFormData({ ...paymentFormData, sign: e.target.value })}
-                className="w-full px-3 py-2 text-xs text-gray-600 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-800"
+                className={selectBaseStyles}
                 required
               >
                 <option value="+">+ (Income)</option>

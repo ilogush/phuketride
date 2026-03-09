@@ -86,42 +86,20 @@ export default function DataTable<T>({
                 />
             )}
 
-            <div className="border border-gray-100 rounded-xl overflow-hidden bg-white ring-1 ring-black/5">
+            <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white ring-1 ring-black/5">
                 <div className="overflow-x-auto sm:mx-0">
                     <table className="min-w-full divide-y divide-gray-100 bg-transparent" aria-label={ariaLabel}>
                         {caption && <caption className="sr-only">{caption}</caption>}
                         <thead>
                             <tr className="bg-gray-50/50">
                                 {currentColumns.map((col, idx) => {
-                                    const isSorted = sortBy === col.key
-                                    const ariaSort = !col.sortable
-                                        ? undefined
-                                        : isSorted
-                                            ? (sortOrder === 'asc' ? 'ascending' : 'descending')
-                                            : 'none'
                                     return (
                                         <th
                                             key={col.key}
                                             scope="col"
-                                            aria-sort={ariaSort}
                                             className={`${idx === 0 ? 'px-4' : 'px-4'} py-4 text-left text-xs font-bold text-gray-400 tracking-wide ${idx > 2 ? 'hidden sm:table-cell' : ''} ${col.className || ''}`}
                                         >
-                                            {col.sortable ? (
-                                                <button
-                                                    type="button"
-                                                    className="cursor-pointer select-none inline-flex items-center gap-1 group/sort"
-                                                    onClick={() => handleSortChange(col.key)}
-                                                >
-                                                    {formatHeaderLabel(col.label)}
-                                                    <span className={`transition-opacity duration-200 ${isSorted ? 'opacity-100' : 'opacity-0 group-hover/sort:opacity-100'}`} aria-hidden>
-                                                        {isSorted 
-                                                          ? (sortOrder === 'asc' ? '▲' : '▼') 
-                                                          : '↕'}
-                                                    </span>
-                                                </button>
-                                            ) : (
-                                                <span>{formatHeaderLabel(col.label)}</span>
-                                            )}
+                                            <span>{formatHeaderLabel(col.label)}</span>
                                         </th>
                                     );
                                 })}

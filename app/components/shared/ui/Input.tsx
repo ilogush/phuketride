@@ -87,20 +87,25 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
     `.trim()
 
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
+    const normalizedLabel = typeof label === 'string' ? label.trim() : label
+    const labelHasAsterisk = typeof normalizedLabel === 'string' && normalizedLabel.endsWith('*')
+    const labelText = typeof normalizedLabel === 'string' && labelHasAsterisk
+        ? normalizedLabel.slice(0, -1).trimEnd()
+        : normalizedLabel
 
     return (
         <div className={className}>
             {label && (
-                <label htmlFor={id || name} className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wider ml-1">
-                    {label} {required && <span className="text-red-400 ml-0.5">*</span>}
+                <label htmlFor={id || name} className="block text-xs text-gray-600 mb-1 ml-1">
+                    {labelText} {(required || labelHasAsterisk) && <span className="text-red-400 ml-0.5">*</span>}
                 </label>
             )}
             <div className={`
                 relative flex items-center border rounded-2xl bg-white h-11 overflow-hidden transition-all duration-200
                 ${error 
-                    ? 'border-red-200 bg-red-50/10 ring-1 ring-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.05)]' 
+                    ? 'border-red-200 bg-red-50/10 ring-1 ring-red-500/20' 
                     : isFocused 
-                        ? 'border-gray-900 ring-4 ring-gray-900/5 shadow-sm' 
+                        ? 'border-gray-900 ring-4 ring-gray-900/5' 
                         : 'border-gray-200 hover:border-gray-300 shadow-none'}
                 ${isFieldDisabled ? 'bg-gray-50/50 border-gray-100' : 'bg-white'}
             `}>

@@ -23,9 +23,9 @@ export default function DeleteButton({
             type={type}
             onClick={onClick}
             disabled={disabled}
-            variant="ghost"
+            variant="outline"
             size={size}
-            className={`text-gray-400 hover:text-gray-900 ${className}`}
+            className={className}
             title={title}
             icon={<TrashIcon className={`${size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'}`} />}
         />

@@ -4,6 +4,7 @@ import Button from '~/components/shared/ui/Button'
 import FormField from '~/components/shared/ui/FormField'
 import { Input } from '~/components/shared/ui/Input'
 import { Textarea } from '~/components/shared/ui/Textarea'
+import { selectBaseStyles } from '~/lib/styles/input'
 import { useAsyncToastAction } from '~/lib/useAsyncToastAction'
 import { useDateMasking } from '~/lib/useDateMasking'
 import { formatDateTimeForDisplay, parseDateTimeFromDisplay } from '~/lib/formatters'
@@ -138,7 +139,7 @@ export default function MaintenanceForm({
                 <select
                     value={formData.maintenance_type}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleChange('maintenance_type', e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={selectBaseStyles}
                 >
                     {maintenanceTypes.map(type => (
                         <option key={type.value} value={type.value}>

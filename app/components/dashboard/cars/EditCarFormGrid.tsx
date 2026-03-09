@@ -236,7 +236,7 @@ export default function EditCarFormGrid({
               <Input label="Min Rental Days" name="minRentalDays" type="number" min={1} step={1} defaultValue={car.minRentalDays || 1} />
               <div>
                 <label className="block text-xs text-gray-600 mb-1">Full Insurance</label>
-                <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-[38px] bg-white">
+                <div className="flex h-11 items-center justify-between rounded-2xl border border-gray-200 bg-white px-4">
                   <span className="text-sm text-gray-900">{fullInsuranceEnabled ? "Enabled" : "Disabled"}</span>
                   <Toggle checked={fullInsuranceEnabled} onCheckedChange={setFullInsuranceEnabled} />
                 </div>

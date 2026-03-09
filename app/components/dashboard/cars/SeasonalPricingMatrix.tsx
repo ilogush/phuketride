@@ -36,6 +36,10 @@ export default function SeasonalPricingMatrix({
   currencyCode = "THB"
 }: SeasonalPricingMatrixProps) {
   const symbol = getCurrencySymbol(currencyCode);
+  const getDurationHeaderLabel = (rangeName: string) => {
+    const label = rangeName.replace(/\s+\d+\s*(?:-\s*\d+|\+)?\s*$/u, "").trim();
+    return label || rangeName;
+  };
   const columns: Column<SeasonMatrixItem>[] = [
     {
       key: "seasonName",
@@ -48,11 +52,11 @@ export default function SeasonalPricingMatrix({
           </span>
         </div>
       ),
-      className: "min-w-[13rem]",
+      className: "min-w-[10rem] px-3",
     },
     ...durations.map<Column<SeasonMatrixItem>>((duration) => ({
       key: `duration-${duration.id}`,
-      label: duration.rangeName,
+      label: getDurationHeaderLabel(duration.rangeName),
       render: (season) => {
         const avgDays = getAverageDays(duration);
         const { dailyPrice, totalPrice } = calculateSeasonalPrice(
@@ -66,15 +70,15 @@ export default function SeasonalPricingMatrix({
           <div className="flex flex-col items-start gap-1">
             <div className="flex items-baseline gap-0.5">
               <span className="text-[10px] font-bold text-gray-400">{symbol}</span>
-              <span className="text-base font-black text-gray-900 tabular-nums">
+              <span className="text-sm font-black text-gray-900 tabular-nums">
                 {Math.round(dailyPrice).toLocaleString()}
               </span>
             </div>
             <span className="text-[10px] font-bold text-gray-400">Per day</span>
-            <div className="mt-2 pt-2 border-t border-gray-100 w-full flex flex-col items-start">
+            <div className="mt-1.5 pt-1.5 border-t border-gray-100 w-full flex flex-col items-start">
               <div className="flex items-baseline gap-0.5">
                 <span className="text-[10px] font-bold text-gray-400">{symbol}</span>
-                <span className="text-sm font-bold text-gray-700 tabular-nums">
+                <span className="text-xs font-bold text-gray-700 tabular-nums">
                   {Math.round(totalPrice).toLocaleString()}
                 </span>
               </div>
@@ -85,7 +89,7 @@ export default function SeasonalPricingMatrix({
           </div>
         );
       },
-      className: "min-w-[10rem]",
+      className: "min-w-[7.5rem] px-2.5",
     })),
   ];
 

@@ -2,6 +2,7 @@ import { Form } from "react-router";
 import Card from '~/components/shared/ui/Card';
 import Button from '~/components/shared/ui/Button';
 import DeleteButton from '~/components/shared/ui/DeleteButton';
+import { inputBaseStyles } from "~/lib/styles/input";
 
 type Item = Record<string, unknown>;
 
@@ -20,10 +21,10 @@ export default function CarContentSections({ includedItems, rules, features, rev
           <h2 className="text-lg font-semibold mb-3">Included in the price</h2>
           <Form method="post" className="space-y-2 mb-4">
             <input type="hidden" name="intent" value="add_included" />
-            <input aria-label="Included item category" name="category" placeholder="Category" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input aria-label="Included item title" name="title" placeholder="Title" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input aria-label="Included item description" name="description" placeholder="Description" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input aria-label="Included item icon key" name="iconKey" placeholder="Icon key (truck, users, clock...)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <input aria-label="Included item category" name="category" placeholder="Category" className={inputBaseStyles} />
+            <input aria-label="Included item title" name="title" placeholder="Title" className={inputBaseStyles} />
+            <input aria-label="Included item description" name="description" placeholder="Description" className={inputBaseStyles} />
+            <input aria-label="Included item icon key" name="iconKey" placeholder="Icon key (truck, users, clock...)" className={inputBaseStyles} />
             <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm text-white">Add</button>
           </Form>
           <div className="space-y-2">
@@ -45,9 +46,9 @@ export default function CarContentSections({ includedItems, rules, features, rev
           <h2 className="text-lg font-semibold mb-3">Rules of the road</h2>
           <Form method="post" className="space-y-2 mb-4">
             <input type="hidden" name="intent" value="add_rule" />
-            <input aria-label="Rule title" name="title" placeholder="Title" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input aria-label="Rule description" name="description" placeholder="Description" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input aria-label="Rule icon key" name="iconKey" placeholder="Icon key (no_smoking, tidy...)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <input aria-label="Rule title" name="title" placeholder="Title" className={inputBaseStyles} />
+            <input aria-label="Rule description" name="description" placeholder="Description" className={inputBaseStyles} />
+            <input aria-label="Rule icon key" name="iconKey" placeholder="Icon key (no_smoking, tidy...)" className={inputBaseStyles} />
             <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm text-white">Add</button>
           </Form>
           <div className="space-y-2">
@@ -71,8 +72,8 @@ export default function CarContentSections({ includedItems, rules, features, rev
           <h2 className="text-lg font-semibold mb-3">Features</h2>
           <Form method="post" className="space-y-2 mb-4">
             <input type="hidden" name="intent" value="add_feature" />
-            <input aria-label="Feature category" name="category" placeholder="Category" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <input aria-label="Feature name" name="name" placeholder="Feature name" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <input aria-label="Feature category" name="category" placeholder="Category" className={inputBaseStyles} />
+            <input aria-label="Feature name" name="name" placeholder="Feature name" className={inputBaseStyles} />
             <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm text-white">Add</button>
           </Form>
           <div className="space-y-2">

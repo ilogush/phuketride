@@ -111,7 +111,7 @@ export default function WeeklySchedule({ value, onChange }: WeeklyScheduleProps)
                                         type="time"
                                         value={daySchedule.startTime}
                                         onChange={(e) => handleTimeChange(key as keyof WeeklyScheduleData, "startTime", e.target.value)}
-                                        className="w-full px-3 py-2 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 [&::-webkit-calendar-picker-indicator]:hidden"
+                                        className="w-full h-11 px-4 bg-white rounded-2xl border border-gray-200 sm:text-sm text-gray-800 focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
                                     />
                                 ) : (
                                     <span className="text-sm text-gray-400">-</span>
@@ -123,7 +123,7 @@ export default function WeeklySchedule({ value, onChange }: WeeklyScheduleProps)
                                         type="time"
                                         value={daySchedule.endTime}
                                         onChange={(e) => handleTimeChange(key as keyof WeeklyScheduleData, "endTime", e.target.value)}
-                                        className="w-full px-3 py-2 bg-white rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-300 [&::-webkit-calendar-picker-indicator]:hidden"
+                                        className="w-full h-11 px-4 bg-white rounded-2xl border border-gray-200 sm:text-sm text-gray-800 focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
                                     />
                                 ) : (
                                     <span className="text-sm text-gray-400">-</span>

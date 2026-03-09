@@ -4,7 +4,7 @@ import ProfileForm from "~/components/dashboard/ProfileForm";
 import PageHeader from '~/components/shared/ui/PageHeader';
 import Button from '~/components/shared/ui/Button';
 import BackButton from '~/components/shared/ui/BackButton';
-import { TrashIcon } from "@heroicons/react/24/outline";
+import DeleteButton from "~/components/shared/ui/DeleteButton";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { getScopedDb } from "~/lib/db-factory.server";
@@ -112,9 +112,7 @@ export default function EditUserPage() {
                         </Button>
                         <Form method="post">
                             <input type="hidden" name="intent" value="deleteUser" />
-                            <Button type="submit" variant="outline" title="Delete user">
-                                <TrashIcon className="w-5 h-5" />
-                            </Button>
+                            <DeleteButton type="submit" title="Delete user" />
                         </Form>
                     </div>
                 }

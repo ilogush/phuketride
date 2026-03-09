@@ -20,7 +20,7 @@ interface CompanyOverviewStatsProps {
 export default function CompanyOverviewStats({ stats }: CompanyOverviewStatsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="bg-white rounded-3xl border border-gray-200 p-5">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-500">Total Vehicles</p>
@@ -37,7 +37,7 @@ export default function CompanyOverviewStats({ stats }: CompanyOverviewStatsProp
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="bg-white rounded-3xl border border-gray-200 p-5">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-500">Active Bookings</p>
@@ -54,7 +54,7 @@ export default function CompanyOverviewStats({ stats }: CompanyOverviewStatsProp
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="bg-white rounded-3xl border border-gray-200 p-5">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-500">Revenue</p>
@@ -71,7 +71,7 @@ export default function CompanyOverviewStats({ stats }: CompanyOverviewStatsProp
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="bg-white rounded-3xl border border-gray-200 p-5">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-500">Customers</p>

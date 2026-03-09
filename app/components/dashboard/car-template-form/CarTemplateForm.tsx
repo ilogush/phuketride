@@ -146,10 +146,10 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
                             />
 
                             <div className="flex flex-col">
-                                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wider ml-1">
+                                <label className="block text-xs text-gray-600 mb-1 ml-1">
                                     Airbags
                                 </label>
-                                <div className="flex items-center justify-between px-4 border border-gray-200 rounded-xl h-11 bg-white">
+                                <div className="flex h-11 items-center justify-between rounded-2xl border border-gray-200 bg-white px-4">
                                     <span className="text-sm text-gray-900">{formData.feature_airbags ? "Enabled" : "Disabled"}</span>
                                     <Toggle
                                         checked={formData.feature_airbags}
@@ -168,7 +168,7 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
                                     name="description"
                                     value={formData.description}
                                     onChange={handleChange}
-                                    className="block w-full rounded-2xl text-sm py-2.5 px-4 bg-white text-gray-900 border border-gray-200 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 hover:border-gray-300 placeholder:text-gray-400 resize-vertical"
+                                    className="block w-full rounded-2xl text-sm py-2.5 px-4 bg-white text-gray-900 border border-gray-200 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 hover:border-gray-300 placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400 resize-vertical"
                                     placeholder="Enter template description"
                                     rows={4}
                                 />

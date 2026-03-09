@@ -89,7 +89,7 @@ export default function Modal({
                 aria-modal="true"
                 aria-label={ariaLabel}
                 aria-labelledby={titleId}
-                className={`bg-white ring-1 ring-black/5 rounded-[2rem] w-full ${maxWidthClasses[width]} shadow-[0_8px_30px_rgb(0,0,0,0.08)] max-h-[90vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 zoom-in-95 duration-300`}
+                className={`bg-white ring-1 ring-black/5 rounded-3xl w-full ${maxWidthClasses[width]} max-h-[90vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 zoom-in-95 duration-300`}
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex justify-between items-center px-6 py-5 bg-white border-b border-gray-100 flex-shrink-0">

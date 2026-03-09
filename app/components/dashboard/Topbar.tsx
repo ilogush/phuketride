@@ -95,7 +95,7 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen, notificat
                                 value={searchValue}
                                 onChange={(e) => setSearchValue(e.target.value)}
                                 placeholder="Global search (companies, cars, users...)"
-                                className="w-full pl-4 pr-14 py-2.5 bg-white rounded-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-200 transition-all border border-gray-200"
+                                className="w-full h-11 pl-4 pr-14 bg-white rounded-2xl text-sm text-gray-900 border border-gray-200 placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 transition-all"
                             />
                         </label>
                         <div className="absolute inset-y-2 right-1.5 flex items-center">

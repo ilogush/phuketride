@@ -80,7 +80,7 @@ export default function DocumentPhotosUpload({
                             type="button"
                             variant="plain"
                             onClick={() => handleRemove(photo.id)}
-                            className="absolute top-1 right-1 w-6 h-6 !p-0 rounded-full bg-red-500 text-white hover:bg-red-600"
+                            className="absolute top-1 right-1 !h-6 !w-6 !rounded-full !border-0 !bg-red-500 !p-0 text-white hover:!bg-red-600"
                         >
                             <XMarkIcon className="w-4 h-4" />
                         </Button>

@@ -66,7 +66,7 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
                                 setNewDate(e.target.value);
                             }}
                             placeholder="DD/MM/YYYY"
-                            className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl sm:text-sm text-gray-800 focus:outline-none focus:border-gray-500"
+                            className="flex-1 h-11 px-4 bg-white border border-gray-200 rounded-2xl sm:text-sm text-gray-800 placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900"
                         />
                         <Button
                             type="button"

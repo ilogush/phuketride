@@ -52,7 +52,7 @@ export default function AssignUsersSection({
               />
 
               {showSuggestions && searchQuery && filteredUsers.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-10 w-full mt-1 bg-white rounded-3xl max-h-60 overflow-y-auto ring-1 ring-black/5">
                   {filteredUsers.slice(0, 10).map((user) => (
                     <Button
                       key={user.id}

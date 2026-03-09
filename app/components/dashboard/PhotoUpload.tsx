@@ -72,7 +72,7 @@ export default function PhotoUpload({
                         type="button"
                         variant="plain"
                         onClick={handleClick}
-                        className="relative h-full w-full cursor-pointer rounded-lg border-2 border-dashed border-gray-200 hover:bg-gray-50"
+                        className="relative !h-full !w-full cursor-pointer !rounded-lg !border-2 !border-dashed !border-gray-200 !bg-transparent !p-0 hover:!bg-gray-50"
                     >
                         <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center">
                             <PhotoIcon className="h-6 w-6 text-gray-500" />
@@ -87,7 +87,7 @@ export default function PhotoUpload({
                         type="button"
                         variant="plain"
                         onClick={handleRemove}
-                        className="absolute -top-1 -right-1 w-5 h-5 aspect-square !p-0 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors"
+                        className="absolute -top-1 -right-1 !h-5 !w-5 !rounded-full !border-0 !bg-red-500 !p-0 text-white hover:!bg-red-600 transition-colors"
                     >
                         <XMarkIcon className="w-3 h-3" />
                     </Button>

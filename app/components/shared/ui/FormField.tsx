@@ -18,10 +18,14 @@ export default function FormField({
     children,
     className = '',
 }: FormFieldProps) {
+    const normalizedLabel = label.trim()
+    const labelHasAsterisk = normalizedLabel.endsWith('*')
+    const labelText = labelHasAsterisk ? normalizedLabel.slice(0, -1).trimEnd() : normalizedLabel
+
     return (
         <div className={className}>
             <label className="block text-xs text-gray-600 mb-1">
-                {label} {required && <span className="text-gray-500">*</span>}
+                {labelText} {(required || labelHasAsterisk) && <span className="text-red-400 ml-0.5">*</span>}
             </label>
             {children}
             <FormFeedbackMessage message={hint} tone="hint" className="mt-1 text-xs" />

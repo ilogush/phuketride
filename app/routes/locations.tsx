@@ -175,7 +175,7 @@ export default function LocationsPage() {
                 },
                 {
                     key: "deliveryPrice",
-                    label: "Cost (฿)",
+                    label: "Cost",
                     render: (item: District) => {
                         const district = localDistricts.find(d => d.id === item.id) || item;
                         return (
@@ -185,7 +185,7 @@ export default function LocationsPage() {
                                     value={district.deliveryPrice || 0}
                                     onChange={(e) => handlePriceChange(item.id, e.target.value)}
                                     disabled={!district.isActive}
-                                    className="block w-full rounded-xl border border-gray-200 sm:text-sm py-2 px-3 bg-white text-gray-700 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed disabled:border-gray-200"
+                                    className="block w-full h-11 rounded-2xl border border-gray-200 sm:text-sm px-4 bg-white text-gray-700 focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 focus:outline-none transition-colors placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed disabled:border-gray-200"
                                 />
                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">
                                     ฿

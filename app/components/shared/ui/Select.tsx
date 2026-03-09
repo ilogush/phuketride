@@ -40,12 +40,17 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         const baseStyle = error ? selectErrorStyles : selectBaseStyles;
         const isFieldDisabled = disabled || !isEdit;
         const shouldShowPlaceholderOption = showPlaceholderOption ?? !hidePlaceholderOption;
+        const normalizedLabel = typeof label === "string" ? label.trim() : label;
+        const labelHasAsterisk = typeof normalizedLabel === "string" && normalizedLabel.endsWith("*");
+        const labelText = typeof normalizedLabel === "string" && labelHasAsterisk
+            ? normalizedLabel.slice(0, -1).trimEnd()
+            : normalizedLabel;
 
         return (
             <div className={className}>
                 {label && (
-                    <label htmlFor={id || name} className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wider ml-1">
-                        {label} {required && <span className="text-red-400 ml-0.5">*</span>}
+                    <label htmlFor={id || name} className="block text-xs text-gray-600 mb-1 ml-1">
+                        {labelText} {(required || labelHasAsterisk) && <span className="text-red-400 ml-0.5">*</span>}
                     </label>
                 )}
                 <select

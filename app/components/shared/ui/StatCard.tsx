@@ -66,7 +66,7 @@ export default function StatCard({
     // Compact variant (120px height, simple)
     if (variant === 'compact') {
         const content = (
-            <div className={`bg-white rounded-2xl ring-1 ring-black/5 shadow-sm p-4 flex flex-col justify-between h-[120px] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:ring-black/10 transition-all duration-300 cursor-pointer ${className}`}>
+            <div className={`bg-white rounded-3xl ring-1 ring-black/5 p-4 flex flex-col justify-between h-[120px] hover:ring-black/10 transition-all duration-300 cursor-pointer ${className}`}>
                 <div className="flex justify-between items-start">
                     <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{name}</span>
                     {icon && (
@@ -93,7 +93,7 @@ export default function StatCard({
     // Detailed variant (160px height, with trend and enhanced styling)
     if (variant === 'detailed') {
         const content = (
-            <div className={`bg-white rounded-[2rem] p-7 ring-1 ring-black/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between h-40 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 group ${className}`}>
+            <div className={`bg-white rounded-3xl p-7 ring-1 ring-black/5 flex flex-col justify-between h-40 hover:-translate-y-1 transition-all duration-300 group ${className}`}>
                 <div className="flex justify-between items-start">
                     <div className="flex flex-col gap-0.5 mt-1">
                         <span className="text-[11px] text-gray-400 font-bold uppercase tracking-widest">{name}</span>
@@ -133,11 +133,11 @@ export default function StatCard({
 
     // Default variant (standard card with optional trend)
     const content = (
-        <div className={`bg-white rounded-[2rem] ring-1 ring-black/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 ${className} hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:ring-black/10 transition-all duration-300 cursor-pointer`}>
+        <div className={`bg-white rounded-3xl ring-1 ring-black/5 p-4 ${className} hover:ring-black/10 transition-all duration-300 cursor-pointer`}>
             <div className="flex items-start justify-between">
                 <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">{name}</p>
-                    <p className="text-3xl font-bold text-gray-900 tracking-tight leading-none">{value}</p>
+                    <p className="text-2xl font-bold text-gray-900 tracking-tight leading-none">{value}</p>
 
                     {subtext && !trend && (
                         <p className="text-[11px] font-medium text-gray-400 mt-2">{subtext}</p>

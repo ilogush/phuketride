@@ -82,24 +82,28 @@ export default function CarPhotosUpload({
                         type="button"
                         variant="plain"
                         onClick={() => handleRemove(photo.id)}
-                        className="absolute top-1 right-1 w-6 h-6 !p-0 rounded-full bg-red-500 text-white hover:bg-red-600"
+                        className="absolute top-1 right-1 !h-6 !w-6 !rounded-full !border-0 !bg-red-500 !p-0 text-white hover:!bg-red-600"
                     >
                         <XMarkIcon className="w-4 h-4" />
                     </Button>
                 </div>
             ))}
             {previews.length < maxPhotos && (
-                <Button
-                    type="button"
-                    variant="plain"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full aspect-square border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-lg flex flex-col items-center justify-center cursor-pointer gap-2"
-                >
-                    <PlusIcon className="w-6 h-6 text-gray-400" />
-                    <span className="text-xs text-gray-400">
-                        {previews.length}/{maxPhotos}
-                    </span>
-                </Button>
+                <div className="relative aspect-square">
+                    <Button
+                        type="button"
+                        variant="plain"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="absolute inset-0 !h-full !w-full !rounded-lg !border-2 !border-dashed !border-gray-300 !bg-transparent !p-0 hover:!border-gray-400 hover:!bg-gray-50"
+                    >
+                        <span className="flex h-full w-full flex-col items-center justify-center gap-2">
+                            <PlusIcon className="w-6 h-6 text-gray-400" />
+                            <span className="text-xs text-gray-400">
+                                {previews.length}/{maxPhotos}
+                            </span>
+                        </span>
+                    </Button>
+                </div>
             )}
             <input
                 ref={fileInputRef}
