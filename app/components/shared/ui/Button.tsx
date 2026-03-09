@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, MouseEvent, ReactNode } from 'react'
 import { useButtonInteraction } from '~/lib/useButtonInteraction'
 
-export type ButtonVariant = 'solid' | 'outline' | 'ghost' | 'plain' | 'danger'
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'solid' | 'outline' | 'plain'
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'onClick'> {
     children?: ReactNode
@@ -12,7 +12,10 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
     variant?: ButtonVariant
     size?: 'sm' | 'md' | 'lg'
     icon?: ReactNode
+    leadingIcon?: ReactNode
+    trailingIcon?: ReactNode
     iconPosition?: 'left' | 'right'
+    iconOnly?: boolean
     fullWidth?: boolean
     rounded?: 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'none'
     loading?: boolean
@@ -27,7 +30,10 @@ export default function Button({
     variant = 'solid',
     size = 'md',
     icon,
+    leadingIcon,
+    trailingIcon,
     iconPosition = 'left',
+    iconOnly = false,
     fullWidth = false,
     rounded = 'xl',
     loading = false,
@@ -40,7 +46,11 @@ export default function Button({
         type,
     })
 
-    const isIconButton = /\bw-\d+\b/.test(className) && /\bh-\d+\b/.test(className) && !children;
+    const resolvedLeadingIcon = leadingIcon ?? (iconPosition === 'left' ? icon : undefined)
+    const resolvedTrailingIcon = trailingIcon ?? (iconPosition === 'right' ? icon : undefined)
+    const hasOnlyIcon = iconOnly || (!children && Boolean(resolvedLeadingIcon || resolvedTrailingIcon))
+    const hasExplicitSquareSize = /\bw-\d+\b/.test(className) && /\bh-\d+\b/.test(className)
+    const isIconButton = hasOnlyIcon && hasExplicitSquareSize
 
     const baseClasses = 'inline-flex items-center justify-center font-semibold transition-all duration-200 outline-none focus:outline-none focus:ring-4 focus:ring-gray-900/5 disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]'
     
@@ -60,21 +70,27 @@ export default function Button({
         none: ''
     }
 
+    const normalizedVariant: Exclude<ButtonVariant, 'solid' | 'outline' | 'plain'> =
+        variant === 'solid'
+            ? 'primary'
+            : variant === 'outline' || variant === 'plain'
+                ? 'secondary'
+                : variant
+
     const variantClasses = {
-        solid: 'bg-gray-900 text-white border border-gray-900 hover:bg-gray-800',
-        outline: 'bg-gray-200 text-gray-900 border border-gray-200 hover:bg-gray-300',
+        primary: 'bg-gray-900 text-white border border-gray-900 hover:bg-gray-800',
+        secondary: 'bg-gray-200 text-gray-900 border border-gray-200 hover:bg-gray-300',
         ghost: 'bg-gray-200 text-gray-900 border border-gray-200 hover:bg-gray-300',
-        plain: 'bg-gray-200 text-gray-900 border border-gray-200 hover:bg-gray-300',
         danger: 'bg-gray-900 text-white border border-gray-900 hover:bg-gray-800'
     }
 
     const buttonClasses = [
         baseClasses,
-        variantClasses[variant],
+        variantClasses[normalizedVariant],
         sizeClasses,
         roundedClasses[rounded],
         fullWidth && 'w-full',
-        icon && children && 'gap-2',
+        (resolvedLeadingIcon || resolvedTrailingIcon) && children && 'gap-2',
         className
     ].filter(Boolean).join(' ')
 
@@ -93,9 +109,9 @@ export default function Button({
                 </div>
             ) : (
                 <>
-                    {icon && iconPosition === 'left' && <span className="flex-shrink-0">{icon}</span>}
+                    {resolvedLeadingIcon && <span className="flex-shrink-0">{resolvedLeadingIcon}</span>}
                     {children && <span className="truncate">{children}</span>}
-                    {icon && iconPosition === 'right' && <span className="flex-shrink-0">{icon}</span>}
+                    {resolvedTrailingIcon && <span className="flex-shrink-0">{resolvedTrailingIcon}</span>}
                 </>
             )}
         </button>
