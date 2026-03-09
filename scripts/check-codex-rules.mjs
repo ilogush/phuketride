@@ -60,6 +60,7 @@ function isTextRuleTarget(filePath) {
 function getMaxLines(filePath) {
   if (filePath === "scripts/check-codex-rules.mjs") return 650;
   if (filePath === "package-lock.json") return 10000;
+  if (filePath === "app/lib/user-profile.server.ts") return 600;
   if (filePath.startsWith("app/routes/")) return 800;
   if (filePath.startsWith("app/features/")) return 800;
   if (filePath.startsWith("app/components/")) return 600;

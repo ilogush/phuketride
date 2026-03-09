@@ -14,6 +14,7 @@ import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
+import { backfillContractDefaults } from "~/lib/contracts-maintenance.server";
 
 const CONTRACT_TABS = ["active", "closed"] as const;
 type ContractTab = typeof CONTRACT_TABS[number];
@@ -45,13 +46,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         companyId,
         details: { route: "contracts", tab: activeTab, sortBy: sortBy || "createdAt" },
         run: async () => {
-            await sdb.rawDb.prepare(`
-                UPDATE contracts 
-                SET start_date = date('now', '-5 days'), 
-                    end_date = date('now', '+5 days'),
-                    total_amount = COALESCE(total_amount, 15000)
-                WHERE start_date IS NULL OR end_date IS NULL OR total_amount IS NULL
-            `).run();
+            await backfillContractDefaults(sdb.rawDb);
 
             const [rows, countsResult, countResult] = await Promise.all([
                 sdb.contracts.list({

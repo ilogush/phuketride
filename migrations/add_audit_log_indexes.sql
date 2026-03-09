@@ -13,7 +13,7 @@ ON audit_logs(entity_type, entity_id, created_at DESC);
 
 -- more specific business logic indexes 
 CREATE INDEX IF NOT EXISTS idx_contracts_company_status_created_at
-ON contracts(company_id, status, created_at DESC);
+ON contracts(company_car_id, status, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_bookings_client_status_created_at
 ON bookings(client_id, status, created_at DESC);
@@ -25,4 +25,4 @@ CREATE INDEX IF NOT EXISTS idx_districts_name ON districts(name);
 CREATE INDEX IF NOT EXISTS idx_car_brands_name ON car_brands(name);
 
 -- P3.6: Optional: index on company_cars(registration_number)
-CREATE INDEX IF NOT EXISTS idx_company_cars_registration_number ON company_cars(registration_number);
+CREATE INDEX IF NOT EXISTS idx_company_cars_license_plate ON company_cars(license_plate);

@@ -64,7 +64,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             return { bookings, totalPages, totalCount: totalItems, currentPage: page, status: selectedStatus, search };
         },
     });
-}export default function BookingsPage() {
+}
+
+export default function BookingsPage() {
     const { bookings, totalCount, status, search } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigation = useNavigation();

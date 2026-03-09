@@ -8,6 +8,7 @@ import { runAdminMutationAction } from "~/lib/admin-crud.server";
 import { assertSameOriginMutation } from "~/lib/request-security.server";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
+    await requireAdminUserMutationAccess(request);
     await getScopedDb(request, context, requireAdminUserMutationAccess);
     const companyId = Number.parseInt(params.companyId || "0", 10);
     return redirect(`/home?modCompanyId=${companyId}`);

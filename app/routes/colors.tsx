@@ -25,11 +25,13 @@ import { trackServerOperation } from "~/lib/telemetry.server";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
 import { useSubmit } from "react-router";
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
 
 type Color = AdminColorRow;
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId, sdb } = await getScopedDb(request, context);
+    await requireAdminUserMutationAccess(request);
+    const { user, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
     const url = new URL(request.url);
     const search = url.searchParams.get("search") || "";
     const { page, pageSize, offset } = getPaginationFromUrl(url, { defaultPageSize: 50 });
@@ -52,7 +54,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    await getScopedDb(request, context);
+    await requireAdminUserMutationAccess(request);
+    await getScopedDb(request, context, requireAdminUserMutationAccess);
     const formData = await request.formData();
 
     const parsed = parseWithSchema(

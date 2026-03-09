@@ -9,7 +9,7 @@
     "cf-typegen": "wrangler types",
     "db:check:companies-car-count": "tsx scripts/check-companies-car-count.ts",
     "db:migrate:remote": "wrangler d1 migrations apply phuketride-bd --remote",
-    "deploy": "npm run pre-launch:deploy && wrangler deploy",
+    "deploy": "npm run rules:check && npm run typecheck && npm run db:migrate:remote && npm run pre-launch:deploy && wrangler deploy",
     "dev": "vite",
     "lint": "npm run typecheck",
     "load:test": "tsx tests/load/load-test.ts",

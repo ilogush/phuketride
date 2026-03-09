@@ -14,9 +14,11 @@ import { loadCompaniesPageData, type CompaniesPageRow } from "~/lib/companies-pa
 import { trackServerOperation } from "~/lib/telemetry.server";
 
 import { getScopedDb } from "~/lib/db-factory.server";
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, sdb } = await getScopedDb(request, context);
+    await requireAdminUserMutationAccess(request);
+    const { user, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
     const url = new URL(request.url);
     const showArchived = url.searchParams.get("archived") === "true";
     const sortBy = url.searchParams.get("sortBy") || "createdAt";

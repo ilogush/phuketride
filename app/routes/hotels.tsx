@@ -25,13 +25,15 @@ import { GenericDictionaryForm, type FieldConfig } from "~/components/dashboard/
 import { getScopedDb } from "~/lib/db-factory.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { useDictionaryFormActions } from "~/hooks/useDictionaryFormActions";
+import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
 
 type Hotel = AdminHotelRow;
 type Location = AdminLocationRow;
 type District = Pick<AdminDistrictRow, "id" | "name" | "locationId">;
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId, sdb } = await getScopedDb(request, context);
+    await requireAdminUserMutationAccess(request);
+    const { user, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
     const url = new URL(request.url);
     const search = url.searchParams.get("search") || "";
     const page = parseInt(url.searchParams.get("page") || "1");
@@ -67,7 +69,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const { user, sdb } = await getScopedDb(request, context);
+    await requireAdminUserMutationAccess(request);
+    const { user, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
     const formData = await request.formData();
     const parsed = parseWithSchema(
         z.discriminatedUnion("intent", [

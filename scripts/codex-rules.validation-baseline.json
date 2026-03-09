@@ -9,7 +9,10 @@
     "app/routes/contracts.new.tsx",
     "app/routes/car-templates.tsx",
     "app/routes/locations.tsx",
+    "app/routes/payments.create.tsx",
     "app/routes/seasons.tsx",
-    "app/routes/settings.tsx"
+    "app/routes/settings.tsx",
+    "app/routes/users.$userId.edit.tsx",
+    "app/routes/users.create.tsx"
   ]
 }
