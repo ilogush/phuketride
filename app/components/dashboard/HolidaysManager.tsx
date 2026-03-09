@@ -6,6 +6,7 @@ import { parseDateFromDisplay } from "~/lib/formatters";
 import { useAsyncToastAction } from "~/lib/useAsyncToastAction";
 
 import AdminCard from '~/components/shared/ui/AdminCard';
+import { Input } from "~/components/shared/ui/Input";
 
 interface HolidaysManagerProps {
   value?: string; // JSON string array of dates
@@ -58,7 +59,7 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
                 <div>
                     <label className="block text-xs text-gray-600 mb-1">Add Holiday</label>
                     <div className="flex gap-2">
-                        <input
+                        <Input
                             type="text"
                             value={newDate}
                             onChange={(e) => {
@@ -66,7 +67,7 @@ export default function HolidaysManager({ value, onChange }: HolidaysManagerProp
                                 setNewDate(e.target.value);
                             }}
                             placeholder="DD/MM/YYYY"
-                            className="flex-1 h-11 px-4 bg-white border border-gray-200 rounded-2xl sm:text-sm text-gray-800 placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900"
+                            className="flex-1"
                         />
                         <Button
                             type="button"

@@ -3,10 +3,10 @@ import DataTable, { type Column } from "~/components/dashboard/data-table/DataTa
 import Button from '~/components/shared/ui/Button';
 import DeleteButton from '~/components/shared/ui/DeleteButton';
 import { Input } from '~/components/shared/ui/Input';
+import { Select } from '~/components/shared/ui/Select';
 import { Textarea } from '~/components/shared/ui/Textarea';
 import AdminCard from '~/components/shared/ui/AdminCard';
 import IdBadge from "~/components/shared/ui/IdBadge";
-import { selectBaseStyles } from "~/lib/styles/input";
 import { BanknotesIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 export type PaymentTemplateItem = {
@@ -148,19 +148,18 @@ export default function PaymentTemplatesTab({
               required
               className="text-xs"
             />
-            <div>
-              <label className="block text-[10px] uppercase font-bold tracking-wider text-gray-400 mb-1">Sign</label>
-              <select
-                name="sign"
-                value={paymentFormData.sign}
-                onChange={(e) => setPaymentFormData({ ...paymentFormData, sign: e.target.value })}
-                className={selectBaseStyles}
-                required
-              >
-                <option value="+">+ (Income)</option>
-                <option value="-">- (Expense)</option>
-              </select>
-            </div>
+            <Select
+              label="Sign"
+              name="sign"
+              value={paymentFormData.sign}
+              onChange={(e) => setPaymentFormData({ ...paymentFormData, sign: e.target.value })}
+              options={[
+                { id: "+", name: "+ (Income)" },
+                { id: "-", name: "- (Expense)" },
+              ]}
+              hidePlaceholderOption
+              required
+            />
             <Textarea
               label="Description"
               name="description"
