@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { ButtonVariant } from "./Button";
+import type { ButtonVariant } from '~/components/shared/ui/Button';
 
 export interface Column<T> {
   key: string;

@@ -10,11 +10,11 @@ import {
 } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 
-import AdminCard from "~/components/dashboard/AdminCard";
-import BackButton from "~/components/dashboard/BackButton";
-import Button from "~/components/dashboard/Button";
-import FormSection from "~/components/dashboard/FormSection";
-import PageHeader from "~/components/dashboard/PageHeader";
+import AdminCard from '~/components/shared/ui/AdminCard';
+import BackButton from '~/components/shared/ui/BackButton';
+import Button from '~/components/shared/ui/Button';
+import FormSection from '~/components/shared/ui/FormSection';
+import PageHeader from '~/components/shared/ui/PageHeader';
 import ContractCarDetailsFields from "~/components/dashboard/contracts/ContractCarDetailsFields";
 import ContractCarPhotosCard from "~/components/dashboard/contracts/ContractCarPhotosCard";
 import ContractClientDetailsFields from "~/components/dashboard/contracts/ContractClientDetailsFields";

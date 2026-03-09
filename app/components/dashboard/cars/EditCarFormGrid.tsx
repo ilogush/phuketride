@@ -1,9 +1,9 @@
 import { Form } from "react-router";
-import AdminCard from "~/components/dashboard/AdminCard";
-import FormSection from "~/components/dashboard/FormSection";
-import { Input } from "~/components/dashboard/Input";
-import { Select } from "~/components/dashboard/Select";
-import Toggle from "~/components/dashboard/Toggle";
+import AdminCard from '~/components/shared/ui/AdminCard';
+import FormSection from '~/components/shared/ui/FormSection';
+import { Input } from '~/components/shared/ui/Input';
+import { Select } from '~/components/shared/ui/Select';
+import Toggle from '~/components/shared/ui/Toggle';
 import CarPhotosUpload from "~/components/dashboard/CarPhotosUpload";
 import CarTemplateDetails from "~/components/dashboard/cars/CarTemplateDetails";
 import FeatureToggleField from "~/components/dashboard/cars/FeatureToggleField";

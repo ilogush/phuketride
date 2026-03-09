@@ -1,8 +1,8 @@
 import { Form } from "react-router";
 
-import BackButton from "~/components/dashboard/BackButton";
-import Button from "~/components/dashboard/Button";
-import PageHeader from "~/components/dashboard/PageHeader";
+import BackButton from '~/components/shared/ui/BackButton';
+import Button from '~/components/shared/ui/Button';
+import PageHeader from '~/components/shared/ui/PageHeader';
 import BookingDetailsCard from "~/components/dashboard/bookings/BookingDetailsCard";
 import BookingSidebarCards from "~/components/dashboard/bookings/BookingSidebarCards";
 import { useUrlToast } from "~/lib/useUrlToast";

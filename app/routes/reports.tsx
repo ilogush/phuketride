@@ -1,9 +1,9 @@
 import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData } from "react-router";
-import PageHeader from "~/components/dashboard/PageHeader";
-import Card from "~/components/dashboard/Card";
+import PageHeader from '~/components/shared/ui/PageHeader';
+import Card from '~/components/shared/ui/Card';
 import { ChartBarIcon } from "@heroicons/react/24/outline";
-import Button from "~/components/dashboard/Button";
+import Button from '~/components/shared/ui/Button';
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { loadReportsPageData } from "~/lib/admin-analytics.server";
 import { requireAdminAnalyticsAccess } from "~/lib/access-policy.server";

@@ -1,8 +1,8 @@
 import { Form } from "react-router";
 import { CalendarIcon, MapPinIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
-import Card from "~/components/dashboard/Card";
-import StatusBadge from "~/components/dashboard/StatusBadge";
+import Card from '~/components/shared/ui/Card';
+import StatusBadge from '~/components/shared/ui/StatusBadge';
 import type {
   ContractDetailsRow,
   ContractPaymentRow,

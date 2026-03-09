@@ -1,9 +1,9 @@
 import type { ButtonHTMLAttributes, MouseEvent, ReactNode } from 'react'
 import { useButtonInteraction } from '~/lib/useButtonInteraction'
 
-export type ButtonVariant = 'solid' | 'outline' | 'ghost' | 'plain'
+export type ButtonVariant = 'solid' | 'outline' | 'ghost' | 'plain' | 'danger'
 
-interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'onClick'> {
+export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'onClick'> {
     children?: ReactNode
     onClick?: (e?: MouseEvent<HTMLButtonElement>) => void | Promise<void>
     disabled?: boolean
@@ -14,7 +14,7 @@ interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'typ
     icon?: ReactNode
     iconPosition?: 'left' | 'right'
     fullWidth?: boolean
-    rounded?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+    rounded?: 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'none'
     loading?: boolean
 }
 
@@ -33,40 +33,45 @@ export default function Button({
     loading = false,
     ...rest
 }: ButtonProps) {
-    const { handleClick, isDisabled, isLoading, isSubmitClicked } = useButtonInteraction({
+    const { handleClick, isDisabled, isLoading } = useButtonInteraction({
         disabled,
         loading,
         onClick,
         type,
     })
 
+    const isIconButton = /\bw-\d+\b/.test(className) && /\bh-\d+\b/.test(className) && !children;
+
     const baseClasses = 'inline-flex items-center justify-center font-semibold transition-all duration-200 outline-none focus:outline-none focus:ring-4 focus:ring-gray-900/5 disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]'
     
-    const sizeClasses = {
+    // Auto-adjust size if it's an icon-only button and has custom w- h- classes
+    const sizeClasses = isIconButton ? '' : {
         sm: 'px-3 h-8 text-xs sm:text-sm',
         md: 'px-4 h-11 text-xs sm:text-sm',
         lg: 'px-6 h-12 text-sm sm:text-base'
-    }
+    }[size];
 
     const roundedClasses = {
         sm: 'rounded-lg',
         md: 'rounded-xl',
         lg: 'rounded-2xl',
         xl: 'rounded-2xl',
-        full: 'rounded-full'
+        full: 'rounded-full',
+        none: ''
     }
 
     const variantClasses = {
         solid: 'bg-gray-900 text-white shadow-sm hover:bg-gray-800 hover:shadow-md border border-gray-900',
         outline: 'bg-white text-gray-900 border border-gray-200 shadow-sm hover:border-gray-900 hover:bg-gray-50',
         ghost: 'bg-transparent text-gray-600 hover:bg-gray-100/80 hover:text-gray-900',
-        plain: 'p-0 h-auto bg-transparent border-0'
+        plain: 'p-0 h-auto bg-transparent border-0',
+        danger: 'bg-red-500 text-white shadow-sm hover:bg-red-600 hover:shadow-md border border-red-500' // Added for delete buttons, etc.
     }
 
     const buttonClasses = [
         baseClasses,
         variantClasses[variant],
-        sizeClasses[size],
+        sizeClasses,
         roundedClasses[rounded],
         fullWidth && 'w-full',
         icon && children && 'gap-2',
@@ -84,7 +89,7 @@ export default function Button({
             {isLoading ? (
                 <div className="flex items-center justify-center pointer-events-none">
                     <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    {children && <span className="ml-2.5">{children}</span>}
+                    {children && <span className="ml-2.5 opacity-70">{children}</span>}
                 </div>
             ) : (
                 <>

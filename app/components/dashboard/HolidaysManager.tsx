@@ -1,11 +1,11 @@
 import { useState } from "react";
-import Button from "~/components/dashboard/Button";
+import Button from '~/components/shared/ui/Button';
 import { CalendarIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { parseDateFromDisplay } from "~/lib/formatters";
 import { useAsyncToastAction } from "~/lib/useAsyncToastAction";
 
-import AdminCard from "~/components/dashboard/AdminCard";
+import AdminCard from '~/components/shared/ui/AdminCard';
 
 interface HolidaysManagerProps {
   value?: string; // JSON string array of dates

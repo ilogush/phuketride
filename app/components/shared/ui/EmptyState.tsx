@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import Button from './Button'
-import type { ButtonVariant } from './Button'
+import Button from '~/components/shared/ui/Button'
+import type { ButtonVariant } from '~/components/shared/ui/Button'
 
 interface EmptyStateProps {
     icon?: ReactNode

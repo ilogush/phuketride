@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { WrenchScrewdriverIcon } from "@heroicons/react/24/outline";
-import BasePanel from "~/components/dashboard/BasePanel";
+import BasePanel from '~/components/shared/ui/BasePanel';
 
 interface AdminCardProps {
     title: string;

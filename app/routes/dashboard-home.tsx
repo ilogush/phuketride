@@ -12,7 +12,7 @@ import {
     ClockIcon,
 } from "@heroicons/react/24/outline";
 import type { ComponentType, SVGProps } from "react";
-import StatCard from "~/components/dashboard/StatCard";
+import StatCard from '~/components/shared/ui/StatCard';
 import TasksWidget from "~/components/dashboard/TasksWidget";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { trackServerOperation } from "~/lib/telemetry.server";

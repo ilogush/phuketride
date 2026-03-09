@@ -4,9 +4,9 @@ import {
     BanknotesIcon,
     Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
-import FormSection from "~/components/dashboard/FormSection";
-import { Input } from "~/components/dashboard/Input";
-import { Select } from "~/components/dashboard/Select";
+import FormSection from '~/components/shared/ui/FormSection';
+import { Input } from '~/components/shared/ui/Input';
+import { Select } from '~/components/shared/ui/Select';
 import WeeklySchedule from "~/components/dashboard/WeeklySchedule";
 import HolidaysManager from "~/components/dashboard/HolidaysManager";
 import { useLatinValidation } from "~/lib/useLatinValidation";

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Input } from "~/components/dashboard/Input";
-import { Select } from "~/components/dashboard/Select";
+import { Input } from '~/components/shared/ui/Input';
+import { Select } from '~/components/shared/ui/Select';
 
 type ContractFinancialFieldsProps = {
   currencies?: Array<{ id: number; code: string; symbol?: string | null }>;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import type { Tab } from "./data-table-types";
+import type { Tab } from '~/components/dashboard/data-table/data-table-types';
 
 interface UseDataTableControlsOptions<T> {
   tabs?: Tab<T>[];

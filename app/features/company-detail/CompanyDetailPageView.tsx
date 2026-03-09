@@ -2,12 +2,12 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
-import Avatar from "~/components/dashboard/Avatar";
-import Button from "~/components/dashboard/Button";
-import DataTable from "~/components/dashboard/DataTable";
+import Avatar from '~/components/shared/ui/Avatar';
+import Button from '~/components/shared/ui/Button';
+import DataTable from '~/components/dashboard/data-table/DataTable';
 import Sidebar from "~/components/dashboard/Sidebar";
-import StatusBadge from "~/components/dashboard/StatusBadge";
-import Tabs from "~/components/dashboard/Tabs";
+import StatusBadge from '~/components/shared/ui/StatusBadge';
+import Tabs from '~/components/shared/ui/Tabs';
 import Topbar from "~/components/dashboard/Topbar";
 import CompanyOverviewStats from "~/components/dashboard/company/CompanyOverviewStats";
 import CompanyRecentActivity from "~/components/dashboard/company/CompanyRecentActivity";

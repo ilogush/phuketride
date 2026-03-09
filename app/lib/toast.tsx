@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo, type ReactNode } from 'react'
-import ToastContainer from '~/components/dashboard/ToastContainer'
+import ToastContainer from '~/components/shared/ui/ToastContainer'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 

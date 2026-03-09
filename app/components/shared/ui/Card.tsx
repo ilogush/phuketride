@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import BasePanel from "~/components/dashboard/BasePanel";
+import BasePanel from '~/components/shared/ui/BasePanel';
 
 interface CardProps {
     children: ReactNode

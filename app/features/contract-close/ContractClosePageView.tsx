@@ -1,12 +1,12 @@
 import { DocumentTextIcon } from "@heroicons/react/24/outline";
 import { Form, useNavigate } from "react-router";
 
-import Button from "~/components/dashboard/Button";
-import FormSection from "~/components/dashboard/FormSection";
-import Modal from "~/components/dashboard/Modal";
-import { Input } from "~/components/dashboard/Input";
-import { Select } from "~/components/dashboard/Select";
-import { Textarea } from "~/components/dashboard/Textarea";
+import Button from '~/components/shared/ui/Button';
+import FormSection from '~/components/shared/ui/FormSection';
+import Modal from '~/components/shared/ui/Modal';
+import { Input } from '~/components/shared/ui/Input';
+import { Select } from '~/components/shared/ui/Select';
+import { Textarea } from '~/components/shared/ui/Textarea';
 import { useDateMasking } from "~/lib/useDateMasking";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { getDefaultContractCloseDateTime } from "~/lib/formatters";

@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useEffectEvent, useMemo, useState } from "react";
-import { includesQuery } from "./data-table-utils";
+import { includesQuery } from '~/components/dashboard/data-table/data-table-utils';
 
 interface UseDataTableDataOptions<T> {
   currentFetchData?: (params: {

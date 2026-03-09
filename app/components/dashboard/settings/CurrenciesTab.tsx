@@ -1,10 +1,10 @@
 import { Form } from "react-router";
-import Modal from "~/components/dashboard/Modal";
-import Toggle from "~/components/dashboard/Toggle";
-import Button from "~/components/dashboard/Button";
-import { Input } from "~/components/dashboard/Input";
+import Modal from '~/components/shared/ui/Modal';
+import Toggle from '~/components/shared/ui/Toggle';
+import Button from '~/components/shared/ui/Button';
+import { Input } from '~/components/shared/ui/Input';
 import { isPhuketName, type Currency } from "~/lib/settings-normalizers";
-import AdminCard from "~/components/dashboard/AdminCard";
+import AdminCard from '~/components/shared/ui/AdminCard';
 import { CurrencyDollarIcon } from "@heroicons/react/24/outline";
 
 interface CurrenciesTabProps {

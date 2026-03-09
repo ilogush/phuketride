@@ -1,4 +1,4 @@
-import { Textarea } from "~/components/dashboard/Textarea";
+import { Textarea } from '~/components/shared/ui/Textarea';
 
 type ContractNotesFieldProps = {
   value?: string;

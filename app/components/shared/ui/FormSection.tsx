@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import AdminCard from "~/components/dashboard/AdminCard";
+import AdminCard from '~/components/shared/ui/AdminCard';
 
 interface FormSectionProps {
     title: string

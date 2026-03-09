@@ -6,17 +6,17 @@ export const meta: MetaFunction = () => [
     { name: "description", content: "Manage car brands, models, and technical templates." },
     { name: "robots", content: "noindex, nofollow" },
 ];
-import PageHeader from '~/components/dashboard/PageHeader'
-import Button from '~/components/dashboard/Button'
-import DataTable from '~/components/dashboard/DataTable'
-import EmptyState from '~/components/dashboard/EmptyState'
-import Tabs from '~/components/dashboard/Tabs'
-import IdBadge from '~/components/dashboard/IdBadge'
+import PageHeader from '~/components/shared/ui/PageHeader'
+import Button from '~/components/shared/ui/Button'
+import DataTable from '~/components/dashboard/data-table/DataTable'
+import EmptyState from '~/components/shared/ui/EmptyState'
+import Tabs from '~/components/shared/ui/Tabs'
+import IdBadge from '~/components/shared/ui/IdBadge'
 import { PlusIcon, TruckIcon, TagIcon, CubeIcon } from '@heroicons/react/24/outline'
 import { GenericDictionaryForm, type FieldConfig } from '~/components/dashboard/GenericDictionaryForm'
 import { useState } from 'react'
 import { getRequestMetadata } from '~/lib/audit-logger'
-import type { Column } from '~/components/dashboard/DataTable'
+import type { Column } from '~/components/dashboard/data-table/DataTable'
 import type { BrandRow, ModelRow, TemplateRow } from "~/lib/car-templates";
 import { useAsyncToastAction } from '~/lib/useAsyncToastAction'
 

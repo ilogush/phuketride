@@ -1,4 +1,4 @@
-import BackButton from "~/components/dashboard/BackButton";
+import BackButton from '~/components/shared/ui/BackButton';
 import MyContractDetailsCards from "~/components/dashboard/contracts/MyContractDetailsCards";
 import type { loadMyContractDetailPage } from "~/features/my-contract-detail/my-contract-detail.loader.server";
 import { useUrlToast } from "~/lib/useUrlToast";

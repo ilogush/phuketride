@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { ArrowUpTrayIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import Button from "~/components/dashboard/Button";
+import Button from '~/components/shared/ui/Button';
 import { optimizeImage } from "~/lib/image-optimizer";
 
 interface PhotoUploadProps {

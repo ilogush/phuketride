@@ -1,5 +1,5 @@
-import { Input } from "~/components/dashboard/Input";
-import { Select } from "~/components/dashboard/Select";
+import { Input } from '~/components/shared/ui/Input';
+import { Select } from '~/components/shared/ui/Select';
 
 type DistrictOption = { id: number | string; name: string; deliveryPrice?: number | null };
 

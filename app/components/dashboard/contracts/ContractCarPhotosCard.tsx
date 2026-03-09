@@ -1,5 +1,5 @@
 import { TruckIcon } from "@heroicons/react/24/outline";
-import AdminCard from "~/components/dashboard/AdminCard";
+import AdminCard from '~/components/shared/ui/AdminCard';
 import CarPhotosUpload from "~/components/dashboard/CarPhotosUpload";
 
 type PhotoItem = { base64: string; fileName: string };

@@ -1,6 +1,6 @@
 import { Form } from "react-router";
 import PhotoUpload from "~/components/dashboard/PhotoUpload";
-import Avatar from "~/components/dashboard/Avatar";
+import Avatar from '~/components/shared/ui/Avatar';
 import ProfileHeader from "~/components/dashboard/ProfileHeader";
 import { memo } from "react";
 import {
@@ -13,7 +13,7 @@ import {
     ProfileInformationViewSection,
 } from "./ProfileFormSections";
 import type { ProfileFormProps } from "./profile-form.types";
-import { useProfileFormState } from "./useProfileFormState";
+import { useProfileFormState } from '~/hooks/useProfileFormState';
 
 // Мемоизированный компонент AvatarSection
 const AvatarSection = memo(function AvatarSection({

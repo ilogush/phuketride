@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Link, Form } from 'react-router'
-import Modal from './Modal'
-import Button from '~/components/dashboard/Button'
-import DeleteButton from '~/components/dashboard/DeleteButton'
+import Modal from '~/components/shared/ui/Modal'
+import Button from '~/components/shared/ui/Button'
+import DeleteButton from '~/components/shared/ui/DeleteButton'
 import { TrashIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline'
-import AdminCard from './AdminCard'
+import AdminCard from '~/components/shared/ui/AdminCard'
 
 interface Task {
     id: string

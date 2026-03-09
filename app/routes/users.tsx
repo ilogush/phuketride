@@ -5,13 +5,13 @@ export const meta: MetaFunction = () => [
     { title: "Users — Phuket Ride Admin" },
     { name: "robots", content: "noindex, nofollow" },
 ];
-import PageHeader from "~/components/dashboard/PageHeader";
-import Tabs from "~/components/dashboard/Tabs";
-import DataTable, { type Column } from "~/components/dashboard/DataTable";
-import StatusBadge from "~/components/dashboard/StatusBadge";
-import Button from "~/components/dashboard/Button";
+import PageHeader from '~/components/shared/ui/PageHeader';
+import Tabs from '~/components/shared/ui/Tabs';
+import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
+import StatusBadge from '~/components/shared/ui/StatusBadge';
+import Button from '~/components/shared/ui/Button';
 import { UserGroupIcon, PlusIcon } from "@heroicons/react/24/outline";
-import IdBadge from "~/components/dashboard/IdBadge";
+import IdBadge from '~/components/shared/ui/IdBadge';
 import { formatContactPhone } from "~/lib/phone";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";

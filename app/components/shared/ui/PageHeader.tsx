@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
-import Button from './Button'
+import Button from '~/components/shared/ui/Button'
 
 interface PageHeaderProps {
     title?: ReactNode

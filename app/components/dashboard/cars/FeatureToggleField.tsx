@@ -1,4 +1,4 @@
-import Toggle from "~/components/dashboard/Toggle";
+import Toggle from '~/components/shared/ui/Toggle';
 
 interface FeatureToggleFieldProps {
   label: string;

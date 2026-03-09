@@ -1,11 +1,11 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData, Form } from "react-router";
-import PageHeader from "~/components/dashboard/PageHeader";
-import { Input } from "~/components/dashboard/Input";
-import { Select } from "~/components/dashboard/Select";
-import Button from "~/components/dashboard/Button";
-import BackButton from "~/components/dashboard/BackButton";
-import FormSection from "~/components/dashboard/FormSection";
+import PageHeader from '~/components/shared/ui/PageHeader';
+import { Input } from '~/components/shared/ui/Input';
+import { Select } from '~/components/shared/ui/Select';
+import Button from '~/components/shared/ui/Button';
+import BackButton from '~/components/shared/ui/BackButton';
+import FormSection from '~/components/shared/ui/FormSection';
 import WeeklySchedule from "~/components/dashboard/WeeklySchedule";
 import HolidaysManager from "~/components/dashboard/HolidaysManager";
 import { useState } from "react";

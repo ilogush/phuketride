@@ -1,10 +1,10 @@
 import { redirect } from 'react-router'
 import type { Route } from './+types/car-templates.$id.edit'
 import { requireAdmin } from '~/lib/auth.server'
-import { CarTemplateForm } from '~/components/dashboard/CarTemplateForm'
-import PageHeader from '~/components/dashboard/PageHeader'
-import BackButton from '~/components/dashboard/BackButton'
-import Button from '~/components/dashboard/Button'
+import { CarTemplateForm } from '~/components/dashboard/car-template-form/CarTemplateForm'
+import PageHeader from '~/components/shared/ui/PageHeader'
+import BackButton from '~/components/shared/ui/BackButton'
+import Button from '~/components/shared/ui/Button'
 import {
     loadCarTemplateFormOptions,
     loadEditableCarTemplate,

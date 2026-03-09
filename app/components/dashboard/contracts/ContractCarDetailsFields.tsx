@@ -1,5 +1,5 @@
-import { Input } from "~/components/dashboard/Input";
-import { Select } from "~/components/dashboard/Select";
+import { Input } from '~/components/shared/ui/Input';
+import { Select } from '~/components/shared/ui/Select';
 import { CONTRACT_CLEANLINESS_OPTIONS, CONTRACT_FUEL_LEVEL_OPTIONS } from "~/lib/contracts-form-options";
 
 type CarOption = { id: number | string; name: string };

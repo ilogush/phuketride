@@ -1,11 +1,11 @@
 import type { DataTableProps } from "./data-table-types";
-import EmptyState from './EmptyState'
-import Loader from './Loader'
-import Tabs from './Tabs'
-import SimplePagination from './SimplePagination'
+import EmptyState from '~/components/shared/ui/EmptyState'
+import Loader from '~/components/shared/ui/Loader'
+import Tabs from '~/components/shared/ui/Tabs'
+import SimplePagination from '~/components/shared/ui/SimplePagination'
 import { formatCellValue, getPropertyValue, toReactNode } from "./data-table-utils";
-import { useDataTableControls } from "./useDataTableControls";
-import { useDataTableData } from "./useDataTableData";
+import { useDataTableControls } from '~/hooks/useDataTableControls';
+import { useDataTableData } from '~/hooks/useDataTableData';
 
 export type { Column, Tab } from "./data-table-types";
 

@@ -1,8 +1,8 @@
 import { UserIcon } from "@heroicons/react/24/outline";
-import Button from "~/components/dashboard/Button";
-import FormSection from "~/components/dashboard/FormSection";
-import { Input } from "~/components/dashboard/Input";
-import ReadOnlyField from "~/components/dashboard/ReadOnlyField";
+import Button from '~/components/shared/ui/Button';
+import FormSection from '~/components/shared/ui/FormSection';
+import { Input } from '~/components/shared/ui/Input';
+import ReadOnlyField from '~/components/shared/ui/ReadOnlyField';
 import { formatContactPhone } from "~/lib/phone";
 
 export interface AssignableUser {

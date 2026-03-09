@@ -6,12 +6,12 @@ export const meta: MetaFunction = () => [
     { name: "description", content: "Manage delivery zones and locations in Phuket Ride." },
     { name: "robots", content: "noindex, nofollow" },
 ];
-import PageHeader from "~/components/dashboard/PageHeader";
-import Button from "~/components/dashboard/Button";
-import DataTable, { type Column } from "~/components/dashboard/DataTable";
+import PageHeader from '~/components/shared/ui/PageHeader';
+import Button from '~/components/shared/ui/Button';
+import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
 import { useState } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
-import Toggle from "~/components/dashboard/Toggle";
+import Toggle from '~/components/shared/ui/Toggle';
 import type { LocationsPageDistrict as District } from "~/lib/admin-dictionaries";
 import { useAsyncToastAction } from "~/lib/useAsyncToastAction";
 import { getScopedDb } from "~/lib/db-factory.server";

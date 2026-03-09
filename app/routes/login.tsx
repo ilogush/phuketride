@@ -6,7 +6,7 @@ import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { useState, useEffect } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
-import Button from "~/components/dashboard/Button";
+import Button from '~/components/shared/ui/Button';
 import AuthFormField from "~/components/public/AuthFormField";
 import AuthTextInput from "~/components/public/AuthTextInput";
 import { loginSchema } from "~/schemas/user";

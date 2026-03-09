@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import Button from "~/components/public/Button";
+import Button from '~/components/shared/ui/Button';
 import ClientButton from "~/components/public/ClientButton";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";

@@ -1,9 +1,9 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData, Form } from "react-router";
 import ProfileForm from "~/components/dashboard/ProfileForm";
-import PageHeader from "~/components/dashboard/PageHeader";
-import Button from "~/components/dashboard/Button";
-import BackButton from "~/components/dashboard/BackButton";
+import PageHeader from '~/components/shared/ui/PageHeader';
+import Button from '~/components/shared/ui/Button';
+import BackButton from '~/components/shared/ui/BackButton';
 import { TrashIcon } from "@heroicons/react/24/outline";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 import { trackServerOperation } from "~/lib/telemetry.server";

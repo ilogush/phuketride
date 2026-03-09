@@ -7,11 +7,11 @@ export const meta: MetaFunction = () => [
     { name: "robots", content: "noindex, nofollow" },
 ];
 import { useState } from "react";
-import DataTable, { type Column } from "~/components/dashboard/DataTable";
-import Button from "~/components/dashboard/Button";
-import PageHeader from "~/components/dashboard/PageHeader";
+import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
+import Button from '~/components/shared/ui/Button';
+import PageHeader from '~/components/shared/ui/PageHeader';
 import { PlusIcon } from "@heroicons/react/24/outline";
-import IdBadge from "~/components/dashboard/IdBadge";
+import IdBadge from '~/components/shared/ui/IdBadge';
 import { districtActionSchema } from "~/schemas/dictionary";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithError } from "~/lib/route-feedback";

@@ -5,12 +5,12 @@ export const meta: MetaFunction = () => [
     { title: "Payments — Phuket Ride Admin" },
     { name: "robots", content: "noindex, nofollow" },
 ];
-import PageHeader from "~/components/dashboard/PageHeader";
-import Tabs from "~/components/dashboard/Tabs";
-import DataTable, { type Column } from "~/components/dashboard/DataTable";
-import Button from "~/components/dashboard/Button";
-import StatusBadge from "~/components/dashboard/StatusBadge";
-import IdBadge from "~/components/dashboard/IdBadge";
+import PageHeader from '~/components/shared/ui/PageHeader';
+import Tabs from '~/components/shared/ui/Tabs';
+import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
+import Button from '~/components/shared/ui/Button';
+import StatusBadge from '~/components/shared/ui/StatusBadge';
+import IdBadge from '~/components/shared/ui/IdBadge';
 import { BanknotesIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { format, isValid } from "date-fns";
 import { getPaginationFromUrl } from "~/lib/pagination.server";

@@ -1,8 +1,8 @@
 import { type LoaderFunctionArgs, type MetaFunction, useLoaderData, Outlet, Link, useSearchParams } from "react-router";
 import { useState, useMemo } from "react";
-import PageHeader from "~/components/dashboard/PageHeader";
-import Button from "~/components/dashboard/Button";
-import Card from "~/components/dashboard/Card";
+import PageHeader from '~/components/shared/ui/PageHeader';
+import Button from '~/components/shared/ui/Button';
+import Card from '~/components/shared/ui/Card';
 import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import type { CalendarListBooking, CalendarListContract, CalendarListEvent } from "~/lib/calendar-page.server";

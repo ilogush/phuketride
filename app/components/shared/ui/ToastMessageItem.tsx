@@ -6,7 +6,7 @@ import {
     InformationCircleIcon,
     XMarkIcon,
 } from '@heroicons/react/24/outline'
-import Button from '~/components/dashboard/Button'
+import Button from '~/components/shared/ui/Button'
 
 interface ToastItemProps {
     toast: Toast

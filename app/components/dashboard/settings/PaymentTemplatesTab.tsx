@@ -1,9 +1,9 @@
 import { Form } from "react-router";
-import Button from "~/components/dashboard/Button";
-import DeleteButton from "~/components/dashboard/DeleteButton";
-import { Input } from "~/components/dashboard/Input";
-import { Textarea } from "~/components/dashboard/Textarea";
-import AdminCard from "~/components/dashboard/AdminCard";
+import Button from '~/components/shared/ui/Button';
+import DeleteButton from '~/components/shared/ui/DeleteButton';
+import { Input } from '~/components/shared/ui/Input';
+import { Textarea } from '~/components/shared/ui/Textarea';
+import AdminCard from '~/components/shared/ui/AdminCard';
 import { BanknotesIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 export type PaymentTemplateItem = {

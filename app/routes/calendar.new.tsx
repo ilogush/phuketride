@@ -1,12 +1,12 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from "react-router";
 import { Form, useLoaderData, useNavigate } from "react-router";
 
-import FormSection from "~/components/dashboard/FormSection";
-import { Input } from "~/components/dashboard/Input";
-import { Select } from "~/components/dashboard/Select";
-import { Textarea } from "~/components/dashboard/Textarea";
-import Modal from "~/components/dashboard/Modal";
-import Button from "~/components/dashboard/Button";
+import FormSection from '~/components/shared/ui/FormSection';
+import { Input } from '~/components/shared/ui/Input';
+import { Select } from '~/components/shared/ui/Select';
+import { Textarea } from '~/components/shared/ui/Textarea';
+import Modal from '~/components/shared/ui/Modal';
+import Button from '~/components/shared/ui/Button';
 import { CalendarIcon } from "@heroicons/react/24/outline";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { createCalendarEventFromForm } from "~/lib/calendar-page.server";

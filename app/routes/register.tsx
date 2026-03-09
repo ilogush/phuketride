@@ -5,7 +5,7 @@ import { useState } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
-import Button from "~/components/public/Button";
+import Button from '~/components/shared/ui/Button';
 import AuthFormField from "~/components/public/AuthFormField";
 import AuthTextInput from "~/components/public/AuthTextInput";
 import { registerUserAccount } from "~/lib/registration.server";

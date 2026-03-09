@@ -3,9 +3,9 @@ import { requireSelfProfileAccess } from "~/lib/access-policy.server";
 import { useLoaderData } from "react-router";
 import { BellIcon, CalendarIcon, CurrencyDollarIcon, TruckIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
-import PageHeader from "~/components/dashboard/PageHeader";
-import Card from "~/components/dashboard/Card";
-import EmptyState from "~/components/dashboard/EmptyState";
+import PageHeader from '~/components/shared/ui/PageHeader';
+import Card from '~/components/shared/ui/Card';
+import EmptyState from '~/components/shared/ui/EmptyState';
 import {
 	getUserNotificationContracts,
 	getUserNotificationWindows,

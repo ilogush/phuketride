@@ -1,7 +1,7 @@
 import { useState, useRef } from "react"
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { optimizeImage } from "~/lib/image-optimizer"
-import Button from "~/components/dashboard/Button"
+import Button from '~/components/shared/ui/Button'
 
 interface CarPhotosUploadProps {
     currentPhotos?: string[]

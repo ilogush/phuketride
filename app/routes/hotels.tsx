@@ -7,9 +7,9 @@ export const meta: MetaFunction = () => [
     { name: "description", content: "Manage hotels and accommodation in the Phuket Ride dictionary." },
     { name: "robots", content: "noindex, nofollow" },
 ];
-import DataTable, { type Column } from "~/components/dashboard/DataTable";
-import Button from "~/components/dashboard/Button";
-import PageHeader from "~/components/dashboard/PageHeader";
+import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
+import Button from '~/components/shared/ui/Button';
+import PageHeader from '~/components/shared/ui/PageHeader';
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";

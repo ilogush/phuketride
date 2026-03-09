@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import Button from "~/components/public/Button";
+import Button from '~/components/shared/ui/Button';
 import { HeartIcon } from "@heroicons/react/24/outline";
 import { PhotoIcon } from "@heroicons/react/24/outline";
 import CarPhotoModal from "~/components/public/car/CarPhotoModal";

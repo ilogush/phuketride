@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import Card from "~/components/dashboard/Card";
+import Card from '~/components/shared/ui/Card';
 import { formatContactPhone } from "~/lib/phone";
 
 interface BookingDetailsCardProps {

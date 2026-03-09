@@ -1,5 +1,5 @@
 import { PhotoIcon } from "@heroicons/react/24/outline";
-import AdminCard from "~/components/dashboard/AdminCard";
+import AdminCard from '~/components/shared/ui/AdminCard';
 import DocumentPhotosUpload from "~/components/dashboard/DocumentPhotosUpload";
 
 type PhotoItem = { base64: string; fileName: string };

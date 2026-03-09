@@ -8,7 +8,7 @@ import {
     UserCircleIcon,
     MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
-import Avatar from "./Avatar";
+import Avatar from '~/components/shared/ui/Avatar';
 
 interface TopbarProps {
     user: {

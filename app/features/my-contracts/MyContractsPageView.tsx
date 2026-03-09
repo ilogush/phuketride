@@ -2,8 +2,8 @@ import { DocumentTextIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import { Link, useSearchParams } from "react-router";
 
-import Button from "~/components/dashboard/Button";
-import SimplePagination from "~/components/dashboard/SimplePagination";
+import Button from '~/components/shared/ui/Button';
+import SimplePagination from '~/components/shared/ui/SimplePagination';
 import { useUrlToast } from "~/lib/useUrlToast";
 
 import type { MyContractRow } from "./my-contracts.loader.server";

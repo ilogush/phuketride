@@ -1,4 +1,4 @@
-import { Input } from "~/components/dashboard/Input";
+import { Input } from '~/components/shared/ui/Input';
 
 type ClientDefaults = {
   passportNumber?: string | null;

@@ -1,6 +1,6 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import AuthSelect from "./AuthSelect";
-import Button from "./Button";
+import Button from '~/components/shared/ui/Button';
 import { buildCalendar, formatDisplay, monthLabel, timeOptions, weekDays } from "./date-range-picker.utils";
 import type { DateRangeValue } from "./trip-date.model";
 

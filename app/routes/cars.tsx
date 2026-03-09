@@ -5,11 +5,11 @@ export const meta: MetaFunction = () => [
     { title: "Cars — Phuket Ride Admin" },
     { name: "robots", content: "noindex, nofollow" },
 ];
-import PageHeader from "~/components/dashboard/PageHeader";
-import Tabs from "~/components/dashboard/Tabs";
-import DataTable, { type Column } from "~/components/dashboard/DataTable";
-import StatusBadge from "~/components/dashboard/StatusBadge";
-import Button from "~/components/dashboard/Button";
+import PageHeader from '~/components/shared/ui/PageHeader';
+import Tabs from '~/components/shared/ui/Tabs';
+import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
+import StatusBadge from '~/components/shared/ui/StatusBadge';
+import Button from '~/components/shared/ui/Button';
 import { TruckIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { loadCarsPageData, type CarsPageCar } from "~/lib/cars-page.server";
 import { trackServerOperation } from "~/lib/telemetry.server";

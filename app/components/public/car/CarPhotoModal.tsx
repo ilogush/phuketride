@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import Button from "~/components/public/Button";
+import Button from '~/components/shared/ui/Button';
 import {
   HeartIcon,
   ShareIcon,

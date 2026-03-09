@@ -1,4 +1,4 @@
-import Button from './Button'
+import Button from '~/components/shared/ui/Button'
 import { Link } from 'react-router'
 
 interface FormActionsProps {

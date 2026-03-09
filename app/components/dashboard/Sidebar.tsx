@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
-import Button from "~/components/dashboard/Button";
+import Button from '~/components/shared/ui/Button';
 import {
     Squares2X2Icon,
     TruckIcon,

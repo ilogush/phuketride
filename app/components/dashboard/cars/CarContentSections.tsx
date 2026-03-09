@@ -1,7 +1,7 @@
 import { Form } from "react-router";
-import Card from "~/components/dashboard/Card";
-import Button from "~/components/dashboard/Button";
-import DeleteButton from "~/components/dashboard/DeleteButton";
+import Card from '~/components/shared/ui/Card';
+import Button from '~/components/shared/ui/Button';
+import DeleteButton from '~/components/shared/ui/DeleteButton';
 
 type Item = Record<string, unknown>;
 

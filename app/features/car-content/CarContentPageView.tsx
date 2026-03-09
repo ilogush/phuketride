@@ -1,9 +1,9 @@
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { Form, Link, useSearchParams } from "react-router";
 
-import BackButton from "~/components/dashboard/BackButton";
-import Card from "~/components/dashboard/Card";
-import PageHeader from "~/components/dashboard/PageHeader";
+import BackButton from '~/components/shared/ui/BackButton';
+import Card from '~/components/shared/ui/Card';
+import PageHeader from '~/components/shared/ui/PageHeader';
 import CarContentSections from "~/components/dashboard/cars/CarContentSections";
 import { useUrlToast } from "~/lib/useUrlToast";
 

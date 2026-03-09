@@ -1,9 +1,9 @@
 import { useState } from "react";
-import Toggle from "~/components/dashboard/Toggle";
+import Toggle from '~/components/shared/ui/Toggle';
 import { useToast } from "~/lib/toast";
 
 import { ClockIcon } from "@heroicons/react/24/outline";
-import AdminCard from "~/components/dashboard/AdminCard";
+import AdminCard from '~/components/shared/ui/AdminCard';
 
 interface DaySchedule {
     open: boolean;

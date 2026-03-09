@@ -1,8 +1,8 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
-import PageHeader from "~/components/dashboard/PageHeader";
-import Button from "~/components/dashboard/Button";
-import BackButton from "~/components/dashboard/BackButton";
+import PageHeader from '~/components/shared/ui/PageHeader';
+import Button from '~/components/shared/ui/Button';
+import BackButton from '~/components/shared/ui/BackButton';
 import ProfileForm from "~/components/dashboard/ProfileForm";
 import {
     loadEditableProfilePageData,

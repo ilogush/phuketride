@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import AuthSelect from "~/components/public/AuthSelect";
-import Button from "~/components/public/Button";
+import Button from '~/components/shared/ui/Button';
 import DateRangePicker from "~/components/public/DateRangePicker";
 import {
   buildDefaultTripDateRange,

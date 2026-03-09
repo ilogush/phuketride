@@ -1,4 +1,4 @@
-import Button from "~/components/public/Button";
+import Button from '~/components/shared/ui/Button';
 
 interface BodyTypeFiltersProps {
   bodyTypes: string[];

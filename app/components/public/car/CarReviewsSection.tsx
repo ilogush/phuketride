@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Button from "~/components/public/Button";
+import Button from '~/components/shared/ui/Button';
 import { ChevronDownIcon, StarIcon } from "@heroicons/react/24/solid";
 import type { CarRatingSummary, CarReviewItem } from "~/components/public/car/types";
 

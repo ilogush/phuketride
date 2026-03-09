@@ -1,8 +1,8 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction, redirect } from "react-router";
 import { useLoaderData, useSearchParams, useSubmit } from "react-router";
-import PageHeader from "~/components/dashboard/PageHeader";
-import Tabs from "~/components/dashboard/Tabs";
-import Button from "~/components/dashboard/Button";
+import PageHeader from '~/components/shared/ui/PageHeader';
+import Tabs from '~/components/shared/ui/Tabs';
+import Button from '~/components/shared/ui/Button';
 import { useState } from "react";
 import {
     PlusIcon,
