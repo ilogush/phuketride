@@ -24,10 +24,6 @@ test("cancelBooking updates booking status, frees car and writes audit log", asy
                 },
             ],
         },
-        {
-            match: "INSERT INTO audit_logs",
-            run: [{ meta: { last_row_id: 1 } }],
-        },
     ]);
 
     const response = await cancelBooking({
@@ -42,7 +38,7 @@ test("cancelBooking updates booking status, frees car and writes audit log", asy
     assert.equal(response.headers.get("Location"), "/bookings?success=Booking+cancelled+successfully");
     assert.equal(db.countCalls("UPDATE bookings SET status = 'cancelled'", "batch"), 1);
     assert.equal(db.countCalls("UPDATE company_cars SET status = ?", "batch"), 1);
-    assert.equal(db.countCalls("INSERT INTO audit_logs", "run"), 1);
+    assert.equal(db.countCalls("INSERT INTO audit_logs", "batch"), 1);
 });
 
 test("convertBookingToContract creates contract extras, events and audits", async () => {
@@ -61,6 +57,40 @@ test("convertBookingToContract creates contract extras, events and audits", asyn
                     estimatedAmount: 1200,
                     currency: "THB",
                     depositAmount: 300,
+                    fullInsuranceEnabled: 1,
+                    fullInsurancePrice: 400,
+                    babySeatEnabled: 1,
+                    babySeatPrice: 200,
+                    islandTripEnabled: 0,
+                    islandTripPrice: 0,
+                    krabiTripEnabled: 0,
+                    krabiTripPrice: 0,
+                    pickupDistrictId: 2,
+                    pickupHotel: "Hotel",
+                    pickupRoom: "101",
+                    deliveryCost: 150,
+                    returnDistrictId: 3,
+                    returnHotel: "Hotel",
+                    returnRoom: "102",
+                    returnCost: 200,
+                    notes: "note",
+                    clientName: "John",
+                    clientSurname: "Smith",
+                    clientPhone: "+660000000",
+                    clientEmail: "john@example.com",
+                    clientPassport: "AB12345",
+                },
+            ],
+        },
+        {
+            match: "SELECT id FROM users WHERE passport_number = ? LIMIT 1",
+            first: [null],
+        },
+        {
+            match: "SELECT id FROM contracts WHERE created_at = ? AND manager_id = ? ORDER BY id DESC LIMIT 1",
+            first: [{ id: 42 }],
+        },
+    ]);
 
     const response = await convertBookingToContract({
         db: db as unknown as D1Database,
@@ -76,5 +106,5 @@ test("convertBookingToContract creates contract extras, events and audits", asyn
     assert.equal(db.countCalls("UPDATE company_cars SET status = ?", "batch"), 1);
     assert.equal(db.countCalls("INSERT INTO payments", "batch"), 2);
     assert.equal(db.countCalls("INSERT INTO calendar_events", "batch"), 2);
-    assert.equal(db.countCalls("INSERT INTO audit_logs", "run"), 2);
+    assert.equal(db.countCalls("INSERT INTO audit_logs", "batch"), 2);
 });

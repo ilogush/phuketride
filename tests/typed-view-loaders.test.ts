@@ -31,9 +31,9 @@ test("loadCarEditPage rejects invalid car id with 400", async () => {
     await assert.rejects(
         () =>
             loadCarEditPage({
-                db: db as unknown as D1Database,
                 request,
                 carIdParam: "invalid",
+                context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
             }),
         (error: unknown) => error instanceof Response && error.status === 400
     );
@@ -60,20 +60,19 @@ test("loadCarEditPage rejects missing car with 403", async () => {
     await assert.rejects(
         () =>
             loadCarEditPage({
-                db: db as unknown as D1Database,
                 request,
                 carIdParam: "55",
+                context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
             }),
-        (error: unknown) => error instanceof Response && error.status === 403
+        (error: unknown) => error instanceof Response && error.status === 404
     );
     assert.equal(db.countCalls("FROM company_cars", "first"), 1);
 });
 
-test("loadCarEditPage rejects cross-company access with 403", async () => {
+test("loadCarEditPage rejects cross-company access with 404", async () => {
     const db = new FakeD1Database([
         {
-            // validateCarOwnership query: WHERE id = ? AND company_id = ?
-            match: "WHERE id = ? AND company_id = ?",
+            match: /WHERE cc\.id = \?\s+AND cc\.company_id = \?\s+LIMIT 1/,
             first: [null], // Returns null because company_id doesn't match
         },
     ]);
@@ -89,11 +88,11 @@ test("loadCarEditPage rejects cross-company access with 403", async () => {
     await assert.rejects(
         () =>
             loadCarEditPage({
-                db: db as unknown as D1Database,
                 request,
                 carIdParam: "55",
+                context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
             }),
-        (error: unknown) => error instanceof Response && error.status === 403
+        (error: unknown) => error instanceof Response && error.status === 404
     );
 });
 

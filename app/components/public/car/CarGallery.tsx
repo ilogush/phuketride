@@ -62,7 +62,7 @@ export default function CarGallery({ title, photos }: CarGalleryProps) {
             </button>
             <button
               type="button"
-              className="absolute top-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-900 bg-white/95 text-gray-700 transition-colors hover:bg-white"
+              className="absolute top-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-xl border-2 border-[#1f2937] bg-[#00b33c] text-white shadow-sm transition-colors hover:bg-[#009933]"
             >
               <HeartIcon className="w-5 h-5" />
             </button>

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadCompaniesPageData } from "../app/lib/companies-page.server";
 import { type SessionUser } from "../app/lib/auth.server";
+import { createScopedDb } from "../app/lib/db-factory.server";
 import { FakeD1Database } from "./helpers/fake-d1";
 
 const adminUser: SessionUser = {
@@ -63,8 +64,8 @@ test("loadCompaniesPageData maps company rows for admin table", async () => {
 
     const result = await loadCompaniesPageData({
         request: new Request("https://example.com/companies?search=car"),
-        db: db as unknown as D1Database,
         user: adminUser,
+        sdb: createScopedDb(db as unknown as never, null),
     });
 
     assert.equal(result.totalCount, 2);
@@ -81,8 +82,8 @@ test("loadCompaniesPageData falls back to empty list when repo calls fail", asyn
 
     const result = await loadCompaniesPageData({
         request: new Request("https://example.com/companies"),
-        db: db as unknown as D1Database,
         user: adminUser,
+        sdb: createScopedDb(db as unknown as never, null),
     });
 
     assert.deepEqual(result.companies, []);

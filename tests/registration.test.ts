@@ -24,7 +24,7 @@ test("registerUserAccount returns duplicate email error without write", async ()
 
     assert.deepEqual(result, {
         ok: false,
-        error: "Email already registered",
+        error: "Unable to create account",
     });
     assert.equal(db.countCalls("INSERT INTO users", "run"), 0);
 });
@@ -85,7 +85,7 @@ test("registerPartnerAccount returns duplicate email error", async () => {
 
     assert.deepEqual(result, {
         ok: false,
-        error: "Email already registered",
+        error: "Unable to create account",
     });
     assert.equal(db.countCalls("INSERT INTO users", "batch"), 0);
 });

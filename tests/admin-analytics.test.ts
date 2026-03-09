@@ -53,6 +53,7 @@ test("clearAuditLogsFromForm redirects with success feedback", async () => {
     const response = await clearAuditLogsFromForm({
         db: db as unknown as D1Database,
         request: new Request("https://example.com/logs", { method: "POST", body: formData }),
+        companyId: null,
     });
 
     assert.equal(response.status, 302);
@@ -104,6 +105,7 @@ test("loadReportsPageData returns summary-backed report cards", async () => {
 
     const result = await loadReportsPageData({
         db: db as unknown as D1Database,
+        companyId: null,
         now: new Date("2026-03-07T12:00:00.000Z"),
     });
 

@@ -146,6 +146,7 @@ export default function CarTripSidebar({
             compactEndLabel="Trip end"
             compactLabelClassName="text-sm text-gray-500"
             compactDateBorder
+            compactDateClassName="h-10"
             compactCalendarIconClassName="h-4 w-4"
             compactShowChevron
             compactShowTime

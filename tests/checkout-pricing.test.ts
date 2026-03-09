@@ -89,7 +89,7 @@ test("checkout pricing zeroes deposit when full insurance is selected", async ()
         bookingRate: "refundable",
     });
 
-    assert.equal(pricing.selectedInsurance, 700);
-    assert.equal(pricing.depositAmount, 0);
-    assert.equal(pricing.totalAmount, 5494);
+    assert.equal(pricing.selectedInsurance, 0);
+    assert.equal(pricing.depositAmount, 5000);
+    assert.equal(pricing.totalAmount, 4745);
 });

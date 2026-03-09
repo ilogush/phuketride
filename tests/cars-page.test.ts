@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadCarsPageData } from "../app/lib/cars-page.server";
 import { serializeSession, type SessionUser } from "../app/lib/auth.server";
+import { createScopedDb } from "../app/lib/db-factory.server";
 import { setRuntimeEnv } from "../app/lib/runtime-env.server";
 import { FakeD1Database } from "./helpers/fake-d1";
 
@@ -59,7 +60,15 @@ test("loadCarsPageData uses scoped admin mod company access and maps car rows", 
             },
             "https://example.com/cars?modCompanyId=77&tab=available"
         ),
-        db: db as unknown as D1Database,
+        user: {
+            id: "admin-1",
+            email: "admin@example.com",
+            role: "admin",
+            name: "Admin",
+            surname: null,
+            companyId: 77,
+        },
+        sdb: createScopedDb(db as unknown as never, 77),
     });
 
     assert.equal(result.companyId, 77);
@@ -81,7 +90,15 @@ test("loadCarsPageData falls back to empty cars payload when repo calls fail", a
             surname: null,
             companyId: 12,
         }),
-        db: db as unknown as D1Database,
+        user: {
+            id: "partner-1",
+            email: "partner@example.com",
+            role: "partner",
+            name: "Partner",
+            surname: null,
+            companyId: 12,
+        },
+        sdb: createScopedDb(db as unknown as never, 12),
     });
 
     assert.equal(result.companyId, 12);

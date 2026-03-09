@@ -75,8 +75,8 @@ test("createPaymentRecord writes payment, audit and success feedback", async () 
     assert.equal(url.pathname, "/payments");
     assert.equal(url.searchParams.get("success"), "Payment created successfully");
     assert.equal(url.searchParams.get("modCompanyId"), "12");
-    assert.equal(db.countCalls("INSERT INTO payments", "run"), 1);
-    assert.equal(db.countCalls("INSERT INTO audit_logs", "run"), 1);
+    assert.equal(db.countCalls("INSERT INTO payments", "batch"), 1);
+    assert.equal(db.countCalls("INSERT INTO audit_logs", "batch"), 1);
 });
 
 test("createPaymentRecord rejects cross-company contract with forbidden response", async () => {
@@ -109,5 +109,5 @@ test("createPaymentRecord rejects cross-company contract with forbidden response
             error instanceof Response &&
             error.status === 403
     );
-    assert.equal(db.countCalls("INSERT INTO payments", "run"), 0);
+    assert.equal(db.countCalls("INSERT INTO payments", "batch"), 0);
 });

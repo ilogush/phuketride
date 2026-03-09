@@ -1,5 +1,3 @@
-import Button from '~/components/shared/ui/Button';
-
 interface BodyTypeFiltersProps {
   bodyTypes: string[];
   activeType: string;
@@ -8,22 +6,26 @@ interface BodyTypeFiltersProps {
 
 export default function BodyTypeFilters({ bodyTypes, activeType, onTypeChange }: BodyTypeFiltersProps) {
   return (
-    <section>
-      <div className="overflow-x-auto pb-1">
-        <div className="flex gap-2 items-center min-w-max">
+    <section aria-label="Body type filters">
+      <div className="overflow-x-auto pb-2">
+        <div className="flex min-w-max items-center gap-3">
           {bodyTypes.map((type) => {
+            const isActive = activeType === type;
             return (
-              <Button
+              <button
                 key={type}
                 type="button"
                 onClick={() => onTypeChange(type)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border flex items-center gap-2 ${activeType === type
-                  ? "bg-gray-800 text-white border-gray-800"
-                  : "bg-white text-gray-800 hover:bg-gray-800 hover:text-white border-gray-200"
-                  }`}
+                aria-pressed={isActive}
+                className={[
+                  "inline-flex h-10 min-w-[88px] items-center justify-center rounded-2xl border px-5 text-sm font-semibold transition-colors duration-200 whitespace-nowrap",
+                  isActive
+                    ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+                    : "border-slate-300 bg-white text-slate-800 hover:border-slate-900 hover:bg-slate-50",
+                ].join(" ")}
               >
-                <span>{type}</span>
-              </Button>
+                {type}
+              </button>
             );
           })}
         </div>

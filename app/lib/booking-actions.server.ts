@@ -18,7 +18,7 @@ async function loadBookingForAction(db: D1Database, bookingId: number) {
         .prepare(`
             SELECT
                 b.id, b.status, b.company_car_id AS companyCarId, b.client_id AS clientId, cc.company_id AS companyId, b.start_date AS startDate, b.end_date AS endDate,
-                estimated_amount AS estimatedAmount, currency, deposit_amount AS depositAmount AS full_insurance_enabled AS fullInsuranceEnabled, full_insurance_price AS fullInsurancePrice,
+                estimated_amount AS estimatedAmount, currency, deposit_amount AS depositAmount, full_insurance_enabled AS fullInsuranceEnabled, full_insurance_price AS fullInsurancePrice,
                 baby_seat_enabled AS babySeatEnabled, baby_seat_price AS babySeatPrice,
                 island_trip_enabled AS islandTripEnabled, island_trip_price AS islandTripPrice,
                 krabi_trip_enabled AS krabiTripEnabled, krabi_trip_price AS krabiTripPrice,

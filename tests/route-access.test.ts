@@ -23,8 +23,17 @@ async function buildRequest(user: SessionUser, url: string, init?: RequestInit) 
     });
 }
 
-test("logs loader rejects non-admin before touching DB", async () => {
-    const db = new FakeD1Database([]);
+test("logs loader allows partner analytics access scoped to their company", async () => {
+    const db = new FakeD1Database([
+        {
+            match: "FROM audit_logs a",
+            all: [{ results: [] }],
+        },
+        {
+            match: "SELECT count(*) AS count FROM audit_logs",
+            first: [{ count: 0 }],
+        },
+    ]);
     const request = await buildRequest(
         {
             id: "partner-1",
@@ -37,19 +46,23 @@ test("logs loader rejects non-admin before touching DB", async () => {
         "https://example.com/logs"
     );
 
-    await assert.rejects(
-        () => logsLoader({
-            request,
-            context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
-            params: {},
-        } as never),
-        (error: unknown) => error instanceof Response && error.status === 403
-    );
-    assert.equal(db.calls.length, 0);
+    const response = await logsLoader({
+        request,
+        context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+        params: {},
+    } as never);
+
+    assert.deepEqual((response as { logs: unknown[] }).logs, []);
+    assert.equal(db.countCalls("FROM audit_logs a", "all"), 1);
 });
 
-test("logs action rejects non-admin clear request", async () => {
-    const db = new FakeD1Database([]);
+test("logs action allows partner to clear scoped audit logs", async () => {
+    const db = new FakeD1Database([
+        {
+            match: "DELETE FROM audit_logs WHERE company_id = ?",
+            run: [{ meta: { changes: 1 } }],
+        },
+    ]);
     const body = new URLSearchParams({ intent: "clear" });
     const request = await buildRequest(
         {
@@ -68,15 +81,14 @@ test("logs action rejects non-admin clear request", async () => {
         }
     );
 
-    await assert.rejects(
-        () => logsAction({
-            request,
-            context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
-            params: {},
-        } as never),
-        (error: unknown) => error instanceof Response && error.status === 403
-    );
-    assert.equal(db.calls.length, 0);
+    const response = await logsAction({
+        request,
+        context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+        params: {},
+    } as never);
+
+    assert.equal(response.status, 302);
+    assert.equal(db.countCalls("DELETE FROM audit_logs WHERE company_id = ?", "run"), 1);
 });
 
 test("company detail loader rejects manager accessing another company", async () => {

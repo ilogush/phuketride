@@ -138,3 +138,12 @@ export async function deleteDashboardTaskFromForm(args: {
 
     return redirectWithRequestSuccess(args.request, "/home", "Task deleted successfully");
 }
+
+export async function clearAuditLogsFromForm(args: {
+    db: D1Database;
+    request: Request;
+    companyId?: number | null;
+}) {
+    await clearAuditLogs(args.db, args.companyId ?? null);
+    return redirectWithRequestSuccess(args.request, "/logs", "Audit logs cleared successfully");
+}
