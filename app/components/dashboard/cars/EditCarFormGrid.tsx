@@ -3,11 +3,11 @@ import AdminCard from '~/components/shared/ui/AdminCard';
 import FormSection from '~/components/shared/ui/FormSection';
 import { Input } from '~/components/shared/ui/Input';
 import { Select } from '~/components/shared/ui/Select';
-import Toggle from '~/components/shared/ui/Toggle';
 import CarPhotosUpload from "~/components/dashboard/CarPhotosUpload";
 import CarTemplateDetails from "~/components/dashboard/cars/CarTemplateDetails";
 import FeatureToggleField from "~/components/dashboard/cars/FeatureToggleField";
 import SeasonalPricingMatrix from "~/components/dashboard/cars/SeasonalPricingMatrix";
+import ToggleField from "~/components/shared/ui/ToggleField";
 import {
   ExclamationTriangleIcon,
   TruckIcon,
@@ -234,13 +234,11 @@ export default function EditCarFormGrid({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Input label="Min Rental Days" name="minRentalDays" type="number" min={1} step={1} defaultValue={car.minRentalDays || 1} />
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Full Insurance</label>
-                <div className="flex h-11 items-center justify-between rounded-2xl border border-gray-200 bg-white px-4">
-                  <span className="text-sm text-gray-900">{fullInsuranceEnabled ? "Enabled" : "Disabled"}</span>
-                  <Toggle checked={fullInsuranceEnabled} onCheckedChange={setFullInsuranceEnabled} />
-                </div>
-              </div>
+              <ToggleField
+                label="Full Insurance"
+                checked={fullInsuranceEnabled}
+                onCheckedChange={setFullInsuranceEnabled}
+              />
               <input type="hidden" name="fullInsuranceEnabled" value={fullInsuranceEnabled ? "true" : "false"} />
               {fullInsuranceEnabled ? (
                 <>

@@ -3,9 +3,10 @@ import FormField from '~/components/shared/ui/FormField'
 import FormSection from '~/components/shared/ui/FormSection'
 import CarPhotosUpload from '~/components/dashboard/CarPhotosUpload'
 import AdminCard from '~/components/shared/ui/AdminCard'
-import Toggle from '~/components/shared/ui/Toggle'
 import { Input } from '~/components/shared/ui/Input'
 import { Select } from '~/components/shared/ui/Select'
+import { Textarea } from '~/components/shared/ui/Textarea'
+import ToggleField from '~/components/shared/ui/ToggleField'
 import { TruckIcon, PhotoIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
 import type { BodyType, CarBrand, CarModel, CarTemplate, FuelType } from './car-template-form.types'
 import { useCarTemplateFormState } from '~/hooks/useCarTemplateFormState'
@@ -145,18 +146,11 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
                                 ]}
                             />
 
-                            <div className="flex flex-col">
-                                <label className="block text-xs text-gray-600 mb-1 ml-1">
-                                    Airbags
-                                </label>
-                                <div className="flex h-11 items-center justify-between rounded-2xl border border-gray-200 bg-white px-4">
-                                    <span className="text-sm text-gray-900">{formData.feature_airbags ? "Enabled" : "Disabled"}</span>
-                                    <Toggle
-                                        checked={formData.feature_airbags}
-                                        onCheckedChange={(enabled) => setFormData((prev: typeof formData) => ({ ...prev, feature_airbags: enabled }))}
-                                    />
-                                </div>
-                            </div>
+                            <ToggleField
+                                label="Airbags"
+                                checked={formData.feature_airbags}
+                                onCheckedChange={(enabled) => setFormData((prev: typeof formData) => ({ ...prev, feature_airbags: enabled }))}
+                            />
 
                         </div>
                     </FormSection>
@@ -164,11 +158,10 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
                     <FormSection title="Description" icon={<DocumentTextIcon className="w-5 h-5" />}>
                         <div className="grid grid-cols-1">
                             <FormField label="Description" error={errors.description}>
-                                <textarea
+                                <Textarea
                                     name="description"
                                     value={formData.description}
-                                    onChange={handleChange}
-                                    className="block w-full rounded-2xl text-sm py-2.5 px-4 bg-white text-gray-900 border border-gray-200 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 hover:border-gray-300 placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400 resize-vertical"
+                                    onChange={(value) => updateField('description', value)}
                                     placeholder="Enter template description"
                                     rows={4}
                                 />

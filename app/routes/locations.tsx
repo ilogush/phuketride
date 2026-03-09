@@ -8,6 +8,7 @@ export const meta: MetaFunction = () => [
 ];
 import PageHeader from '~/components/shared/ui/PageHeader';
 import Button from '~/components/shared/ui/Button';
+import { Input } from '~/components/shared/ui/Input';
 import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
 import { useState } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
@@ -179,18 +180,14 @@ export default function LocationsPage() {
                     render: (item: District) => {
                         const district = localDistricts.find(d => d.id === item.id) || item;
                         return (
-                            <div className="relative max-w-[120px]">
-                                <input
-                                    type="number"
-                                    value={district.deliveryPrice || 0}
-                                    onChange={(e) => handlePriceChange(item.id, e.target.value)}
-                                    disabled={!district.isActive}
-                                    className="block w-full h-11 rounded-2xl border border-gray-200 sm:text-sm px-4 bg-white text-gray-700 focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 focus:outline-none transition-colors placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed disabled:border-gray-200"
-                                />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">
-                                    ฿
-                                </span>
-                            </div>
+                            <Input
+                                type="number"
+                                value={district.deliveryPrice || 0}
+                                onChange={(e) => handlePriceChange(item.id, e.target.value)}
+                                disabled={!district.isActive}
+                                addonRight="฿"
+                                className="max-w-[120px]"
+                            />
                         );
                     },
                     className: "hidden sm:table-cell",
