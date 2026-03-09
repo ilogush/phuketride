@@ -6,8 +6,8 @@ import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { useState, useEffect } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
-import Button from '~/components/shared/ui/Button';
 import AuthFormField from "~/components/public/AuthFormField";
+import ClientButton from "~/components/public/ClientButton";
 import AuthTextInput from "~/components/public/AuthTextInput";
 import { loginSchema } from "~/schemas/user";
 import { parseWithSchema } from "~/lib/validation.server";
@@ -181,9 +181,8 @@ export default function LoginPage() {
                                     className="pr-14"
                                     placeholder="Password"
                                 />
-                                <Button
+                                <button
                                     type="button"
-                                    variant="plain"
                                     onClick={() => setShowPassword(!showPassword)}
                                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-2"
                                 >
@@ -192,18 +191,17 @@ export default function LoginPage() {
                                     ) : (
                                         <EyeIcon className="w-5 h-5" />
                                     )}
-                                </Button>
+                                </button>
                             </div>
                         </AuthFormField>
 
-                        <Button
+                        <ClientButton
                             type="submit"
-                            variant="solid"
                             fullWidth
                             size="lg"
                         >
                             Sign in
-                        </Button>
+                        </ClientButton>
                     </Form>
 
                     <div className="mt-6 text-center">

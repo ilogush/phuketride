@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import Button from '~/components/shared/ui/Button';
 import ClientButton from "~/components/public/ClientButton";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
@@ -64,7 +63,7 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">{districtTitle}</h2>
                   <div className="flex items-center gap-2">
-                    <Button
+                    <button
                       type="button"
                       disabled={currentPage <= 0}
                       onClick={() =>
@@ -73,11 +72,12 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                           [districtTitle]: Math.max(0, currentPage - 1),
                         }))
                       }
-                      className="w-8 h-8 rounded-full bg-white text-gray-800 hover:bg-gray-800 hover:text-white disabled:opacity-40"
+                      aria-label={`Previous cars in ${districtTitle}`}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-transparent text-slate-900 transition-colors hover:text-slate-600 disabled:text-slate-300"
                     >
-                      <ChevronLeftIcon className="w-4 h-4" />
-                    </Button>
-                    <Button
+                      <ChevronLeftIcon className="pointer-events-none h-5 w-5 shrink-0 stroke-2" />
+                    </button>
+                    <button
                       type="button"
                       disabled={currentPage >= maxPage}
                       onClick={() =>
@@ -86,10 +86,11 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                           [districtTitle]: Math.min(maxPage, currentPage + 1),
                         }))
                       }
-                      className="w-8 h-8 rounded-full bg-white text-gray-800 hover:bg-gray-800 hover:text-white disabled:opacity-40"
+                      aria-label={`Next cars in ${districtTitle}`}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-transparent text-slate-900 transition-colors hover:text-slate-600 disabled:text-slate-300"
                     >
-                      <ChevronRightIcon className="w-4 h-4" />
-                    </Button>
+                      <ChevronRightIcon className="pointer-events-none h-5 w-5 shrink-0 stroke-2" />
+                    </button>
                   </div>
                 </div>
 
@@ -220,7 +221,7 @@ export default function PopularCarsSection({ cars }: PopularCarsSectionProps) {
                           </div>
 
                           <Link to={`/cars/${car.pathSegment}`} className="block sm:hidden mb-3">
-                            <ClientButton type="button" className="w-full text-sm">
+                            <ClientButton type="button" fullWidth className="text-sm">
                               Book now
                             </ClientButton>
                           </Link>

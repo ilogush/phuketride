@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Button from '~/components/shared/ui/Button';
+import ClientButton from "~/components/public/ClientButton";
 import { ChevronDownIcon, StarIcon } from "@heroicons/react/24/solid";
 import type { CarRatingSummary, CarReviewItem } from "~/components/public/car/types";
 
@@ -89,14 +89,15 @@ export default function CarReviewsSection({ rating, reviews }: CarReviewsSection
           ))}
           {hasMoreReviews || canCollapseReviews ? (
             <div className="pt-2">
-              <Button
+              <ClientButton
                 type="button"
                 onClick={() => setVisibleCount(hasMoreReviews ? reviews.length : INITIAL_REVIEWS_COUNT)}
-                className="inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"
+                size="lg"
+                trailingIcon={<ChevronDownIcon className={`w-5 h-5 ${hasMoreReviews ? "" : "rotate-180"}`} />}
+                className="px-5 py-3 text-base font-medium"
               >
                 {hasMoreReviews ? "Show all" : "Hide part of reviews"}
-                <ChevronDownIcon className={`w-5 h-5 ${hasMoreReviews ? "" : "rotate-180"}`} />
-              </Button>
+              </ClientButton>
             </div>
           ) : null}
         </div>

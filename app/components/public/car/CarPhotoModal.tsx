@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import Button from '~/components/shared/ui/Button';
 import {
   HeartIcon,
   ShareIcon,
@@ -88,15 +87,25 @@ export default function CarPhotoModal({
             {title} • 5 <StarIcon className="inline-block w-5 h-5 text-green-600 align-text-bottom" />
           </div>
           <div className="flex items-center gap-2">
-            <Button type="button" className="w-10 h-10 rounded-xl border border-green-600 text-green-600 bg-white">
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-green-600 bg-white text-green-600 transition-colors hover:bg-green-50"
+            >
               <HeartIcon className="w-5 h-5" />
-            </Button>
-            <Button type="button" className="w-9 h-9 rounded-full border border-gray-200 text-gray-800 bg-white">
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-800 transition-colors hover:bg-gray-50"
+            >
               <ShareIcon className="w-5 h-5" />
-            </Button>
-            <Button type="button" onClick={onClose} className="w-9 h-9 rounded-full border border-gray-200 text-gray-800 bg-white">
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-800 transition-colors hover:bg-gray-50"
+            >
               <XMarkIcon className="w-5 h-5" />
-            </Button>
+            </button>
           </div>
         </div>
 

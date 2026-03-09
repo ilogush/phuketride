@@ -1,6 +1,6 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import AuthSelect from "./AuthSelect";
-import Button from '~/components/shared/ui/Button';
+import ClientButton from "~/components/public/ClientButton";
 import { buildCalendar, formatDisplay, monthLabel, timeOptions, weekDays } from "./date-range-picker.utils";
 import type { DateRangeValue } from "./trip-date.model";
 
@@ -163,12 +163,12 @@ export default function DateRangeCalendarOverlay({
         </div>
 
         <div className="flex items-center md:justify-end gap-x-2">
-          <Button type="button" onClick={onCancel} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-800 hover:bg-green-100">
+          <ClientButton type="button" variant="ghost" size="sm" onClick={onCancel} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-800 hover:bg-green-100">
             Cancel
-          </Button>
-          <Button type="button" onClick={onApply} className="rounded-lg border border-transparent bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700">
+          </ClientButton>
+          <ClientButton type="button" size="sm" onClick={onApply} className="rounded-lg px-3 py-2 text-xs font-medium">
             Apply
-          </Button>
+          </ClientButton>
         </div>
       </div>
     </div>

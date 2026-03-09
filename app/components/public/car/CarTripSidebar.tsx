@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import AuthSelect from "~/components/public/AuthSelect";
-import Button from '~/components/shared/ui/Button';
 import DateRangePicker from "~/components/public/DateRangePicker";
 import {
   buildDefaultTripDateRange,
@@ -229,15 +228,19 @@ export default function CarTripSidebar({
 
         <div className="pt-4 border-t border-gray-200">
           <div className="flex items-center gap-3">
-            <Button type="button" onClick={toggleFavorite} className="flex-1 inline-flex items-center justify-center rounded-xl border border-green-600 text-green-600 px-5 py-3 text-base font-medium bg-white hover:bg-green-50 gap-2">
+            <button
+              type="button"
+              onClick={toggleFavorite}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-600 bg-white px-5 py-3 text-base font-medium text-green-600 transition-all duration-200 hover:bg-green-50 hover:text-green-700"
+            >
               {isFavorite ? <HeartSolidIcon className="w-5 h-5" /> : <HeartIcon className="w-5 h-5" />}
               Favorites
-            </Button>
+            </button>
             <a
               href={chatHref}
               target={chatHref.startsWith("http") ? "_blank" : undefined}
               rel={chatHref.startsWith("http") ? "noreferrer" : undefined}
-              className="flex-1 inline-flex items-center justify-center rounded-xl border border-green-600 text-green-600 px-5 py-3 text-base font-medium bg-white hover:bg-green-50 gap-2"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-600 bg-white px-5 py-3 text-base font-medium text-green-600 transition-all duration-200 hover:bg-green-50 hover:text-green-700"
             >
               <ChatBubbleBottomCenterTextIcon className="w-5 h-5" />
               Chat

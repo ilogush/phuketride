@@ -5,8 +5,8 @@ import { useState } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useLatinValidation } from "~/lib/useLatinValidation";
 import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
-import Button from '~/components/shared/ui/Button';
 import AuthFormField from "~/components/public/AuthFormField";
+import ClientButton from "~/components/public/ClientButton";
 import AuthTextInput from "~/components/public/AuthTextInput";
 import { registerUserAccount } from "~/lib/registration.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
@@ -166,7 +166,7 @@ export default function RegisterPage() {
                                     placeholder="Min 6 characters"
                                     className="pr-14"
                                 />
-                                <Button
+                                <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
                                     className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-gray-600"
@@ -176,16 +176,18 @@ export default function RegisterPage() {
                                     ) : (
                                         <EyeIcon className="w-5 h-5" />
                                     )}
-                                </Button>
+                                </button>
                             </div>
                         </AuthFormField>
 
-                        <Button
+                        <ClientButton
                             type="submit"
-                            className="w-full rounded-xl bg-gray-900 px-5 py-3 text-base font-semibold text-white hover:bg-gray-800"
+                            fullWidth
+                            size="lg"
+                            className="bg-gray-900 hover:bg-gray-800"
                         >
                             Create Account
-                        </Button>
+                        </ClientButton>
                     </Form>
 
                     <div className="mt-6 text-center">
