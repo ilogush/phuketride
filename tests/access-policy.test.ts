@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
     requireAdminUserMutationAccess,
+    requireAdminAnalyticsAccess,
     requireLocationsAccess,
     requireScopedDashboardAccess,
     requireSelfProfileAccess,
@@ -70,6 +71,20 @@ test("requireUserDirectoryAccess keeps partner company scope", async () => {
     assert.equal(access.isModMode, false);
 });
 
+test("requireUserDirectoryAccess allows global admin without company scope", async () => {
+    const request = await buildRequest({
+        id: "admin-4",
+        email: "admin@example.com",
+        role: "admin",
+        name: "Admin",
+        surname: null,
+    });
+
+    const access = await requireUserDirectoryAccess(request);
+    assert.equal(access.companyId, null);
+    assert.equal(access.isModMode, false);
+});
+
 test("requireAdminUserMutationAccess keeps admin mod mode scope", async () => {
     const request = await buildRequest(
         {
@@ -86,6 +101,34 @@ test("requireAdminUserMutationAccess keeps admin mod mode scope", async () => {
     assert.equal(access.companyId, 18);
     assert.equal(access.adminModCompanyId, 18);
     assert.equal(access.isModMode, true);
+});
+
+test("requireAdminUserMutationAccess allows global admin without company scope", async () => {
+    const request = await buildRequest({
+        id: "admin-6",
+        email: "admin@example.com",
+        role: "admin",
+        name: "Admin",
+        surname: null,
+    });
+
+    const access = await requireAdminUserMutationAccess(request);
+    assert.equal(access.companyId, null);
+    assert.equal(access.isModMode, false);
+});
+
+test("requireAdminAnalyticsAccess allows global admin without company scope", async () => {
+    const request = await buildRequest({
+        id: "admin-7",
+        email: "admin@example.com",
+        role: "admin",
+        name: "Admin",
+        surname: null,
+    });
+
+    const access = await requireAdminAnalyticsAccess(request);
+    assert.equal(access.companyId, null);
+    assert.equal(access.isModMode, false);
 });
 
 test("requireSelfProfileAccess keeps authenticated user context", async () => {
@@ -118,4 +161,18 @@ test("requireLocationsAccess keeps admin mod mode scope", async () => {
     const access = await requireLocationsAccess(request);
     assert.equal(access.companyId, 21);
     assert.equal(access.isModMode, true);
+});
+
+test("requireLocationsAccess allows global admin without company scope", async () => {
+    const request = await buildRequest({
+        id: "admin-5",
+        email: "admin@example.com",
+        role: "admin",
+        name: "Admin",
+        surname: null,
+    });
+
+    const access = await requireLocationsAccess(request);
+    assert.equal(access.companyId, null);
+    assert.equal(access.isModMode, false);
 });

@@ -26,7 +26,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         details: { route: "users.create" },
         run: async () => {
             const data = await sdb.users.getProfileData("");
-            return data;
+            return { ...data, currentUserRole: user.role };
         },
     });
 }
@@ -68,7 +68,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function CreateUserPage() {
-    const { hotels, locations, districts } = useLoaderData<typeof loader>();
+    const { hotels, locations, districts, currentUserRole } = useLoaderData<typeof loader>();
 
     // Empty user object for create mode
     const emptyUser = {
@@ -104,7 +104,7 @@ export default function CreateUserPage() {
             />
             <ProfileForm
                 user={emptyUser}
-                currentUserRole={user.role}
+                currentUserRole={currentUserRole}
                 hotels={hotels}
                 locations={locations}
                 districts={districts}

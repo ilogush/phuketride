@@ -61,11 +61,11 @@ export default function Button({
     }
 
     const variantClasses = {
-        solid: 'bg-gray-900 text-white hover:bg-gray-800 border border-gray-900',
-        outline: 'bg-white text-gray-900 border border-gray-200 hover:border-gray-900 hover:bg-gray-50',
-        ghost: 'bg-transparent text-gray-600 hover:bg-gray-100/80 hover:text-gray-900',
-        plain: 'p-0 h-auto bg-transparent border-0',
-        danger: 'bg-red-500 text-white hover:bg-red-600 border border-red-500'
+        solid: 'bg-gray-900 text-white border border-gray-900 hover:bg-gray-800',
+        outline: 'bg-gray-200 text-gray-900 border border-gray-200 hover:bg-gray-300',
+        ghost: 'bg-gray-200 text-gray-900 border border-gray-200 hover:bg-gray-300',
+        plain: 'bg-gray-200 text-gray-900 border border-gray-200 hover:bg-gray-300',
+        danger: 'bg-gray-900 text-white border border-gray-900 hover:bg-gray-800'
     }
 
     const buttonClasses = [

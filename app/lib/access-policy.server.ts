@@ -74,15 +74,15 @@ export async function requireScopedDashboardAccess(
 }
 
 export async function requireUserDirectoryAccess(request: Request) {
-    return requireAccess(request, ["admin", "partner"]);
+    return requireAccess(request, ["admin", "partner"], { allowAdminGlobal: true });
 }
 
 export async function requireLocationsAccess(request: Request) {
-    return requireAccess(request, ["admin", "partner"]);
+    return requireAccess(request, ["admin", "partner"], { allowAdminGlobal: true });
 }
 
 export async function requireAdminUserMutationAccess(request: Request) {
-    const access = await requireAccess(request, ["admin"]);
+    const access = await requireAccess(request, ["admin"], { allowAdminGlobal: true });
     return {
         ...access,
         companyId: access.user.companyId ?? null, // Root admin might have no companyId
@@ -90,7 +90,7 @@ export async function requireAdminUserMutationAccess(request: Request) {
 }
 
 export async function requireAdminAnalyticsAccess(request: Request) {
-    const access = await requireAccess(request, ["admin", "partner"]);
+    const access = await requireAccess(request, ["admin", "partner"], { allowAdminGlobal: true });
     return {
         ...access,
         // For partner, always use their actual companyId even if not in mod mode

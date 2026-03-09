@@ -111,7 +111,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         details: { route: "logs" },
         run: async () => {
             const formData = await request.formData();
-            const result = parseWithSchema(clearAuditLogsSchema, formData);
+            const result = parseWithSchema(clearAuditLogsSchema, Object.fromEntries(formData));
             if (!result.ok) {
                 return redirectWithRequestError(request, "/logs", result.error);
             }

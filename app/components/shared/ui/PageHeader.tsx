@@ -74,7 +74,11 @@ export default function PageHeader({
         <div>
             <div className={`flex items-center ${hasRightActions ? 'justify-between' : 'justify-start'} gap-2 sm:gap-4`}>
                 <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-                    {leftActions}
+                    {leftActions && (
+                        <div className="[&>a]:inline-flex [&>a]:items-center [&>a]:justify-center [&>a]:rounded-xl [&>a]:border [&>a]:border-gray-900 [&>a]:bg-gray-900 [&>a]:text-white [&>a]:hover:bg-gray-800 [&>button]:inline-flex [&>button]:items-center [&>button]:justify-center [&>button]:rounded-xl [&>button]:border [&>button]:border-gray-900 [&>button]:bg-gray-900 [&>button]:text-white [&>button]:hover:bg-gray-800 [&_button]:!border-gray-900 [&_button]:!bg-gray-900 [&_button]:!text-white [&_button]:hover:!bg-gray-800">
+                            {leftActions}
+                        </div>
+                    )}
                     {title && (
                         <div className="min-w-0">
                             <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight animate-in fade-in slide-in-from-left-4 duration-500 truncate">
@@ -107,7 +111,7 @@ export default function PageHeader({
                         </div>
                     )}
                     {finalActions && (
-                        <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3 [&_button]:!border-gray-900 [&_button]:!bg-gray-900 [&_button]:!text-white [&_button]:hover:!bg-gray-800">
                             {finalActions}
                         </div>
                     )}

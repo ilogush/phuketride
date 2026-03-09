@@ -16,7 +16,7 @@ export function BackButton({ href, to, useHistory = true }: BackButtonProps) {
             <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className="inline-flex items-center justify-center p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
+                className="inline-flex items-center justify-center h-11 w-11 rounded-xl border border-gray-900 bg-gray-900 text-white transition-all duration-200 hover:bg-gray-800"
             >
                 <ArrowLeftIcon className="w-5 h-5" />
             </button>
@@ -27,7 +27,7 @@ export function BackButton({ href, to, useHistory = true }: BackButtonProps) {
     return (
         <Link
             to={destination}
-            className="inline-flex items-center justify-center p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
+            className="inline-flex items-center justify-center h-11 w-11 rounded-xl border border-gray-900 bg-gray-900 text-white transition-all duration-200 hover:bg-gray-800"
         >
             <ArrowLeftIcon className="w-5 h-5" />
         </Link>
