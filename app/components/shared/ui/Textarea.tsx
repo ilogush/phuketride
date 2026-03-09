@@ -4,14 +4,20 @@ import FormFeedbackMessage from '~/components/shared/FormFeedbackMessage'
 export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange'> {
     label?: string
     error?: string
+    hint?: string
     isEdit?: boolean
     onChange?: (value: string) => void
+    onValueChange?: (value: string) => void
+    fieldClassName?: string
+    containerClassName?: string
 }
 
 export function Textarea({
     label,
     onChange,
+    onValueChange,
     error,
+    hint,
     required = false,
     disabled = false,
     isEdit = true,
@@ -19,6 +25,8 @@ export function Textarea({
     className = '',
     id,
     name,
+    fieldClassName = '',
+    containerClassName = '',
     ...props
 }: TextareaProps) {
     const isFieldDisabled = disabled || !isEdit
@@ -30,6 +38,8 @@ export function Textarea({
 
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         onChange?.(e.target.value)
+        onValueChange?.(e.target.value)
+        props.onInput?.(e)
     }
 
     return (
@@ -45,7 +55,8 @@ export function Textarea({
                 onChange={handleChange}
                 disabled={isFieldDisabled}
                 rows={rows}
-                className={`${textareaBaseStyles} ${error ? 'border-red-200 ring-1 ring-red-500/20 bg-red-50/10' : ''}`}
+                readOnly={props.readOnly}
+                className={`${textareaBaseStyles} ${error ? 'border-red-200 ring-1 ring-red-500/20 bg-red-50/10' : ''} ${props.readOnly ? 'bg-gray-50/20' : ''} ${fieldClassName}`.trim()}
                 onKeyDown={(e) => {
                     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
                         e.stopPropagation()
@@ -54,6 +65,7 @@ export function Textarea({
                 }}
                 {...props}
             />
+            <FormFeedbackMessage message={hint} tone="hint" className={`mt-1 ml-1 text-xs ${containerClassName}`.trim()} />
             {error && (
                 <div className="flex items-center gap-1.5 mt-1.5 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
                     <div className="w-1 h-1 rounded-full bg-red-500" />

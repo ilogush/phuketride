@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import FormFeedbackMessage from "~/components/shared/FormFeedbackMessage";
 import { selectBaseStyles, selectErrorStyles } from "~/lib/styles/input";
 
 export interface SelectOption {
@@ -6,16 +7,22 @@ export interface SelectOption {
     name: string;
     count?: number;
     volume?: number;
+    value?: number | string;
+    label?: string;
+    disabled?: boolean;
 }
 
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
     label?: string;
     error?: string;
+    hint?: string;
     options: SelectOption[];
     placeholder?: string;
     hidePlaceholderOption?: boolean;
     showPlaceholderOption?: boolean;
     isEdit?: boolean;
+    fieldClassName?: string;
+    containerClassName?: string;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
@@ -23,6 +30,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         {
             label,
             error,
+            hint,
             options,
             placeholder,
             hidePlaceholderOption = true,
@@ -33,6 +41,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             name,
             disabled,
             isEdit = true,
+            fieldClassName = "",
+            containerClassName = "",
             ...props
         },
         ref
@@ -58,7 +68,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                     id={id || name}
                     name={name}
                     disabled={isFieldDisabled}
-                    className={baseStyle}
+                    className={`${baseStyle} ${fieldClassName}`.trim()}
                     onKeyDown={(e) => {
                         if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
                             e.stopPropagation()
@@ -71,19 +81,23 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                         <option value="">{placeholder || `Select ${label || "option"}`}</option>
                     )}
                     {options.map((option) => {
-                        const displayName = option.count !== undefined
+                        const optionValue = option.value ?? option.id;
+                        const displayName = option.label ?? (
+                            option.count !== undefined
                             ? option.count.toString()
                             : option.volume !== undefined
                                 ? option.volume.toString()
-                                : option.name;
+                                : option.name
+                        );
 
                         return (
-                            <option key={option.id} value={option.id}>
+                            <option key={String(optionValue)} value={optionValue} disabled={option.disabled}>
                                 {displayName}
                             </option>
                         );
                     })}
                 </select>
+                <FormFeedbackMessage message={hint} tone="hint" className={`mt-1 ml-1 text-xs ${containerClassName}`.trim()} />
                 {error && (
                     <div className="flex items-center gap-1.5 mt-1.5 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
                         <div className="w-1 h-1 rounded-full bg-red-500" />
