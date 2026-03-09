@@ -1,9 +1,10 @@
+import type { D1DatabaseLike } from "~/lib/repo-types.server";
 import { requireAuth } from "~/lib/auth.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { submitClientContractReview } from "~/lib/user-self-service.server";
 
 export async function submitMyContractDetailAction(args: {
-  db: D1Database;
+  db: D1DatabaseLike;
   request: Request;
   contractIdParam: string | undefined;
 }) {
@@ -21,7 +22,7 @@ export async function submitMyContractDetailAction(args: {
     details: { route: "my-contracts.$id" },
     run: async () =>
       submitClientContractReview({
-        db,
+        db: db as unknown as D1Database,
         request,
         contractId,
         user,

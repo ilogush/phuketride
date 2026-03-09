@@ -133,8 +133,8 @@ export default function StatCard({
 
     // Default variant (standard card with optional trend)
     const content = (
-        <div className={`bg-white rounded-[2rem] ring-1 ring-black/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 ${className} hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:ring-black/10 transition-all duration-300 cursor-pointer`}>
-            <div className="flex items-center justify-between">
+        <div className={`bg-white rounded-[2rem] ring-1 ring-black/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 ${className} hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:ring-black/10 transition-all duration-300 cursor-pointer`}>
+            <div className="flex items-start justify-between">
                 <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">{name}</p>
                     <p className="text-3xl font-bold text-gray-900 tracking-tight leading-none">{value}</p>
@@ -159,7 +159,7 @@ export default function StatCard({
                 </div>
 
                 {icon && (
-                    <div className={`${currentColor.bg} rounded-xl p-3 ring-1 ring-white/50`}>
+                    <div className={`${currentColor.bg} rounded-xl p-3 ring-1 ring-white/50 flex items-center justify-center self-start mt-0.5`}>
                         <div className={`h-7 w-7 ${currentColor.icon}`}>
                             {icon}
                         </div>

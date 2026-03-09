@@ -97,7 +97,7 @@ export default function PageHeader({
                                 value={searchValue || ''}
                                 onChange={(e) => onSearchChange(e.target.value)}
                                 placeholder={searchPlaceholder || 'Search assets...'}
-                                className="h-full py-2.5 pl-4 pr-10 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 focus:bg-white bg-gray-50/50 transition-all duration-200 text-sm w-48 lg:w-64 placeholder:text-gray-400 font-medium"
+                                className="h-full py-2.5 pl-4 pr-10 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 focus:bg-white bg-gray-50/50 transition-all duration-200 text-sm w-48 lg:w-64 placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400 font-medium"
                             />
                             <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-gray-900 transition-colors">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

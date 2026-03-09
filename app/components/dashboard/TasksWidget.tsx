@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { Link, Form } from 'react-router'
+import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable'
 import Modal from '~/components/shared/ui/Modal'
 import Button from '~/components/shared/ui/Button'
 import DeleteButton from '~/components/shared/ui/DeleteButton'
-import { TrashIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline'
+import StatusBadge from '~/components/shared/ui/StatusBadge'
+import IdBadge from '~/components/shared/ui/IdBadge'
+import { ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline'
 import AdminCard from '~/components/shared/ui/AdminCard'
 
 interface Task {
@@ -21,18 +24,6 @@ interface Task {
 
 interface TasksWidgetProps {
     tasks: Task[]
-}
-
-const STATUS_STYLES = {
-    pending: 'text-yellow-700 bg-yellow-50 border-yellow-100',
-    in_progress: 'text-blue-700 bg-blue-50 border-blue-100',
-    completed: 'text-green-700 bg-green-50 border-green-100',
-}
-
-const PRIORITY_STYLES = {
-    high: 'text-red-700 bg-red-50 border-red-100',
-    medium: 'text-orange-700 bg-orange-50 border-orange-100',
-    low: 'text-gray-700 bg-gray-50 border-gray-100',
 }
 
 export default function TasksWidget({ tasks }: TasksWidgetProps) {
@@ -56,6 +47,48 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
         return urlMap[entity.type]
     }
 
+    const columns: Column<Task>[] = [
+        {
+            key: 'id',
+            label: 'ID',
+            render: (_, index) => <IdBadge>{String(index + 1).padStart(2, '0')}</IdBadge>,
+        },
+        { key: 'title', label: 'Title' },
+        { key: 'description', label: 'Description', wrap: true, className: 'min-w-[18rem]' },
+        {
+            key: 'status',
+            label: 'Status',
+            render: (task) => (
+                <StatusBadge variant={task.status === 'completed' ? 'success' : task.status === 'in_progress' ? 'info' : 'warning'}>
+                    {task.status.replace('_', ' ')}
+                </StatusBadge>
+            ),
+        },
+        {
+            key: 'priority',
+            label: 'Priority',
+            render: (task) => task.priority ? (
+                <StatusBadge variant={task.priority === 'high' ? 'error' : task.priority === 'medium' ? 'warning' : 'neutral'}>
+                    {task.priority}
+                </StatusBadge>
+            ) : '-',
+        },
+        {
+            key: 'actions',
+            label: 'Actions',
+            render: (task) => (
+                <Button
+                    variant="plain"
+                    size="sm"
+                    onClick={() => setSelectedTask(task)}
+                    className="ring-1 ring-gray-200 hover:ring-gray-300"
+                >
+                    View
+                </Button>
+            ),
+        },
+    ]
+
     return (
         <AdminCard
             title="My Tasks"
@@ -68,72 +101,7 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                 </div>
             }
         >
-            {/* Tasks Table */}
-            <div className="overflow-x-auto -mx-4 -mb-4">
-                <table className="min-w-full divide-y divide-gray-100">
-                    <thead>
-                        <tr className="bg-white">
-                            <th scope="col" className="pl-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none border-b border-gray-100 rounded-tl-2xl">
-                                №
-                            </th>
-                            <th scope="col" className="px-4 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none border-b border-gray-100">
-                                Title
-                            </th>
-                            <th scope="col" className="px-4 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none border-b border-gray-100">
-                                Description
-                            </th>
-                            <th scope="col" className="px-4 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none border-b border-gray-100">
-                                Status
-                            </th>
-                            <th scope="col" className="px-4 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none border-b border-gray-100">
-                                Priority
-                            </th>
-                            <th scope="col" className="pr-6 py-4 text-right text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none border-b border-gray-100 rounded-tr-2xl">
-                                Actions
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {tasks.map((task, index) => (
-                            <tr key={task.id} className="group hover:bg-gray-50 transition-colors">
-                                <td className="pl-6 py-4 text-sm text-gray-900 whitespace-nowrap align-middle">
-                                    <span className="font-mono text-[11px] font-bold bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
-                                        {String(index + 1).padStart(2, '0')}
-                                    </span>
-                                </td>
-                                <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap align-middle">
-                                    <span className="font-bold">{task.title}</span>
-                                </td>
-                                <td className="px-4 py-4 text-[13px] text-gray-500 whitespace-normal align-middle max-w-md leading-relaxed">
-                                    {task.description}
-                                </td>
-                                <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap align-middle">
-                                    <span className={`inline-flex items-center px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-lg border ${STATUS_STYLES[task.status]}`}>
-                                        {task.status.replace('_', ' ')}
-                                    </span>
-                                </td>
-                                <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap align-middle">
-                                    {task.priority && (
-                                        <span className={`inline-flex items-center px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-lg border ${PRIORITY_STYLES[task.priority]}`}>
-                                            {task.priority}
-                                        </span>
-                                    )}
-                                </td>
-                                <td className="pr-6 py-4 text-sm text-gray-900 whitespace-nowrap align-middle text-right">
-                                    <Button
-                                        variant="plain"
-                                        size="sm"
-                                        onClick={() => setSelectedTask(task)}
-                                        className="ring-1 ring-gray-200 hover:ring-gray-300"
-                                    >
-                                        View
-                                    </Button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            <DataTable data={tasks} columns={columns} pagination={false} />
 
             {/* Task Details Modal */}
             {selectedTask && (
@@ -213,9 +181,9 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                                     Status
                                 </label>
                                 <div className="flex items-center gap-2">
-                                    <span className={`inline-flex items-center px-3 py-2 text-sm font-medium tracking-wide rounded-lg border ${STATUS_STYLES[selectedTask.status]}`}>
+                                    <StatusBadge variant={selectedTask.status === 'completed' ? 'success' : selectedTask.status === 'in_progress' ? 'info' : 'warning'}>
                                         {selectedTask.status.replace('_', ' ')}
-                                    </span>
+                                    </StatusBadge>
                                 </div>
                             </div>
 
@@ -225,9 +193,9 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                                         Priority
                                     </label>
                                     <div className="flex items-center gap-2">
-                                        <span className={`inline-flex items-center px-3 py-2 text-sm font-medium tracking-wide rounded-lg border ${PRIORITY_STYLES[selectedTask.priority]}`}>
+                                        <StatusBadge variant={selectedTask.priority === 'high' ? 'error' : selectedTask.priority === 'medium' ? 'warning' : 'neutral'}>
                                             {selectedTask.priority}
-                                        </span>
+                                        </StatusBadge>
                                     </div>
                                 </div>
                             )}

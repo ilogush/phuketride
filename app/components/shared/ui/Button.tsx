@@ -54,18 +54,18 @@ export default function Button({
     const roundedClasses = {
         sm: 'rounded-lg',
         md: 'rounded-xl',
-        lg: 'rounded-2xl',
-        xl: 'rounded-2xl',
+        lg: 'rounded-xl',
+        xl: 'rounded-xl',
         full: 'rounded-full',
         none: ''
     }
 
     const variantClasses = {
-        solid: 'bg-gray-900 text-white shadow-sm hover:bg-gray-800 hover:shadow-md border border-gray-900',
-        outline: 'bg-white text-gray-900 border border-gray-200 shadow-sm hover:border-gray-900 hover:bg-gray-50',
+        solid: 'bg-gray-900 text-white hover:bg-gray-800 border border-gray-900',
+        outline: 'bg-white text-gray-900 border border-gray-200 hover:border-gray-900 hover:bg-gray-50',
         ghost: 'bg-transparent text-gray-600 hover:bg-gray-100/80 hover:text-gray-900',
         plain: 'p-0 h-auto bg-transparent border-0',
-        danger: 'bg-red-500 text-white shadow-sm hover:bg-red-600 hover:shadow-md border border-red-500' // Added for delete buttons, etc.
+        danger: 'bg-red-500 text-white hover:bg-red-600 border border-red-500'
     }
 
     const buttonClasses = [

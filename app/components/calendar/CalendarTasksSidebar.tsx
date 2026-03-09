@@ -1,12 +1,12 @@
 import { Link } from "react-router";
-import Button from "../dashboard/Button";
-import AdminCard from "../dashboard/AdminCard";
+import Button from "../shared/ui/Button";
+import AdminCard from "../shared/ui/AdminCard";
 import { PlusIcon, CalendarIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import { Form } from "react-router";
-import { Input } from "../dashboard/Input";
-import { Select } from "../dashboard/Select";
-import { Textarea } from "../dashboard/Textarea";
+import { Input } from "../shared/ui/Input";
+import { Select } from "../shared/ui/Select";
+import { Textarea } from "../shared/ui/Textarea";
 import { useDateMasking } from "~/lib/useDateMasking";
 
 interface TaskItem {

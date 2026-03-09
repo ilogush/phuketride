@@ -1,6 +1,6 @@
 import { getRequestMetadata } from "~/lib/audit-logger";
 import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
-import { useLoaderData, Form } from "react-router";
+import { useLoaderData, Form, Link } from "react-router";
 import {
     BuildingOfficeIcon,
     UserGroupIcon,
@@ -13,7 +13,9 @@ import {
 } from "@heroicons/react/24/outline";
 import type { ComponentType, SVGProps } from "react";
 import StatCard from '~/components/shared/ui/StatCard';
-import TasksWidget from "~/components/dashboard/TasksWidget";
+import DataTable, { type Column } from "~/components/dashboard/data-table/DataTable";
+import IdBadge from "~/components/shared/ui/IdBadge";
+import StatusBadge from "~/components/shared/ui/StatusBadge";
 import { useUrlToast } from "~/lib/useUrlToast";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { parseWithSchema } from "~/lib/validation.server";
@@ -88,6 +90,36 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function Index() {
     const { statCards, tasks } = useLoaderData<typeof loader>();
+    const taskColumns: Column<(typeof tasks)[number]>[] = [
+        {
+            key: "id",
+            label: "ID",
+            render: (task) => {
+                return (
+                    <Link to={`/calendar/edit/${task.id}`}>
+                        <IdBadge>{String(task.id)}</IdBadge>
+                    </Link>
+                );
+            },
+        },
+        { key: "title", label: "Title" },
+        {
+            key: "description",
+            label: "Description",
+            wrap: true,
+            className: "min-w-[18rem]",
+        },
+        {
+            key: "status",
+            label: "Status",
+            render: (task) => <StatusBadge variant={task.status === "completed" ? "success" : task.status === "in_progress" ? "info" : "warning"}>{task.status.replace("_", " ")}</StatusBadge>,
+        },
+        {
+            key: "priority",
+            label: "Priority",
+            render: (task) => task.priority ? <StatusBadge variant={task.priority === "high" ? "error" : task.priority === "medium" ? "warning" : "neutral"}>{task.priority}</StatusBadge> : "-",
+        },
+    ];
 
     return (
         <div className="space-y-4">
@@ -114,10 +146,15 @@ export default function Index() {
                 )}
             </div>
 
-            {/* Tasks Widget */}
             {tasks && tasks.length > 0 && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    <TasksWidget tasks={tasks} />
+                    <DataTable
+                        data={tasks}
+                        columns={taskColumns}
+                        pagination={false}
+                        emptyTitle="No tasks"
+                        emptyDescription="No active tasks found"
+                    />
                 </div>
             )}
         </div>

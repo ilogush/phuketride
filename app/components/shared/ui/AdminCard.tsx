@@ -20,10 +20,10 @@ export default function AdminCard({
     contentClassName = "space-y-4",
 }: AdminCardProps) {
     return (
-        <BasePanel className={`shadow-sm p-6 ${className}`}>
-            <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2.5">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-gray-50 text-gray-400 group-hover:text-gray-900 transition-colors">
+        <BasePanel className={`p-4 ${className}`}>
+            <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start gap-2.5">
+                    <div className="flex items-start justify-center w-8 h-8 rounded-xl bg-gray-50 text-gray-400 group-hover:text-gray-900 transition-colors pt-1">
                         {icon || <WrenchScrewdriverIcon className="w-5 h-5" />}
                     </div>
                     <div>

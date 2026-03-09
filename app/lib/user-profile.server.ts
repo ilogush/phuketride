@@ -294,8 +294,8 @@ async function auditUserMutation(args: {
         entityType: "user",
         entityId: args.entityId,
         action: args.action,
-        beforeState: args.beforeState,
-        afterState: args.afterState,
+        beforeState: (args.beforeState ?? undefined) as Record<string, unknown> | null | undefined,
+        afterState: (args.afterState ?? undefined) as Record<string, unknown> | null | undefined,
         ...getRequestMetadata(args.request),
     });
 }

@@ -258,22 +258,6 @@ export async function loadDashboardHomeData(params: {
 
         tasks = mapCalendarTasks(metrics.tasks);
 
-        const isCompanyIncomplete = metrics.company && (
-            !metrics.company.bankName ||
-            !metrics.company.accountNumber ||
-            !metrics.company.accountName
-        );
-
-        if (isCompanyIncomplete) {
-            tasks.unshift({
-                id: "company-setup",
-                title: "Complete Company Profile",
-                description: "Please fill in your company bank details in settings to start receiving payments",
-                status: "pending",
-                priority: "high",
-            });
-        }
-
         return { statCards, tasks };
     }
 

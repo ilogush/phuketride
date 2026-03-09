@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { DocumentPhoto } from "~/components/dashboard/DocumentPreview";
 import { getInitials, parseJSON } from "~/lib/formatters";
 import { useLatinValidation } from "~/lib/useLatinValidation";
-import type { ProfileFormProps } from "./profile-form.types";
+import type { ProfileFormProps } from "~/components/dashboard/profile-form.types";
 
 export function useProfileFormState({ user, onPhotoChange }: Pick<ProfileFormProps, "user" | "onPhotoChange">) {
   const [avatarBase64, setAvatarBase64] = useState<string | null>(null);

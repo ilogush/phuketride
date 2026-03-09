@@ -1,10 +1,12 @@
 import { Form } from "react-router";
+import DataTable, { type Column } from "~/components/dashboard/data-table/DataTable";
 import Modal from '~/components/shared/ui/Modal';
 import Toggle from '~/components/shared/ui/Toggle';
 import Button from '~/components/shared/ui/Button';
 import { Input } from '~/components/shared/ui/Input';
 import { isPhuketName, type Currency } from "~/lib/settings-normalizers";
 import AdminCard from '~/components/shared/ui/AdminCard';
+import IdBadge from "~/components/shared/ui/IdBadge";
 import { CurrencyDollarIcon } from "@heroicons/react/24/outline";
 
 interface CurrenciesTabProps {
@@ -29,70 +31,69 @@ export default function CurrenciesTab({
   onCurrencyCreated,
 }: CurrenciesTabProps) {
   const isPhuketCompany = isPhuketName(companyLocationName);
+  const columns: Column<Currency>[] = [
+    {
+      key: "id",
+      label: "ID",
+      render: (currency) => <IdBadge>{String(currency.id).padStart(3, "0")}</IdBadge>,
+    },
+    {
+      key: "name",
+      label: "Currency",
+      render: (currency) => {
+        const isThbCurrency = String(currency.code || "").toUpperCase() === "THB";
+        const currencyCodeLabel = isThbCurrency ? "฿" : currency.code;
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium text-gray-900">{currency.name}</span>
+            <span className="text-xs text-gray-500 uppercase">{currencyCodeLabel} ({currency.symbol})</span>
+          </div>
+        );
+      },
+      className: "w-full",
+    },
+    {
+      key: "default",
+      label: "Default",
+      render: (currency) => {
+        const isThbCurrency = String(currency.code || "").toUpperCase() === "THB";
+        const lockThbForPhuket = isPhuketCompany && isThbCurrency;
+        return (
+          <div className="flex justify-center">
+            <Toggle
+              size="sm"
+              checked={lockThbForPhuket ? true : currency.companyId === companyId}
+              disabled={lockThbForPhuket}
+              onCheckedChange={() => onToggleCurrency(currency.id, "isDefault")}
+            />
+          </div>
+        );
+      },
+    },
+    {
+      key: "active",
+      label: "Active",
+      render: (currency) => {
+        const isThbCurrency = String(currency.code || "").toUpperCase() === "THB";
+        const lockThbForPhuket = isPhuketCompany && isThbCurrency;
+        return (
+          <div className="flex justify-center">
+            <Toggle
+              size="sm"
+              checked={lockThbForPhuket ? true : Boolean(currency.isActive)}
+              disabled={lockThbForPhuket}
+              onCheckedChange={() => onToggleCurrency(currency.id, "isActive")}
+            />
+          </div>
+        );
+      },
+    },
+  ];
 
   return (
     <div className="flex flex-col lg:flex-row gap-4">
       <div className="flex-1 overflow-hidden">
-        <div className="border border-gray-200 rounded-3xl overflow-hidden bg-white">
-          <div className="overflow-x-auto sm:mx-0">
-            <table className="min-w-full divide-y divide-gray-100 bg-transparent">
-              <thead>
-                <tr className="bg-gray-50/50">
-                  <th scope="col" className="pl-6 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
-                    <span>ID</span>
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-400 tracking-tight">
-                    <span>Currency</span>
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
-                    <span>Default</span>
-                  </th>
-                  <th scope="col" className="pr-6 py-3 text-center text-sm font-semibold text-gray-400 tracking-tight">
-                    <span>Active</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {currencies.map((currency) => {
-                  const isThbCurrency = String(currency.code || "").toUpperCase() === "THB";
-                  const lockThbForPhuket = isPhuketCompany && isThbCurrency;
-                  const currencyCodeLabel = isThbCurrency ? "฿" : currency.code;
-                  return (
-                    <tr key={currency.id} className="group hover:bg-white transition-all">
-                      <td className="pl-6 py-3 text-sm text-gray-900 whitespace-nowrap">
-                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-bold font-mono bg-gray-800 text-white min-w-[2.25rem] h-5 leading-none">
-                          {String(currency.id).padStart(3, "0")}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-gray-900">{currency.name}</span>
-                          <span className="text-xs text-gray-500 uppercase">{currencyCodeLabel} ({currency.symbol})</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
-                        <Toggle
-                          size="sm"
-                          checked={lockThbForPhuket ? true : currency.companyId === companyId}
-                          disabled={lockThbForPhuket}
-                          onCheckedChange={() => onToggleCurrency(currency.id, "isDefault")}
-                        />
-                      </td>
-                      <td className="pr-6 py-3 text-sm text-gray-900 whitespace-nowrap text-center">
-                        <Toggle
-                          size="sm"
-                          checked={lockThbForPhuket ? true : Boolean(currency.isActive)}
-                          disabled={lockThbForPhuket}
-                          onCheckedChange={() => onToggleCurrency(currency.id, "isActive")}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable data={currencies} columns={columns} pagination={false} />
       </div>
 
       <div className="w-full lg:w-80 shrink-0">
@@ -134,7 +135,7 @@ export default function CurrenciesTab({
               <Button 
                 type="submit" 
                 variant="solid" 
-                className="w-full justify-center py-2.5 rounded-xl shadow-sm"
+                className="w-full justify-center py-2.5"
               >
                 Create Currency
               </Button>

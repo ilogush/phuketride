@@ -58,14 +58,14 @@ export default function Tabs({ tabs, activeTab, onTabChange, className = '', var
 
     return (
         <div 
-            className={`flex items-center gap-1 bg-gray-100/80 p-1.5 rounded-2xl w-fit ${className}`}
+            className={`flex items-center gap-1 bg-gray-100/80 p-1.5 rounded-full w-fit ${className}`}
             role="tablist"
             aria-label={ariaLabel || "Navigation tabs"}
         >
             {tabs.map((tab, index) => {
                 const isActive = activeTab === tab.id
-                const tabBaseClass = `h-9 px-5 text-[11px] font-bold uppercase tracking-widest rounded-xl transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap select-none`
-                const activeStateClass = `bg-white text-gray-900 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-black/5`
+                const tabBaseClass = `h-9 px-4 text-[11px] font-bold uppercase tracking-widest rounded-full transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap select-none`
+                const activeStateClass = `bg-white text-gray-900 ring-1 ring-black/5`
                 const inactiveStateClass = `text-gray-400 hover:text-gray-600 hover:bg-gray-200/50`
                 
                 const combinedClass = [

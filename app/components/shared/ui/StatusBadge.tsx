@@ -26,7 +26,7 @@ export default function StatusBadge({ children, variant = 'neutral', className =
     const hasIndicator = ['success', 'active', 'confirmed', 'converted'].includes(variant)
 
     return (
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all duration-200 select-none ${variantClasses[variant]} ${className}`}>
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all duration-200 select-none ${variantClasses[variant]} ${className}`}>
             {hasIndicator && (
               <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse" />
             )}

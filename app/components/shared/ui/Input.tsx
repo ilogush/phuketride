@@ -80,7 +80,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
     // Inner input classes
     const innerInputClasses = `
         block w-full border-0 focus:ring-0 bg-transparent text-sm py-2.5 h-full 
-        placeholder:text-gray-400 focus:outline-none transition-all duration-200
+        placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400 focus:outline-none transition-all duration-200
         ${addonLeft ? 'pl-2' : 'pl-4'}
         ${(isPassword || addonRight) ? 'pr-2' : 'pr-4'}
         ${isFieldDisabled ? 'cursor-not-allowed text-gray-400' : 'text-gray-900'}

@@ -9,6 +9,7 @@ import Modal from '~/components/shared/ui/Modal';
 import Button from '~/components/shared/ui/Button';
 import { CalendarIcon } from "@heroicons/react/24/outline";
 import { useDateMasking } from "~/lib/useDateMasking";
+import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import { createCalendarEventFromForm } from "~/lib/calendar-page.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 import { trackServerOperation } from "~/lib/telemetry.server";

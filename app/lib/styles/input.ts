@@ -6,10 +6,10 @@ const stateModifiers = 'disabled:text-gray-400 disabled:cursor-not-allowed disab
 
 const commonBase = `block w-full h-11 rounded-2xl text-sm py-2.5 px-4 bg-white text-gray-900 border border-gray-200 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 hover:border-gray-300 ${autofillStyles} ${stateModifiers}`
 
-export const inputBaseStyles = `${commonBase} placeholder:text-gray-400`
-export const inputErrorStyles = `block w-full h-11 rounded-2xl text-sm py-2.5 px-4 bg-red-50/10 text-gray-900 border border-red-200 ring-1 ring-red-500/20 focus:outline-none transition-all duration-200 ${autofillStyles} ${stateModifiers}`
+export const inputBaseStyles = `${commonBase} placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400`
+export const inputErrorStyles = `block w-full h-11 rounded-2xl text-sm py-2.5 px-4 bg-red-50/10 text-gray-900 border border-red-200 ring-1 ring-red-500/20 focus:outline-none transition-all duration-200 placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400 ${autofillStyles} ${stateModifiers}`
 
 export const selectBaseStyles = commonBase
 export const selectErrorStyles = `block w-full h-11 rounded-2xl text-sm py-2.5 px-4 bg-red-50/10 text-gray-900 border border-red-200 ring-1 ring-red-500/20 focus:outline-none transition-all duration-200 ${autofillStyles} ${stateModifiers}`
 
-export const textareaBaseStyles = `block w-full rounded-2xl text-sm py-2.5 px-4 bg-white text-gray-900 border border-gray-200 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 hover:border-gray-300 placeholder:text-gray-400 resize-vertical ${autofillStyles} ${stateModifiers}`
+export const textareaBaseStyles = `block w-full rounded-2xl text-sm py-2.5 px-4 bg-white text-gray-900 border border-gray-200 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 hover:border-gray-300 placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400 resize-vertical ${autofillStyles} ${stateModifiers}`

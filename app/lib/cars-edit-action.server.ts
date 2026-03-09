@@ -139,7 +139,7 @@ export async function handleEditCarAction({ db, assets, request, user, params, f
     feature_abs: checkboxToInt(formData.get("feature_abs")),
   };
 
-  if (!validData.year) {
+  if (!rawData.year) {
     return redirect(withModCompany(`/cars/${carId}/edit?error=${encodeURIComponent("Year is required")}`));
   }
   if (!validData.insuranceType || !String(validData.insuranceType).trim()) {
@@ -199,7 +199,7 @@ export async function handleEditCarAction({ db, assets, request, user, params, f
       `)
       .bind(
         validData.templateId,
-        validData.year ?? null,
+        rawData.year ?? null,
         validData.colorId,
         validData.licensePlate,
         validData.transmission,

@@ -153,7 +153,7 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
                                     <span className="text-sm text-gray-900">{formData.feature_airbags ? "Enabled" : "Disabled"}</span>
                                     <Toggle
                                         checked={formData.feature_airbags}
-                                        onCheckedChange={(enabled) => setFormData(prev => ({ ...prev, feature_airbags: enabled }))}
+                                        onCheckedChange={(enabled) => setFormData((prev: typeof formData) => ({ ...prev, feature_airbags: enabled }))}
                                     />
                                 </div>
                             </div>
@@ -182,7 +182,7 @@ export function CarTemplateForm({ template, brands, models, bodyTypes, fuelTypes
                         <p className="text-xs text-gray-500 mb-3">Car Photos</p>
                         <CarPhotosUpload
                             currentPhotos={formData.photos.map(p => p.base64)}
-                            onPhotosChange={handlePhotosChange}
+                            onPhotosChange={(p: Array<{ base64: string; fileName: string }>) => handlePhotosChange(p)}
                             maxPhotos={12}
                         />
                     </AdminCard>

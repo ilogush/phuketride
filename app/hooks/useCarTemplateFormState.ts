@@ -6,7 +6,7 @@ import type {
   CarTemplate,
   CarTemplateFormData,
   FuelType,
-} from "./car-template-form.types";
+} from "~/components/dashboard/car-template-form/car-template-form.types";
 
 interface UseCarTemplateFormStateOptions {
   template?: CarTemplate | null;
@@ -108,13 +108,13 @@ export function useCarTemplateFormState({
       return;
     }
 
-    setFormData((current) => ({ ...current, brand_id: String(brands[0].id) }));
+    setFormData((current: CarTemplateFormData) => ({ ...current, brand_id: String(brands[0].id) }));
   }, [brands, formData.brand_id, template]);
 
   useEffect(() => {
     if (!formData.brand_id) {
       if (formData.model_id) {
-        setFormData((current) => ({ ...current, model_id: "" }));
+        setFormData((current: CarTemplateFormData) => ({ ...current, model_id: "" }));
       }
       return;
     }
@@ -123,14 +123,14 @@ export function useCarTemplateFormState({
       const templateModelId = Number(template.model_id);
       const hasTemplateModel = filteredModels.some((model) => Number(model.id) === templateModelId);
       if (hasTemplateModel && Number(formData.model_id || 0) !== templateModelId) {
-        setFormData((current) => ({ ...current, model_id: String(templateModelId) }));
+        setFormData((current: CarTemplateFormData) => ({ ...current, model_id: String(templateModelId) }));
       }
       return;
     }
 
     const hasSelectedModel = filteredModels.some((model) => Number(model.id) === Number(formData.model_id));
     if (!hasSelectedModel) {
-      setFormData((current) => ({
+      setFormData((current: CarTemplateFormData) => ({
         ...current,
         model_id: filteredModels.length > 0 ? String(filteredModels[0].id) : "",
       }));
@@ -141,20 +141,20 @@ export function useCarTemplateFormState({
     if (!template?.body_type_id) {
       const hasBodyType = bodyTypes.some((item) => String(item.id) === formData.body_type_id);
       if ((!formData.body_type_id || !hasBodyType) && bodyTypes.length > 0) {
-        setFormData((current) => ({ ...current, body_type_id: String(bodyTypes[0].id) }));
+        setFormData((current: CarTemplateFormData) => ({ ...current, body_type_id: String(bodyTypes[0].id) }));
       }
     }
 
     if (!template?.fuel_type_id) {
       const hasFuelType = fuelTypes.some((item) => String(item.id) === formData.fuel_type_id);
       if ((!formData.fuel_type_id || !hasFuelType) && fuelTypes.length > 0) {
-        setFormData((current) => ({ ...current, fuel_type_id: String(fuelTypes[0].id) }));
+        setFormData((current: CarTemplateFormData) => ({ ...current, fuel_type_id: String(fuelTypes[0].id) }));
       }
     }
   }, [bodyTypes, formData.body_type_id, formData.fuel_type_id, fuelTypes, template]);
 
   const updateField = (name: keyof CarTemplateFormData, value: CarTemplateFormData[keyof CarTemplateFormData]) => {
-    setFormData((current) => ({ ...current, [name]: value }));
+    setFormData((current: CarTemplateFormData) => ({ ...current, [name]: value }));
   };
 
   return {

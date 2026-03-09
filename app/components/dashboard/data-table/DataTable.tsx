@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { DataTableProps } from "./data-table-types";
 import EmptyState from '~/components/shared/ui/EmptyState'
 import Loader from '~/components/shared/ui/Loader'
@@ -8,6 +9,18 @@ import { useDataTableControls } from '~/hooks/useDataTableControls';
 import { useDataTableData } from '~/hooks/useDataTableData';
 
 export type { Column, Tab } from "./data-table-types";
+
+function formatHeaderLabel(label: ReactNode) {
+    if (typeof label !== "string") {
+        return label
+    }
+
+    if (label.length === 0) {
+        return label
+    }
+
+    return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase()
+}
 
 export default function DataTable<T>({
     columns,
@@ -73,7 +86,7 @@ export default function DataTable<T>({
                 />
             )}
 
-            <div className="border border-gray-100 rounded-[2rem] overflow-hidden bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-black/5">
+            <div className="border border-gray-100 rounded-xl overflow-hidden bg-white ring-1 ring-black/5">
                 <div className="overflow-x-auto sm:mx-0">
                     <table className="min-w-full divide-y divide-gray-100 bg-transparent" aria-label={ariaLabel}>
                         {caption && <caption className="sr-only">{caption}</caption>}
@@ -91,7 +104,7 @@ export default function DataTable<T>({
                                             key={col.key}
                                             scope="col"
                                             aria-sort={ariaSort}
-                                            className={`${idx === 0 ? 'pl-8' : 'px-6'} py-4 text-left text-[11px] font-bold text-gray-400 tracking-widest uppercase ${idx > 2 ? 'hidden sm:table-cell' : ''} ${col.className || ''}`}
+                                            className={`${idx === 0 ? 'px-4' : 'px-4'} py-4 text-left text-xs font-bold text-gray-400 tracking-wide ${idx > 2 ? 'hidden sm:table-cell' : ''} ${col.className || ''}`}
                                         >
                                             {col.sortable ? (
                                                 <button
@@ -99,7 +112,7 @@ export default function DataTable<T>({
                                                     className="cursor-pointer select-none inline-flex items-center gap-1 group/sort"
                                                     onClick={() => handleSortChange(col.key)}
                                                 >
-                                                    {col.label}
+                                                    {formatHeaderLabel(col.label)}
                                                     <span className={`transition-opacity duration-200 ${isSorted ? 'opacity-100' : 'opacity-0 group-hover/sort:opacity-100'}`} aria-hidden>
                                                         {isSorted 
                                                           ? (sortOrder === 'asc' ? '▲' : '▼') 
@@ -107,7 +120,7 @@ export default function DataTable<T>({
                                                     </span>
                                                 </button>
                                             ) : (
-                                                <span>{col.label}</span>
+                                                <span>{formatHeaderLabel(col.label)}</span>
                                             )}
                                         </th>
                                     );
@@ -117,7 +130,7 @@ export default function DataTable<T>({
                         <tbody className="divide-y divide-gray-50">
                             {isLoading && filteredData.length === 0 ? (
                                 <tr>
-                                    <td colSpan={currentColumns.length} className="px-6 py-12 text-center text-sm text-gray-500">
+                                    <td colSpan={currentColumns.length} className="px-4 py-12 text-center text-sm text-gray-500">
                                         <div className="flex justify-center items-center">
                                             <Loader />
                                         </div>
@@ -125,7 +138,7 @@ export default function DataTable<T>({
                                 </tr>
                             ) : error ? (
                                 <tr>
-                                    <td colSpan={currentColumns.length} className="px-6 py-12 text-center text-sm text-gray-600">
+                                    <td colSpan={currentColumns.length} className="px-4 py-12 text-center text-sm text-gray-600">
                                         <div className="flex flex-col items-center justify-center space-y-2">
                                             <span className="font-bold text-red-500 uppercase tracking-tight">Load Error</span>
                                             <span className="text-gray-500">{error?.message}</span>
@@ -134,7 +147,7 @@ export default function DataTable<T>({
                                 </tr>
                             ) : currentData.length === 0 ? (
                                 <tr>
-                                    <td colSpan={currentColumns.length} className="px-6 py-12 text-center text-sm text-gray-500">
+                                    <td colSpan={currentColumns.length} className="px-4 py-12 text-center text-sm text-gray-500">
                                         <EmptyState
                                             title={emptyTitle || 'No data found'}
                                             description={emptyDescription}
@@ -160,7 +173,7 @@ export default function DataTable<T>({
                                             return (
                                                 <td
                                                     key={col.key}
-                                                    className={`${cIdx === 0 ? 'pl-8' : 'px-6'} py-4 text-sm font-medium text-gray-700 ${col.wrap ? 'whitespace-normal align-middle' : 'whitespace-nowrap align-middle'} ${cIdx > 2 ? 'hidden sm:table-cell' : ''} ${col.className || ''}`}
+                                                    className={`${cIdx === 0 ? 'px-4' : 'px-4'} py-4 text-sm font-medium text-gray-700 ${col.wrap ? 'whitespace-normal align-middle' : 'whitespace-nowrap align-middle'} ${cIdx > 2 ? 'hidden sm:table-cell' : ''} ${col.className || ''}`}
                                                 >
                                                     {toReactNode(formattedValue)}
                                                 </td>
