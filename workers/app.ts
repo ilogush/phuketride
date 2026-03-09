@@ -1,4 +1,5 @@
 import { createRequestHandler } from "react-router";
+import { isSameOriginMutation } from "~/lib/request-security.server";
 import { setRuntimeEnv } from "~/lib/runtime-env.server";
 
 declare global {
@@ -70,6 +71,9 @@ function applyRuntimeHeaders(request: Request, response: Response): Response {
 export default {
   async fetch(request, env, ctx) {
     setRuntimeEnv(env, import.meta.env.MODE);
+    if (!isSameOriginMutation(request)) {
+      return applyRuntimeHeaders(request, new Response("Forbidden", { status: 403 }));
+    }
     const response = await requestHandler(request, {
       cloudflare: { env, ctx },
     });

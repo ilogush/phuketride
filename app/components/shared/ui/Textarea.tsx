@@ -39,7 +39,6 @@ export function Textarea({
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         onChange?.(e.target.value)
         onValueChange?.(e.target.value)
-        props.onInput?.(e)
     }
 
     return (

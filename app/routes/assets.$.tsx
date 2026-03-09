@@ -1,4 +1,6 @@
 import { type LoaderFunctionArgs } from "react-router";
+import { getUserFromSession } from "~/lib/auth.server";
+import { isPrivateAssetPath } from "~/lib/request-security.server";
 
 /**
  * Asset delivery route for R2 storage
@@ -46,6 +48,13 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     }
 
     try {
+        if (isPrivateAssetPath(path)) {
+            const user = await getUserFromSession(request);
+            if (!user) {
+                return new Response("Forbidden", { status: 403 });
+            }
+        }
+
         const object = await context.cloudflare.env.ASSETS.get(path);
         
         if (!object) {
@@ -66,9 +75,10 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         // Security headers
         headers.set("x-content-type-options", "nosniff");
         
-        // CORS headers for public assets
-        headers.set("access-control-allow-origin", "*");
-        headers.set("access-control-allow-methods", "GET, HEAD, OPTIONS");
+        if (!isPrivateAssetPath(path)) {
+            headers.set("access-control-allow-origin", "*");
+            headers.set("access-control-allow-methods", "GET, HEAD, OPTIONS");
+        }
         
         // Handle conditional requests
         const ifNoneMatch = request.headers.get("if-none-match");

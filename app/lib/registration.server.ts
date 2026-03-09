@@ -22,6 +22,12 @@ async function emailExists(db: D1Database, email: string) {
     return (existing.results?.length ?? 0) > 0;
 }
 
+function isUniqueConstraintError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    const message = error.message.toLowerCase();
+    return message.includes("unique") || message.includes("constraint");
+}
+
 export async function loadActivePhuketDistricts(db: D1Database): Promise<ActiveDistrictRow[]> {
     const result = await db
         .prepare(
@@ -43,23 +49,30 @@ export async function registerUserAccount(args: {
 }): Promise<RegistrationResult> {
     const { email, password, firstName, lastName, phone } = args.input;
     if (await emailExists(args.db, email)) {
-        return { ok: false, error: "Email already registered" };
+        return { ok: false, error: "Unable to create account" };
     }
 
     const id = crypto.randomUUID();
     const passwordHash = await hashPassword(password);
     const now = Date.now();
 
-    await args.db
-        .prepare(
-            `
-            INSERT INTO users (
-                id, email, role, name, surname, phone, password_hash, created_at, updated_at
-            ) VALUES (?, ?, 'user', ?, ?, ?, ?, ?, ?)
-            `
-        )
-        .bind(id, email, firstName, lastName, phone, passwordHash, now, now)
-        .run();
+    try {
+        await args.db
+            .prepare(
+                `
+                INSERT INTO users (
+                    id, email, role, name, surname, phone, password_hash, created_at, updated_at
+                ) VALUES (?, ?, 'user', ?, ?, ?, ?, ?, ?)
+                `
+            )
+            .bind(id, email, firstName, lastName, phone, passwordHash, now, now)
+            .run();
+    } catch (error) {
+        if (isUniqueConstraintError(error)) {
+            return { ok: false, error: "Unable to create account" };
+        }
+        throw error;
+    }
 
     return {
         ok: true,
@@ -80,27 +93,34 @@ export async function registerPartnerAccount(args: {
     const { email, password, name, surname, phone, telegram, companyName, districtId, street, houseNumber } =
         args.input;
     if (await emailExists(args.db, email)) {
-        return { ok: false, error: "Email already registered" };
+        return { ok: false, error: "Unable to create account" };
     }
 
     const userId = crypto.randomUUID();
     const passwordHash = await hashPassword(password);
     const now = Date.now();
 
-    await args.db.batch([
-        args.db
-            .prepare(
-                `INSERT INTO users (id, email, role, name, surname, phone, telegram, password_hash, is_first_login, created_at, updated_at)
-                 VALUES (?, ?, 'partner', ?, ?, ?, ?, ?, 1, ?, ?)`
-            )
-            .bind(userId, email, name, surname, phone, telegram || null, passwordHash, now, now),
-        args.db
-            .prepare(
-                `INSERT INTO companies (name, owner_id, email, phone, telegram, location_id, district_id, street, house_number, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`
-            )
-            .bind(companyName, userId, email, phone, telegram || null, districtId, street, houseNumber, now, now),
-    ]);
+    try {
+        await args.db.batch([
+            args.db
+                .prepare(
+                    `INSERT INTO users (id, email, role, name, surname, phone, telegram, password_hash, is_first_login, created_at, updated_at)
+                     VALUES (?, ?, 'partner', ?, ?, ?, ?, ?, 1, ?, ?)`
+                )
+                .bind(userId, email, name, surname, phone, telegram || null, passwordHash, now, now),
+            args.db
+                .prepare(
+                    `INSERT INTO companies (name, owner_id, email, phone, telegram, location_id, district_id, street, house_number, created_at, updated_at)
+                     VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`
+                )
+                .bind(companyName, userId, email, phone, telegram || null, districtId, street, houseNumber, now, now),
+        ]);
+    } catch (error) {
+        if (isUniqueConstraintError(error)) {
+            return { ok: false, error: "Unable to create account" };
+        }
+        throw error;
+    }
 
     const company = (await args.db
         .prepare("SELECT id FROM companies WHERE owner_id = ? LIMIT 1")

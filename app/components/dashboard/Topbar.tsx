@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router";
+import { Form, Link } from "react-router";
 import {
     ArrowRightOnRectangleIcon,
     Bars3Icon,
@@ -120,14 +120,16 @@ export default function Topbar({ user, onToggleSidebar, isSidebarOpen, notificat
 
                                 <div className="h-px bg-gray-50 my-1 mx-4" />
 
-                                <Link
-                                    to="/logout"
-                                    className="flex items-center gap-3 px-5 py-3.5 text-[13px] font-bold text-red-600 hover:bg-red-50 transition-colors mx-2 rounded-2xl w-auto"
-                                    onClick={() => setShowProfileMenu(false)}
-                                >
-                                    <ArrowRightOnRectangleIcon className="w-5 h-5 text-red-500" />
-                                    <span>Logout</span>
-                                </Link>
+                                <Form method="post" action="/logout" className="mx-2">
+                                    <button
+                                        type="submit"
+                                        className="flex w-full items-center gap-3 px-5 py-3.5 text-[13px] font-bold text-red-600 hover:bg-red-50 transition-colors rounded-2xl"
+                                        onClick={() => setShowProfileMenu(false)}
+                                    >
+                                        <ArrowRightOnRectangleIcon className="w-5 h-5 text-red-500" />
+                                        <span>Logout</span>
+                                    </button>
+                                </Form>
                             </div>
                         )}
                     </div>

@@ -1,34 +1,15 @@
-import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
-import { Link } from "react-router";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, Form, redirect } from "react-router";
 import { logout, requireAuth } from "~/lib/auth.server";
 import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
+import { assertSameOriginMutation } from "~/lib/request-security.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const user = await requireAuth(request).catch(() => null);
-    
-    if (user) {
-        await quickAudit({
-            db: context.cloudflare.env.DB,
-            userId: user.id,
-            role: user.role,
-            companyId: user.companyId || null,
-            entityType: "user",
-            entityId: user.id,
-            action: "logout",
-            ...getRequestMetadata(request),
-        });
-    }
-
-    const cookie = await logout(request);
-
-    return redirect("/login?logout=success", {
-        headers: {
-            "Set-Cookie": cookie,
-        },
-    });
+    await requireAuth(request);
+    return null;
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
+    assertSameOriginMutation(request);
     const user = await requireAuth(request).catch(() => null);
     
     if (user) {
@@ -67,12 +48,14 @@ export default function LogoutPage() {
                     <p className="text-gray-500 font-medium mb-8">
                         You have been successfully logged out
                     </p>
-                    <Link
-                        to="/login"
-                        className="inline-block w-full bg-gray-900 hover:bg-black text-gray-500 font-bold py-3 rounded-xl transition-all duration-300 shadow-xl shadow-gray-200 hover:shadow-gray-300"
-                    >
-                        Back to Login
-                    </Link>
+                    <Form method="post">
+                        <button
+                            type="submit"
+                            className="inline-block w-full bg-gray-900 hover:bg-black text-white font-bold py-3 rounded-xl transition-all duration-300 shadow-xl shadow-gray-200 hover:shadow-gray-300"
+                        >
+                            Confirm Logout
+                        </button>
+                    </Form>
                 </div>
             </div>
         </div>

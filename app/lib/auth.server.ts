@@ -250,7 +250,7 @@ export async function login(
 
     // Check if user is archived
     if (user.archivedAt) {
-        return { error: "Account has been archived. Please contact support" };
+        return { error: "Invalid email or password" };
     }
 
     // Verify password
@@ -264,7 +264,7 @@ export async function login(
             return { error: "Invalid email or password" };
         }
     } catch {
-        return { error: "Login failed at: password verification" };
+        return { error: "Invalid email or password" };
     }
 
     // Get company ID if user is partner or manager
@@ -280,7 +280,7 @@ export async function login(
 
             // Check if company is archived
             if (companyResult?.archived_at) {
-                return { error: "Company has been archived. Please contact support" };
+                return { error: "Invalid email or password" };
             }
 
             companyId = companyResult?.id;
@@ -299,13 +299,13 @@ export async function login(
 
             // Check if company is archived
             if (managerResult?.archived_at) {
-                return { error: "Company has been archived. Please contact support" };
+                return { error: "Invalid email or password" };
             }
 
             companyId = managerResult?.company_id;
         }
     } catch {
-        return { error: "Login failed at: company lookup" };
+        return { error: "Invalid email or password" };
     }
 
     const sessionUser: SessionUser = {

@@ -6,6 +6,10 @@ interface RateLimitConfig {
     window: number; // Time window in seconds
 }
 
+interface RateLimitOptions {
+    failOpen?: boolean;
+}
+
 const RATE_LIMITS: Record<string, RateLimitConfig> = {
     // Authentication endpoints
     login: { limit: 5, window: 60 }, // 5 attempts per minute
@@ -24,17 +28,21 @@ const RATE_LIMITS: Record<string, RateLimitConfig> = {
 export async function checkRateLimit(
     kv: KVNamespace | undefined,
     identifier: string, // IP or user ID
-    action: keyof typeof RATE_LIMITS = 'default'
+    action: keyof typeof RATE_LIMITS = 'default',
+    options?: RateLimitOptions
 ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+    const failOpen = options?.failOpen ?? false;
+    const config = RATE_LIMITS[action] || RATE_LIMITS.default;
+    const now = Date.now();
+
     // If KV is not available, allow the request (development mode)
     if (!kv) {
-        return { allowed: true, remaining: 999, resetAt: Date.now() + 60000 };
+        return failOpen
+            ? { allowed: true, remaining: config.limit, resetAt: now + config.window * 1000 }
+            : { allowed: false, remaining: 0, resetAt: now + config.window * 1000 };
     }
 
-    const config = RATE_LIMITS[action] || RATE_LIMITS.default;
     const key = `rate_limit:${action}:${identifier}`;
-    const now = Date.now();
-    const windowStart = now - (config.window * 1000);
 
     try {
         // Get current count from KV
@@ -67,8 +75,9 @@ export async function checkRateLimit(
         };
     } catch (error) {
         console.error('Rate limit check failed:', error);
-        // On error, allow the request to avoid blocking legitimate users
-        return { allowed: true, remaining: config.limit, resetAt: now + (config.window * 1000) };
+        return failOpen
+            ? { allowed: true, remaining: config.limit, resetAt: now + config.window * 1000 }
+            : { allowed: false, remaining: 0, resetAt: now + config.window * 1000 };
     }
 }
 
@@ -94,6 +103,10 @@ export function getClientIdentifier(request: Request, userId?: string): string {
         return `ip:${ip}`;
     }
     
-    // Last resort - use a generic identifier
-    return 'ip:unknown';
+    const userAgent = request.headers.get('User-Agent')?.trim();
+    if (userAgent) {
+        return `ua:${userAgent}`;
+    }
+
+    return 'client:unknown';
 }
