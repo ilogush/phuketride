@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData, useSearchParams, useNavigation, Link, Outlet } from "react-router";
 import PageHeader from '~/components/shared/ui/PageHeader';
+import PageSearchInput from '~/components/shared/ui/PageSearchInput';
 import Tabs from '~/components/shared/ui/Tabs';
 import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
 import StatusBadge from '~/components/shared/ui/StatusBadge';
@@ -85,6 +86,14 @@ export default function ContractsPage() {
     const { contracts: contractsList, statusCounts, activeTab, totalCount, search } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigation = useNavigation();
+    const handleSearch = (value: string) => {
+        const next = new URLSearchParams(searchParams);
+        const trimmed = value.trim();
+        if (trimmed) next.set("search", trimmed);
+        else next.delete("search");
+        next.set("page", "1");
+        setSearchParams(next, { replace: true });
+    };
 
     const tabs = [
         { id: "active", label: "Active", count: statusCounts.active },
@@ -164,9 +173,16 @@ export default function ContractsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Contracts"
-                rightActions={
+                searchSlot={
+                    <PageSearchInput
+                        value={search || ""}
+                        onChange={handleSearch}
+                        placeholder="Search contracts..."
+                    />
+                }
+                rightSlot={
                     <Link to="/contracts/new">
-                        <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
+                        <Button variant="primary" leadingIcon={<PlusIcon className="w-5 h-5" />}>
                             New Contract
                         </Button>
                     </Link>

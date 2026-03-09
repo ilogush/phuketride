@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
 import { useLoaderData, Link, useSearchParams, useNavigation } from "react-router";
 import PageHeader from '~/components/shared/ui/PageHeader';
+import PageSearchInput from '~/components/shared/ui/PageSearchInput';
 import Button from '~/components/shared/ui/Button';
 import { PlusIcon, BookmarkIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
@@ -151,9 +152,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         <div className="space-y-4">
             <PageHeader
                 title="Bookings"
-                rightActions={
+                searchSlot={
+                    <PageSearchInput
+                        value={search || ""}
+                        onChange={handleSearch}
+                        placeholder="Search bookings..."
+                    />
+                }
+                rightSlot={
                     <Link to="/bookings/create">
-                        <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
+                        <Button variant="primary" leadingIcon={<PlusIcon className="w-5 h-5" />}>
                             New
                         </Button>
                     </Link>
