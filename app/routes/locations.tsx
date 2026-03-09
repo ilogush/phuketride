@@ -186,11 +186,11 @@ export default function LocationsPage() {
                                 onChange={(e) => handlePriceChange(item.id, e.target.value)}
                                 disabled={!district.isActive}
                                 endAdornment="฿"
-                                className="max-w-[120px]"
+                                className="w-full min-w-[148px]"
                             />
                         );
                     },
-                    className: "hidden sm:table-cell",
+                    className: "hidden sm:table-cell min-w-[180px]",
                 },
             ]
             : []),

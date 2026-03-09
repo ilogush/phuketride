@@ -100,9 +100,9 @@ export default function CreateBookingPage() {
         <div className="space-y-4">
             <PageHeader
                 title="New Booking"
-                leftActions={<BackButton to="/bookings" />}
-                rightActions={
-                    <Button type="submit" variant="solid" form="create-booking-form">
+                leftSlot={<BackButton to="/bookings" />}
+                rightSlot={
+                    <Button type="submit" variant="primary" form="create-booking-form">
                         Create Booking
                     </Button>
                 }

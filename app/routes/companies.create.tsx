@@ -93,9 +93,9 @@ export default function CreateCompanyPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Add New Company"
-                leftActions={<BackButton to="/companies" />}
-                rightActions={
-                    <Button type="submit" variant="solid" form="company-form">
+                leftSlot={<BackButton to="/companies" />}
+                rightSlot={
+                    <Button type="submit" variant="primary" form="company-form">
                         Create
                     </Button>
                 }

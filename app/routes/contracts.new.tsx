@@ -135,9 +135,9 @@ export default function NewContract() {
         <div className="space-y-4">
             <PageHeader
                 title="New Contract"
-                leftActions={<BackButton />}
-                rightActions={
-                    <Button type="submit" variant="solid" form="new-contract-form">
+                leftSlot={<BackButton />}
+                rightSlot={
+                    <Button type="submit" variant="primary" form="new-contract-form">
                         Create
                     </Button>
                 }

@@ -216,7 +216,6 @@ export function GenericDictionaryForm({
                             disabled={field.disabled}
                             options={field.options || []}
                             placeholder={field.placeholder}
-                            showPlaceholderOption={Boolean(field.placeholder)}
                         />
                     </FormField>
                 )
@@ -347,7 +346,7 @@ export function GenericDictionaryForm({
             >
                 {formContent}
                 <div className="flex gap-2 pt-2">
-                    <Button type="submit" form={formId} variant="solid" className="flex-1 justify-center">
+                    <Button type="submit" form={formId} variant="primary" className="flex-1 justify-center">
                         {submitLabel || (data ? 'Save' : 'Add')}
                     </Button>
                     {data && onDelete && <DeleteButton onClick={onDelete} />}
@@ -363,7 +362,7 @@ export function GenericDictionaryForm({
             actions={
                 <div className="flex gap-2">
                     {data && onDelete && <DeleteButton onClick={onDelete} />}
-                    <Button type="submit" form={formId} variant="solid">
+                    <Button type="submit" form={formId} variant="primary">
                         {submitLabel || (data ? 'Save' : 'Add')}
                     </Button>
                 </div>

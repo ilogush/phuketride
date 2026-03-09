@@ -95,10 +95,10 @@ export default function CreateCarPage() {
     return (
         <div className="space-y-4">
             <PageHeader
-                leftActions={<BackButton to="/cars" />}
                 title="New Car"
-                rightActions={
-                    <Button type="submit" form="create-car-form" variant="solid">
+                leftSlot={<BackButton to="/cars" />}
+                rightSlot={
+                    <Button type="submit" form="create-car-form" variant="primary">
                         Create
                     </Button>
                 }
@@ -172,7 +172,7 @@ export default function CreateCarPage() {
                                     placeholder="0.00"
                                     value={pricePerDay}
                                     onChange={(e) => setPricePerDay(Number(e.target.value))}
-                                    addonRight="฿"
+                                    endAdornment="฿"
                                 />
                                 <Input
                                     label="Deposit"
@@ -183,7 +183,7 @@ export default function CreateCarPage() {
                                     step={0.01}
                                     placeholder="0.00"
                                     defaultValue="13330"
-                                    addonRight="฿"
+                                    endAdornment="฿"
                                 />
                             </div>
 
