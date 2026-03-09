@@ -191,7 +191,7 @@ export default function GeneralSettingsTab({
                                 type="number"
                                 step="0.01"
                                 defaultValue={company.deliveryFeeAfterHours?.toString() || "0"}
-                                addonLeft="฿"
+                                startAdornment="฿"
                             />
                             <Input
                                 label="Island Trip Cost"
@@ -199,7 +199,7 @@ export default function GeneralSettingsTab({
                                 type="number"
                                 step="0.01"
                                 defaultValue={company.islandTripPrice?.toString() || "0"}
-                                addonLeft="฿"
+                                startAdornment="฿"
                             />
                             <Input
                                 label="Krabi Trip Cost"
@@ -207,7 +207,7 @@ export default function GeneralSettingsTab({
                                 type="number"
                                 step="0.01"
                                 defaultValue={company.krabiTripPrice?.toString() || "0"}
-                                addonLeft="฿"
+                                startAdornment="฿"
                             />
                             <Input
                                 label="Baby Seat Cost (per day)"
@@ -216,7 +216,7 @@ export default function GeneralSettingsTab({
                                 step="1"
                                 min={0}
                                 defaultValue={Math.max(0, Math.round(company.babySeatPricePerDay ?? 0)).toString()}
-                                addonLeft="฿"
+                                startAdornment="฿"
                             />
                         </div>
                     </FormSection>

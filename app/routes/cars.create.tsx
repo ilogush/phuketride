@@ -205,7 +205,6 @@ export default function CreateCarPage() {
                                 <Select
                                     label="Insurance Type"
                                     name="insuranceType"
-                                    hidePlaceholderOption
                                     options={[
                                         { id: "First Class Insurance", name: "First Class Insurance" },
                                         { id: "Business Insurance", name: "Business Insurance" },
@@ -261,7 +260,7 @@ export default function CreateCarPage() {
                                             step={0.01}
                                             placeholder="0.00"
                                             defaultValue="500"
-                                            addonRight="฿"
+                                            endAdornment="฿"
                                         />
                                         <Input
                                             label="Max Insurance Price"
@@ -271,7 +270,7 @@ export default function CreateCarPage() {
                                             step={0.01}
                                             placeholder="0.00"
                                             defaultValue="300"
-                                            addonRight="฿"
+                                            endAdornment="฿"
                                         />
                                     </>
                                 )}
@@ -291,7 +290,7 @@ export default function CreateCarPage() {
                                     min={0}
                                     value={currentMileage}
                                     onChange={(e) => setCurrentMileage(Number(e.target.value))}
-                                    addonRight="km"
+                                    endAdornment="km"
                                 />
                                 <div>
                                     <Input
@@ -299,13 +298,13 @@ export default function CreateCarPage() {
                                         name="nextOilChangeMileage"
                                         type="number"
                                         required
-                                        min={0}
-                                        placeholder="e.g. 50000"
-                                        value={nextOilChange}
-                                        onChange={(e) => setNextOilChange(Number(e.target.value))}
-                                        addonRight="km"
-                                        className={isOilChangeDueSoon ? 'bg-gray-100 font-bold' : ''}
-                                    />
+                                    min={0}
+                                    placeholder="e.g. 50000"
+                                    value={nextOilChange}
+                                    onChange={(e) => setNextOilChange(Number(e.target.value))}
+                                    endAdornment="km"
+                                    className={isOilChangeDueSoon ? 'bg-gray-100 font-bold' : ''}
+                                />
                                     {isOilChangeDueSoon && (
                                         <div className="mt-2 flex items-center gap-2 text-orange-600 animate-pulse">
                                             <ExclamationTriangleIcon className="w-4 h-4" />
@@ -321,7 +320,7 @@ export default function CreateCarPage() {
                                     step={1000}
                                     placeholder="10000"
                                     defaultValue="10000"
-                                    addonRight="km"
+                                    endAdornment="km"
                                 />
                             </div>
                         </AdminCard>

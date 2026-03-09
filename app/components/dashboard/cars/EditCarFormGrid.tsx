@@ -202,7 +202,6 @@ export default function EditCarFormGrid({
                 label="Insurance Type"
                 name="insuranceType"
                 required
-                hidePlaceholderOption
                 options={[
                   { id: "First Class Insurance", name: "First Class Insurance" },
                   { id: "Business Insurance", name: "Business Insurance" },
@@ -249,7 +248,7 @@ export default function EditCarFormGrid({
                     min={0}
                     step={0.01}
                     defaultValue={car.insurancePricePerDay || ""}
-                    addonRight="฿"
+                    endAdornment="฿"
                   />
                   <Input
                     label="Max Insurance Price"
@@ -258,7 +257,7 @@ export default function EditCarFormGrid({
                     min={0}
                     step={0.01}
                     defaultValue={car.maxInsurancePrice || ""}
-                    addonRight="฿"
+                    endAdornment="฿"
                   />
                 </>
               ) : null}
@@ -276,7 +275,7 @@ export default function EditCarFormGrid({
                 step={0.01}
                 value={pricePerDay}
                 onChange={(e) => setPricePerDay(Number(e.target.value))}
-                addonRight="฿"
+                endAdornment="฿"
               />
               <Input
                 label="Deposit"
@@ -286,7 +285,7 @@ export default function EditCarFormGrid({
                 min={0}
                 step={0.01}
                 defaultValue={car.deposit || 0}
-                addonRight="฿"
+                endAdornment="฿"
               />
             </div>
             <div className="mt-4">
@@ -320,7 +319,7 @@ export default function EditCarFormGrid({
               min={0}
               value={currentMileage}
               onChange={(e) => setCurrentMileage(Number(e.target.value))}
-              addonRight="km"
+              endAdornment="km"
             />
             <div>
               <Input
@@ -331,7 +330,7 @@ export default function EditCarFormGrid({
                 min={0}
                 value={nextOilChange}
                 onChange={(e) => setNextOilChange(Number(e.target.value))}
-                addonRight="km"
+                endAdornment="km"
                 className={isOilChangeDueSoon ? "bg-gray-100 font-bold" : ""}
               />
               {isOilChangeDueSoon ? (
@@ -348,7 +347,7 @@ export default function EditCarFormGrid({
               min={1000}
               step={1000}
               defaultValue={car.oilChangeInterval || 10000}
-              addonRight="km"
+              endAdornment="km"
             />
           </div>
         </AdminCard>

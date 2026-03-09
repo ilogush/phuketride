@@ -75,7 +75,7 @@ export default function ContractFinancialFields({
           value={values?.rentalAmount !== undefined ? values.rentalAmount : (defaults?.rentalAmount ?? "")}
           onChange={(e) => onRentalAmountChange?.(e.target.value)}
           placeholder="0.00"
-          addonRight={currencySymbol}
+          endAdornment={currencySymbol}
         />
       </div>
       <div className="md:col-span-1">
@@ -95,7 +95,7 @@ export default function ContractFinancialFields({
           type="number"
           defaultValue={defaults?.depositAmount ?? undefined}
           placeholder="0.00"
-          addonRight={currencySymbol}
+          endAdornment={currencySymbol}
         />
       </div>
 
@@ -107,7 +107,7 @@ export default function ContractFinancialFields({
           value={values?.deliveryCost !== undefined ? values.deliveryCost : (defaults?.deliveryCost ?? "")}
           onChange={(e) => onDeliveryCostChange?.(e.target.value)}
           placeholder="0.00"
-          addonRight={currencySymbol}
+          endAdornment={currencySymbol}
         />
       </div>
       <div className="md:col-span-1">
@@ -118,7 +118,7 @@ export default function ContractFinancialFields({
           value={values?.returnCost !== undefined ? values.returnCost : (defaults?.returnCost ?? "")}
           onChange={(e) => onReturnCostChange?.(e.target.value)}
           placeholder="0.00"
-          addonRight={currencySymbol}
+          endAdornment={currencySymbol}
         />
       </div>
 
@@ -136,7 +136,7 @@ export default function ContractFinancialFields({
             value={extra.amount}
             onChange={(e) => onExtraAmountChange?.(extra.key, e.target.value)}
             placeholder="0.00"
-            addonRight={currencySymbol}
+            endAdornment={currencySymbol}
           />
         </div>
       ))}
@@ -151,7 +151,7 @@ export default function ContractFinancialFields({
           className="bg-gray-50 text-xl font-bold"
           placeholder="0.00"
           required
-          addonRight={currencySymbol}
+          endAdornment={currencySymbol}
         />
       </div>
     </div>
