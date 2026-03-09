@@ -6,6 +6,7 @@ export const meta: MetaFunction = () => [
     { name: "robots", content: "noindex, nofollow" },
 ];
 import PageHeader from '~/components/shared/ui/PageHeader';
+import PageSearchInput from '~/components/shared/ui/PageSearchInput';
 import Tabs from '~/components/shared/ui/Tabs';
 import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
 import StatusBadge from '~/components/shared/ui/StatusBadge';
@@ -50,6 +51,14 @@ export default function CarsPage() {
 
     const currentTab = String(activeStatus);
     const modCompanyId = searchParams.get("modCompanyId");
+    const handleSearch = (value: string) => {
+        const next = new URLSearchParams(searchParams);
+        const trimmed = value.trim();
+        if (trimmed) next.set("search", trimmed);
+        else next.delete("search");
+        next.set("page", "1");
+        setSearchParams(next, { replace: true });
+    };
 
     const columns: Column<CarsPageCar>[] = [
         {
@@ -156,9 +165,16 @@ export default function CarsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Cars"
-                rightActions={
+                searchSlot={
+                    <PageSearchInput
+                        value={search || ""}
+                        onChange={handleSearch}
+                        placeholder="Search cars..."
+                    />
+                }
+                rightSlot={
                     <Link to={modCompanyId ? `/cars/create?modCompanyId=${modCompanyId}` : "/cars/create"}>
-                        <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
+                        <Button variant="primary" leadingIcon={<PlusIcon className="w-5 h-5" />}>
                             Add
                         </Button>
                     </Link>

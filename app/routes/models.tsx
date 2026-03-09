@@ -11,6 +11,7 @@ export const meta: MetaFunction = () => [
 import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
 import Button from '~/components/shared/ui/Button';
 import PageHeader from '~/components/shared/ui/PageHeader';
+import PageSearchInput from '~/components/shared/ui/PageSearchInput';
 import { PlusIcon, CubeIcon } from "@heroicons/react/24/outline";
 import { modelSchema } from "~/schemas/dictionary";
 import { parseWithSchema } from "~/lib/validation.server";
@@ -208,10 +209,11 @@ export default function ModelsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Car Models"
-                rightActions={
+                searchSlot={<PageSearchInput value={search} onChange={handleSearch} placeholder="Search models..." />}
+                rightSlot={
                     <Button
-                        variant="solid"
-                        icon={<PlusIcon className="w-5 h-5" />}
+                        variant="primary"
+                        leadingIcon={<PlusIcon className="w-5 h-5" />}
                         onClick={() => {
                             setEditingModel(null);
                             setIsFormOpen(true);

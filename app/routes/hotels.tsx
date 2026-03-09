@@ -10,6 +10,7 @@ export const meta: MetaFunction = () => [
 import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
 import Button from '~/components/shared/ui/Button';
 import PageHeader from '~/components/shared/ui/PageHeader';
+import PageSearchInput from '~/components/shared/ui/PageSearchInput';
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
@@ -257,7 +258,7 @@ export default function HotelsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Hotels"
-                rightActions={null}
+                searchSlot={<PageSearchInput value={search} onChange={handleSearch} placeholder="Search hotels..." />}
             />
             
             <div className="flex flex-col lg:flex-row gap-4 items-start">

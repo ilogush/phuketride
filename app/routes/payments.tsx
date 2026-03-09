@@ -6,6 +6,7 @@ export const meta: MetaFunction = () => [
     { name: "robots", content: "noindex, nofollow" },
 ];
 import PageHeader from '~/components/shared/ui/PageHeader';
+import PageSearchInput from '~/components/shared/ui/PageSearchInput';
 import Tabs from '~/components/shared/ui/Tabs';
 import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
 import Button from '~/components/shared/ui/Button';
@@ -82,9 +83,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export default function PaymentsPage() {
-    const { payments: paymentsList, statusCounts, activeTab, totalCount } = useLoaderData<typeof loader>();
+    const { payments: paymentsList, statusCounts, activeTab, totalCount, search } = useLoaderData<typeof loader>();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigation = useNavigation();
+    const handleSearch = (value: string) => {
+        const next = new URLSearchParams(searchParams);
+        const trimmed = value.trim();
+        if (trimmed) next.set("search", trimmed);
+        else next.delete("search");
+        next.set("page", "1");
+        setSearchParams(next, { replace: true });
+    };
 
     const tabs = [
         { id: "completed", label: "Completed", count: statusCounts.completed },
@@ -168,9 +177,16 @@ export default function PaymentsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Payments"
-                rightActions={
+                searchSlot={
+                    <PageSearchInput
+                        value={search || ""}
+                        onChange={handleSearch}
+                        placeholder="Search payments..."
+                    />
+                }
+                rightSlot={
                     <Link to="/payments/create">
-                        <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
+                        <Button variant="primary" leadingIcon={<PlusIcon className="w-5 h-5" />}>
                             Record
                         </Button>
                     </Link>

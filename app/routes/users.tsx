@@ -6,6 +6,7 @@ export const meta: MetaFunction = () => [
     { name: "robots", content: "noindex, nofollow" },
 ];
 import PageHeader from '~/components/shared/ui/PageHeader';
+import PageSearchInput from '~/components/shared/ui/PageSearchInput';
 import Tabs from '~/components/shared/ui/Tabs';
 import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
 import StatusBadge from '~/components/shared/ui/StatusBadge';
@@ -137,6 +138,14 @@ export default function UsersPage() {
         ];
 
     const currentTab = String(activeTab);
+    const handleSearch = (value: string) => {
+        const next = new URLSearchParams(searchParams);
+        const trimmed = value.trim();
+        if (trimmed) next.set("search", trimmed);
+        else next.delete("search");
+        next.set("page", "1");
+        setSearchParams(next, { replace: true });
+    };
 
     const columns: Column<typeof usersList[0]>[] = [
         {
@@ -191,9 +200,16 @@ export default function UsersPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Users"
-                rightActions={
+                searchSlot={
+                    <PageSearchInput
+                        value={search || ""}
+                        onChange={handleSearch}
+                        placeholder="Search users..."
+                    />
+                }
+                rightSlot={
                     <Link to="/users/create">
-                        <Button variant="solid" icon={<PlusIcon className="w-5 h-5" />}>
+                        <Button variant="primary" leadingIcon={<PlusIcon className="w-5 h-5" />}>
                             Add
                         </Button>
                     </Link>

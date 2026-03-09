@@ -10,6 +10,7 @@ import { useState } from "react";
 import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
 import Button from '~/components/shared/ui/Button';
 import PageHeader from '~/components/shared/ui/PageHeader';
+import PageSearchInput from '~/components/shared/ui/PageSearchInput';
 import { PlusIcon } from "@heroicons/react/24/outline";
 import IdBadge from '~/components/shared/ui/IdBadge';
 import { districtActionSchema } from "~/schemas/dictionary";
@@ -229,10 +230,11 @@ export default function DistrictsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Districts"
-                rightActions={
+                searchSlot={<PageSearchInput value={search} onChange={handleSearch} placeholder="Search districts..." />}
+                rightSlot={
                     <Button
-                        variant="solid"
-                        icon={<PlusIcon className="w-5 h-5" />}
+                        variant="primary"
+                        leadingIcon={<PlusIcon className="w-5 h-5" />}
                         onClick={() => {
                             setEditingDistrict(null);
                             setIsFormOpen(true);

@@ -1,11 +1,12 @@
 import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
-import { useLoaderData, useNavigation, Link } from "react-router";
+import { useLoaderData, useNavigation, Link, useSearchParams } from "react-router";
 
 export const meta: MetaFunction = () => [
     { title: "Companies — Phuket Ride Admin" },
     { name: "robots", content: "noindex, nofollow" },
 ];
 import PageHeader from '~/components/shared/ui/PageHeader';
+import PageSearchInput from '~/components/shared/ui/PageSearchInput';
 import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
 import Button from '~/components/shared/ui/Button';
 import { BuildingOfficeIcon } from "@heroicons/react/24/outline";
@@ -38,6 +39,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 export default function CompaniesPage() {
     const { companies: companiesList, showArchived, totalCount } = useLoaderData<typeof loader>();
     const navigation = useNavigation();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const search = searchParams.get("search") || "";
+    const handleSearch = (value: string) => {
+        const next = new URLSearchParams(searchParams);
+        const trimmed = value.trim();
+        if (trimmed) next.set("search", trimmed);
+        else next.delete("search");
+        next.set("page", "1");
+        setSearchParams(next, { replace: true });
+    };
 
     const columns: Column<CompaniesPageRow>[] = [
         {
@@ -112,9 +123,16 @@ export default function CompaniesPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Companies"
-                rightActions={
+                searchSlot={
+                    <PageSearchInput
+                        value={search}
+                        onChange={handleSearch}
+                        placeholder="Search companies..."
+                    />
+                }
+                rightSlot={
                     <Link to={showArchived ? "/companies" : "/companies?archived=true"}>
-                        <Button variant="outline">
+                        <Button variant="secondary">
                             {showArchived ? "Hide Archived" : "Show Archived"}
                         </Button>
                     </Link>

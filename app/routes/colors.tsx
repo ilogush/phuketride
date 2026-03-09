@@ -11,6 +11,7 @@ export const meta: MetaFunction = () => [
 import DataTable, { type Column } from '~/components/dashboard/data-table/DataTable';
 import Button from '~/components/shared/ui/Button';
 import PageHeader from '~/components/shared/ui/PageHeader';
+import PageSearchInput from '~/components/shared/ui/PageSearchInput';
 import { PlusIcon } from "@heroicons/react/24/outline";
 import IdBadge from '~/components/shared/ui/IdBadge';
 import { z } from "zod";
@@ -232,10 +233,11 @@ export default function ColorsPage() {
         <div className="space-y-4">
             <PageHeader
                 title="Car Colors"
-                rightActions={
+                searchSlot={<PageSearchInput value={search} onChange={handleSearch} placeholder="Search colors..." />}
+                rightSlot={
                     <div className="flex gap-2">
                         {totalCount === 0 && (
-                            <Button variant="outline" onClick={() => {
+                            <Button variant="secondary" onClick={() => {
                                 const fd = new FormData();
                                 fd.append("intent", "seed");
                                 submit(fd, { method: "post" });
