@@ -1,14 +1,10 @@
 import { type ActionFunctionArgs } from "react-router";
 import type { SessionUser } from "~/lib/auth.server";
-import { getRequestMetadata, getQuickAuditStmt } from "~/lib/audit-logger";
-import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
-import { getCreateContractEventsStmts } from "~/lib/calendar-events.server";
+import { getRequestMetadata } from "~/lib/audit-logger";
 import { uploadPhotoItemsToR2 } from "~/lib/r2.server";
 import {
   EXTRA_TYPES,
-  getCreateExtraPaymentStmt,
   getCurrencyCodeById,
-  getExtraFlagsFromFormData,
   getExtraInputFromFormData,
 } from "~/lib/contract-extras.server";
 import { parseDisplayDateTimeToDate } from "~/lib/date-windows";
@@ -37,12 +33,10 @@ export async function handleCreateContractAction({ db, assets, request, user, co
     }
     const data = parsed.data;
 
-    // 1. Process Photos
     const passportPhotosValue = parseDocPhotos(data.passportPhotos);
     const driverLicensePhotosValue = parseDocPhotos(data.driverLicensePhotos);
     const contractPhotosValue = parsePhotoList(data.photos);
 
-    // 2. Client Management
     const existingClient = await db
       .prepare(`
         SELECT id, email, name, surname, phone, passport_photos AS passportPhotos,
@@ -64,7 +58,7 @@ export async function handleCreateContractAction({ db, assets, request, user, co
 
     let clientId: string;
     const nowIso = new Date().toISOString();
-    const userStmts: D1PreparedStatement[] = [];
+    const batchStmts: D1PreparedStatement[] = [];
 
     if (existingClient) {
       clientId = existingClient.id;
@@ -78,9 +72,12 @@ export async function handleCreateContractAction({ db, assets, request, user, co
         existingClient.phone === data.client_phone;
 
       if (!dataMatches || passportUploaded.length > 0 || licenseUploaded.length > 0) {
-        userStmts.push(
-          db.prepare(`UPDATE users SET passport_photos = ?, driver_license_photos = ?, updated_at = ? WHERE id = ?`)
+        batchStmts.push(
+          db.prepare(`UPDATE users SET name = ?, surname = ?, phone = ?, passport_photos = ?, driver_license_photos = ?, updated_at = ? WHERE id = ?`)
             .bind(
+              data.client_name,
+              data.client_surname,
+              data.client_phone,
               passportUploaded.length > 0 ? JSON.stringify(passportUploaded) : existingClient.passportPhotos,
               licenseUploaded.length > 0 ? JSON.stringify(licenseUploaded) : existingClient.driverLicensePhotos,
               nowIso,
@@ -93,7 +90,7 @@ export async function handleCreateContractAction({ db, assets, request, user, co
       const passportUploaded = await uploadPhotoItemsToR2(assets, passportPhotosValue, `users/${clientId}/passport`);
       const licenseUploaded = await uploadPhotoItemsToR2(assets, driverLicensePhotosValue, `users/${clientId}/driver-license`);
 
-      userStmts.push(
+      batchStmts.push(
         db.prepare(`
           INSERT INTO users (
             id, email, role, name, surname, phone, whatsapp, telegram, passport_number,
@@ -116,9 +113,6 @@ export async function handleCreateContractAction({ db, assets, request, user, co
       );
     }
 
-    if (userStmts.length > 0) await db.batch(userStmts);
-
-    // 3. Car & Availability Verification
     const startDate = parseDisplayDateTimeToDate(data.start_date);
     const endDate = parseDisplayDateTimeToDate(data.end_date);
 
@@ -133,19 +127,18 @@ export async function handleCreateContractAction({ db, assets, request, user, co
     const conflict = await checkCarAvailability(db, data.company_car_id, startDate, endDate);
     if (conflict) throw new Error(`Car is already occupied by a ${conflict.type} (ID: ${conflict.id})`);
 
-    // 4. Contract Creation
     const currencyCodeByIdMap = await getCurrencyCodeById(db);
     const totalCurrency = currencyCodeByIdMap.get(data.currency_id) || "THB";
     const depositCurrency = (data.deposit_currency_id && currencyCodeByIdMap.get(data.deposit_currency_id)) || totalCurrency;
 
-    const contractInsert = await db
-      .prepare(`
+    batchStmts.push(
+      db.prepare(`
         INSERT INTO contracts (
           company_car_id, client_id, manager_id, start_date, end_date, total_amount, total_currency,
           deposit_amount, deposit_currency,
           pickup_district_id, pickup_hotel, pickup_room, delivery_cost, return_district_id, return_hotel, return_room, return_cost,
           start_mileage, fuel_level, cleanliness, status, notes, photos, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
       `)
       .bind(
         data.company_car_id, clientId, user.id,
@@ -159,12 +152,8 @@ export async function handleCreateContractAction({ db, assets, request, user, co
         contractPhotosValue.length > 0 ? JSON.stringify(contractPhotosValue) : null,
         nowIso, nowIso
       )
-      .run();
+    );
 
-    const contractId = Number(contractInsert.meta.last_row_id);
-    const finalStmts: D1PreparedStatement[] = [];
-
-    // 5. Extras Processing
     const extraFlags: Record<string, boolean> = {
       full_insurance: data.fullInsurance,
       baby_seat: data.babySeat,
@@ -177,24 +166,54 @@ export async function handleCreateContractAction({ db, assets, request, user, co
       if (!extraFlags[extraType]) continue;
       const { amount, currencyId } = getExtraInputFromFormData(formData, extraType);
       const currencyCode = (currencyId ? currencyCodeByIdMap.get(currencyId) : null) || "THB";
-      finalStmts.push(getCreateExtraPaymentStmt({
-        db, contractId, userId: user.id, extraType, amount, currency: currencyCode, currencyId, nowIso
-      }));
+      
+      batchStmts.push(
+        db.prepare(`
+          INSERT INTO payments (
+              contract_id, amount, currency, currency_id, status, created_by, created_at, updated_at,
+              extra_type, extra_enabled, extra_price
+          ) VALUES (last_insert_rowid(), ?, ?, ?, 'completed', ?, ?, ?, ?, 1, ?)
+        `).bind(
+          amount, currencyCode, currencyId ?? null, user.id, nowIso, nowIso, extraType, amount
+        )
+      );
     }
 
-    finalStmts.push(getUpdateCarStatusStmt(db, data.company_car_id, "rented"));
-    finalStmts.push(...getCreateContractEventsStmts({
-      db, companyId, contractId, startDate, endDate, createdBy: user.id
-    }));
+    batchStmts.push(db.prepare("UPDATE company_cars SET status = 'rented', updated_at = ? WHERE id = ?").bind(nowIso, data.company_car_id));
 
-    await db.batch(finalStmts);
+    batchStmts.push(
+      db.prepare(`
+        INSERT INTO calendar_events (
+            company_id, event_type, title, description,
+            start_date, end_date, related_id, color,
+            status, created_by, created_at, updated_at
+        ) VALUES (?, 'pickup', 'Contract #' || last_insert_rowid() || ' - Pickup', 'Car pickup for contract', ?, null, last_insert_rowid(), '#10B981', 'pending', ?, ?, ?)
+      `).bind(companyId, startDate.getTime(), user.id, nowIso, nowIso)
+    );
+    
+    batchStmts.push(
+      db.prepare(`
+        INSERT INTO calendar_events (
+            company_id, event_type, title, description,
+            start_date, end_date, related_id, color,
+            status, created_by, created_at, updated_at
+        ) VALUES (?, 'contract', 'Contract #' || last_insert_rowid() || ' - Return', 'Car return for contract', ?, null, last_insert_rowid(), '#EF4444', 'pending', ?, ?, ?)
+      `).bind(companyId, endDate.getTime(), user.id, nowIso, nowIso)
+    );
 
-    // 6. Audit & Cleanup
     const metadata = getRequestMetadata(request);
-    await getQuickAuditStmt({
-      db, userId: user.id, role: user.role, companyId, entityType: "contract", entityId: contractId,
-      action: "create", afterState: { contractId, clientId, companyCarId: data.company_car_id }, ...metadata
-    }).run();
+    batchStmts.push(
+      db.prepare(`
+        INSERT INTO user_audit_logs (user_id, role, company_id, entity_type, entity_id, action, before_state, after_state, ip_address, user_agent, created_at)
+        VALUES (?, ?, ?, 'contract', last_insert_rowid(), 'create', NULL, ?, ?, ?, ?)
+      `).bind(
+        user.id, user.role, companyId,
+        JSON.stringify({ clientId, companyCarId: data.company_car_id }),
+        metadata.ipAddress ?? null, metadata.userAgent ?? null, nowIso
+      )
+    );
+
+    await db.batch(batchStmts);
 
     return redirectWithRequestSuccess(request, "/contracts", "Contract created successfully");
   } catch (error) {
