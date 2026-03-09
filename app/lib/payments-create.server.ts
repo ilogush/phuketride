@@ -1,4 +1,4 @@
-import { getRequestMetadata, quickAudit } from "~/lib/audit-logger";
+import { getRequestMetadata } from "~/lib/audit-logger";
 import { getCachedCurrencies, getCachedPaymentTypes } from "~/lib/dictionaries-cache.server";
 import { QUERY_LIMITS } from "~/lib/query-limits";
 import { paymentSchema } from "~/schemas/payment";
@@ -43,18 +43,8 @@ export async function createPaymentRecord(args: {
     companyId: number | null;
     formData: FormData;
 }) {
-    const parsed = parseWithSchema(
-        paymentSchema,
-        {
-            contractId: args.formData.get("contractId") ? Number(args.formData.get("contractId")) : 0,
-            paymentTypeId: Number(args.formData.get("paymentTypeId")),
-            amount: Number(args.formData.get("amount")),
-            currency: (args.formData.get("currency") as string) || "THB",
-            status: (args.formData.get("status") as string) || "pending",
-            notes: args.formData.get("notes") as string | null,
-        },
-        "Validation failed"
-    );
+    const rawData = Object.fromEntries(args.formData);
+    const parsed = parseWithSchema(paymentSchema, rawData, "Validation failed");
 
     if (!parsed.ok) {
         return redirectWithRequestError(args.request, "/payments/create", parsed.error);
@@ -67,39 +57,33 @@ export async function createPaymentRecord(args: {
     });
 
     const now = new Date().toISOString();
-    const insertResult = await args.db
-        .prepare(
-            `
+    const metadata = getRequestMetadata(args.request);
+    
+    await args.db.batch([
+        args.db.prepare(`
             INSERT INTO payments (
                 contract_id, payment_type_id, amount, currency, status, notes, created_by, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `
-        )
-        .bind(
+        `).bind(
             parsed.data.contractId,
             parsed.data.paymentTypeId,
             parsed.data.amount,
             parsed.data.currency,
             parsed.data.status,
-            parsed.data.notes,
+            parsed.data.notes || null,
             args.user.id,
             now,
             now
+        ),
+        args.db.prepare(`
+            INSERT INTO audit_logs (user_id, role, company_id, entity_type, entity_id, action, before_state, after_state, ip_address, user_agent, created_at)
+            VALUES (?, ?, ?, 'payment', last_insert_rowid(), 'create', NULL, ?, ?, ?, ?)
+        `).bind(
+            args.user.id, args.user.role, args.companyId ?? args.user.companyId ?? null,
+            JSON.stringify({ ...parsed.data }),
+            metadata.ipAddress ?? null, metadata.userAgent ?? null, now
         )
-        .run();
-
-    const paymentId = Number(insertResult.meta.last_row_id || 0);
-    await quickAudit({
-        db: args.db,
-        userId: args.user.id,
-        role: args.user.role,
-        companyId: args.companyId ?? args.user.companyId ?? null,
-        entityType: "payment",
-        entityId: paymentId,
-        action: "create",
-        afterState: { id: paymentId, ...parsed.data },
-        ...getRequestMetadata(args.request),
-    });
+    ]);
 
     return redirectWithRequestSuccess(args.request, "/payments", "Payment created successfully");
 }

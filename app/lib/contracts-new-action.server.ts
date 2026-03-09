@@ -204,7 +204,7 @@ export async function handleCreateContractAction({ db, assets, request, user, co
     const metadata = getRequestMetadata(request);
     batchStmts.push(
       db.prepare(`
-        INSERT INTO user_audit_logs (user_id, role, company_id, entity_type, entity_id, action, before_state, after_state, ip_address, user_agent, created_at)
+        INSERT INTO audit_logs (user_id, role, company_id, entity_type, entity_id, action, before_state, after_state, ip_address, user_agent, created_at)
         VALUES (?, ?, ?, 'contract', last_insert_rowid(), 'create', NULL, ?, ?, ?, ?)
       `).bind(
         user.id, user.role, companyId,

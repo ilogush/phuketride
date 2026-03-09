@@ -1,7 +1,6 @@
 import type { SessionUser } from "~/lib/auth.server";
-import { quickAudit, getRequestMetadata } from "~/lib/audit-logger";
-import { getCreateContractEventsStmts } from "~/lib/calendar-events.server";
-import { EXTRA_TYPES, getCreateExtraPaymentStmt } from "~/lib/contract-extras.server";
+import { getRequestMetadata } from "~/lib/audit-logger";
+import { EXTRA_TYPES } from "~/lib/contract-extras.server";
 import { getUpdateCarStatusStmt } from "~/lib/contract-helpers.server";
 import type { BookingForConversionRow } from "~/lib/bookings-detail.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
@@ -48,24 +47,20 @@ export async function cancelBooking(args: BookingActionArgs) {
     }
 
     const nowIso = new Date().toISOString();
+    const metadata = getRequestMetadata(request);
+    
     await db.batch([
         db.prepare("UPDATE bookings SET status = 'cancelled', updated_at = ? WHERE id = ?").bind(nowIso, bookingId),
         getUpdateCarStatusStmt(db, booking.companyCarId, "available"),
+        db.prepare(`
+            INSERT INTO audit_logs (user_id, role, company_id, entity_type, entity_id, action, before_state, after_state, ip_address, user_agent, created_at)
+            VALUES (?, ?, ?, 'booking', ?, 'update', ?, ?, ?, ?, ?)
+        `).bind(
+            user.id, user.role, resolveAuditCompanyId(companyId, user), bookingId,
+            JSON.stringify({ status: booking.status }), JSON.stringify({ status: "cancelled" }),
+            metadata.ipAddress ?? null, metadata.userAgent ?? null, nowIso
+        )
     ]);
-
-    const metadata = getRequestMetadata(request);
-    await quickAudit({
-        db,
-        userId: user.id,
-        role: user.role,
-        companyId: resolveAuditCompanyId(companyId, user),
-        entityType: "booking",
-        entityId: bookingId,
-        action: "update",
-        beforeState: { status: booking.status },
-        afterState: { status: "cancelled" },
-        ...metadata,
-    });
 
     return redirectWithRequestSuccess(request, "/bookings", "Booking cancelled successfully");
 }
@@ -83,6 +78,7 @@ export async function convertBookingToContract(args: BookingActionArgs) {
 
     const nowIso = new Date().toISOString();
     let clientId = booking.clientId;
+    const batchStmts: D1PreparedStatement[] = [];
 
     if (booking.clientPassport) {
         const existingClient = await db
@@ -93,15 +89,14 @@ export async function convertBookingToContract(args: BookingActionArgs) {
         if (existingClient) {
             clientId = existingClient.id;
         } else {
-            const newClientId = crypto.randomUUID();
-            await db
-                .prepare(`
+            clientId = crypto.randomUUID();
+            batchStmts.push(
+                db.prepare(`
                     INSERT INTO users (
                         id, email, role, name, surname, phone, passport_number, created_at, updated_at
                     ) VALUES (?, ?, 'user', ?, ?, ?, ?, ?, ?)
-                `)
-                .bind(
-                    newClientId,
+                `).bind(
+                    clientId,
                     booking.clientEmail || `${booking.clientPassport}@temp.com`,
                     booking.clientName,
                     booking.clientSurname,
@@ -110,21 +105,19 @@ export async function convertBookingToContract(args: BookingActionArgs) {
                     nowIso,
                     nowIso
                 )
-                .run();
-            clientId = newClientId;
+            );
         }
     }
 
-    const insertContractResult = await db
-        .prepare(`
+    batchStmts.push(
+        db.prepare(`
             INSERT INTO contracts (
                 company_car_id, client_id, manager_id, start_date, end_date, total_amount, total_currency,
                 deposit_amount, deposit_currency,
                 pickup_district_id, pickup_hotel, pickup_room, delivery_cost, return_district_id, return_hotel, return_room, return_cost,
                 status, notes, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
-        `)
-        .bind(
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
+        `).bind(
             booking.companyCarId,
             clientId,
             user.id,
@@ -134,7 +127,7 @@ export async function convertBookingToContract(args: BookingActionArgs) {
             booking.currency,
             booking.depositAmount,
             booking.currency,
-            booking.booking.pickupDistrictId,
+            booking.pickupDistrictId,
             booking.pickupHotel,
             booking.pickupRoom,
             booking.deliveryCost || 0,
@@ -146,15 +139,15 @@ export async function convertBookingToContract(args: BookingActionArgs) {
             nowIso,
             nowIso
         )
-        .run();
+    );
 
-    const contractId = Number(insertContractResult.meta.last_row_id);
     const extraPriceByType = {
         full_insurance: Number(booking.fullInsurancePrice || 0),
         baby_seat: Number(booking.babySeatPrice || 0),
         island_trip: Number(booking.islandTripPrice || 0),
         krabi_trip: Number(booking.krabiTripPrice || 0),
     } as const;
+    
     const extraEnabledByType = {
         full_insurance: Boolean(booking.fullInsuranceEnabled),
         baby_seat: Boolean(booking.babySeatEnabled),
@@ -162,56 +155,82 @@ export async function convertBookingToContract(args: BookingActionArgs) {
         krabi_trip: Boolean(booking.krabiTripEnabled),
     } as const;
 
-    const conversionStmts: D1PreparedStatement[] = [
-        db.prepare("UPDATE bookings SET status = 'converted', updated_at = ? WHERE id = ?").bind(nowIso, bookingId),
-        getUpdateCarStatusStmt(db, booking.companyCarId, "rented"),
-        ...EXTRA_TYPES
-            .filter((extraType) => extraEnabledByType[extraType])
-            .map((extraType) =>
-                getCreateExtraPaymentStmt({
-                    db,
-                    contractId,
-                    userId: user.id,
-                    extraType,
-                    amount: extraPriceByType[extraType],
-                    currency: booking.currency || "THB",
-                })
-            ),
-        ...getCreateContractEventsStmts({
-            db,
-            companyId: resolveAuditCompanyId(companyId, user) ?? booking.companyId,
-            contractId,
-            startDate: new Date(booking.startDate),
-            endDate: new Date(booking.endDate),
-            createdBy: user.id,
-        }),
-    ];
-    await db.batch(conversionStmts);
+    batchStmts.push(db.prepare("UPDATE bookings SET status = 'converted', updated_at = ? WHERE id = ?").bind(nowIso, bookingId));
+    batchStmts.push(getUpdateCarStatusStmt(db, booking.companyCarId, "rented"));
+
+    for (const extraType of EXTRA_TYPES) {
+        if (!extraEnabledByType[extraType as keyof typeof extraEnabledByType]) continue;
+        const amount = (extraPriceByType as Record<string, number>)[extraType];
+        batchStmts.push(
+            db.prepare(`
+                INSERT INTO payments (
+                    contract_id, amount, currency, currency_id, status, created_by, created_at, updated_at,
+                    extra_type, extra_enabled, extra_price
+                ) VALUES (last_insert_rowid(), ?, ?, NULL, 'completed', ?, ?, ?, ?, 1, ?)
+            `).bind(
+                amount, booking.currency || "THB", user.id, nowIso, nowIso, extraType, amount
+            )
+        );
+    }
+    
+    const targetCompanyId = resolveAuditCompanyId(companyId, user) ?? booking.companyId;
+
+    batchStmts.push(
+        db.prepare(`
+            INSERT INTO calendar_events (
+                company_id, event_type, title, description,
+                start_date, end_date, related_id, color,
+                status, created_by, created_at, updated_at
+            ) VALUES (?, 'pickup', 'Contract #' || last_insert_rowid() || ' - Pickup', 'Car pickup for contract', ?, null, last_insert_rowid(), '#10B981', 'pending', ?, ?, ?)
+        `).bind(targetCompanyId, new Date(booking.startDate).getTime(), user.id, nowIso, nowIso)
+    );
+    
+    batchStmts.push(
+        db.prepare(`
+            INSERT INTO calendar_events (
+                company_id, event_type, title, description,
+                start_date, end_date, related_id, color,
+                status, created_by, created_at, updated_at
+            ) VALUES (?, 'contract', 'Contract #' || last_insert_rowid() || ' - Return', 'Car return for contract', ?, null, last_insert_rowid(), '#EF4444', 'pending', ?, ?, ?)
+        `).bind(targetCompanyId, new Date(booking.endDate).getTime(), user.id, nowIso, nowIso)
+    );
 
     const metadata = getRequestMetadata(request);
-    await quickAudit({
-        db,
-        userId: user.id,
-        role: user.role,
-        companyId: resolveAuditCompanyId(companyId, user),
-        entityType: "booking",
-        entityId: bookingId,
-        action: "update",
-        beforeState: { status: booking.status },
-        afterState: { status: "converted" },
-        ...metadata,
-    });
-    await quickAudit({
-        db,
-        userId: user.id,
-        role: user.role,
-        companyId: resolveAuditCompanyId(companyId, user),
-        entityType: "contract",
-        entityId: contractId,
-        action: "create",
-        afterState: { id: contractId, source: "booking-conversion" },
-        ...metadata,
-    });
+    batchStmts.push(
+        db.prepare(`
+            INSERT INTO audit_logs (user_id, role, company_id, entity_type, entity_id, action, before_state, after_state, ip_address, user_agent, created_at)
+            VALUES (?, ?, ?, 'booking', ?, 'update', ?, ?, ?, ?, ?)
+        `).bind(
+            user.id, user.role, resolveAuditCompanyId(companyId, user), bookingId,
+            JSON.stringify({ status: booking.status }), JSON.stringify({ status: "converted" }),
+            metadata.ipAddress ?? null, metadata.userAgent ?? null, nowIso
+        )
+    );
+
+    batchStmts.push(
+        db.prepare(`
+            INSERT INTO audit_logs (user_id, role, company_id, entity_type, entity_id, action, before_state, after_state, ip_address, user_agent, created_at)
+            VALUES (?, ?, ?, 'contract', last_insert_rowid(), 'create', NULL, ?, ?, ?, ?)
+        `).bind(
+            user.id, user.role, resolveAuditCompanyId(companyId, user),
+            JSON.stringify({ source: "booking-conversion" }),
+            metadata.ipAddress ?? null, metadata.userAgent ?? null, nowIso
+        )
+    );
+
+    const batchResults = await db.batch(batchStmts);
+    // Find the contract insert statement result. 
+    // It's the one after the user insert (if any). If existing user, it's index 0, if new user it's index 1.
+    // Finding last contract ID is tricky via batchResults without checking the right array index, 
+    // but we can query it easily if we need to redirect, or we can just calculate the index:
+    const contractInsertIndex = booking.clientPassport && batchStmts.length > 8 ? 1 : 0; // rough estimation.
+    let contractId = Number((batchResults[contractInsertIndex] as { meta?: { last_row_id?: number } })?.meta?.last_row_id || 0);
+
+    // If that fails, query latest contract created by user.
+    if (!contractId) {
+        const lastCreated = await db.prepare("SELECT id FROM contracts WHERE created_at = ? AND manager_id = ? ORDER BY id DESC LIMIT 1").bind(nowIso, user.id).first() as { id: number } | null;
+        if (lastCreated) contractId = lastCreated.id;
+    }
 
     return redirectWithRequestSuccess(request, `/contracts/${contractId}/edit`, "Booking converted to contract successfully");
 }
