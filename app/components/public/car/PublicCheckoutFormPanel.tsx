@@ -69,7 +69,7 @@ export default function PublicCheckoutFormPanel({
           <h2 className="text-xl font-semibold text-gray-800">Primary driver</h2>
           <Link
             to="/register"
-            className="rounded-xl border border-green-600 px-5 py-2 text-base font-semibold text-green-600"
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-green-600 px-5 text-base font-semibold text-green-600"
           >
             Log in
           </Link>
@@ -82,7 +82,7 @@ export default function PublicCheckoutFormPanel({
             placeholder="Mobile number"
             required
             defaultValue=""
-            inputClassName="py-2 text-base text-gray-700 focus:border-green-600 focus:ring-green-600"
+            inputClassName="text-base text-gray-700 focus:border-green-600 focus:ring-green-600"
           />
           <AuthTextInput
             id="clientEmail"
@@ -91,7 +91,7 @@ export default function PublicCheckoutFormPanel({
             name="clientEmail"
             placeholder="Email"
             defaultValue=""
-            inputClassName="py-2 text-base text-gray-700 focus:border-green-600 focus:ring-green-600"
+            inputClassName="text-base text-gray-700 focus:border-green-600 focus:ring-green-600"
           />
         </div>
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -101,7 +101,7 @@ export default function PublicCheckoutFormPanel({
             name="clientName"
             required
             defaultValue=""
-            inputClassName="py-2 text-base text-gray-700 focus:border-green-600 focus:ring-green-600"
+            inputClassName="text-base text-gray-700 focus:border-green-600 focus:ring-green-600"
           />
           <AuthTextInput
             id="clientSurname"
@@ -109,7 +109,7 @@ export default function PublicCheckoutFormPanel({
             name="clientSurname"
             required
             defaultValue=""
-            inputClassName="py-2 text-base text-gray-700 focus:border-green-600 focus:ring-green-600"
+            inputClassName="text-base text-gray-700 focus:border-green-600 focus:ring-green-600"
           />
         </div>
       </section>
@@ -263,7 +263,7 @@ export default function PublicCheckoutFormPanel({
       <div className="pt-1">
         <Link
           to={`/cars/${data.carPathSegment}`}
-          className="inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-green-600 px-5 text-base font-medium text-white hover:bg-green-700"
         >
           <ChevronLeftIcon className="w-5 h-5" />
           Back

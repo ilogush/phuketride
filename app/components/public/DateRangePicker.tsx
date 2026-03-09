@@ -184,7 +184,7 @@ export default function DateRangePicker({
         onClick={() => setOpen((prev) => !prev)}
       >
         <p className={compactLabelClassName}>{compactStartLabel}</p>
-        <div className={`flex items-center gap-2${compactDateBorder ? " rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800" : ""}`}>
+        <div className={`flex h-10 items-center gap-2${compactDateBorder ? " rounded-xl border border-gray-300 bg-white px-3 text-base text-gray-800" : ""}`}>
           <CalendarDaysIcon className={`${compactCalendarIconClassName} text-gray-500 flex-shrink-0`} />
           <span className="text-base text-gray-800 whitespace-nowrap">{startDisplayValue}</span>
           {compactShowTime ? (
@@ -205,7 +205,7 @@ export default function DateRangePicker({
         onClick={() => setOpen((prev) => !prev)}
       >
         <p className={compactLabelClassName}>{compactEndLabel}</p>
-        <div className={`flex items-center gap-2${compactDateBorder ? " rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-800" : ""}`}>
+        <div className={`flex h-10 items-center gap-2${compactDateBorder ? " rounded-xl border border-gray-300 bg-white px-3 text-base text-gray-800" : ""}`}>
           <CalendarDaysIcon className={`${compactCalendarIconClassName} text-gray-500 flex-shrink-0`} />
           <span className="text-base text-gray-800 whitespace-nowrap">{endDisplayValue}</span>
           {compactShowTime ? (

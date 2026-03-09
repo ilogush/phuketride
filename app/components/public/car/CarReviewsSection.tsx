@@ -94,7 +94,7 @@ export default function CarReviewsSection({ rating, reviews }: CarReviewsSection
                 onClick={() => setVisibleCount(hasMoreReviews ? reviews.length : INITIAL_REVIEWS_COUNT)}
                 size="lg"
                 trailingIcon={<ChevronDownIcon className={`w-5 h-5 ${hasMoreReviews ? "" : "rotate-180"}`} />}
-                className="px-5 py-3 text-base font-medium"
+                className="px-5 text-base font-medium"
               >
                 {hasMoreReviews ? "Show all" : "Hide part of reviews"}
               </ClientButton>

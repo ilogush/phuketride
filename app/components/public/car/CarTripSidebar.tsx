@@ -162,7 +162,7 @@ export default function CarTripSidebar({
                 label="Pickup district"
                 value={pickupDistrictId}
                 onChange={(event) => setPickupDistrictId(Number(event.target.value))}
-                inputClassName="appearance-none py-2 text-base text-gray-800 focus:border-green-600 focus:ring-green-600"
+                inputClassName="appearance-none text-base text-gray-800 focus:border-green-600 focus:ring-green-600"
               >
                 {districtOptions.map((district) => (
                   <option key={`pickup-${district.id}`} value={district.id}>{district.name}</option>
@@ -173,7 +173,7 @@ export default function CarTripSidebar({
                 label="Return district"
                 value={returnDistrictId}
                 onChange={(event) => setReturnDistrictId(Number(event.target.value))}
-                inputClassName="appearance-none py-2 text-base text-gray-800 focus:border-green-600 focus:ring-green-600"
+                inputClassName="appearance-none text-base text-gray-800 focus:border-green-600 focus:ring-green-600"
               >
                 {districtOptions.map((district) => (
                   <option key={district.id} value={district.id}>{district.name}</option>
@@ -220,7 +220,7 @@ export default function CarTripSidebar({
 
         <Link
           to={`/cars/${carPathSegment || carId}/checkout?${checkoutSearch}`}
-          className="w-full inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-5 text-base font-medium text-white hover:bg-green-700"
         >
           Continue
           <ArrowRightIcon className="w-5 h-5" />
@@ -231,7 +231,7 @@ export default function CarTripSidebar({
             <button
               type="button"
               onClick={toggleFavorite}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-600 bg-white px-5 py-3 text-base font-medium text-green-600 transition-all duration-200 hover:bg-green-50 hover:text-green-700"
+              className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-green-600 bg-white px-5 text-base font-medium text-green-600 transition-all duration-200 hover:bg-green-50 hover:text-green-700"
             >
               {isFavorite ? <HeartSolidIcon className="w-5 h-5" /> : <HeartIcon className="w-5 h-5" />}
               Favorites
@@ -240,7 +240,7 @@ export default function CarTripSidebar({
               href={chatHref}
               target={chatHref.startsWith("http") ? "_blank" : undefined}
               rel={chatHref.startsWith("http") ? "noreferrer" : undefined}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-600 bg-white px-5 py-3 text-base font-medium text-green-600 transition-all duration-200 hover:bg-green-50 hover:text-green-700"
+              className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-green-600 bg-white px-5 text-base font-medium text-green-600 transition-all duration-200 hover:bg-green-50 hover:text-green-700"
             >
               <ChatBubbleBottomCenterTextIcon className="w-5 h-5" />
               Chat

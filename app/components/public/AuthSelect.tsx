@@ -9,7 +9,7 @@ type AuthSelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
 };
 
 const baseClassName =
-    "w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition-all focus:border-gray-900 focus:ring-2 focus:ring-gray-900";
+    "h-10 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 outline-none transition-all focus:border-gray-900 focus:ring-2 focus:ring-gray-900";
 
 const AuthSelect = forwardRef<HTMLSelectElement, AuthSelectProps>(function AuthSelect(
     { className = "", inputClassName = "", children, id, label, hint, error, required, ...props },

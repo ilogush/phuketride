@@ -209,11 +209,11 @@ export default function CheckoutSummaryCard({
             <input
               type="text"
               placeholder="Enter code"
-              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:border-green-600 focus:outline-none"
+              className="h-10 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-green-600 focus:outline-none"
             />
             <button
               type="button"
-              className="rounded-xl border border-green-600 px-3 py-2 text-sm font-semibold text-green-600 hover:bg-green-50"
+              className="h-10 rounded-xl border border-green-600 px-3 text-sm font-semibold text-green-600 hover:bg-green-50"
             >
               Apply
             </button>
@@ -239,7 +239,7 @@ export default function CheckoutSummaryCard({
         <button
           type="submit"
           disabled={submitting}
-          className="mt-4 w-full rounded-xl bg-green-600 px-4 py-3 text-base font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-400"
+          className="mt-4 h-10 w-full rounded-xl bg-green-600 px-4 text-base font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-400"
         >
           {submitting ? "Submitting..." : "Submit request"}
         </button>

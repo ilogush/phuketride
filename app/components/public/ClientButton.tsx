@@ -61,9 +61,9 @@ export default function ClientButton({
     ghost: "bg-transparent text-gray-800 border border-transparent hover:bg-green-50",
   } satisfies Record<ClientButtonVariant, string>;
   const sizeClasses = {
-    sm: "h-9 px-4 text-sm",
+    sm: "h-10 px-4 text-sm",
     md: "h-10 px-6 text-sm",
-    lg: "h-12 px-6 text-base",
+    lg: "h-10 px-6 text-base",
   } satisfies Record<ClientButtonSize, string>;
 
   return (

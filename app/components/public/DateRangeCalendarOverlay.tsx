@@ -133,11 +133,11 @@ export default function DateRangeCalendarOverlay({
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 py-3 px-4 border-t border-gray-200">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1">
-            <input aria-label="Start date preview" type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.startDate)} />
+            <input aria-label="Start date preview" type="text" readOnly className="block h-10 w-24 rounded-xl border border-transparent bg-gray-100 px-3 text-sm text-gray-800" value={formatDisplay(draft.startDate)} />
             <AuthSelect
               value={draft.startTime}
               onChange={(event) => onDraftChange({ startTime: event.target.value })}
-              inputClassName="rounded-lg px-2 py-2 text-sm text-gray-800 focus:border-green-600 focus:ring-green-600"
+              inputClassName="rounded-xl px-3 text-sm text-gray-800 focus:border-green-600 focus:ring-green-600"
             >
               {timeOptions.map((time) => (
                 <option key={`${optionKeyPrefix}-start-${time.value}`} value={time.value}>
@@ -147,11 +147,11 @@ export default function DateRangeCalendarOverlay({
             </AuthSelect>
           </div>
           <div className="flex items-center gap-1">
-            <input aria-label="End date preview" type="text" readOnly className="p-2 block w-24 bg-gray-100 border-transparent rounded-lg text-sm text-gray-800" value={formatDisplay(draft.endDate)} />
+            <input aria-label="End date preview" type="text" readOnly className="block h-10 w-24 rounded-xl border border-transparent bg-gray-100 px-3 text-sm text-gray-800" value={formatDisplay(draft.endDate)} />
             <AuthSelect
               value={draft.endTime}
               onChange={(event) => onDraftChange({ endTime: event.target.value })}
-              inputClassName="rounded-lg px-2 py-2 text-sm text-gray-800 focus:border-green-600 focus:ring-green-600"
+              inputClassName="rounded-xl px-3 text-sm text-gray-800 focus:border-green-600 focus:ring-green-600"
             >
               {timeOptions.map((time) => (
                 <option key={`${optionKeyPrefix}-end-${time.value}`} value={time.value}>
@@ -163,10 +163,10 @@ export default function DateRangeCalendarOverlay({
         </div>
 
         <div className="flex items-center md:justify-end gap-x-2">
-          <ClientButton type="button" variant="ghost" size="sm" onClick={onCancel} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-800 hover:bg-green-100">
+          <ClientButton type="button" variant="ghost" size="sm" onClick={onCancel} className="rounded-xl border border-gray-200 bg-white px-3 text-xs font-medium text-gray-800 hover:bg-green-100">
             Cancel
           </ClientButton>
-          <ClientButton type="button" size="sm" onClick={onApply} className="rounded-lg px-3 py-2 text-xs font-medium">
+          <ClientButton type="button" size="sm" onClick={onApply} className="rounded-xl px-3 text-xs font-medium">
             Apply
           </ClientButton>
         </div>

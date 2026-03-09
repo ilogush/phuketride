@@ -37,7 +37,7 @@ test("CarTripSidebar renders primary and secondary actions with expected styling
 
     assert.ok(html.includes("/cars/monkey-car-toyota-veloz-8093/checkout?"), "checkout link should be present");
     assert.ok(
-        html.includes('class="w-full inline-flex items-center justify-center rounded-xl bg-green-600 text-white px-5 py-3 text-base font-medium hover:bg-green-700 gap-2"'),
+        html.includes('class="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-5 text-base font-medium text-white hover:bg-green-700"'),
         "continue CTA should keep public primary styling"
     );
     assert.match(
@@ -49,7 +49,7 @@ test("CarTripSidebar renders primary and secondary actions with expected styling
         "chat link should prefer telegram"
     );
     assert.ok(
-        html.includes('class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-600 bg-white px-5 py-3 text-base font-medium text-green-600 transition-all duration-200 hover:bg-green-50 hover:text-green-700"'),
+        html.includes('class="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-green-600 bg-white px-5 text-base font-medium text-green-600 transition-all duration-200 hover:bg-green-50 hover:text-green-700"'),
         "chat action should keep public secondary styling"
     );
     assert.ok(!html.includes("bg-gray-200"), "shared gray button styling should not leak into public sidebar");

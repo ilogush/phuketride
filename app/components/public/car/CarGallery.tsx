@@ -75,7 +75,7 @@ export default function CarGallery({ title, photos }: CarGalleryProps) {
             <button
               type="button"
               onClick={() => openModal(0)}
-              className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-[1.4rem] border-2 border-[#1f2937] bg-[#00b33c] px-6 py-3 text-[14px] font-bold text-white shadow-sm transition-colors hover:bg-[#009933]"
+              className="absolute bottom-3 right-3 inline-flex h-10 items-center gap-2 rounded-xl border-2 border-[#1f2937] bg-[#00b33c] px-6 text-[14px] font-bold text-white shadow-sm transition-colors hover:bg-[#009933]"
             >
               <PhotoIcon className="w-5 h-5" />
               Show all
