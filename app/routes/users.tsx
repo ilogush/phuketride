@@ -17,7 +17,7 @@ import { getPaginationFromUrl } from "~/lib/pagination.server";
 import { parseListFilters } from "~/lib/query-filters.server";
 import type { UserListRow } from "~/lib/db-types";
 import { trackServerOperation } from "~/lib/telemetry.server";
-const USER_TABS = ["admin", "partner", "manager", "user"] as const;
+const USER_TABS = ["user", "manager", "partner", "admin"] as const;
 type UserTab = typeof USER_TABS[number];
 
 import { getScopedDb } from "~/lib/db-factory.server";
@@ -26,15 +26,15 @@ import { requireUserDirectoryAccess } from "~/lib/access-policy.server";
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user, companyId, isModMode, sdb } = await getScopedDb(request, context, requireUserDirectoryAccess);
     const url = new URL(request.url);
-    const defaultTab = user.role === "partner" || isModMode ? "manager" : "admin";
+    const defaultTab: UserTab = "user";
     const { tab, search, sortBy, sortOrder } = parseListFilters(url, {
         tabs: USER_TABS,
-        defaultTab: defaultTab as UserTab,
+        defaultTab,
         sortBy: ["createdAt", "id", "email", "name", "role"] as const,
         defaultSortBy: "createdAt",
         defaultSortOrder: "desc",
     });
-    const activeTab: UserTab = tab ?? (defaultTab as UserTab);
+    const activeTab: UserTab = tab ?? defaultTab;
     const { page, pageSize, offset } = getPaginationFromUrl(url);
 
     return trackServerOperation({
@@ -126,14 +126,14 @@ export default function UsersPage() {
 
     const tabs = isPartner
         ? [
-            { id: "manager", label: "Manager", count: roleCounts.manager },
             { id: "user", label: "User", count: roleCounts.user },
+            { id: "manager", label: "Manager", count: roleCounts.manager },
         ]
         : [
-            { id: "admin", label: "Admin", count: roleCounts.admin },
-            { id: "partner", label: "Partner", count: roleCounts.partner },
-            { id: "manager", label: "Manager", count: roleCounts.manager },
             { id: "user", label: "User", count: roleCounts.user },
+            { id: "manager", label: "Manager", count: roleCounts.manager },
+            { id: "partner", label: "Partner", count: roleCounts.partner },
+            { id: "admin", label: "Admin", count: roleCounts.admin },
         ];
 
     const currentTab = String(activeTab);
