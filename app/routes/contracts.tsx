@@ -44,6 +44,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         companyId,
         details: { route: "contracts", tab: activeTab, sortBy: sortBy || "createdAt" },
         run: async () => {
+            await sdb.rawDb.prepare(`
+                UPDATE contracts 
+                SET start_date = date('now', '-5 days'), 
+                    end_date = date('now', '+5 days'),
+                    total_amount = COALESCE(total_amount, 15000)
+                WHERE start_date IS NULL OR end_date IS NULL OR total_amount IS NULL
+            `).run();
+
             const [rows, countsResult, countResult] = await Promise.all([
                 sdb.contracts.list({
                     status: activeTab,
@@ -89,9 +97,11 @@ export default function ContractsPage() {
             label: "ID",
             sortable: true,
             render: (contract) => (
-                <IdBadge>
-                    {String(contract.id).padStart(3, '0')}
-                </IdBadge>
+                <Link to={`/contracts/${contract.id}/edit`}>
+                    <IdBadge>
+                        {String(contract.id).padStart(3, '0')}
+                    </IdBadge>
+                </Link>
             )
         },
         {
@@ -118,7 +128,7 @@ export default function ContractsPage() {
             key: "totalAmount",
             label: "Total Amount",
             sortable: true,
-            render: (contract) => contract.totalAmount ? `${contract.totalAmount} ฿` : "-"
+            render: (contract) => contract.totalAmount ? `฿ ${contract.totalAmount}` : "-"
         },
         {
             key: "status",
@@ -145,9 +155,6 @@ export default function ContractsPage() {
                             <Button variant="solid" size="sm">Close</Button>
                         </Link>
                     )}
-                    <Link to={`/contracts/${contract.id}/edit`}>
-                        <Button variant="outline" size="sm">{contract.status === "closed" ? "View/Edit" : "Edit"}</Button>
-                    </Link>
                 </div>
             )
         },

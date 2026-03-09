@@ -81,10 +81,10 @@ export default function SeasonalPricingMatrix({ pricePerDay, seasons, durations 
                         className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap hidden sm:table-cell text-left"
                       >
                         <div className="flex flex-col items-start">
-                          <span className="font-bold text-gray-900">{Math.round(dailyPrice)}฿</span>
+                          <span className="font-bold text-gray-900">฿{Math.round(dailyPrice)}</span>
                           <span className="text-xs text-gray-500">per day</span>
                           <div className="mt-1 pt-1 border-t border-gray-200 w-full text-left">
-                            <span className="font-semibold text-gray-900">{Math.round(totalPrice)}฿</span>
+                            <span className="font-semibold text-gray-900">฿{Math.round(totalPrice)}</span>
                             <span className="text-xs text-gray-500 block">for {avgDays} days</span>
                           </div>
                         </div>
