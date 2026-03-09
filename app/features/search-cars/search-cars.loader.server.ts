@@ -1,6 +1,7 @@
 import { buildCarPathSegment, buildCompanySlug } from "~/lib/car-path";
 import { getCarPhotoUrls } from "~/lib/car-photos";
 import { QUERY_LIMITS } from "~/lib/query-limits";
+import { parseTripDateTime } from "~/components/public/trip-date.model";
 
 export interface SearchCarsQuery {
   q: string;
@@ -43,7 +44,8 @@ export async function loadSearchCarsPage(args: {
   const { db, request } = args;
   const url = new URL(request.url);
   const query = parseSearchCarsQuery(url);
-  const rows = await loadSearchCarRows(db);
+  const unavailableCarIds = await loadUnavailableCarIds(db, query);
+  const rows = await loadSearchCarRows(db, unavailableCarIds);
   const cars = rows.map((row) => mapSearchCarRow(row, request.url));
   const filteredCars = filterSearchCars(cars, query);
 
@@ -67,7 +69,11 @@ function parseSearchCarsQuery(url: URL): SearchCarsQuery {
   };
 }
 
-async function loadSearchCarRows(db: D1Database) {
+async function loadSearchCarRows(db: D1Database, unavailableCarIds: number[]) {
+  const unavailableClause =
+    unavailableCarIds.length > 0
+      ? `AND cc.id NOT IN (${unavailableCarIds.map(() => "?").join(", ")})`
+      : "";
   const rowsResult = await db
     .prepare(
       `
@@ -104,13 +110,52 @@ async function loadSearchCarRows(db: D1Database) {
       WHERE cc.status = 'available'
         AND cc.archived_at IS NULL
         AND c.archived_at IS NULL
+        ${unavailableClause}
       ORDER BY cc.created_at DESC
       LIMIT ${QUERY_LIMITS.XL}
       `,
     )
+    .bind(...unavailableCarIds)
     .all();
 
   return (rowsResult.results ?? []) as Array<Record<string, unknown>>;
+}
+
+async function loadUnavailableCarIds(db: D1Database, query: SearchCarsQuery) {
+  const pickupAt = parseTripDateTime(query.startDate, query.startTime);
+  const returnAt = parseTripDateTime(query.endDate, query.endTime);
+  if (!pickupAt || !returnAt || returnAt <= pickupAt) {
+    return [];
+  }
+
+  const result = await db
+    .prepare(
+      `
+      SELECT DISTINCT company_car_id AS carId
+      FROM (
+        SELECT company_car_id
+        FROM contracts
+        WHERE status IN ('active', 'pending')
+          AND start_date < ? AND end_date > ?
+
+        UNION
+
+        SELECT company_car_id
+        FROM bookings
+        WHERE status IN ('pending', 'confirmed')
+          AND start_date < ? AND end_date > ?
+      )
+      `,
+    )
+    .bind(
+      returnAt.toISOString(),
+      pickupAt.toISOString(),
+      returnAt.toISOString(),
+      pickupAt.toISOString(),
+    )
+    .all<{ carId: number | string }>();
+
+  return (result.results ?? []).map((row) => Number(row.carId)).filter((id) => Number.isFinite(id));
 }
 
 function mapSearchCarRow(row: Record<string, unknown>, requestUrl: string): SearchCarItem {

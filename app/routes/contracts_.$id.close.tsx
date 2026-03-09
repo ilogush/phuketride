@@ -3,6 +3,7 @@ import { useLoaderData } from "react-router";
 import ContractClosePageView from "~/features/contract-close/ContractClosePageView";
 import { submitContractCloseAction } from "~/features/contract-close/contract-close.action.server";
 import { loadContractClosePage } from "~/features/contract-close/contract-close.loader.server";
+import { assertSameOriginMutation } from "~/lib/request-security.server";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     return loadContractClosePage({
@@ -13,6 +14,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, params, context }: ActionFunctionArgs) {
+    assertSameOriginMutation(request);
     return submitContractCloseAction({
         db: context.cloudflare.env.DB,
         request,

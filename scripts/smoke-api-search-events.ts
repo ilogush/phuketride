@@ -52,7 +52,11 @@ function buildContext(db: DbMock, kv?: KVNamespace) {
 async function run() {
   const db = new DbMock();
   const kv = new MemoryKV() as unknown as KVNamespace;
-  const baseHeaders = { "content-type": "application/json", "CF-Connecting-IP": "1.1.1.1" };
+  const baseHeaders = {
+    "content-type": "application/json",
+    "CF-Connecting-IP": "1.1.1.1",
+    Origin: "http://localhost",
+  };
 
   const okRequest = new Request("http://localhost/api/search-events", {
     method: "POST",

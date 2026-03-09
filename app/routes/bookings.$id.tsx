@@ -9,6 +9,7 @@ export const meta: MetaFunction = () => [
 import BookingDetailPageView from "~/features/booking-detail/BookingDetailPageView";
 import { submitBookingDetailAction } from "~/features/booking-detail/booking-detail.action.server";
 import { loadBookingDetailPage } from "~/features/booking-detail/booking-detail.loader.server";
+import { assertSameOriginMutation } from "~/lib/request-security.server";
 
 import { type AppLoadContext } from "~/types/context";
 
@@ -21,6 +22,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, params, context }: Route.ActionArgs) {
+    assertSameOriginMutation(request);
     return submitBookingDetailAction({
         request,
         bookingIdParam: params.id,

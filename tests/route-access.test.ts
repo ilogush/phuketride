@@ -56,7 +56,7 @@ test("logs loader allows partner analytics access scoped to their company", asyn
     assert.equal(db.countCalls("FROM audit_logs a", "all"), 1);
 });
 
-test("logs action allows partner to clear scoped audit logs", async () => {
+test("logs action rejects partner before touching audit log storage", async () => {
     const db = new FakeD1Database([
         {
             match: "DELETE FROM audit_logs WHERE company_id = ?",
@@ -81,14 +81,16 @@ test("logs action allows partner to clear scoped audit logs", async () => {
         }
     );
 
-    const response = await logsAction({
-        request,
-        context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
-        params: {},
-    } as never);
+    await assert.rejects(
+        () => logsAction({
+            request,
+            context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+            params: {},
+        } as never),
+        (error: unknown) => error instanceof Response && error.status === 403
+    );
 
-    assert.equal(response.status, 302);
-    assert.equal(db.countCalls("DELETE FROM audit_logs WHERE company_id = ?", "run"), 1);
+    assert.equal(db.countCalls("DELETE FROM audit_logs WHERE company_id = ?", "run"), 0);
 });
 
 test("company detail loader rejects manager accessing another company", async () => {

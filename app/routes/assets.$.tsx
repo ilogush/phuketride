@@ -40,6 +40,52 @@ function getCacheControl(path: string): string {
   return CONTENT_TYPE_CACHE[ext] || ASSET_CACHE_CONTROL.shortLived;
 }
 
+function getPrivateAssetUserId(path: string): string | null {
+    const match = path.match(/^users\/([^/]+)\/(?:passport|driver-license)\//);
+    return match?.[1] ?? null;
+}
+
+async function canAccessPrivateAsset(args: {
+    request: Request;
+    db: D1Database;
+    path: string;
+}) {
+    const user = await getUserFromSession(args.request);
+    if (!user) {
+        return false;
+    }
+
+    const targetUserId = getPrivateAssetUserId(args.path);
+    if (!targetUserId) {
+        return false;
+    }
+
+    if (user.role === "admin" || user.id === targetUserId) {
+        return true;
+    }
+
+    if (!user.companyId) {
+        return false;
+    }
+
+    const relatedUser = await args.db
+        .prepare(
+            `
+            SELECT u.id
+            FROM users u
+            LEFT JOIN managers m ON u.id = m.user_id AND m.company_id = ? AND m.is_active = 1
+            LEFT JOIN contracts c ON u.id = c.client_id
+            LEFT JOIN company_cars cc ON c.company_car_id = cc.id AND cc.company_id = ?
+            WHERE u.id = ? AND (m.id IS NOT NULL OR cc.id IS NOT NULL) AND u.archived_at IS NULL
+            LIMIT 1
+            `,
+        )
+        .bind(user.companyId, user.companyId, targetUserId)
+        .first<{ id: string }>();
+
+    return Boolean(relatedUser);
+}
+
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const path = params["*"];
     
@@ -49,8 +95,12 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 
     try {
         if (isPrivateAssetPath(path)) {
-            const user = await getUserFromSession(request);
-            if (!user) {
+            const allowed = await canAccessPrivateAsset({
+                request,
+                db: context.cloudflare.env.DB,
+                path,
+            });
+            if (!allowed) {
                 return new Response("Forbidden", { status: 403 });
             }
         }

@@ -3,6 +3,7 @@ import { useLoaderData } from "react-router";
 import CarEditPageView from "~/features/car-edit/CarEditPageView";
 import { submitCarEditAction } from "~/features/car-edit/car-edit.action.server";
 import { loadCarEditPage } from "~/features/car-edit/car-edit.loader.server";
+import { assertSameOriginMutation } from "~/lib/request-security.server";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
     return loadCarEditPage({
@@ -13,6 +14,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
+    assertSameOriginMutation(request);
     return submitCarEditAction({ request, context, params });
 }
 

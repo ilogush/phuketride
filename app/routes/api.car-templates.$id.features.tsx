@@ -1,6 +1,7 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
 import { requireAdmin } from "~/lib/auth.server";
 import { getCarTemplateFeatureSchema } from "~/lib/car-template-form.server";
+import { assertSameOriginMutation } from "~/lib/request-security.server";
 
 function parseBoolFromFeatures(features: Array<{ category: string; name: string }>, matcher: (name: string, category: string) => boolean) {
     return features.some((item) => matcher(item.name.toLowerCase(), item.category.toLowerCase())) ? 1 : 0;
@@ -98,6 +99,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
+    assertSameOriginMutation(request);
     await requireAdmin(request);
     const templateId = Number(params.id || 0);
     if (!Number.isFinite(templateId) || templateId <= 0) {

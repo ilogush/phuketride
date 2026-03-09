@@ -6,6 +6,7 @@ import PageHeader from '~/components/shared/ui/PageHeader'
 import BackButton from '~/components/shared/ui/BackButton'
 import Button from '~/components/shared/ui/Button'
 import { createCarTemplate, loadCarTemplateFormOptions } from '~/lib/car-template-form.server'
+import { assertSameOriginMutation } from '~/lib/request-security.server'
 
 export async function loader({ request, context }: Route.LoaderArgs) {
     await requireAdmin(request)
@@ -13,6 +14,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
+    assertSameOriginMutation(request)
     await requireAdmin(request)
     const formData = await request.formData()
     const parsed = await createCarTemplate(context.cloudflare.env.DB, formData)

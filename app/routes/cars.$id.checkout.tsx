@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Form, useActionData, useLoaderData, useNavigation } from "react-router";
+import { Form, redirect, useActionData, useLoaderData, useNavigation } from "react-router";
 import type { Route } from "./+types/cars.$id.checkout";
 import Header from "~/components/public/Header";
 import Footer from "~/components/public/Footer";
@@ -13,6 +13,7 @@ import {
 import { useActionToast } from "~/lib/useActionToast";
 import { requirePublicAccess } from "~/lib/access-policy.server";
 import { getScopedDb } from "~/lib/db-factory.server";
+import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 
 export function meta({ data }: Route.MetaArgs) {
   const carName = data?.carName || "Car";
@@ -40,6 +41,17 @@ type CheckoutActionData = {
 };
 
 export async function action({ request, context }: Route.ActionArgs) {
+  const rateLimit = await checkRateLimit(
+    (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
+    getClientIdentifier(request),
+    "form",
+  );
+  if (!rateLimit.allowed) {
+    return redirect(
+      "/booking-confirmation?status=error&message=Too%20many%20checkout%20attempts.%20Please%20wait%20and%20try%20again.",
+    );
+  }
+
   const { sdb } = await getScopedDb(request, context, requirePublicAccess);
   return submitPublicCheckout({ request, db: sdb.rawDb });
 }

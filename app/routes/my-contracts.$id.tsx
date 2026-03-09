@@ -5,6 +5,7 @@ import { submitMyContractDetailAction } from "~/features/my-contract-detail/my-c
 import { loadMyContractDetailPage } from "~/features/my-contract-detail/my-contract-detail.loader.server";
 import { requireAuthAccess } from "~/lib/access-policy.server";
 import { getScopedDb } from "~/lib/db-factory.server";
+import { assertSameOriginMutation } from "~/lib/request-security.server";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const { sdb } = await getScopedDb(request, context, requireAuthAccess);
@@ -16,6 +17,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
+    assertSameOriginMutation(request);
     const { sdb } = await getScopedDb(request, context, requireAuthAccess);
     return submitMyContractDetailAction({
         db: sdb.db,

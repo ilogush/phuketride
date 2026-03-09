@@ -1,4 +1,5 @@
 import type { SessionUser } from "~/lib/auth.server";
+import { assertSameOriginMutation } from "~/lib/request-security.server";
 
 type TelemetryLevel = "info" | "error";
 type TelemetrySeverity = "info" | "warn" | "error";
@@ -119,6 +120,9 @@ export async function trackServerOperation<T>(args: {
     const effectiveCompanyId = args.user?.companyId || args.companyId;
 
     try {
+        if (args.scope === "route.action" && args.request) {
+            assertSameOriginMutation(args.request);
+        }
         const result = await args.run();
         const durationMs = Date.now() - startedAt;
         const slow = durationMs >= scopeMeta.thresholdMs;

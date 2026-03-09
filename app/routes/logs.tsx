@@ -13,7 +13,7 @@ import { trackServerOperation } from "~/lib/telemetry.server";
 import { parseWithSchema } from "~/lib/validation.server";
 import { clearAuditLogsSchema } from "~/schemas/admin-analytics";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
-import { requireAdminAnalyticsAccess } from "~/lib/access-policy.server";
+import { requireAdminAnalyticsAccess, requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { getPaginationFromUrl } from "~/lib/pagination.server";
 
@@ -75,6 +75,14 @@ const ACTION_COLORS: Record<string, string> = {
     access_denied: "bg-red-100 text-red-800",
 };
 
+async function requireAdminLogMutationAccess(request: Request) {
+    const access = await requireScopedDashboardAccess(request, { allowAdminGlobal: true });
+    if (access.user.role !== "admin") {
+        throw new Response("Forbidden", { status: 403 });
+    }
+    return access;
+}
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { user, sdb } = await getScopedDb(request, context, (r) => requireAdminAnalyticsAccess(r));
     const url = new URL(request.url);
@@ -101,7 +109,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const { user, sdb } = await getScopedDb(request, context, (r) => requireAdminAnalyticsAccess(r));
+    const { user, sdb } = await getScopedDb(request, context, requireAdminLogMutationAccess);
     return trackServerOperation({
         event: "logs.action",
         scope: "route.action",

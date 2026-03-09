@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { getTelemetryRequestMeta, trackServerOperation } from "../app/lib/telemetry.server";
+import { setRuntimeEnv } from "../app/lib/runtime-env.server";
 
 test("getTelemetryRequestMeta extracts request metadata", () => {
     const meta = getTelemetryRequestMeta(new Request("https://example.com/settings?tab=general", {
@@ -85,4 +86,30 @@ test("trackServerOperation logs error status and rethrows", async () => {
     } finally {
         console.error = originalError;
     }
+});
+
+test("trackServerOperation rejects cross-site route actions before running mutation code", async () => {
+    setRuntimeEnv({ SESSION_SECRET: "test-session-secret" } as Env, "production");
+    let executed = false;
+
+    await assert.rejects(
+        () =>
+            trackServerOperation({
+                event: "users.edit",
+                scope: "route.action",
+                request: new Request("https://example.com/users/1/edit", {
+                    method: "POST",
+                    headers: {
+                        Origin: "https://evil.example",
+                    },
+                }),
+                run: async () => {
+                    executed = true;
+                    return "ok";
+                },
+            }),
+        (error: unknown) => error instanceof Response && error.status === 403,
+    );
+
+    assert.equal(executed, false);
 });

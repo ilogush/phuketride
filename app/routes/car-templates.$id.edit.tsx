@@ -5,6 +5,7 @@ import { CarTemplateForm } from '~/components/dashboard/car-template-form/CarTem
 import PageHeader from '~/components/shared/ui/PageHeader'
 import BackButton from '~/components/shared/ui/BackButton'
 import Button from '~/components/shared/ui/Button'
+import { assertSameOriginMutation } from '~/lib/request-security.server'
 import {
     loadCarTemplateFormOptions,
     loadEditableCarTemplate,
@@ -28,6 +29,7 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context, params }: Route.ActionArgs) {
+    assertSameOriginMutation(request)
     await requireAdmin(request)
 
     const formData = await request.formData()

@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { z } from "zod";
 import { checkRateLimit, getClientIdentifier, getRateLimitHeaders } from "~/lib/rate-limit.server";
+import { assertSameOriginMutation } from "~/lib/request-security.server";
 import { parseWithSchema } from "~/lib/validation.server";
 
 const SEARCH_EVENT_SOURCES = [
@@ -14,6 +15,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
   if (request.method.toUpperCase() !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
+  assertSameOriginMutation(request);
 
   let rateHeaders: Record<string, string> = {};
   try {

@@ -402,9 +402,9 @@ export async function submitPublicCheckout(args: {
           ...metadata,
         }).run();
 
-        return redirect(
-          `/booking-confirmation?contractId=${contractId}&bookingId=${bookingId}`,
-        );
+        void contractId;
+        void bookingId;
+        return redirect("/booking-confirmation");
       },
     });
   } catch (error) {

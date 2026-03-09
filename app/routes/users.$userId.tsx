@@ -9,6 +9,7 @@ import { z } from "zod";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 import { runAdminMutationAction } from "~/lib/admin-crud.server";
+import { assertSameOriginMutation } from "~/lib/request-security.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
     await requireAdminUserMutationAccess(request);
@@ -22,6 +23,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
+    assertSameOriginMutation(request);
     await requireAdminUserMutationAccess(request);
     const userId = params.userId;
 

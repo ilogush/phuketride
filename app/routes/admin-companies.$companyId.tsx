@@ -5,6 +5,7 @@ import { getScopedDb } from "~/lib/db-factory.server";
 import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
 import { redirectWithRequestError } from "~/lib/route-feedback";
 import { runAdminMutationAction } from "~/lib/admin-crud.server";
+import { assertSameOriginMutation } from "~/lib/request-security.server";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
     await getScopedDb(request, context, requireAdminUserMutationAccess);
@@ -13,6 +14,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
+    assertSameOriginMutation(request);
     const { user, companyId: currentCompanyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
     const companyId = Number.parseInt(params.companyId || "0", 10);
 
