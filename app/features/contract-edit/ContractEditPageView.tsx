@@ -69,7 +69,7 @@ export default function ContractEditPageView({
   const startDate = getValidDate(contract.startDate);
   const endDate = getValidDate(contract.endDate);
   const [fullInsurance, setFullInsurance] = useState(contract.fullInsuranceEnabled || false);
-  const [deliveryFeeAfterHours, setDeliveryFeeAfterHours] = useState((contract as any).deliveryFeeAfterHoursEnabled || false);
+  const [deliveryFeeAfterHours, setDeliveryFeeAfterHours] = useState(contract.deliveryFeeAfterHoursEnabled || false);
   const [islandTrip, setIslandTrip] = useState(contract.islandTripEnabled || false);
   const [krabiTrip, setKrabiTrip] = useState(contract.krabiTripEnabled || false);
   const [babySeat, setBabySeat] = useState(contract.babySeatEnabled || false);
@@ -92,40 +92,17 @@ export default function ContractEditPageView({
       return [];
     }
   });
-  const [notes, setNotes] = useState(contract.notes || "");
-  const [deliveryCost, setDeliveryCost] = useState<string | number>(contract.deliveryCost ?? "");
-  const [returnCost, setReturnCost] = useState<string | number>(contract.returnCost ?? "");
-  const [extraMethods] = useState<Record<string, string>>({
-    full_insurance: (contract as any).fullInsuranceMethod || "",
-    delivery_fee_after_hours: (contract as any).deliveryFeeAfterHoursMethod || "",
-    island_trip: (contract as any).islandTripMethod || "",
-    krabi_trip: (contract as any).krabiTripMethod || "",
-    baby_seat: (contract as any).babySeatMethod || "",
-  });
+
   const [extraCurrencies, setExtraCurrencies] = useState<Record<string, string | number>>({
-    full_insurance: (contract as any).fullInsuranceCurrencyId || currencies[0]?.id || "",
-    delivery_fee_after_hours: (contract as any).deliveryFeeAfterHoursCurrencyId || currencies[0]?.id || "",
-    island_trip: (contract as any).islandTripCurrencyId || currencies[0]?.id || "",
-    krabi_trip: (contract as any).krabiTripCurrencyId || currencies[0]?.id || "",
-    baby_seat: (contract as any).babySeatCurrencyId || currencies[0]?.id || "",
+    full_insurance: contract.fullInsuranceCurrencyId || currencies[0]?.id || "",
+    delivery_fee_after_hours: contract.deliveryFeeAfterHoursCurrencyId || currencies[0]?.id || "",
+    island_trip: contract.islandTripCurrencyId || currencies[0]?.id || "",
+    krabi_trip: contract.krabiTripCurrencyId || currencies[0]?.id || "",
+    baby_seat: contract.babySeatCurrencyId || currencies[0]?.id || "",
   });
 
   const handleExtraCurrencyChange = (key: string, value: string) => {
     setExtraCurrencies(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handlePickupDistrictChange = (id: string) => {
-    const district = districts.find((d) => String(d.id) === id);
-    if (district) {
-      setDeliveryCost(district.deliveryPrice ?? 0);
-    }
-  };
-
-  const handleReturnDistrictChange = (id: string) => {
-    const district = districts.find((d) => String(d.id) === id);
-    if (district) {
-      setReturnCost(district.deliveryPrice ?? 0);
-    }
   };
 
   const existingContractPhotos: string[] = (() => {
@@ -202,7 +179,7 @@ export default function ContractEditPageView({
             {extraPaymentItems.filter(i => i.enabled).map(item => (
               <div key={`hidden_${item.key}`}>
                 <input type="hidden" name={`extra_${item.key}_currency`} value={extraCurrencies[item.key] || ""} />
-                <input type="hidden" name={`extra_${item.key}_method`} value={extraMethods[item.key] || ""} />
+                <input type="hidden" name={`extra_${item.key}_method`} value={contract.extras?.[item.key as keyof typeof contract.extras]?.paymentTypeId || ""} />
               </div>
             ))}
 
@@ -224,8 +201,6 @@ export default function ContractEditPageView({
             <ContractRentalDetailsFields
                 districts={districts}
                 onDateChange={maskDateTimeInput}
-                onPickupDistrictChange={handlePickupDistrictChange}
-                onReturnDistrictChange={handleReturnDistrictChange}
                 defaults={{
                   startDateTime: `${formatDateForDisplay(startDate)} ${format(startDate, "HH:mm")}`,
                   pickupDistrictId: contract.pickupDistrictId,
@@ -244,7 +219,7 @@ export default function ContractEditPageView({
               <ContractClientDetailsFields
                 onLatinNameInput={validateLatinInput}
                 defaults={{
-                  passportNumber: client?.passportNumber,
+                  passportNumber: client?.passport,
                   name: client?.name,
                   surname: client?.surname,
                   phone: client?.phone,
@@ -280,7 +255,7 @@ export default function ContractEditPageView({
 
           {/* Notes & Terms */}
           <AdminCard title="Notes & Terms" icon={<DocumentTextIcon className="w-5 h-5" />}>
-            <ContractNotesField value={notes} onChange={setNotes} />
+            <ContractNotesField defaultValue={contract.notes || ""} />
           </AdminCard>
         </div>
       </div>

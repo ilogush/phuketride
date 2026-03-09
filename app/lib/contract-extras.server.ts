@@ -16,6 +16,7 @@ export interface ExtraPaymentRow {
     amount: number | null;
     currency: string | null;
     currencyId: number | null;
+    paymentTypeId: number | null;
 }
 
 export function getExtraFlagsFromFormData(formData: FormData): Record<ExtraType, boolean> {

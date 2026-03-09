@@ -3,11 +3,12 @@ import { mapBookingDetailRow } from "~/lib/bookings-detail.server";
 
 export type BookingDetail = ReturnType<typeof mapBookingDetailRow>;
 
+import { type AppLoadContext } from "~/types/context";
+
 export async function loadBookingDetailPage(args: {
-  db?: D1Database;
   request: Request;
   bookingIdParam: string | undefined;
-  context: any;
+  context: AppLoadContext;
 }) {
   const { request, bookingIdParam, context } = args;
   const bookingId = Number(bookingIdParam);

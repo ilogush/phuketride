@@ -34,8 +34,16 @@ export const validateEmail = (email: string): string | null => {
 }
 
 export const validatePassword = (password: string): string | null => {
-    if (password.length < 6) {
-        return 'Password must contain at least 6 characters'
+    if (password.length < 8) {
+        return 'Password must contain at least 8 characters'
+    }
+
+    if (!/[A-Z]/.test(password)) {
+        return 'Password must contain at least one uppercase letter'
+    }
+
+    if (!/[0-9]/.test(password)) {
+        return 'Password must contain at least one digit'
     }
 
     if (/^(\d)\1+$/.test(password)) {
@@ -46,7 +54,11 @@ export const validatePassword = (password: string): string | null => {
         return 'Password cannot be a sequence of digits (e.g., 123456)'
     }
 
-    const commonPasswords = ['password', '123456', '12345678', 'qwerty', 'abc123', 'password123']
+    const commonPasswords = [
+        'password', '123456', '12345678', 'qwerty', 'abc123', 'password123',
+        'Password1', 'Qwerty123', 'Admin123', 'Welcome1', 'Letmein1',
+        '12345678', '1234567890', 'iloveyou', 'monkey123', 'dragon123'
+    ]
     if (commonPasswords.includes(password.toLowerCase())) {
         return 'This password is too simple. Use a more complex password'
     }

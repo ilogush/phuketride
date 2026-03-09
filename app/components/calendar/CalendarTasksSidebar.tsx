@@ -59,33 +59,33 @@ export default function CalendarTasksSidebar({ date, tasks, modCompanyId }: Cale
 
                 <div className="space-y-3 min-h-[300px]">
                     {tasks.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-                            <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3">
+                        <div className="flex flex-col items-center justify-center py-12 text-center px-4 animate-in fade-in duration-300">
+                            <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 ring-1 ring-black/5 shadow-sm">
                                 <PlusIcon className="w-6 h-6 text-gray-300" />
                             </div>
-                            <p className="text-sm text-gray-400">No events or deadlines for this day</p>
+                            <p className="text-sm font-medium text-gray-400 leading-relaxed max-w-[160px]">No events or deadlines for this day</p>
                         </div>
                     ) : (
                         tasks.map((task) => (
                             <div 
                                 key={`${task.type}-${task.id}`}
-                                className="p-3 rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all group relative bg-white"
+                                className="p-4 rounded-2xl border-none ring-1 ring-black/5 bg-white shadow-sm hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all duration-300 group relative"
                             >
                                 <div className="flex items-start gap-3">
-                                    <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
-                                        task.type === 'contract' ? 'bg-red-500' : 
-                                        task.type === 'booking' ? 'bg-blue-500' : 'bg-gray-800'
+                                    <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 shadow-sm ${
+                                        task.type === 'contract' ? 'bg-red-500 shadow-red-500/30' : 
+                                        task.type === 'booking' ? 'bg-blue-500 shadow-blue-500/30' : 'bg-gray-800 shadow-gray-800/30'
                                     }`} />
                                     <div className="min-w-0 flex-1">
-                                        <h4 className="text-sm font-semibold text-gray-900 truncate">
+                                        <h4 className="text-[13px] font-bold text-gray-900 truncate tracking-tight">
                                             {task.title}
                                         </h4>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">
+                                        <div className="flex items-center gap-2 mt-1.5">
+                                            <span className="text-[10px] uppercase font-bold tracking-widest text-gray-400">
                                                 {task.type}
                                             </span>
                                             {task.time && (
-                                                <span className="text-[10px] text-gray-400">
+                                                <span className="text-[10px] text-gray-400 font-medium">
                                                     • {task.time}
                                                 </span>
                                             )}
@@ -96,7 +96,7 @@ export default function CalendarTasksSidebar({ date, tasks, modCompanyId }: Cale
                                     to={task.type === 'contract' ? `/contracts/${task.id}/edit` : 
                                         task.type === 'booking' ? `/bookings/${task.id}` : 
                                         `/calendar/edit/${task.id}${modModeSuffix ? '?' + modModeSuffix.substring(1) : ''}`}
-                                    className="absolute inset-0 rounded-2xl"
+                                    className="absolute inset-0 rounded-2xl focus:outline-none focus:ring-2 focus:ring-gray-900/10"
                                 />
                             </div>
                         ))

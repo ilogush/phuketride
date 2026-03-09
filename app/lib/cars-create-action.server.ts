@@ -7,10 +7,7 @@ import { getCachedFuelTypes } from "~/lib/dictionaries-cache.server";
 import { parseWithSchema } from "~/lib/validation.server";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 
-type FuelTypeRow = {
-  id: number;
-  name: string;
-};
+import { parseDocPhotos } from "~/lib/photo-utils";
 
 type CreateCarActionArgs = {
   request: Request;
@@ -22,150 +19,125 @@ type CreateCarActionArgs = {
 };
 
 export async function handleCreateCarAction({ request, db, assets, user, companyId, formData }: CreateCarActionArgs) {
-  if (!companyId) {
-    return redirectWithRequestError(request, "/cars/create", "Company is required");
-  }
-
-  const rawData = {
-    templateId: formData.get("templateId") ? Number(formData.get("templateId")) : null,
-    colorId: Number(formData.get("colorId")) || 0,
-    licensePlate: (formData.get("licensePlate") as string)?.toUpperCase() || "",
-    transmission: formData.get("transmission") as "automatic" | "manual",
-    engineVolume: Number(formData.get("engineVolume")) || 0,
-    fuelType: formData.get("fuelType") as "petrol" | "diesel" | "electric" | "hybrid",
-    status: (formData.get("status") as "available" | "rented" | "maintenance" | "booked") || "available",
-    currentMileage: Number(formData.get("currentMileage")) || 0,
-    nextOilChangeMileage: Number(formData.get("nextOilChangeMileage")) || 0,
-    oilChangeInterval: Number(formData.get("oilChangeInterval")) || 10000,
-    pricePerDay: Number(formData.get("pricePerDay")) || 0,
-    deposit: Number(formData.get("deposit")) || 0,
-    insuranceType: (formData.get("insuranceType") as string) || null,
-    insuranceExpiry: (formData.get("insuranceExpiry") as string) || null,
-    registrationExpiry: (formData.get("registrationExpiry") as string) || null,
-    taxRoadExpiry: (formData.get("taxRoadExpiry") as string) || null,
-    minRentalDays: formData.get("minRentalDays") ? Number(formData.get("minRentalDays")) : null,
-    insurancePricePerDay: formData.get("fullInsuranceEnabled") === "true"
-      ? (formData.get("insurancePricePerDay") ? Number(formData.get("insurancePricePerDay")) : null)
-      : null,
-    maxInsurancePrice: formData.get("fullInsuranceEnabled") === "true"
-      ? (formData.get("maxInsurancePrice") ? Number(formData.get("maxInsurancePrice")) : null)
-      : null,
-  };
-
-  const validation = parseWithSchema(carSchema, rawData, "Validation failed");
+  // 1. Validate input using Zod
+  const validation = parseWithSchema(carSchema, Object.fromEntries(formData), "Validation failed");
   if (!validation.ok) {
     return redirectWithRequestError(request, "/cars/create", validation.error);
   }
-
-  const validData = validation.data;
+  const data = validation.data;
 
   try {
-    const marketingHeadline = (formData.get("marketingHeadline") as string) || null;
-    const description = (formData.get("description") as string) || null;
-
-    const duplicateByCompanyResult = await db
+    // 2. Business Logic: Check for duplicates
+    const duplicate = await db
       .prepare(`
-        SELECT cc.id
-        FROM company_cars cc
+        SELECT cc.id FROM company_cars cc
         JOIN car_templates ct ON ct.id = cc.template_id
         WHERE cc.company_id = ?
           AND ct.brand_id = (SELECT brand_id FROM car_templates WHERE id = ?)
           AND ct.model_id = (SELECT model_id FROM car_templates WHERE id = ?)
-          AND UPPER(TRIM(cc.license_plate)) = UPPER(TRIM(?))
+          AND UPPER(TRIM(cc.license_plate)) = ?
           AND cc.archived_at IS NULL
         LIMIT 1
       `)
-      .bind(companyId, validData.templateId, validData.templateId, validData.licensePlate)
-      .all();
+      .bind(companyId, data.templateId, data.templateId, data.licensePlate)
+      .first();
 
-    if ((duplicateByCompanyResult.results ?? []).length > 0) {
-      return redirectWithRequestError(
-        request,
-        "/cars/create",
-        "Car with same brand, model and license plate already exists in this company"
-      );
+    if (duplicate) {
+      return redirectWithRequestError(request, "/cars/create", "Car with this license plate already exists");
     }
 
-    const fuelTypes = await getCachedFuelTypes(db) as FuelTypeRow[];
-    const fuelType = fuelTypes.find((item) => item.name.toLowerCase() === validData.fuelType.toLowerCase());
+    // 3. Resolve internal IDs (Fuel Type)
+    const fuelTypes = await getCachedFuelTypes(db) as Array<{ id: number; name: string }>;
+    const fuelType = fuelTypes.find((f) => f.name.toLowerCase() === data.fuelType.toLowerCase());
 
-    const photosData = formData.get("photos") as string;
-    let photoUrls: string[] = [];
+    // 4. Handle Photo Uploads (Dynamic for all categories)
+    const photoCategories = {
+      photos: "cars/main",
+      greenBookPhotos: "cars/docs/greenbook",
+      insurancePhotos: "cars/docs/insurance",
+      taxRoadPhotos: "cars/docs/tax",
+    };
 
-    if (photosData && photosData !== "[]") {
-      try {
-        const photos = JSON.parse(photosData);
-        if (Array.isArray(photos) && photos.length > 0) {
-          const tempId = Date.now();
-          photoUrls = await Promise.all(
-            photos.map(async (photo: { base64: string; fileName: string }) => {
-              return uploadToR2(assets, photo.base64, `cars/${tempId}/${photo.fileName}`);
-            })
-          );
-        }
-      } catch {
-        // ignore invalid photos payload
+    const uploadedUrls: Record<string, string[]> = {};
+    const timestamp = Date.now();
+
+    for (const [field, path] of Object.entries(photoCategories)) {
+      const fieldPhotos = parseDocPhotos(data[field as keyof typeof data] as string);
+      if (fieldPhotos.length > 0) {
+        uploadedUrls[field] = await Promise.all(
+          fieldPhotos.map(async (p, i) => 
+            uploadToR2(assets, p.base64, `${path}/${timestamp}_${i}_${p.fileName}`)
+          )
+        );
       }
     }
 
-    const insertResult = await db
+    // 5. Database Insertion
+    const formatDate = (d: string | null | undefined) => 
+      d ? new Date(d.split("-").reverse().join("-")).toISOString() : null;
+
+    const result = await db
       .prepare(`
         INSERT INTO company_cars (
           company_id, template_id, color_id, license_plate, transmission, engine_volume, fuel_type_id,
           status, mileage, next_oil_change_mileage, oil_change_interval, price_per_day, deposit,
           insurance_type, insurance_expiry_date, registration_expiry, tax_road_expiry_date,
-          insurance_price_per_day, max_insurance_price, min_rental_days, marketing_headline, description, photos, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          insurance_price_per_day, max_insurance_price, min_rental_days, marketing_headline, description, 
+          photos, green_book_photos, insurance_photos, tax_road_photos,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         companyId,
-        validData.templateId,
-        validData.colorId,
-        validData.licensePlate,
-        validData.transmission,
-        validData.engineVolume,
+        data.templateId,
+        data.colorId,
+        data.licensePlate,
+        data.transmission,
+        data.engineVolume,
         fuelType?.id ?? null,
-        validData.status,
-        validData.currentMileage,
-        validData.nextOilChangeMileage,
-        validData.oilChangeInterval,
-        validData.pricePerDay,
-        validData.deposit,
-        validData.insuranceType,
-        validData.insuranceExpiry ? new Date(validData.insuranceExpiry.split("-").reverse().join("-")).toISOString() : null,
-        validData.registrationExpiry ? new Date(validData.registrationExpiry.split("-").reverse().join("-")).toISOString() : null,
-        validData.taxRoadExpiry ? new Date(validData.taxRoadExpiry.split("-").reverse().join("-")).toISOString() : null,
-        validData.insurancePricePerDay,
-        validData.maxInsurancePrice,
-        validData.minRentalDays,
-        marketingHeadline,
-        description,
-        photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
+        data.status,
+        data.currentMileage,
+        data.nextOilChangeMileage,
+        data.oilChangeInterval,
+        data.pricePerDay,
+        data.deposit,
+        data.insuranceType,
+        formatDate(data.insuranceExpiry),
+        formatDate(data.registrationExpiry),
+        formatDate(data.taxRoadExpiry),
+        data.insurancePricePerDay,
+        data.maxInsurancePrice,
+        data.minRentalDays,
+        data.marketingHeadline,
+        data.description,
+        JSON.stringify(uploadedUrls.photos || []),
+        JSON.stringify(uploadedUrls.greenBookPhotos || []),
+        JSON.stringify(uploadedUrls.insurancePhotos || []),
+        JSON.stringify(uploadedUrls.taxRoadPhotos || []),
         new Date().toISOString(),
         new Date().toISOString()
       )
       .run();
 
-    const newCar = { id: Number(insertResult.meta.last_row_id) };
-    const metadata = getRequestMetadata(request);
+    // 6. Audit Logging
+    const carId = Number(result.meta.last_row_id);
     quickAudit({
       db,
       userId: user.id,
       role: user.role,
-      companyId: companyId,
+      companyId,
       entityType: "car",
-      entityId: newCar.id,
+      entityId: carId,
       action: "create",
-      afterState: { ...validData, id: newCar.id },
-      ...metadata,
+      afterState: { ...data, id: carId, photoUrls: uploadedUrls },
+      ...getRequestMetadata(request),
     });
 
-    return redirectWithRequestSuccess(request, "/cars", "Car created successfully");
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "";
-    if (message.includes("UNIQUE constraint failed") && message.includes("license_plate")) {
-      return redirectWithRequestError(request, "/cars/create", `License plate "${validData.licensePlate}" is already in use`);
+    return redirectWithRequestSuccess(request, "/cars", "Car added to inventory");
+  } catch (error: any) {
+    if (error.message?.includes("UNIQUE")) {
+      return redirectWithRequestError(request, "/cars/create", "License plate is already in use");
     }
-    return redirectWithRequestError(request, "/cars/create", "Failed to create car");
+    return redirectWithRequestError(request, "/cars/create", "Database error while creating car");
   }
 }

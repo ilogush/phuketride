@@ -173,7 +173,9 @@ function getDayOfYear(month: number, day: number): number {
 }
 
 /**
- * Calculate rental price for a specific date range
+ * Calculate rental price for a specific date range.
+ * Handles multi-season rentals by splitting the period into season segments
+ * and summing the weighted cost for each segment.
  */
 export function calculateRentalPrice(
     basePrice: number,
@@ -182,33 +184,43 @@ export function calculateRentalPrice(
     seasons: Season[],
     durations: RentalDuration[]
 ): PricingResult {
-    // Calculate number of days
-    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    // Get season for start date (could be enhanced to handle multi-season rentals)
-    const season = getSeasonForDate(startDate, seasons);
-    const seasonMultiplier = season?.priceMultiplier || 1.0;
-    
-    // Get duration multiplier
-    const { multiplier: durationMultiplier, duration } = getDurationMultiplier(days, durations);
-    
-    // Calculate prices
-    const { dailyPrice, totalPrice } = calculateSeasonalPrice(
-        basePrice,
-        seasonMultiplier,
-        days,
-        durationMultiplier
-    );
-    
+    // #21 fix: use shared calculateRentalDays (respects minDays=1)
+    const totalDays = calculateRentalDays(startDate, endDate, 1);
+
+    // #8 fix: build a list of daily entries to determine per-season breakdown
+    const dailySeasons: Array<{ day: Date; season: Season | null }> = [];
+    for (let i = 0; i < totalDays; i++) {
+        const day = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+        dailySeasons.push({ day, season: getSeasonForDate(day, seasons) });
+    }
+
+    // Get duration multiplier based on total days
+    const { multiplier: durationMultiplier, duration } = getDurationMultiplier(totalDays, durations);
+
+    // Sum price day by day (each day gets its own season multiplier)
+    let totalPrice = 0;
+    for (const { season } of dailySeasons) {
+        const seasonMultiplier = season?.priceMultiplier ?? 1.0;
+        const dailyPrice = basePrice * seasonMultiplier * durationMultiplier;
+        totalPrice += dailyPrice;
+    }
+
+    // Representative daily price (weighted average across all days)
+    const dailyPrice = totalDays > 0 ? totalPrice / totalDays : basePrice * durationMultiplier;
+
+    // For metadata: use the season of the start date as "primary" season
+    const primarySeason = getSeasonForDate(startDate, seasons);
+
     return {
-        dailyPrice,
-        totalPrice,
-        seasonMultiplier,
+        dailyPrice: Math.round(dailyPrice * 100) / 100,
+        totalPrice: Math.round(totalPrice * 100) / 100,
+        seasonMultiplier: primarySeason?.priceMultiplier ?? 1.0,
         durationMultiplier,
-        seasonName: season?.seasonName,
+        seasonName: primarySeason?.seasonName,
         durationName: duration?.rangeName,
     };
 }
+
 
 /**
  * Calculate average days for a duration range (used for pricing matrix display)

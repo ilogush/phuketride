@@ -69,7 +69,7 @@ export default function Modal({
 
     const content = (
         <div
-            className="fixed inset-0 bg-gray-100 backdrop-blur-xl flex items-center justify-center z-[9999] p-4"
+            className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200"
             role={closeOnBackdropClick ? "button" : undefined}
             tabIndex={closeOnBackdropClick ? 0 : undefined}
             onClick={closeOnBackdropClick ? handleClose : undefined}
@@ -89,30 +89,32 @@ export default function Modal({
                 aria-modal="true"
                 aria-label={ariaLabel}
                 aria-labelledby={titleId}
-                className={`bg-white border border-gray-200 rounded-3xl w-full ${maxWidthClasses[width]} shadow-xl max-h-[90vh] overflow-hidden flex flex-col`}
+                className={`bg-white ring-1 ring-black/5 rounded-[2rem] w-full ${maxWidthClasses[width]} shadow-[0_8px_30px_rgb(0,0,0,0.08)] max-h-[90vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 zoom-in-95 duration-300`}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex justify-between items-center px-4 py-3 sm:py-4 bg-gray-50/50 border-b border-gray-100 flex-shrink-0">
-                    <h2 id={titleId} className="text-lg sm:text-xl font-semibold text-gray-900">
-                        {title}
-                    </h2>
-                    <Button
+                <div className="flex justify-between items-center px-6 py-5 bg-white border-b border-gray-100 flex-shrink-0">
+                    <div className="flex flex-col gap-0.5">
+                        <h2 id={titleId} className="text-[11px] font-bold text-gray-400 uppercase tracking-widest leading-none">
+                            {title}
+                        </h2>
+                        <div className="h-0.5 w-4 bg-gray-900 rounded-full" />
+                    </div>
+                    <button
                         type="button"
-                        variant="plain"
                         onClick={handleClose}
-                        className="text-gray-400 hover:text-gray-600 rounded-lg p-1 hover:bg-gray-300 transition-colors"
+                        className="text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900/10"
                         aria-label="Close modal"
                     >
-                        <XMarkIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-                    </Button>
+                        <XMarkIcon className="h-5 w-5" />
+                    </button>
                 </div>
 
-                <div className="overflow-y-auto flex-1 p-4 sm:p-4">
+                <div className="overflow-y-auto flex-1 p-6 custom-scrollbar">
                     {children}
                 </div>
 
                 {actions && (
-                    <div className="flex justify-end items-center gap-2 sm:gap-3 px-4 py-3 sm:py-4 bg-gray-50/50 border-t border-gray-100 flex-shrink-0">
+                    <div className="flex justify-end items-center gap-3 px-6 py-5 bg-gray-50/50 border-t border-gray-100 flex-shrink-0">
                         {actions}
                     </div>
                 )}

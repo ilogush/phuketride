@@ -58,24 +58,27 @@ export default function Tabs({ tabs, activeTab, onTabChange, className = '', var
 
     return (
         <div 
-            className={`flex space-x-1 bg-white p-1 rounded-full shadow-sm w-fit ${className}`}
+            className={`flex items-center gap-1 bg-gray-100/80 p-1.5 rounded-2xl w-fit ${className}`}
             role="tablist"
             aria-label={ariaLabel || "Navigation tabs"}
         >
             {tabs.map((tab, index) => {
                 const isActive = activeTab === tab.id
-                const className = `px-3 py-1.5 text-sm font-medium rounded-full transition-colors flex items-center gap-1.5 whitespace-nowrap ${
-                    isActive
-                        ? 'text-white bg-gray-900 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-                }`
+                const tabBaseClass = `h-9 px-5 text-[11px] font-bold uppercase tracking-widest rounded-xl transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap select-none`
+                const activeStateClass = `bg-white text-gray-900 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-black/5`
+                const inactiveStateClass = `text-gray-400 hover:text-gray-600 hover:bg-gray-200/50`
+                
+                const combinedClass = [
+                    tabBaseClass,
+                    isActive ? activeStateClass : inactiveStateClass
+                ].join(' ')
 
                 if (baseUrl) {
                     return (
                         <a
                             key={tab.id}
                             href={`${baseUrl}?tab=${tab.id}`}
-                            className={className}
+                            className={combinedClass}
                             onClick={(e) => handleClick(e, tab.id)}
                             onKeyDown={(e) => handleKeyDown(e, tab.id, index)}
                             role="tab"
@@ -84,6 +87,11 @@ export default function Tabs({ tabs, activeTab, onTabChange, className = '', var
                             tabIndex={isActive ? 0 : -1}
                         >
                             {tab.label}
+                            {tab.count !== undefined && (
+                              <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${isActive ? 'bg-gray-900 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                                {tab.count}
+                              </span>
+                            )}
                         </a>
                     )
                 }
@@ -94,13 +102,18 @@ export default function Tabs({ tabs, activeTab, onTabChange, className = '', var
                         key={tab.id}
                         onClick={(e) => handleClick(e, tab.id)}
                         onKeyDown={(e) => handleKeyDown(e, tab.id, index)}
-                        className={className}
+                        className={combinedClass}
                         role="tab"
                         aria-selected={isActive}
                         aria-controls={`tabpanel-${tab.id}`}
                         tabIndex={isActive ? 0 : -1}
                     >
                         {tab.label}
+                        {tab.count !== undefined && (
+                          <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${isActive ? 'bg-gray-900 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                            {tab.count}
+                          </span>
+                        )}
                     </button>
                 )
             })}

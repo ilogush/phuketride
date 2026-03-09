@@ -50,7 +50,7 @@ export async function createPaymentRecord(args: {
             paymentTypeId: Number(args.formData.get("paymentTypeId")),
             amount: Number(args.formData.get("amount")),
             currency: (args.formData.get("currency") as string) || "THB",
-            status: args.formData.get("status") as any,
+            status: (args.formData.get("status") as string) || "pending",
             notes: args.formData.get("notes") as string | null,
         },
         "Validation failed"

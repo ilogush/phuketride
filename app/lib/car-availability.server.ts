@@ -1,4 +1,4 @@
-type D1Database = any;
+// D1Database is a global type provided by the Cloudflare Workers runtime (worker-configuration.d.ts)
 
 /**
  * Checks if a car is available for a given date range.

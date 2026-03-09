@@ -10,8 +10,10 @@ import BackButton from "~/components/dashboard/BackButton";
 import { BanknotesIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { createPaymentRecord } from "~/lib/payments-create.server";
+import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 
 import { getScopedDb } from "~/lib/db-factory.server";
+
 
 export const meta: MetaFunction = () => [
     { title: "Create Payment — Phuket Ride Admin" },
@@ -33,6 +35,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context);
+
+    // Rate-limit payment creation
+    const rateLimit = await checkRateLimit(
+        (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
+        getClientIdentifier(request, user.id),
+        "form"
+    );
+    if (!rateLimit.allowed) {
+        return { error: "Too many requests. Please wait and try again." };
+    }
+
     return trackServerOperation({
         event: "payments.create",
         scope: "route.action",

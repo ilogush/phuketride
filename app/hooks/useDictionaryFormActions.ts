@@ -26,7 +26,7 @@ export function useDictionaryFormActions<T extends { id: number }>({
         });
         formData.append("intent", editingItem ? "update" : "create");
         if (editingItem) {
-            formData.append(idField, String((editingItem as any)[idField] ?? editingItem.id));
+            formData.append(idField, String(editingItem[idField as keyof T] ?? editingItem.id));
         }
         submit(formData, { method: "post" });
         setIsFormOpen(false);
@@ -38,7 +38,7 @@ export function useDictionaryFormActions<T extends { id: number }>({
         if (!confirm(confirmMessage)) return;
         const formData = new FormData();
         formData.append("intent", "delete");
-        formData.append(idField, String((editingItem as any)[idField] ?? editingItem.id));
+        formData.append(idField, String(editingItem[idField as keyof T] ?? editingItem.id));
         submit(formData, { method: "post" });
         setIsFormOpen(false);
         setEditingItem?.(null);

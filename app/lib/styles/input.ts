@@ -1,15 +1,15 @@
 // Shared autofill styles to avoid duplication
-const autofillStyles = 'autofill:bg-white autofill:text-gray-800 autofill:shadow-[inset_0_0_0px_1000px_rgb(255,255,255)]'
+const autofillStyles = 'autofill:bg-white autofill:text-gray-900 autofill:shadow-[inset_0_0_0px_1000px_rgb(255,255,255)] rounded-2xl'
 
 // Shared disabled/readonly state modifiers
-const stateModifiers = 'disabled:text-gray-800 disabled:cursor-not-allowed disabled:border-gray-200 read-only:text-gray-800 read-only:cursor-not-allowed read-only:border-gray-200'
+const stateModifiers = 'disabled:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-50/50 disabled:border-gray-100 read-only:text-gray-900 read-only:bg-gray-50/20'
 
-export const inputBaseStyles = `block w-full h-10 rounded-xl text-sm py-2.5 px-4 bg-white text-gray-800 border border-gray-300 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-sm placeholder:text-gray-400 ${autofillStyles} ${stateModifiers}`
+const commonBase = `block w-full h-11 rounded-2xl text-sm py-2.5 px-4 bg-white text-gray-900 border border-gray-200 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 hover:border-gray-300 ${autofillStyles} ${stateModifiers}`
 
-export const inputErrorStyles = `block w-full h-10 rounded-xl border border-gray-300 text-sm py-2.5 px-4 bg-white text-gray-800 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-sm placeholder:text-gray-400 ${autofillStyles} ${stateModifiers}`
+export const inputBaseStyles = `${commonBase} placeholder:text-gray-400`
+export const inputErrorStyles = `block w-full h-11 rounded-2xl text-sm py-2.5 px-4 bg-red-50/10 text-gray-900 border border-red-200 ring-1 ring-red-500/20 focus:outline-none transition-all duration-200 ${autofillStyles} ${stateModifiers}`
 
-export const selectBaseStyles = `block w-full h-10 rounded-xl text-sm py-2.5 px-4 bg-white text-gray-800 border border-gray-300 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors ${autofillStyles}`
+export const selectBaseStyles = commonBase
+export const selectErrorStyles = `block w-full h-11 rounded-2xl text-sm py-2.5 px-4 bg-red-50/10 text-gray-900 border border-red-200 ring-1 ring-red-500/20 focus:outline-none transition-all duration-200 ${autofillStyles} ${stateModifiers}`
 
-export const selectErrorStyles = `block w-full h-10 rounded-xl text-sm py-2.5 px-4 bg-white text-gray-800 border border-gray-300 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors ${autofillStyles} ${stateModifiers}`
-
-export const textareaBaseStyles = `block w-full rounded-xl text-sm py-2.5 px-4 bg-white text-gray-800 border border-gray-300 focus:ring-0 focus:border-gray-500 focus:outline-none transition-colors placeholder:text-sm placeholder:text-gray-400 resize-vertical ${autofillStyles} ${stateModifiers}`
+export const textareaBaseStyles = `block w-full rounded-2xl text-sm py-2.5 px-4 bg-white text-gray-900 border border-gray-200 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 hover:border-gray-300 placeholder:text-gray-400 resize-vertical ${autofillStyles} ${stateModifiers}`

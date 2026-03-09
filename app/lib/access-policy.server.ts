@@ -24,6 +24,40 @@ function isDashboardRole(role: SessionUser["role"]) {
     return role === "admin" || role === "partner" || role === "manager";
 }
 
+/**
+ * Unified Access Guard
+ * Enforces authentication, role checks, and tenant (companyId) resolution.
+ */
+async function requireAccess(
+    request: Request,
+    allowedRoles: SessionUser["role"][],
+    options?: { allowAdminGlobal?: boolean }
+): Promise<ScopedDashboardAccess> {
+    const user = await requireAuth(request);
+    
+    if (!allowedRoles.includes(user.role)) {
+        throw new Response("Forbidden", { status: 403 });
+    }
+
+    const adminModCompanyId = getAdminModCompanyId(request, user);
+    const companyId = getEffectiveCompanyId(request, user);
+
+    // If company context is missing and user is not an admin with global access allowed
+    if (companyId === null && !(options?.allowAdminGlobal && user.role === "admin")) {
+        // Partners must have a company context
+        if (user.role === "partner" || !options?.allowAdminGlobal) {
+            throw new Response("Forbidden (Company Scope Required)", { status: 403 });
+        }
+    }
+
+    return {
+        user,
+        companyId,
+        adminModCompanyId,
+        isModMode: adminModCompanyId !== null,
+    };
+}
+
 export async function requireDashboardUser(request: Request): Promise<SessionUser> {
     const user = await requireAuth(request);
     if (!isDashboardRole(user.role)) {
@@ -36,93 +70,36 @@ export async function requireScopedDashboardAccess(
     request: Request,
     options?: { allowAdminGlobal?: boolean }
 ): Promise<ScopedDashboardAccess> {
-    const user = await requireDashboardUser(request);
-    const adminModCompanyId = getAdminModCompanyId(request, user);
-    const companyId = getEffectiveCompanyId(request, user);
-
-    if (companyId === null && !(options?.allowAdminGlobal && user.role === "admin")) {
-        throw new Response("Forbidden", { status: 403 });
-    }
-
-    return {
-        user,
-        companyId,
-        adminModCompanyId,
-        isModMode: adminModCompanyId !== null,
-    };
+    return requireAccess(request, ["admin", "partner", "manager"], options);
 }
 
 export async function requireUserDirectoryAccess(request: Request) {
-    const user = await requireAuth(request);
-    if (!["admin", "partner"].includes(user.role)) {
-        throw new Response("Forbidden", { status: 403 });
-    }
-
-    const adminModCompanyId = getAdminModCompanyId(request, user);
-    const companyId = getEffectiveCompanyId(request, user);
-    if (user.role === "partner" && companyId === null) {
-        throw new Response("Forbidden", { status: 403 });
-    }
-
-    return {
-        user,
-        companyId,
-        adminModCompanyId,
-        isModMode: adminModCompanyId !== null,
-    };
+    return requireAccess(request, ["admin", "partner"]);
 }
 
 export async function requireLocationsAccess(request: Request) {
-    const user = await requireAuth(request);
-    if (!["admin", "partner"].includes(user.role)) {
-        throw new Response("Forbidden", { status: 403 });
-    }
-
-    const adminModCompanyId = getAdminModCompanyId(request, user);
-    const companyId = getEffectiveCompanyId(request, user);
-    if (user.role === "partner" && companyId === null) {
-        throw new Response("Forbidden", { status: 403 });
-    }
-
-    return {
-        user,
-        companyId,
-        adminModCompanyId,
-        isModMode: adminModCompanyId !== null,
-    };
+    return requireAccess(request, ["admin", "partner"]);
 }
 
 export async function requireAdminUserMutationAccess(request: Request) {
-    const user = await requireAdmin(request);
-    const adminModCompanyId = getAdminModCompanyId(request, user);
-
+    const access = await requireAccess(request, ["admin"]);
     return {
-        user,
-        companyId: user.companyId ?? null,
-        adminModCompanyId,
-        isModMode: adminModCompanyId !== null,
+        ...access,
+        companyId: access.user.companyId ?? null, // Root admin might have no companyId
     };
 }
 
 export async function requireAdminAnalyticsAccess(request: Request) {
-    const user = await requireAuth(request);
-    if (!["admin", "partner"].includes(user.role)) {
-        throw new Response("Forbidden", { status: 403 });
-    }
-
-    const companyId = user.role === "partner" ? user.companyId ?? null : null;
-
+    const access = await requireAccess(request, ["admin", "partner"]);
     return {
-        user,
-        companyId,
-        adminModCompanyId: getAdminModCompanyId(request, user),
-        isModMode: getAdminModCompanyId(request, user) !== null,
+        ...access,
+        // For partner, always use their actual companyId even if not in mod mode
+        companyId: access.user.role === "partner" ? access.user.companyId ?? null : access.companyId,
     };
 }
 
 export async function requireSelfProfileAccess(request: Request) {
     const user = await requireAuth(request);
-
     return {
         user,
         companyId: user.companyId ?? null,

@@ -44,8 +44,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         return (
             <div className={className}>
                 {label && (
-                    <label htmlFor={id || name} className="block text-xs text-gray-600 mb-1">
-                        {label} {required && <span className="text-gray-500">*</span>}
+                    <label htmlFor={id || name} className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wider ml-1">
+                        {label} {required && <span className="text-red-400 ml-0.5">*</span>}
                     </label>
                 )}
                 <select
@@ -79,7 +79,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                         );
                     })}
                 </select>
-                {error && <p className="mt-1 text-sm text-gray-700 font-medium">{error}</p>}
+                {error && (
+                    <div className="flex items-center gap-1.5 mt-1.5 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <div className="w-1 h-1 rounded-full bg-red-500" />
+                        <p className="text-[11px] font-bold text-red-600 uppercase tracking-tight">{error}</p>
+                    </div>
+                )}
             </div>
         );
     }

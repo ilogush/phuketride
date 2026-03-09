@@ -23,7 +23,6 @@ type ContractFinancialFieldsProps = {
   onDeliveryCostChange?: (value: string) => void;
   onReturnCostChange?: (value: string) => void;
   onExtraAmountChange?: (key: string, value: string) => void;
-  onExtraMethodChange?: (key: string, value: string) => void;
 };
 
 export default function ContractFinancialFields({
@@ -53,6 +52,18 @@ export default function ContractFinancialFields({
   const ret = Number(values?.returnCost || defaults?.returnCost || 0);
   const extrasSum = (values?.extras || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
   const calculatedTotal = rental + delivery + ret + extrasSum;
+
+  if (currencies.length === 0) {
+    return (
+      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-800">
+        ⚠️ No currencies configured. Please add currencies in{" "}
+        <a href="/settings?tab=currencies" className="underline font-medium">
+          Settings → Currencies
+        </a>{" "}
+        before creating a contract.
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -112,7 +123,12 @@ export default function ContractFinancialFields({
       </div>
 
       {values?.extras?.map((extra) => (
-        <div key={extra.key} className="md:col-span-1">
+        <div
+          key={extra.key}
+          className={`md:col-span-1 transition-all duration-200 ${
+            extra.amount !== undefined && extra.amount !== "" ? "" : "opacity-50"
+          }`}
+        >
           <Input
             label={extra.title}
             name={`extra_${extra.key}_amount`}
@@ -130,7 +146,7 @@ export default function ContractFinancialFields({
           label="Total Rental Cost *"
           name="total_amount"
           type="number"
-          value={calculatedTotal || (defaults?.totalAmount ?? "")}
+          value={calculatedTotal !== 0 ? calculatedTotal : (defaults?.totalAmount ?? "")}
           readOnly
           className="bg-gray-50 text-xl font-bold"
           placeholder="0.00"

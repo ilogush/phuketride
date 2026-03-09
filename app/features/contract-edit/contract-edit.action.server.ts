@@ -5,8 +5,10 @@ import { createContractEvents } from "~/lib/calendar-events.server";
 import { parseDateTimeFromDisplay } from "~/lib/formatters";
 import { EXTRA_TYPES, getCreateExtraPaymentStmt, getExtraFlagsFromFormData, getExtraInputFromFormData, getCurrencyCodeById } from "~/lib/contract-extras.server";
 import { updateCarStatus } from "~/lib/contract-helpers.server";
-import { uploadPhotoItemsToR2, type UploadPhotoItem } from "~/lib/r2.server";
+import { uploadPhotoItemsToR2 } from "~/lib/r2.server";
 import { parseWithSchema } from "~/lib/validation.server";
+import { checkCarAvailability } from "~/lib/car-availability.server";
+import { parseDocPhotos, parsePhotoList } from "~/lib/photo-utils";
 
 type ExistingContractRow = {
   id: number;
@@ -44,33 +46,7 @@ type EditContractActionArgs = {
   formData: FormData;
 };
 
-function parseDocPhotos(value: FormDataEntryValue | null): UploadPhotoItem[] {
-  if (typeof value !== "string") return [];
-  const trimmed = value.trim();
-  if (!trimmed) return [];
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((p) => p && typeof p.base64 === "string" && typeof p.fileName === "string");
-  } catch {
-    return [];
-  }
-}
-
-function parsePhotoList(value: FormDataEntryValue | null): string[] {
-  if (typeof value !== "string") return [];
-  const trimmed = value.trim();
-  if (!trimmed) return [];
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((p) => typeof p === "string" && p.trim().length > 0);
-  } catch {
-    return [];
-  }
-}
-
-export async function handleEditContractAction({ db, assets, request, user, companyId, params, formData }: EditContractActionArgs) {
+export async function submitContractEditAction({ db, assets, request, user, companyId, params, formData }: EditContractActionArgs) {
   const contractId = parseInt(String(params.id || ""), 10);
 
   try {
@@ -94,7 +70,7 @@ export async function handleEditContractAction({ db, assets, request, user, comp
     );
 
     if (!parsedEnvelope.ok) {
-      return redirect(`/contracts?error=${encodeURIComponent(parsedEnvelope.error)}`);
+      return redirect(`/contracts/${contractId}/edit?error=${encodeURIComponent(parsedEnvelope.error)}`);
     }
 
     const existingContract = await db
@@ -184,6 +160,22 @@ export async function handleEditContractAction({ db, assets, request, user, comp
     const startDate = startDateRaw ? new Date(parseDateTimeFromDisplay(String(startDateRaw))) : new Date(existingContract.start_date);
     const endDateRaw = formData.get("end_date");
     const endDate = endDateRaw ? new Date(parseDateTimeFromDisplay(String(endDateRaw))) : new Date(existingContract.end_date);
+
+    const datesChanged = startDateRaw || endDateRaw;
+    const carChanged = newCompanyCarId !== existingContract.company_car_id;
+    if (datesChanged || carChanged) {
+      const conflict = await checkCarAvailability(
+        db,
+        newCompanyCarId,
+        startDate,
+        endDate,
+        contractId
+      );
+      if (conflict) {
+        return redirect(`/contracts/${contractId}/edit?error=${encodeURIComponent(`Car is already occupied by a ${conflict.type} (ID: ${conflict.id})`)}`); 
+      }
+    }
+
     const photosValue = parsePhotoList(formData.get("photos"));
 
     const pickupDistrictIdRaw = formData.get("pickup_district_id");

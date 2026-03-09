@@ -40,27 +40,27 @@ export default function Button({
         type,
     })
 
-    const baseClasses = 'inline-flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
-
+    const baseClasses = 'inline-flex items-center justify-center font-semibold transition-all duration-200 outline-none focus:outline-none focus:ring-4 focus:ring-gray-900/5 disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]'
+    
     const sizeClasses = {
-        sm: 'px-2 sm:px-3 py-1 text-xs sm:text-sm',
-        md: 'px-3 sm:px-4 py-2 text-xs sm:text-sm',
-        lg: 'px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base'
+        sm: 'px-3 h-8 text-xs sm:text-sm',
+        md: 'px-4 h-11 text-xs sm:text-sm',
+        lg: 'px-6 h-12 text-sm sm:text-base'
     }
 
     const roundedClasses = {
-        sm: 'rounded-sm',
-        md: 'rounded-md',
-        lg: 'rounded-xl',
-        xl: 'rounded-xl',
+        sm: 'rounded-lg',
+        md: 'rounded-xl',
+        lg: 'rounded-2xl',
+        xl: 'rounded-2xl',
         full: 'rounded-full'
     }
 
     const variantClasses = {
-        solid: 'bg-gray-800 text-white border border-transparent hover:bg-gray-700 font-medium',
-        outline: 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-transparent font-medium',
-        ghost: 'bg-transparent text-gray-700 hover:bg-gray-100 border border-transparent font-medium',
-        plain: ''
+        solid: 'bg-gray-900 text-white shadow-sm hover:bg-gray-800 hover:shadow-md border border-gray-900',
+        outline: 'bg-white text-gray-900 border border-gray-200 shadow-sm hover:border-gray-900 hover:bg-gray-50',
+        ghost: 'bg-transparent text-gray-600 hover:bg-gray-100/80 hover:text-gray-900',
+        plain: 'p-0 h-auto bg-transparent border-0'
     }
 
     const buttonClasses = [
@@ -69,8 +69,7 @@ export default function Button({
         sizeClasses[size],
         roundedClasses[rounded],
         fullWidth && 'w-full',
-        icon && children && 'space-x-1.5',
-        type === 'submit' && isSubmitClicked && 'pointer-events-none',
+        icon && children && 'gap-2',
         className
     ].filter(Boolean).join(' ')
 
@@ -83,15 +82,15 @@ export default function Button({
             {...rest}
         >
             {isLoading ? (
-                <>
+                <div className="flex items-center justify-center pointer-events-none">
                     <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    {children && <span className="ml-2 opacity-70">{children}</span>}
-                </>
+                    {children && <span className="ml-2.5">{children}</span>}
+                </div>
             ) : (
                 <>
-                    {icon && iconPosition === 'left' && <span>{icon}</span>}
-                    {children && <span>{children}</span>}
-                    {icon && iconPosition === 'right' && <span>{icon}</span>}
+                    {icon && iconPosition === 'left' && <span className="flex-shrink-0">{icon}</span>}
+                    {children && <span className="truncate">{children}</span>}
+                    {icon && iconPosition === 'right' && <span className="flex-shrink-0">{icon}</span>}
                 </>
             )}
         </button>

@@ -5,14 +5,19 @@ import { requireBookingAccess } from "~/lib/access-policy.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { parseWithSchema } from "~/lib/validation.server";
 
+import { getScopedDb } from "~/lib/db-factory.server";
+import { type AppLoadContext } from "~/types/context";
+
 export async function submitBookingDetailAction(args: {
-  db: D1Database;
   request: Request;
   bookingIdParam: string | undefined;
+  context: AppLoadContext;
 }) {
-  const { db, request, bookingIdParam } = args;
+  const { request, bookingIdParam, context } = args;
   const bookingId = Number(bookingIdParam);
-  const { user, companyId } = await requireBookingAccess(request, db, bookingId);
+  const { sdb, user, companyId } = await getScopedDb(request, context);
+  const db = sdb.rawDb;
+  await requireBookingAccess(request, db, bookingId);
   const formData = await request.formData();
   const actionParsed = parseWithSchema(
     z.object({

@@ -66,19 +66,19 @@ export default function StatCard({
     // Compact variant (120px height, simple)
     if (variant === 'compact') {
         const content = (
-            <div className={`bg-white rounded-3xl p-4 flex flex-col justify-between h-[120px] hover:shadow-md transition-shadow cursor-pointer ${className}`}>
+            <div className={`bg-white rounded-2xl ring-1 ring-black/5 shadow-sm p-4 flex flex-col justify-between h-[120px] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:ring-black/10 transition-all duration-300 cursor-pointer ${className}`}>
                 <div className="flex justify-between items-start">
-                    <span className="text-xs text-gray-500 font-medium">{name}</span>
+                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{name}</span>
                     {icon && (
                         <div className={`${currentColor.bg} rounded-xl p-2`}>
-                            <div className={`h-6 w-6 ${currentColor.icon}`}>{icon}</div>
+                            <div className={`h-5 w-5 ${currentColor.icon}`}>{icon}</div>
                         </div>
                     )}
                 </div>
                 <div>
-                    <div className="text-2xl font-semibold text-gray-800">{value}</div>
+                    <div className="text-2xl font-bold text-gray-900 leading-none">{value}</div>
                     {subtext && (
-                        <div className="text-xs text-gray-500 mt-0.5">{subtext}</div>
+                        <div className="text-[11px] text-gray-400 mt-1 font-medium">{subtext}</div>
                     )}
                 </div>
             </div>
@@ -93,11 +93,14 @@ export default function StatCard({
     // Detailed variant (160px height, with trend and enhanced styling)
     if (variant === 'detailed') {
         const content = (
-            <div className={`bg-white rounded-3xl p-7 shadow-sm flex flex-col justify-between h-40 hover:shadow-xl hover:-translate-y-1 transition-all border border-gray-100 group ${className}`}>
+            <div className={`bg-white rounded-[2rem] p-7 ring-1 ring-black/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between h-40 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 group ${className}`}>
                 <div className="flex justify-between items-start">
-                    <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">{name}</span>
+                    <div className="flex flex-col gap-0.5 mt-1">
+                        <span className="text-[11px] text-gray-400 font-bold uppercase tracking-widest">{name}</span>
+                        <div className={`h-0.5 w-4 rounded-full ${currentColor.bg.replace('bg-', 'bg-').replace('50', '200')}`} />
+                    </div>
                     {icon && (
-                        <div className="p-2.5 bg-gray-50/50 border border-gray-100 rounded-xl transition-all group-hover:bg-gray-100">
+                        <div className={`p-2.5 ${currentColor.bg} rounded-xl transition-all group-hover:scale-110 duration-300 ring-1 ring-white/50`}>
                             <div className={`h-6 w-6 ${currentColor.icon}`}>
                                 {icon}
                             </div>
@@ -108,12 +111,12 @@ export default function StatCard({
                     <div className="text-4xl font-bold text-gray-900 tracking-tight leading-none mb-2">{value}</div>
                     <div className="flex items-center gap-3 mt-1">
                         {subtext && (
-                            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                                 {subtext}
                             </div>
                         )}
                         {trend && (
-                            <div className={`text-xs font-bold uppercase tracking-wide flex items-center gap-2${trend.isPositive ? 'text-green-600' : 'text-red-500'}`}>
+                            <div className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md ${trend.isPositive ? 'text-green-600' : 'text-red-500'}`}>
                                 {trend.isPositive ? '↑' : '↓'} {trend.value}%
                             </div>
                         )}
@@ -130,34 +133,34 @@ export default function StatCard({
 
     // Default variant (standard card with optional trend)
     const content = (
-        <div className={`bg-white rounded-3xl border ${currentColor.border} p-4 ${className} hover:border-gray-300 transition-colors cursor-pointer`}>
+        <div className={`bg-white rounded-[2rem] ring-1 ring-black/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 ${className} hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:ring-black/10 transition-all duration-300 cursor-pointer`}>
             <div className="flex items-center justify-between">
                 <div>
-                    <p className="text-sm font-medium text-gray-600">{name}</p>
-                    <p className="text-2xl font-semibold text-gray-900 mt-1">{value}</p>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">{name}</p>
+                    <p className="text-3xl font-bold text-gray-900 tracking-tight leading-none">{value}</p>
 
                     {subtext && !trend && (
-                        <p className="text-xs text-gray-500 mt-1">{subtext}</p>
+                        <p className="text-[11px] font-medium text-gray-400 mt-2">{subtext}</p>
                     )}
 
                     {trend && (
-                        <div className={`flex items-center mt-2 text-sm ${trend.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                        <div className={`flex items-center mt-3 text-[11px] font-bold uppercase tracking-widest ${trend.isPositive ? 'text-green-600' : 'text-red-600'}`}>
                             {trend.isPositive ? (
-                                <ArrowTrendingUpIcon className="h-4 w-4 mr-1" />
+                                <ArrowTrendingUpIcon className="h-3.5 w-3.5 mr-1" />
                             ) : (
-                                <ArrowTrendingDownIcon className="h-4 w-4 mr-1" />
+                                <ArrowTrendingDownIcon className="h-3.5 w-3.5 mr-1" />
                             )}
                             <span>{Math.abs(trend.value)}%</span>
                             {subtext && (
-                                <span className="text-gray-500 ml-2">{subtext}</span>
+                                <span className="text-gray-400 ml-2">{subtext}</span>
                             )}
                         </div>
                     )}
                 </div>
 
                 {icon && (
-                    <div className={`${currentColor.bg} rounded-xl p-3`}>
-                        <div className={`h-6 w-6 ${currentColor.icon}`}>
+                    <div className={`${currentColor.bg} rounded-xl p-3 ring-1 ring-white/50`}>
+                        <div className={`h-7 w-7 ${currentColor.icon}`}>
                             {icon}
                         </div>
                     </div>

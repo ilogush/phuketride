@@ -12,7 +12,6 @@ type EditCarActionArgs = {
   db: any;
   assets: any;
   request: Request;
-  context: ActionFunctionArgs["context"];
   user: SessionUser;
   params: ActionFunctionArgs["params"];
   formData: FormData;
@@ -23,7 +22,7 @@ type FuelTypeRow = {
   name: string;
 };
 
-export async function handleEditCarAction({ db, assets, request, context, user, params, formData }: EditCarActionArgs) {
+export async function handleEditCarAction({ db, assets, request, user, params, formData }: EditCarActionArgs) {
   const modCompanyIdValue = getRequestModCompanyId(request, user);
   const withModCompany = (path: string) => withModCompanyId(path, modCompanyIdValue);
 

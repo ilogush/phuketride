@@ -1,9 +1,12 @@
+import { type D1DatabaseLike } from "./repo-types.server";
+
 /**
  * Archive a user (partner/manager)
  * Also archives their company if they are the owner
  */
-export async function archiveUser(db: D1Database, userId: string): Promise<{ success: boolean; error?: string; message?: string }> {
+export async function archiveUser(db: D1DatabaseLike, userId: string): Promise<{ success: boolean; error?: string; message?: string }> {
     try {
+        const now = new Date().toISOString();
         // Check if user exists and is not already archived
         const user = await db
             .prepare("SELECT id, role FROM users WHERE id = ? AND archived_at IS NULL LIMIT 1")
@@ -17,14 +20,14 @@ export async function archiveUser(db: D1Database, userId: string): Promise<{ suc
         // Archive user
         await db
             .prepare("UPDATE users SET archived_at = ?, updated_at = ? WHERE id = ?")
-            .bind(Date.now(), Date.now(), userId)
+            .bind(now, now, userId)
             .run();
 
         // If user is a partner (company owner), archive their company too
         if (user.role === "partner") {
             await db
                 .prepare("UPDATE companies SET archived_at = ?, updated_at = ? WHERE owner_id = ?")
-                .bind(Date.now(), Date.now(), userId)
+                .bind(now, now, userId)
                 .run();
         }
 
@@ -37,8 +40,9 @@ export async function archiveUser(db: D1Database, userId: string): Promise<{ suc
 /**
  * Archive a company and its owner
  */
-export async function archiveCompany(db: D1Database, companyId: number): Promise<{ success: boolean; error?: string; message?: string }> {
+export async function archiveCompany(db: D1DatabaseLike, companyId: number): Promise<{ success: boolean; error?: string; message?: string }> {
     try {
+        const now = new Date().toISOString();
         // Check if company exists and is not already archived
         const company = await db
             .prepare("SELECT id, owner_id AS ownerId FROM companies WHERE id = ? AND archived_at IS NULL LIMIT 1")
@@ -52,13 +56,13 @@ export async function archiveCompany(db: D1Database, companyId: number): Promise
         // Archive company
         await db
             .prepare("UPDATE companies SET archived_at = ?, updated_at = ? WHERE id = ?")
-            .bind(Date.now(), Date.now(), companyId)
+            .bind(now, now, companyId)
             .run();
 
         // Archive owner (partner)
         await db
             .prepare("UPDATE users SET archived_at = ?, updated_at = ? WHERE id = ?")
-            .bind(Date.now(), Date.now(), company.ownerId)
+            .bind(now, now, company.ownerId)
             .run();
 
         return { success: true, message: "Company archived successfully" };
@@ -73,12 +77,13 @@ export async function archiveCompany(db: D1Database, companyId: number): Promise
  * - If car has no contracts: can delete
  */
 export async function deleteOrArchiveCar(
-    db: D1Database, 
+    db: D1DatabaseLike, 
     carId: number, 
     companyId: number,
     forceArchive: boolean = false
 ): Promise<{ success: boolean; error?: string; action?: "deleted" | "archived"; message?: string }> {
     try {
+        const now = new Date().toISOString();
         // Check if car exists and belongs to company
         const car = await db
             .prepare("SELECT id FROM company_cars WHERE id = ? AND company_id = ? LIMIT 1")
@@ -101,7 +106,7 @@ export async function deleteOrArchiveCar(
             // Archive car (cannot delete if has contracts)
             await db
                 .prepare("UPDATE company_cars SET archived_at = ?, updated_at = ? WHERE id = ?")
-                .bind(Date.now(), Date.now(), carId)
+                .bind(now, now, carId)
                 .run();
 
             return { success: true, action: "archived", message: "Car archived successfully" };
@@ -122,11 +127,12 @@ export async function deleteOrArchiveCar(
 /**
  * Unarchive a user
  */
-export async function unarchiveUser(db: D1Database, userId: string): Promise<{ success: boolean; error?: string; message?: string }> {
+export async function unarchiveUser(db: D1DatabaseLike, userId: string): Promise<{ success: boolean; error?: string; message?: string }> {
     try {
+        const now = new Date().toISOString();
         await db
             .prepare("UPDATE users SET archived_at = NULL, updated_at = ? WHERE id = ?")
-            .bind(Date.now(), userId)
+            .bind(now, userId)
             .run();
 
         return { success: true, message: "User unarchived successfully" };
@@ -138,11 +144,12 @@ export async function unarchiveUser(db: D1Database, userId: string): Promise<{ s
 /**
  * Unarchive a company
  */
-export async function unarchiveCompany(db: D1Database, companyId: number): Promise<{ success: boolean; error?: string; message?: string }> {
+export async function unarchiveCompany(db: D1DatabaseLike, companyId: number): Promise<{ success: boolean; error?: string; message?: string }> {
     try {
+        const now = new Date().toISOString();
         await db
             .prepare("UPDATE companies SET archived_at = NULL, updated_at = ? WHERE id = ?")
-            .bind(Date.now(), companyId)
+            .bind(now, companyId)
             .run();
 
         return { success: true, message: "Company unarchived successfully" };

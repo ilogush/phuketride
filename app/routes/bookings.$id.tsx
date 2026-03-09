@@ -1,4 +1,5 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, type MetaFunction } from "react-router";
+import { type MetaFunction, redirect } from "react-router";
+import type { Route } from "./+types/bookings.$id";
 import { useLoaderData } from "react-router";
 
 export const meta: MetaFunction = () => [
@@ -9,19 +10,21 @@ import BookingDetailPageView from "~/features/booking-detail/BookingDetailPageVi
 import { submitBookingDetailAction } from "~/features/booking-detail/booking-detail.action.server";
 import { loadBookingDetailPage } from "~/features/booking-detail/booking-detail.loader.server";
 
-export async function loader({ request, params, context }: LoaderFunctionArgs) {
+import { type AppLoadContext } from "~/types/context";
+
+export async function loader({ request, params, context }: Route.LoaderArgs) {
     return loadBookingDetailPage({
         request,
         bookingIdParam: params.id,
-        context: context,
+        context: context as AppLoadContext,
     });
 }
 
-export async function action({ request, params, context }: ActionFunctionArgs) {
+export async function action({ request, params, context }: Route.ActionArgs) {
     return submitBookingDetailAction({
-        db: context.cloudflare.env.DB,
         request,
         bookingIdParam: params.id,
+        context: context as AppLoadContext,
     });
 }
 

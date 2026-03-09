@@ -1,7 +1,6 @@
 import { mapExtrasByType, type ExtraType } from "~/lib/contract-extras.server";
-import { getEditableContractById } from "~/lib/contracts-repo.server";
 import { getCachedActiveCurrenciesForCompany, getCachedDistricts } from "~/lib/dictionaries-cache.server";
-import type { D1DatabaseLike as D1Database } from "./repo-types.server";
+import type { ScopedDb } from "~/lib/db-factory.server";
 
 type ContractLoaderRow = {
     id: number;
@@ -52,9 +51,7 @@ type ContractExtraRow = {
     notes: string | null;
 };
 
-import type { ScopedDb } from "~/lib/db-factory.server";
-
-export async function loadEditContractPageData(sdb: ScopedDb, contractId: number) {
+export async function loadContractEditPageData({ sdb, contractId }: { sdb: ScopedDb; contractId: number }) {
     const contractRaw = await sdb.contracts.getDetail(contractId) as ContractLoaderRow | null;
 
     if (!contractRaw) {
@@ -121,6 +118,25 @@ export async function loadEditContractPageData(sdb: ScopedDb, contractId: number
             licensePlate: contractRaw.licensePlate,
         },
         extras: extrasMap,
+        fullInsuranceEnabled: !!extrasMap.full_insurance,
+        fullInsuranceMethod: extrasMap.full_insurance?.paymentTypeId || "",
+        fullInsuranceCurrencyId: extrasMap.full_insurance?.currencyId || "",
+        
+        deliveryFeeAfterHoursEnabled: !!extrasMap.delivery_fee_after_hours,
+        deliveryFeeAfterHoursMethod: extrasMap.delivery_fee_after_hours?.paymentTypeId || "",
+        deliveryFeeAfterHoursCurrencyId: extrasMap.delivery_fee_after_hours?.currencyId || "",
+        
+        islandTripEnabled: !!extrasMap.island_trip,
+        islandTripMethod: extrasMap.island_trip?.paymentTypeId || "",
+        islandTripCurrencyId: extrasMap.island_trip?.currencyId || "",
+        
+        krabiTripEnabled: !!extrasMap.krabi_trip,
+        krabiTripMethod: extrasMap.krabi_trip?.paymentTypeId || "",
+        krabiTripCurrencyId: extrasMap.krabi_trip?.currencyId || "",
+        
+        babySeatEnabled: !!extrasMap.baby_seat,
+        babySeatMethod: extrasMap.baby_seat?.paymentTypeId || "",
+        babySeatCurrencyId: extrasMap.baby_seat?.currencyId || "",
     };
 
     const [cars, districts, currencies, extraSettings, contractPayments] = await Promise.all([
@@ -132,8 +148,8 @@ export async function loadEditContractPageData(sdb: ScopedDb, contractId: number
                 id: row.id,
                 name: row.licensePlate,
             }))),
-        getCachedDistricts(sdb.db as any),
-        getCachedActiveCurrenciesForCompany(sdb.db as any, sdb.companyId!),
+        getCachedDistricts(sdb.rawDb),
+        getCachedActiveCurrenciesForCompany(sdb.rawDb, sdb.companyId!),
         sdb.db
             .prepare("SELECT delivery_fee_after_hours, island_trip_price, krabi_trip_price, baby_seat_price_per_day FROM companies WHERE id = ?")
             .bind(sdb.companyId ?? contract.companyCar.companyId)
@@ -155,8 +171,10 @@ export async function loadEditContractPageData(sdb: ScopedDb, contractId: number
             .all()
     ]);
 
-    const totalCurrencyRow = (currencies as any[])?.find(c => c.code === contractRaw.total_currency);
-    const depositCurrencyRow = (currencies as any[])?.find(c => c.code === contractRaw.deposit_currency);
+    type CurrencyRow = { id: number; code: string; symbol: string };
+    const typedCurrencies = (currencies || []) as CurrencyRow[];
+    const totalCurrencyRow = typedCurrencies.find(c => c.code === contractRaw.total_currency);
+    const depositCurrencyRow = typedCurrencies.find(c => c.code === contractRaw.deposit_currency);
 
     return { 
         contract: {
@@ -167,7 +185,7 @@ export async function loadEditContractPageData(sdb: ScopedDb, contractId: number
         cars, 
         districts, 
         client: contract.client,
-        currencies: (currencies as any[]) || [{ id: 1, code: "THB", symbol: "฿" }],
+        currencies: typedCurrencies.length > 0 ? typedCurrencies : [{ id: 1, code: "THB", symbol: "฿" }],
         extraSettings,
         payments: (contractPayments.results || []) as Array<{
             id: number;

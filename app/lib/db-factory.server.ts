@@ -26,7 +26,6 @@ import * as durationsActions from "./durations-actions.server";
 import * as settingsActions from "./settings-actions.server";
 import * as locationsActions from "./locations-actions.server";
 import * as contractsNewAction from "./contracts-new-action.server";
-import * as contractsEditAction from "./contracts-edit-action.server";
 import * as carsCreateAction from "./cars-create-action.server";
 import * as carsEditAction from "./cars-edit-action.server";
 import * as bookingsCreateAction from "./bookings-create.server";
@@ -37,81 +36,93 @@ import type { AppLoadContext } from "~/types/context";
 /**
  * Scoped Database Factory
  * Centralizes repository access and enforces tenant isolation (companyId filtering).
+ *
+ * NOTE on types:
+ * Repo functions in the project use two DB type families:
+ * - `D1DatabaseLike` (from repo-types.server.ts) — used by standardised repo files (bookings, contracts, cars, etc.)
+ * - Global `D1Database` (from worker-configuration.d.ts) — used by utility/action/dictionary files
+ * Both are structurally identical at runtime. We cast once at the factory boundary
+ * so individual call-sites don't need `as any`.
  */
 
 export function createScopedDb(db: D1Database, companyId: number | null) {
+    // Single boundary cast: runtime identity is the same, types diverge only nominally.
+    const rawDb = db as unknown as globalThis.D1Database;
+
     return {
         db,
+        /** Pre-cast reference for functions that accept the global D1Database type */
+        rawDb,
         companyId,
 
         brands: {
-            list: () => dictRepo.loadAdminBrands(db as any),
+            list: () => dictRepo.loadAdminBrands(rawDb),
             listPage: (options?: { limit?: number; offset?: number; search?: string }) =>
-                dictRepo.loadAdminBrandsPage(db as any, options),
-            count: (search?: string) => dictRepo.countAdminBrands(db as any, search),
-            getById: (id: number) => dictRepo.loadAdminBrandById(db as any, id),
+                dictRepo.loadAdminBrandsPage(rawDb, options),
+            count: (search?: string) => dictRepo.countAdminBrands(rawDb, search),
+            getById: (id: number) => dictRepo.loadAdminBrandById(rawDb, id),
         },
 
         models: {
-            list: () => dictRepo.loadAdminModels(db as any),
+            list: () => dictRepo.loadAdminModels(rawDb),
             listPage: (options?: { limit?: number; offset?: number; search?: string }) =>
-                dictRepo.loadAdminModelsPage(db as any, options),
-            count: (search?: string) => dictRepo.countAdminModels(db as any, search),
+                dictRepo.loadAdminModelsPage(rawDb, options),
+            count: (search?: string) => dictRepo.countAdminModels(rawDb, search),
         },
 
         locations: {
-            list: (limit?: number) => cache.getCachedLocations(db as any),
+            list: (limit?: number) => cache.getCachedLocations(rawDb),
             getPageData: (params: Omit<Parameters<typeof locationsPageRepo.loadLocationsPageData>[0], "db">) =>
-                locationsPageRepo.loadLocationsPageData({ ...params, db: db as any }),
+                locationsPageRepo.loadLocationsPageData({ ...params, db: rawDb }),
             handleAction: (args: Omit<Parameters<typeof locationsActions.handleLocationsAction>[0], "db">) =>
-                locationsActions.handleLocationsAction({ ...args, db: db as any }),
+                locationsActions.handleLocationsAction({ ...args, db: rawDb }),
         },
 
         districts: {
             list: (options?: { includeDetails?: boolean; limit?: number; offset?: number; search?: string }) =>
-                cache.getCachedDistricts(db as any),
-            count: (search?: string) => dictRepo.countAdminDistricts(db as any, search),
+                cache.getCachedDistricts(rawDb),
+            count: (search?: string) => dictRepo.countAdminDistricts(rawDb, search),
         },
 
         hotels: {
             list: (options?: { limit?: number; offset?: number; search?: string }) =>
-                dictRepo.loadAdminHotels(db as any, options),
+                dictRepo.loadAdminHotels(rawDb, options),
             count: (search?: string) =>
-                dictRepo.countAdminHotels(db as any, search),
+                dictRepo.countAdminHotels(rawDb, search),
         },
 
         colors: {
-            list: () => dictRepo.loadAdminColors(db as any),
+            list: () => dictRepo.loadAdminColors(rawDb),
             listPage: (options?: { limit?: number; offset?: number; search?: string }) =>
-                dictRepo.loadAdminColorsPage(db as any, options),
-            count: (search?: string) => dictRepo.countAdminColors(db as any, search),
-            getById: (id: number) => dictRepo.loadAdminColorById(db as any, id),
+                dictRepo.loadAdminColorsPage(rawDb, options),
+            count: (search?: string) => dictRepo.countAdminColors(rawDb, search),
+            getById: (id: number) => dictRepo.loadAdminColorById(rawDb, id),
         },
 
         durations: {
-            list: () => dictRepo.loadAdminDurations(db as any),
+            list: () => dictRepo.loadAdminDurations(rawDb),
             handleAction: (args: Omit<Parameters<typeof durationsActions.handleDurationsAction>[0], "db">) =>
-                durationsActions.handleDurationsAction({ ...args, db: db as any }),
+                durationsActions.handleDurationsAction({ ...args, db: rawDb }),
         },
 
         seasons: {
-            list: () => dictRepo.loadAdminSeasons(db as any),
+            list: () => dictRepo.loadAdminSeasons(rawDb),
             handleAction: (args: Omit<Parameters<typeof seasonsActions.handleSeasonsAction>[0], "db">) =>
-                seasonsActions.handleSeasonsAction({ ...args, db: db as any }),
+                seasonsActions.handleSeasonsAction({ ...args, db: rawDb }),
         },
 
         paymentStatuses: {
-            list: () => dictRepo.loadAdminPaymentStatuses(db as any),
+            list: () => dictRepo.loadAdminPaymentStatuses(rawDb),
         },
 
         currencies: {
-            list: () => cache.getCachedCurrencies(db as any),
-            listDetailed: () => cache.getCachedCurrenciesDetailed(db as any),
-            listActiveForCompany: (id: number | null) => cache.getCachedActiveCurrenciesForCompany(db as any, id),
+            list: () => cache.getCachedCurrencies(rawDb),
+            listDetailed: () => cache.getCachedCurrenciesDetailed(rawDb),
+            listActiveForCompany: (id: number | null) => cache.getCachedActiveCurrenciesForCompany(rawDb, id),
         },
 
         paymentTemplates: {
-            listForCompany: (id: number) => cache.getCachedPaymentTemplatesForCompany(db as any, id),
+            listForCompany: (id: number) => cache.getCachedPaymentTemplatesForCompany(rawDb, id),
         },
 
         bookings: {
@@ -122,7 +133,7 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
             getById: (bookingId: number) =>
                 bookingsRepo.getBookingDetailById({ db, bookingId, companyId }),
             createAction: (args: Omit<Parameters<typeof bookingsCreateAction.createBookingAction>[0], "db" | "companyId">) =>
-                bookingsCreateAction.createBookingAction({ ...args, db: db as any, companyId: companyId! }),
+                bookingsCreateAction.createBookingAction({ ...args, db: rawDb, companyId: companyId! }),
         },
 
         contracts: {
@@ -137,9 +148,7 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
             getClosable: (contractId: number) =>
                 contractsRepo.getClosableContractById({ db, contractId, companyId }),
             newAction: (args: Omit<Parameters<typeof contractsNewAction.handleCreateContractAction>[0], "db">) =>
-                contractsNewAction.handleCreateContractAction({ ...args, db: db as any }),
-            editAction: (args: Omit<Parameters<typeof contractsEditAction.handleEditContractAction>[0], "db">) =>
-                contractsEditAction.handleEditContractAction({ ...args, db: db as any }),
+                contractsNewAction.handleCreateContractAction({ ...args, db: rawDb }),
         },
 
         cars: {
@@ -152,20 +161,19 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
             getEditable: (carId: number) =>
                 carsRepo.getEditableCarById({ db, carId, companyId }),
             getCreateData: () =>
-                carsCreateRepo.loadCreateCarPageData(db as any),
+                carsCreateRepo.loadCreateCarPageData(rawDb),
             createAction: ({ request, user, formData, assets }: { request: Request; user: SessionUser; formData: FormData; assets: R2Bucket }) => carsCreateAction.handleCreateCarAction({
                 request,
-                db: db as any,
+                db: rawDb,
                 assets,
                 user,
                 companyId: companyId!,
                 formData
             }),
             editAction: ({ request, user, formData, params, assets }: { request: Request; user: SessionUser; formData: FormData; params: any; assets: R2Bucket }) => carsEditAction.handleEditCarAction({
-                db: db as any,
+                db: rawDb,
                 assets,
                 request,
-                context: { cloudflare: { env: { DB: db as any, ASSETS: assets } } } as any,
                 user,
                 params,
                 formData
@@ -182,9 +190,9 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
             getSettings: (id: number) =>
                 companiesRepo.getCompanySettings({ db, id }),
             getCreateData: () =>
-                companiesCreateRepo.loadCreateCompanyPageData(db as any),
+                companiesCreateRepo.loadCreateCompanyPageData(rawDb),
             handleSettingsAction: (args: Omit<Parameters<typeof settingsActions.handleSettingsAction>[0], "db">) =>
-                settingsActions.handleSettingsAction({ ...args, db: db as any }),
+                settingsActions.handleSettingsAction({ ...args, db: rawDb }),
         },
 
         payments: {
@@ -197,9 +205,9 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
             getById: (paymentId: number) =>
                 paymentsRepo.getPaymentById({ db, paymentId, companyId }),
             getCreateData: () =>
-                paymentsCreateRepo.loadPaymentCreatePageData({ db: db as any, companyId }),
+                paymentsCreateRepo.loadPaymentCreatePageData({ db: rawDb, companyId }),
             createAction: (args: Omit<Parameters<typeof paymentsCreateRepo.createPaymentRecord>[0], "db" | "companyId">) =>
-                paymentsCreateRepo.createPaymentRecord({ ...args, db: db as any, companyId: companyId! }),
+                paymentsCreateRepo.createPaymentRecord({ ...args, db: rawDb, companyId: companyId! }),
         },
 
         users: {
@@ -216,17 +224,17 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 return usersRepo.countUsersPage({ db, role: params.role, search: "", companyId });
             },
             getProfileData: (userId: string) =>
-                userProfileRepo.loadEditableProfilePageData(db as any, userId),
+                userProfileRepo.loadEditableProfilePageData(rawDb, userId),
             getProfileUser: (userId: string) =>
-                userProfileRepo.loadEditableProfileUser(db as any, userId),
+                userProfileRepo.loadEditableProfileUser(rawDb, userId),
             createAction: ({ request, user, formData }: { request: Request; user: SessionUser; formData: FormData }) => userProfileRepo.createManagedUser({
-                db: db as any,
+                db: rawDb,
                 request,
                 actor: { ...user, companyId: companyId ?? undefined },
                 formData
             }),
             updateAction: ({ request, user, targetUserId, currentUser, formData, assets }: { request: Request; user: SessionUser; targetUserId: string; currentUser: any; formData: FormData; assets: R2Bucket }) => userProfileRepo.updateManagedUser({
-                db: db as any,
+                db: rawDb,
                 bucket: assets,
                 request,
                 actor: { ...user, companyId: companyId ?? undefined },
@@ -237,7 +245,7 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 allowRoleChange: true,
             }),
             deleteAction: ({ request, user, targetUserId, currentUser }: { request: Request; user: SessionUser; targetUserId: string; currentUser: any }) => userProfileRepo.deleteManagedUser({
-                db: db as any,
+                db: rawDb,
                 request,
                 actor: { ...user, companyId: companyId ?? undefined },
                 targetUserId,
@@ -246,41 +254,41 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
         },
 
         carTemplates: {
-            list: () => carTemplatesRepo.loadCarTemplatesData(db as any),
+            list: () => carTemplatesRepo.loadCarTemplatesData(rawDb),
             handleAction: (args: Omit<Parameters<typeof carTemplatesRepo.handleCarTemplatesAction>[0], "db">) =>
-                carTemplatesRepo.handleCarTemplatesAction({ ...args, db: db as any }),
+                carTemplatesRepo.handleCarTemplatesAction({ ...args, db: rawDb }),
         },
 
         auditLogs: {
             list: (options?: { limit?: number; offset?: number }) =>
-                analyticsRepo.listAuditLogs(db as any, { ...options, companyId }),
+                analyticsRepo.listAuditLogs(rawDb, { ...options, companyId }),
             count: () =>
-                analyticsRepo.countAuditLogs(db as any, companyId),
-            clear: () => analyticsRepo.clearAuditLogs(db as any, companyId),
-            quickAudit: (args: any) => auditLogger.quickAudit({ db: db as any, ...args }),
+                analyticsRepo.countAuditLogs(rawDb, companyId),
+            clear: () => analyticsRepo.clearAuditLogs(rawDb, companyId),
+            quickAudit: (args: any) => auditLogger.quickAudit({ db: rawDb, ...args }),
         },
 
         dashboard: {
             getMainData: (u: { id: string; role: any }) =>
                 dashboardRepo.loadDashboardHomeData({
-                    db: db as any,
+                    db: rawDb,
                     user: u,
                     effectiveCompanyId: companyId,
                 }),
             deleteTask: (taskId: number) =>
-                analyticsRepo.deleteDashboardTask(db as any, { taskId, companyId }),
+                analyticsRepo.deleteDashboardTask(rawDb, { taskId, companyId }),
         },
 
         appLayout: {
             getData: (request: Request) =>
-                appLayoutRepo.loadAppLayoutData({ request, db: db as any }),
+                appLayoutRepo.loadAppLayoutData({ request, db: rawDb }),
         },
 
         calendar: {
             getPageData: (url: URL) =>
-                calendarPageRepo.loadCalendarPageData({ db: db as any, companyId: companyId!, url }),
+                calendarPageRepo.loadCalendarPageData({ db: rawDb, companyId: companyId!, url }),
             getFeed: (url: URL) =>
-                calendarPageRepo.loadUpcomingCalendarFeed({ db: db as any, companyId: companyId!, url }),
+                calendarPageRepo.loadUpcomingCalendarFeed({ db: rawDb, companyId: companyId!, url }),
         }
     };
 }

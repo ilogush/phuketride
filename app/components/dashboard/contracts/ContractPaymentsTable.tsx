@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import { formatDateTimeForDisplay, getCurrencySymbol } from "~/lib/formatters";
 
 type PaymentRow = {
@@ -55,6 +54,8 @@ export default function ContractPaymentsTable({ payments = [] }: ContractPayment
                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                     payment.status === "completed"
                       ? "bg-green-50 text-green-700"
+                      : payment.status === "cancelled" || payment.status === "failed" || payment.status === "refunded"
+                      ? "bg-red-50 text-red-700"
                       : "bg-yellow-50 text-yellow-700"
                   }`}
                 >

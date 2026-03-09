@@ -45,7 +45,7 @@ export async function requireAdminDb(
     context: AdminRouteContext
 ): Promise<{ user: SessionUser; db: D1Database; companyId: number | null }> {
     const { user, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
-    return { user, db: sdb.db, companyId };
+    return { user, db: sdb.rawDb, companyId };
 }
 
 export async function loadAdminPageData<TLoaders extends AdminPageLoaderMap>(params: {
@@ -93,8 +93,8 @@ export async function runAdminMutationAction(params: {
                     entityType: audit.entityType,
                     entityId: audit.entityId,
                     action: audit.action,
-                    beforeState: audit.beforeState,
-                    afterState: audit.afterState,
+                    beforeState: audit.beforeState as Record<string, unknown> | undefined,
+                    afterState: audit.afterState as Record<string, unknown> | undefined,
                     ...getRequestMetadata(request),
                 });
             }

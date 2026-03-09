@@ -91,13 +91,20 @@ export default function PageHeader({
 
                 <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 animate-in fade-in slide-in-from-right-4 duration-500">
                     {withSearch && onSearchChange && (
-                        <input
-                            type="text"
-                            value={searchValue || ''}
-                            onChange={(e) => onSearchChange(e.target.value)}
-                            placeholder={searchPlaceholder || 'Search...'}
-                            className="hidden sm:block py-2 sm:py-4 px-3 sm:px-4 border border-gray-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent text-sm"
-                        />
+                        <div className="relative group hidden sm:block h-11">
+                            <input
+                                type="text"
+                                value={searchValue || ''}
+                                onChange={(e) => onSearchChange(e.target.value)}
+                                placeholder={searchPlaceholder || 'Search assets...'}
+                                className="h-full py-2.5 pl-4 pr-10 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 focus:bg-white bg-gray-50/50 transition-all duration-200 text-sm w-48 lg:w-64 placeholder:text-gray-400 font-medium"
+                            />
+                            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-gray-900 transition-colors">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                        </div>
                     )}
                     {finalActions && (
                         <div className="flex items-center gap-2 sm:gap-3">

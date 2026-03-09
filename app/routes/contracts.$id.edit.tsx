@@ -2,7 +2,8 @@ import { type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { getScopedDb } from "~/lib/db-factory.server";
 import ContractEditPageView from "~/features/contract-edit/ContractEditPageView";
-import { loadEditContractPageData } from "~/lib/contracts-edit-page.server";
+import { loadContractEditPageData } from "~/features/contract-edit/contract-edit.loader.server";
+import { submitContractEditAction } from "~/features/contract-edit/contract-edit.action.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
@@ -15,7 +16,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         companyId,
         entityId: contractId,
         details: { route: "contracts.$id.edit" },
-        run: () => loadEditContractPageData(sdb, contractId),
+        run: () => loadContractEditPageData({ sdb, contractId }),
     });
 }
 
@@ -30,12 +31,14 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         companyId,
         entityId: Number(params.id),
         details: { route: "contracts.$id.edit" },
-        run: async () => sdb.contracts.editAction({
+        run: async () => submitContractEditAction({
+            db: context.cloudflare.env.DB,
             assets: context.cloudflare.env.ASSETS,
             request,
             user,
             params,
-            formData
+            formData,
+            companyId,
         }),
     });
 }

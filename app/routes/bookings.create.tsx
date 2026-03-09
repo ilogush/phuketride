@@ -6,6 +6,7 @@ import Button from "~/components/dashboard/Button";
 import FormSection from "~/components/dashboard/FormSection";
 import { Input } from "~/components/dashboard/Input";
 import { Select } from "~/components/dashboard/Select";
+import { Textarea } from "~/components/dashboard/Textarea";
 import PageHeader from "~/components/dashboard/PageHeader";
 import BackButton from "~/components/dashboard/BackButton";
 import { useLatinValidation } from "~/lib/useLatinValidation";
@@ -17,6 +18,8 @@ import { trackServerOperation } from "~/lib/telemetry.server";
 import { loadRentalCreateBaseData } from "~/lib/rental-create-page.server";
 import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import { getScopedDb } from "~/lib/db-factory.server";
+import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
+
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const { companyId, user, sdb } = await getScopedDb(request, context, requireScopedDashboardAccess);
@@ -28,12 +31,23 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId: scopedCompanyId,
         details: { route: "bookings.create" },
-        run: async () => loadRentalCreateBaseData(sdb.db as any, scopedCompanyId),
+        run: async () => loadRentalCreateBaseData(sdb.rawDb, scopedCompanyId),
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context, requireScopedDashboardAccess);
+
+    // Rate-limit booking creation
+    const rateLimit = await checkRateLimit(
+        (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
+        getClientIdentifier(request, user.id),
+        "form"
+    );
+    if (!rateLimit.allowed) {
+        return { error: "Too many requests. Please wait and try again." };
+    }
+
     const formData = await request.formData();
     return trackServerOperation({
         event: "bookings.create",
@@ -247,11 +261,11 @@ export default function CreateBookingPage() {
                 </FormSection>
 
                 <FormSection title="Notes">
-                    <textarea
+                    <Textarea
                         name="notes"
+                        label="Additional Notes"
                         rows={3}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-800"
-                        placeholder="Additional notes..."
+                        placeholder="Any special requirements..."
                     />
                 </FormSection>
 

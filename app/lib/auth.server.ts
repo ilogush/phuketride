@@ -21,6 +21,10 @@ function getSessionSecrets() {
         throw new Error("SESSION_SECRET is required in production");
     }
 
+    console.warn(
+        "[auth] ⚠️  SESSION_SECRET is not set — using insecure fallback. " +
+        "Set SESSION_SECRET in your .dev.vars or environment before deploying."
+    );
     return [FALLBACK_DEV_SESSION_SECRET];
 }
 
@@ -241,7 +245,7 @@ export async function login(
     }
 
     if (!user) {
-        return { error: "User with this email does not exist" };
+        return { error: "Invalid email or password" };
     }
 
     // Check if user is archived
@@ -252,12 +256,12 @@ export async function login(
     // Verify password
     try {
         if (!user.passwordHash) {
-            return { error: "Invalid password" };
+            return { error: "Invalid email or password" };
         }
 
         const ok = await verifyPasswordHash(password, user.passwordHash);
         if (!ok) {
-            return { error: "Invalid password" };
+            return { error: "Invalid email or password" };
         }
     } catch {
         return { error: "Login failed at: password verification" };

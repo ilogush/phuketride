@@ -72,58 +72,59 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
             <div className="overflow-x-auto -mx-4 -mb-4">
                 <table className="min-w-full divide-y divide-gray-100">
                     <thead>
-                        <tr className="bg-gray-50/50">
-                            <th scope="col" className="pl-4 py-2 text-left text-xs font-normal text-gray-500 tracking-tight uppercase">
+                        <tr className="bg-white">
+                            <th scope="col" className="pl-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none border-b border-gray-100 rounded-tl-2xl">
                                 №
                             </th>
-                            <th scope="col" className="px-4 py-2 text-left text-xs font-normal text-gray-500 tracking-tight uppercase">
+                            <th scope="col" className="px-4 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none border-b border-gray-100">
                                 Title
                             </th>
-                            <th scope="col" className="px-4 py-2 text-left text-xs font-normal text-gray-500 tracking-tight uppercase">
+                            <th scope="col" className="px-4 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none border-b border-gray-100">
                                 Description
                             </th>
-                            <th scope="col" className="px-4 py-2 text-left text-xs font-normal text-gray-500 tracking-tight uppercase">
+                            <th scope="col" className="px-4 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none border-b border-gray-100">
                                 Status
                             </th>
-                            <th scope="col" className="px-4 py-2 text-left text-xs font-normal text-gray-500 tracking-tight uppercase">
+                            <th scope="col" className="px-4 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none border-b border-gray-100">
                                 Priority
                             </th>
-                            <th scope="col" className="pr-4 py-2 text-right text-xs font-normal text-gray-500 tracking-tight uppercase">
+                            <th scope="col" className="pr-6 py-4 text-right text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none border-b border-gray-100 rounded-tr-2xl">
                                 Actions
                             </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {tasks.map((task, index) => (
-                            <tr key={task.id} className="group hover:bg-gray-50/50 transition-colors">
-                                <td className="pl-4 py-2 text-sm text-gray-900 whitespace-nowrap align-middle">
-                                    <span className="font-mono text-xs bg-gray-800 text-white px-2 py-1 rounded-full">
+                            <tr key={task.id} className="group hover:bg-gray-50 transition-colors">
+                                <td className="pl-6 py-4 text-sm text-gray-900 whitespace-nowrap align-middle">
+                                    <span className="font-mono text-[11px] font-bold bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
                                         {String(index + 1).padStart(2, '0')}
                                     </span>
                                 </td>
-                                <td className="px-4 py-2 text-sm text-gray-900 whitespace-nowrap align-middle">
-                                    <span className="font-medium">{task.title}</span>
+                                <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap align-middle">
+                                    <span className="font-bold">{task.title}</span>
                                 </td>
-                                <td className="px-4 py-2 text-sm text-gray-600 whitespace-normal align-middle max-w-md">
+                                <td className="px-4 py-4 text-[13px] text-gray-500 whitespace-normal align-middle max-w-md leading-relaxed">
                                     {task.description}
                                 </td>
-                                <td className="px-4 py-2 text-sm text-gray-900 whitespace-nowrap align-middle">
-                                    <span className={`inline-flex items-center px-2 py-1 text-xs font-medium tracking-wide rounded-lg border ${STATUS_STYLES[task.status]}`}>
+                                <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap align-middle">
+                                    <span className={`inline-flex items-center px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-lg border ${STATUS_STYLES[task.status]}`}>
                                         {task.status.replace('_', ' ')}
                                     </span>
                                 </td>
-                                <td className="px-4 py-2 text-sm text-gray-900 whitespace-nowrap align-middle">
+                                <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap align-middle">
                                     {task.priority && (
-                                        <span className={`inline-flex items-center px-2 py-1 text-xs font-medium tracking-wide rounded-lg border ${PRIORITY_STYLES[task.priority]}`}>
+                                        <span className={`inline-flex items-center px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-lg border ${PRIORITY_STYLES[task.priority]}`}>
                                             {task.priority}
                                         </span>
                                     )}
                                 </td>
-                                <td className="pr-4 py-2 text-sm text-gray-900 whitespace-nowrap align-middle text-right">
+                                <td className="pr-6 py-4 text-sm text-gray-900 whitespace-nowrap align-middle text-right">
                                     <Button
-                                        variant="outline"
+                                        variant="plain"
                                         size="sm"
                                         onClick={() => setSelectedTask(task)}
+                                        className="ring-1 ring-gray-200 hover:ring-gray-300"
                                     >
                                         View
                                     </Button>

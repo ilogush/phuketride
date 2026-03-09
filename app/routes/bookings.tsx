@@ -132,7 +132,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             key: "status",
             label: "Status",
             render: (item) => (
-                <StatusBadge variant={item.status as any}>
+                <StatusBadge variant={item.status as "pending" | "confirmed" | "converted" | "cancelled"}>
                     {item.status}
                 </StatusBadge>
             )

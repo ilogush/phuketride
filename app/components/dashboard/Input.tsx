@@ -77,13 +77,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
         : true
 
 
-    // Inner input classes - always used now
+    // Inner input classes
     const innerInputClasses = `
         block w-full border-0 focus:ring-0 bg-transparent text-sm py-2.5 h-full 
-        placeholder:text-gray-400 focus:outline-none transition-colors
+        placeholder:text-gray-400 focus:outline-none transition-all duration-200
         ${addonLeft ? 'pl-2' : 'pl-4'}
         ${(isPassword || addonRight) ? 'pr-2' : 'pr-4'}
-        ${isFieldDisabled ? 'cursor-not-allowed opacity-50' : ''}
+        ${isFieldDisabled ? 'cursor-not-allowed text-gray-400' : 'text-gray-900'}
     `.trim()
 
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
@@ -91,17 +91,21 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
     return (
         <div className={className}>
             {label && (
-                <label htmlFor={id || name} className="block text-xs text-gray-600 mb-1">
-                    {label} {required && <span className="text-gray-500">*</span>}
+                <label htmlFor={id || name} className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wider ml-1">
+                    {label} {required && <span className="text-red-400 ml-0.5">*</span>}
                 </label>
             )}
             <div className={`
-                flex items-center border rounded-xl bg-white transition-colors h-10 overflow-hidden
-                ${error ? 'border-red-500' : 'border-gray-300 focus-within:border-gray-500'}
-                ${isFieldDisabled ? 'bg-gray-50' : 'bg-white'}
+                relative flex items-center border rounded-2xl bg-white h-11 overflow-hidden transition-all duration-200
+                ${error 
+                    ? 'border-red-200 bg-red-50/10 ring-1 ring-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.05)]' 
+                    : isFocused 
+                        ? 'border-gray-900 ring-4 ring-gray-900/5 shadow-sm' 
+                        : 'border-gray-200 hover:border-gray-300 shadow-none'}
+                ${isFieldDisabled ? 'bg-gray-50/50 border-gray-100' : 'bg-white'}
             `}>
                 {addonLeft && (
-                    <span className="inline-flex items-center pl-3 text-gray-500 sm:text-sm">
+                    <span className="inline-flex items-center pl-4 text-gray-400 font-medium sm:text-sm">
                         {addonLeft}
                     </span>
                 )}
@@ -129,23 +133,28 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
                     <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="inline-flex items-center px-3 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+                        className="inline-flex items-center px-4 text-gray-400 hover:text-gray-900 focus:outline-none transition-colors"
                         disabled={isFieldDisabled}
                     >
                         {showPassword ? (
-                            <EyeSlashIcon className="w-5 h-5" />
+                            <EyeSlashIcon className="w-5 h-5 transition-transform active:scale-95" />
                         ) : (
-                            <EyeIcon className="w-5 h-5" />
+                            <EyeIcon className="w-5 h-5 transition-transform active:scale-95" />
                         )}
                     </button>
                 )}
                 {!isPassword && addonRight && (
-                    <span className="inline-flex items-center pr-3 text-gray-500 sm:text-sm">
+                    <span className="inline-flex items-center pr-4 text-gray-500 font-semibold sm:text-xs tracking-tight bg-gray-50/50 self-stretch px-3 border-l border-gray-100">
                         {addonRight}
                     </span>
                 )}
             </div>
-            <FormFeedbackMessage message={error} tone="error" className="mt-1 text-sm font-medium" />
+            {error && (
+                <div className="flex items-center gap-1.5 mt-1.5 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="w-1 h-1 rounded-full bg-red-500" />
+                    <p className="text-[11px] font-bold text-red-600 uppercase tracking-tight">{error}</p>
+                </div>
+            )}
         </div>
     )
 })

@@ -19,6 +19,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { useCompanyManagerAssignment } from "~/components/dashboard/company/useCompanyManagerAssignment";
+import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 
 type DistrictRow = {
     id: number;
@@ -45,6 +46,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
+
+    // Rate-limit company creation
+    const rateLimit = await checkRateLimit(
+        (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
+        getClientIdentifier(request, user.id),
+        "form"
+    );
+    if (!rateLimit.allowed) {
+        return { error: "Too many requests. Please wait and try again." };
+    }
+
     return trackServerOperation({
         event: "companies.create",
         scope: "route.action",
@@ -53,7 +65,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         companyId: null,
         run: async () => {
             const formData = await request.formData();
-            return createCompanyAction({ request, context, user, formData, db: sdb.db });
+            return createCompanyAction({ request, context, user, formData, db: sdb.rawDb });
         },
     });
 }

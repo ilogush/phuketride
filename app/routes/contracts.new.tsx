@@ -20,6 +20,7 @@ import { trackServerOperation } from "~/lib/telemetry.server";
 import { loadContractCreatePageData } from "~/lib/rental-create-page.server";
 import { requireScopedDashboardAccess } from "~/lib/access-policy.server";
 import { getScopedDb } from "~/lib/db-factory.server";
+import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 import {
     TruckIcon,
     CalendarIcon,
@@ -38,12 +39,23 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         userId: user.id,
         companyId: scopedCompanyId,
         details: { route: "contracts.new" },
-        run: async () => loadContractCreatePageData(sdb.db as any, scopedCompanyId),
+        run: async () => loadContractCreatePageData(sdb.rawDb, scopedCompanyId),
     });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const { user, companyId, sdb } = await getScopedDb(request, context, requireScopedDashboardAccess);
+
+    // Rate-limit contract creation (10 per minute per user)
+    const rateLimit = await checkRateLimit(
+        (context.cloudflare.env as { RATE_LIMIT?: KVNamespace }).RATE_LIMIT,
+        getClientIdentifier(request, user.id),
+        "form"
+    );
+    if (!rateLimit.allowed) {
+        return { error: "Too many requests. Please wait and try again." };
+    }
+
     const formData = await request.formData();
     return trackServerOperation({
         event: "contracts.create",
@@ -187,10 +199,12 @@ export default function NewContract() {
                                             rentalAmount,
                                             deliveryCost, 
                                             returnCost,
-                                            extras: extraPaymentItems.filter(i => i.enabled).map(i => ({
+                                            // Always pass all extras so the DOM stays stable (no layout shift).
+                                            // Disabled extras get an empty string — ContractFinancialFields shows them dimmed.
+                                            extras: extraPaymentItems.map(i => ({
                                                 key: i.key,
                                                 title: i.title,
-                                                amount: extraAmounts[i.key] || "",
+                                                amount: i.enabled ? (extraAmounts[i.key] || "") : "",
                                                 method: extraMethods[i.key] || ""
                                             }))
                                         }}
@@ -198,7 +212,6 @@ export default function NewContract() {
                                         onDeliveryCostChange={setDeliveryCost}
                                         onReturnCostChange={setReturnCost}
                                         onExtraAmountChange={handleExtraAmountChange}
-                                        onExtraMethodChange={handleExtraMethodChange}
                                     />
                                 </div>
                             </div>

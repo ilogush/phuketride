@@ -41,13 +41,13 @@ type CheckoutActionData = {
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { sdb } = await getScopedDb(request, context, requirePublicAccess);
-  return submitPublicCheckout({ request, db: sdb.db as any });
+  return submitPublicCheckout({ request, db: sdb.rawDb });
 }
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
   const { sdb } = await getScopedDb(request, context, requirePublicAccess);
   return loadPublicCheckoutPage({
-    db: sdb.db as any,
+    db: sdb.rawDb,
     request,
     routeCarPath: params.id,
   });
