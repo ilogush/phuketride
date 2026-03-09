@@ -5,6 +5,9 @@ import Button from '~/components/shared/ui/Button'
 interface PageHeaderProps {
     title?: ReactNode
     subtitle?: ReactNode
+    leftSlot?: ReactNode
+    rightSlot?: ReactNode
+    searchSlot?: ReactNode
     leftActions?: ReactNode
     rightActions?: ReactNode
     actions?: ReactNode
@@ -25,6 +28,9 @@ interface PageHeaderProps {
 export default function PageHeader({
     title,
     subtitle,
+    leftSlot,
+    rightSlot,
+    searchSlot,
     leftActions,
     rightActions,
     actions,
@@ -41,13 +47,14 @@ export default function PageHeader({
     loading,
     disabled
 }: PageHeaderProps) {
-    let finalActions = rightActions || actions
+    const resolvedLeftSlot = leftSlot ?? leftActions
+    let finalActions = rightSlot ?? rightActions ?? actions
 
     if (!finalActions && actionLabel) {
         if (actionType === 'link' && href) {
             finalActions = (
                 <Link to={href}>
-                    <Button variant="solid" icon={actionIcon} loading={loading}>
+                    <Button variant="primary" leadingIcon={actionIcon} loading={loading}>
                         {actionLabel}
                     </Button>
                 </Link>
@@ -55,8 +62,8 @@ export default function PageHeader({
         } else if (actionType === 'submit' || actionType === 'button') {
             finalActions = (
                 <Button
-                    variant="solid"
-                    icon={actionIcon}
+                    variant="primary"
+                    leadingIcon={actionIcon}
                     onClick={onAction}
                     type={actionType}
                     loading={loading}
@@ -68,13 +75,31 @@ export default function PageHeader({
         }
     }
 
-    const hasRightActions = !!finalActions || withSearch || !!children
+    const legacySearch = withSearch && onSearchChange ? (
+        <div className="relative group hidden sm:block h-11">
+            <input
+                type="text"
+                value={searchValue || ''}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder={searchPlaceholder || 'Search assets...'}
+                className="h-full py-2.5 pl-4 pr-10 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 focus:bg-white bg-gray-50/50 transition-all duration-200 text-sm w-48 lg:w-64 placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400 font-medium"
+            />
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-gray-900 transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+        </div>
+    ) : null
+
+    const resolvedSearchSlot = searchSlot ?? legacySearch
+    const hasRightContent = !!finalActions || !!resolvedSearchSlot || !!children
 
     return (
         <div>
-            <div className={`flex items-center ${hasRightActions ? 'justify-between' : 'justify-start'} gap-2 sm:gap-4`}>
+            <div className={`flex items-center ${hasRightContent ? 'justify-between' : 'justify-start'} gap-2 sm:gap-4`}>
                 <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-                    {leftActions}
+                    {resolvedLeftSlot}
                     {title && (
                         <div className="min-w-0">
                             <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight animate-in fade-in slide-in-from-left-4 duration-500 truncate">
@@ -90,22 +115,7 @@ export default function PageHeader({
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 animate-in fade-in slide-in-from-right-4 duration-500">
-                    {withSearch && onSearchChange && (
-                        <div className="relative group hidden sm:block h-11">
-                            <input
-                                type="text"
-                                value={searchValue || ''}
-                                onChange={(e) => onSearchChange(e.target.value)}
-                                placeholder={searchPlaceholder || 'Search assets...'}
-                                className="h-full py-2.5 pl-4 pr-10 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-gray-900/5 focus:border-gray-900 focus:bg-white bg-gray-50/50 transition-all duration-200 text-sm w-48 lg:w-64 placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:text-gray-400 font-medium"
-                            />
-                            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-gray-900 transition-colors">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                            </div>
-                        </div>
-                    )}
+                    {resolvedSearchSlot}
                     {finalActions && (
                         <div className="flex items-center gap-2 sm:gap-3">
                             {finalActions}
