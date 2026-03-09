@@ -168,8 +168,8 @@ export default function CalendarTasksSidebar({ date, tasks, modCompanyId }: Cale
                         </div>
                     ) : (
                         <Button 
-                            variant="outline" 
-                            className="w-full justify-center py-3 rounded-2xl shadow-sm border border-gray-100 hover:border-gray-200"
+                            variant="solid" 
+                            className="w-full justify-center py-3 rounded-2xl shadow-sm"
                             icon={<PlusIcon className="w-5 h-5" />}
                             onClick={() => setShowAddForm(true)}
                         >

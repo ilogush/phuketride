@@ -33,6 +33,7 @@ const AvatarSection = memo(function AvatarSection({
                 currentPhotoUrl={avatarUrl}
                 onPhotoChange={onPhotoChange || (() => { })}
                 initials={initials}
+                label="User Avatar"
             />
         );
     }
@@ -87,7 +88,7 @@ function ProfileForm({
                     </div>
 
                     <div className="lg:col-span-1 space-y-4">
-                        <div className="bg-white rounded-3xl shadow-sm p-4">
+                        <div className="bg-white rounded-3xl p-4 ring-1 ring-black/5">
                             <AvatarSection
                                 isEdit
                                 avatarUrl={user.avatarUrl}

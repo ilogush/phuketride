@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { loader as logsLoader, action as logsAction } from "../app/routes/logs";
 import { loader as companyLoader } from "../app/routes/companies.$companyId";
 import { loader as locationsLoader, action as locationsAction } from "../app/routes/locations";
+import { loader as editUserLoader } from "../app/routes/users.$userId.edit";
+import { loader as createUserLoader } from "../app/routes/users.create";
 import { requireBookingAccess } from "../app/lib/access-policy.server";
 import { serializeSession, type SessionUser } from "../app/lib/auth.server";
 import { setRuntimeEnv } from "../app/lib/runtime-env.server";
@@ -207,4 +209,125 @@ test("locations action rejects manager before touching DB", async () => {
         (error: unknown) => error instanceof Response && error.status === 403
     );
     assert.equal(db.calls.length, 0);
+});
+
+test("user edit loader allows partner to access a manager in their company", async () => {
+    const db = new FakeD1Database([
+        {
+            match: "FROM users u\n                LEFT JOIN managers m ON u.id = m.user_id",
+            first: [
+                {
+                    id: "manager-001",
+                    email: "manager@example.com",
+                    role: "manager",
+                    name: "Manager",
+                    surname: null,
+                    phone: null,
+                    whatsapp: null,
+                    telegram: null,
+                    passportNumber: null,
+                    passportPhotos: null,
+                    driverLicensePhotos: null,
+                    avatarUrl: null,
+                    hotelId: null,
+                    roomNumber: null,
+                    locationId: null,
+                    districtId: null,
+                    address: null,
+                },
+            ],
+        },
+        {
+            match: "FROM hotels",
+            all: [{ results: [] }],
+        },
+        {
+            match: "FROM locations",
+            all: [{ results: [] }],
+        },
+        {
+            match: "FROM districts",
+            all: [{ results: [] }],
+        },
+    ]);
+    const request = await buildRequest(
+        {
+            id: "partner-1",
+            email: "partner@example.com",
+            role: "partner",
+            name: "Partner",
+            surname: null,
+            companyId: 12,
+        },
+        "https://example.com/users/manager-001/edit"
+    );
+
+    const result = await editUserLoader({
+        request,
+        context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+        params: { userId: "manager-001" },
+    } as never);
+
+    assert.equal((result as { user: { id: string } }).user.id, "manager-001");
+});
+
+test("user edit loader rejects manager before touching DB", async () => {
+    const db = new FakeD1Database([]);
+    const request = await buildRequest(
+        {
+            id: "manager-9",
+            email: "manager@example.com",
+            role: "manager",
+            name: "Manager",
+            surname: null,
+            companyId: 12,
+        },
+        "https://example.com/users/manager-001/edit"
+    );
+
+    await assert.rejects(
+        () => editUserLoader({
+            request,
+            context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+            params: { userId: "manager-001" },
+        } as never),
+        (error: unknown) => error instanceof Response && error.status === 403
+    );
+    assert.equal(db.calls.length, 0);
+});
+
+test("user create loader allows partner with company scope", async () => {
+    const db = new FakeD1Database([
+        {
+            match: "FROM hotels",
+            all: [{ results: [] }],
+        },
+        {
+            match: "FROM locations",
+            all: [{ results: [] }],
+        },
+        {
+            match: "FROM districts",
+            all: [{ results: [] }],
+        },
+    ]);
+    const request = await buildRequest(
+        {
+            id: "partner-2",
+            email: "partner@example.com",
+            role: "partner",
+            name: "Partner",
+            surname: null,
+            companyId: 15,
+        },
+        "https://example.com/users/create"
+    );
+
+    const result = await createUserLoader({
+        request,
+        context: { cloudflare: { env: { DB: db as unknown as D1Database, RATE_LIMIT: undefined } } },
+        params: {},
+    } as never);
+
+    assert.deepEqual((result as { hotels: unknown[] }).hotels, []);
 });

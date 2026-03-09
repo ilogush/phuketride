@@ -86,7 +86,47 @@ export async function loadProfileReferenceData(db: D1Database) {
     return { hotels, locations, districts };
 }
 
-export async function loadEditableProfileUser(db: D1Database, userId: string): Promise<EditableProfileUserRow | null> {
+export async function loadEditableProfileUser(
+    db: D1Database,
+    userId: string,
+    companyId?: number | null
+): Promise<EditableProfileUserRow | null> {
+    if (!userId) {
+        return null;
+    }
+
+    if (companyId) {
+        return (await db
+            .prepare(`
+                SELECT DISTINCT
+                    u.id,
+                    u.email,
+                    u.role,
+                    u.name,
+                    u.surname,
+                    u.phone,
+                    u.whatsapp,
+                    u.telegram,
+                    u.passport_number AS passportNumber,
+                    u.passport_photos AS passportPhotos,
+                    u.driver_license_photos AS driverLicensePhotos,
+                    u.avatar_url AS avatarUrl,
+                    u.hotel_id AS hotelId,
+                    u.room_number AS roomNumber,
+                    u.location_id AS locationId,
+                    u.district_id AS districtId,
+                    u.address
+                FROM users u
+                LEFT JOIN managers m ON u.id = m.user_id AND m.company_id = ? AND m.is_active = 1
+                LEFT JOIN contracts c ON u.id = c.client_id
+                LEFT JOIN company_cars cc ON c.company_car_id = cc.id AND cc.company_id = ?
+                WHERE u.id = ? AND (m.id IS NOT NULL OR cc.id IS NOT NULL) AND u.archived_at IS NULL
+                LIMIT 1
+            `)
+            .bind(companyId, companyId, userId)
+            .first()) as EditableProfileUserRow | null;
+    }
+
     return (await db
         .prepare(`
             SELECT id, email, role, name, surname, phone, whatsapp, telegram,
@@ -96,15 +136,15 @@ export async function loadEditableProfileUser(db: D1Database, userId: string): P
                    hotel_id AS hotelId, room_number AS roomNumber, location_id AS locationId,
                    district_id AS districtId, address
             FROM users
-            WHERE id = ?
+            WHERE id = ? AND archived_at IS NULL
             LIMIT 1
         `)
         .bind(userId)
         .first()) as EditableProfileUserRow | null;
 }
 
-export async function loadEditableProfilePageData(db: D1Database, userId: string) {
-    const [user, references] = await Promise.all([loadEditableProfileUser(db, userId), loadProfileReferenceData(db)]);
+export async function loadEditableProfilePageData(db: D1Database, userId: string, companyId?: number | null) {
+    const [user, references] = await Promise.all([loadEditableProfileUser(db, userId, companyId), loadProfileReferenceData(db)]);
     return { user, ...references };
 }
 

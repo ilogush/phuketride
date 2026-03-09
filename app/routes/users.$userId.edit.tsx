@@ -8,7 +8,7 @@ import { TrashIcon } from "@heroicons/react/24/outline";
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { getScopedDb } from "~/lib/db-factory.server";
-import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
+import { requireUserDirectoryAccess } from "~/lib/access-policy.server";
 
 export const meta: MetaFunction = () => [
     { title: "Edit User — Phuket Ride Admin" },
@@ -16,7 +16,7 @@ export const meta: MetaFunction = () => [
 ];
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
-    const { user: sessionUser, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
+    const { user: sessionUser, companyId, sdb } = await getScopedDb(request, context, requireUserDirectoryAccess);
 
     const userId = params.userId;
     if (!userId) {
@@ -43,7 +43,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
-    const { user: sessionUser, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
+    const { user: sessionUser, companyId, sdb } = await getScopedDb(request, context, requireUserDirectoryAccess);
 
     const userId = params.userId;
     if (!userId) {

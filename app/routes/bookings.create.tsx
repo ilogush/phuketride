@@ -13,7 +13,6 @@ import { useLatinValidation } from "~/lib/useLatinValidation";
 import { useDateMasking } from "~/lib/useDateMasking";
 import { parseDateFromDisplay } from "~/lib/formatters";
 import { calculateBaseTripTotal } from "~/lib/pricing";
-import { createBookingAction } from "~/lib/bookings-create.server";
 import { trackServerOperation } from "~/lib/telemetry.server";
 import { loadRentalCreateBaseData } from "~/lib/rental-create-page.server";
 import { requireScopedDashboardAccess } from "~/lib/access-policy.server";

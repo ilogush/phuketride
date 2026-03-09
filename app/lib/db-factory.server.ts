@@ -224,9 +224,9 @@ export function createScopedDb(db: D1Database, companyId: number | null) {
                 return usersRepo.countUsersPage({ db, role: params.role, search: "", companyId });
             },
             getProfileData: (userId: string) =>
-                userProfileRepo.loadEditableProfilePageData(rawDb, userId),
+                userProfileRepo.loadEditableProfilePageData(rawDb, userId, companyId),
             getProfileUser: (userId: string) =>
-                userProfileRepo.loadEditableProfileUser(rawDb, userId),
+                userProfileRepo.loadEditableProfileUser(rawDb, userId, companyId),
             createAction: ({ request, user, formData }: { request: Request; user: SessionUser; formData: FormData }) => userProfileRepo.createManagedUser({
                 db: rawDb,
                 request,

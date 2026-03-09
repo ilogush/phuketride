@@ -6,7 +6,7 @@ import Button from '~/components/shared/ui/Button';
 import PageHeader from '~/components/shared/ui/PageHeader';
 import { redirectWithRequestError, redirectWithRequestSuccess } from "~/lib/route-feedback";
 import { trackServerOperation } from "~/lib/telemetry.server";
-import { requireAdminUserMutationAccess } from "~/lib/access-policy.server";
+import { requireUserDirectoryAccess } from "~/lib/access-policy.server";
 import { getScopedDb } from "~/lib/db-factory.server";
 import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 
@@ -16,7 +16,7 @@ export const meta: MetaFunction = () => [
 ];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-    const { user, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
+    const { user, companyId, sdb } = await getScopedDb(request, context, requireUserDirectoryAccess);
     return trackServerOperation({
         event: "users.create.load",
         scope: "route.loader",
@@ -32,7 +32,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-    const { user, companyId, sdb } = await getScopedDb(request, context, requireAdminUserMutationAccess);
+    const { user, companyId, sdb } = await getScopedDb(request, context, requireUserDirectoryAccess);
 
     // Rate-limit user creation
     const rateLimit = await checkRateLimit(
@@ -104,7 +104,7 @@ export default function CreateUserPage() {
             />
             <ProfileForm
                 user={emptyUser}
-                currentUserRole="admin"
+                currentUserRole={user.role}
                 hotels={hotels}
                 locations={locations}
                 districts={districts}

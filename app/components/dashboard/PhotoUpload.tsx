@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { ArrowUpTrayIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { PhotoIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import Button from '~/components/shared/ui/Button';
 import { optimizeImage } from "~/lib/image-optimizer";
 
@@ -15,7 +15,7 @@ export default function PhotoUpload({
     currentPhotoUrl,
     onPhotoChange,
     maxSizeMB = 2,
-    label,
+    label = "User Avatar",
     initials = "U",
 }: PhotoUploadProps) {
     const [preview, setPreview] = useState<string | null>(currentPhotoUrl || null);
@@ -57,22 +57,29 @@ export default function PhotoUpload({
     };
 
     return (
-        <div className="flex items-center gap-3">
-            <div className="relative w-20 h-20 flex-shrink-0">
+        <div className="inline-block">
+            <div className="relative h-18 w-18">
                 {preview ? (
-                    <img
-                        src={preview}
-                        alt="Profile"
-                        className="w-20 h-20 rounded-full object-cover"
-                    />
+                    <div className="relative h-full w-full overflow-hidden rounded-lg bg-gray-50">
+                        <img
+                            src={preview}
+                            alt="Profile"
+                            className="h-full w-full object-cover"
+                        />
+                    </div>
                 ) : (
                     <Button
                         type="button"
                         variant="plain"
                         onClick={handleClick}
-                        className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-full flex items-center justify-center cursor-pointer"
+                        className="relative h-full w-full cursor-pointer rounded-lg border-2 border-dashed border-gray-200 hover:bg-gray-50"
                     >
-                        <ArrowUpTrayIcon className="w-6 h-6 text-gray-400" />
+                        <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center">
+                            <PhotoIcon className="h-6 w-6 text-gray-500" />
+                            <span className="block w-full text-center text-[10px] leading-tight text-gray-500">
+                                {label}
+                            </span>
+                        </span>
                     </Button>
                 )}
                 {preview && (
@@ -86,10 +93,7 @@ export default function PhotoUpload({
                     </Button>
                 )}
             </div>
-            <div>
-                <h3 className="text-sm font-bold text-gray-900 mb-1">{label}</h3>
-                {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
-            </div>
+            {error ? <p className="mt-2 text-xs text-red-500">{error}</p> : null}
 
             <input
                 ref={fileInputRef}

@@ -9,7 +9,6 @@ import FormActions from '~/components/shared/ui/FormActions';
 import BackButton from '~/components/shared/ui/BackButton';
 import { BanknotesIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import { trackServerOperation } from "~/lib/telemetry.server";
-import { createPaymentRecord } from "~/lib/payments-create.server";
 import { checkRateLimit, getClientIdentifier } from "~/lib/rate-limit.server";
 
 import { getScopedDb } from "~/lib/db-factory.server";
