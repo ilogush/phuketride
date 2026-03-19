@@ -73,11 +73,22 @@ export async function handleCreateCarAction({ request, db, assets, user, company
     }
 
     // 5. Database Insertion
-    const formatDate = (d: string | null | undefined) => 
-      d ? new Date(d.split("-").reverse().join("-")).toISOString() : null;
+        const formatDate = (d: string | null | undefined) => {
+            if (!d || !d.trim()) return null;
+            try {
+                const parts = d.split("-");
+                if (parts.length !== 3) return null;
+                const isoDate = parts.reverse().join("-");
+                const date = new Date(isoDate);
+                if (isNaN(date.getTime())) return null;
+                return date.toISOString();
+            } catch {
+                return null;
+            }
+        };
 
-    const result = await db
-      .prepare(`
+        const result = await db
+            .prepare(`
         INSERT INTO company_cars (
           company_id, template_id, color_id, license_plate, transmission, engine_volume, fuel_type_id,
           status, mileage, next_oil_change_mileage, oil_change_interval, price_per_day, deposit,
@@ -87,57 +98,58 @@ export async function handleCreateCarAction({ request, db, assets, user, company
           created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
-      .bind(
-        companyId,
-        data.templateId,
-        data.colorId,
-        data.licensePlate,
-        data.transmission,
-        data.engineVolume,
-        fuelType?.id ?? null,
-        data.status,
-        data.currentMileage,
-        data.nextOilChangeMileage,
-        data.oilChangeInterval,
-        data.pricePerDay,
-        data.deposit,
-        data.insuranceType,
-        formatDate(data.insuranceExpiry),
-        formatDate(data.registrationExpiry),
-        formatDate(data.taxRoadExpiry),
-        data.insurancePricePerDay,
-        data.maxInsurancePrice,
-        data.minRentalDays,
-        data.marketingHeadline,
-        data.description,
-        JSON.stringify(uploadedUrls.photos || []),
-        JSON.stringify(uploadedUrls.greenBookPhotos || []),
-        JSON.stringify(uploadedUrls.insurancePhotos || []),
-        JSON.stringify(uploadedUrls.taxRoadPhotos || []),
-        new Date().toISOString(),
-        new Date().toISOString()
-      )
-      .run();
+            .bind(
+                companyId,
+                data.templateId,
+                data.colorId,
+                data.licensePlate,
+                data.transmission,
+                data.engineVolume,
+                fuelType?.id ?? null,
+                data.status,
+                data.currentMileage,
+                data.nextOilChangeMileage,
+                data.oilChangeInterval,
+                data.pricePerDay,
+                data.deposit,
+                data.insuranceType ?? null,
+                formatDate(data.insuranceExpiry),
+                formatDate(data.registrationExpiry),
+                formatDate(data.taxRoadExpiry),
+                data.insurancePricePerDay ?? null,
+                data.maxInsurancePrice ?? null,
+                data.minRentalDays ?? 1,
+                data.marketingHeadline ?? null,
+                data.description ?? null,
+                JSON.stringify(uploadedUrls.photos || []),
+                JSON.stringify(uploadedUrls.greenBookPhotos || []),
+                JSON.stringify(uploadedUrls.insurancePhotos || []),
+                JSON.stringify(uploadedUrls.taxRoadPhotos || []),
+                new Date().toISOString(),
+                new Date().toISOString()
+            )
+            .run();
 
-    // 6. Audit Logging
-    const carId = Number(result.meta.last_row_id);
-    quickAudit({
-      db,
-      userId: user.id,
-      role: user.role,
-      companyId,
-      entityType: "car",
-      entityId: carId,
-      action: "create",
-      afterState: { ...data, id: carId, photoUrls: uploadedUrls },
-      ...getRequestMetadata(request),
-    });
+        // 6. Audit Logging
+        const carId = Number(result.meta.last_row_id);
+quickAudit({
+            db,
+            userId: user.id,
+            role: user.role,
+            companyId,
+            entityType: "car",
+            entityId: carId,
+            action: "create",
+            afterState: { ...data, id: carId, photoUrls: uploadedUrls },
+            ...getRequestMetadata(request),
+        });
 
-    return redirectWithRequestSuccess(request, "/cars", "Car added to inventory");
-  } catch (error: any) {
-    if (error.message?.includes("UNIQUE")) {
-      return redirectWithRequestError(request, "/cars/create", "License plate is already in use");
+        return redirectWithRequestSuccess(request, "/cars", "Car added to inventory");
+    } catch (error: any) {
+        console.error("Error creating car:", error);
+        if (error.message?.includes("UNIQUE")) {
+            return redirectWithRequestError(request, "/cars/create", "License plate is already in use");
+        }
+        return redirectWithRequestError(request, "/cars/create", `Database error while creating car: ${error.message || 'Unknown'}`);
     }
-    return redirectWithRequestError(request, "/cars/create", "Database error while creating car");
-  }
 }
